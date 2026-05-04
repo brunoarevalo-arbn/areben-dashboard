@@ -25,7 +25,7 @@ export default async function AfipPage() {
         <p className="text-sm text-amber-300 font-medium">Pendiente total: {formatCurrency(totalPendiente)}</p>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-800">

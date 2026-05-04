@@ -1,63 +1,60 @@
 import { createClient } from '@/lib/supabase/server'
-import { formatCurrency, formatDate } from '@/lib/utils'
-import { EstadoBadge, MarcaBadge, Badge } from '@/components/ui/badge'
+import { ComprasClient } from '@/components/compras/compras-client'
 
 export default async function ComprasListaPage() {
   const supabase = await createClient()
-  const { data: compras } = await supabase
+
+  // Sólo compras de los últimos 12 meses para no escalar mal
+  const haceUnAno = new Date()
+  haceUnAno.setMonth(haceUnAno.getMonth() - 12)
+  const desde = haceUnAno.toISOString().split('T')[0]
+
+  // 1) Compras de los últimos 12 meses (sin pagos en el join — lazy load)
+  const { data: comprasRaw } = await supabase
     .from('compras')
     .select('*, proveedor:proveedores(nombre)')
+    .gte('fecha', desde)
     .order('fecha', { ascending: false })
-    .limit(100)
+    .limit(200)
 
-  const total = compras?.reduce((s, c) => s + c.precio_unitario * c.cantidad, 0) ?? 0
+  const compraIds = (comprasRaw ?? []).map((c) => c.id)
+
+  // 2) Pagos de esas compras en una query aparte (evita 200×N rows en el join)
+  const pagosQuery = compraIds.length > 0
+    ? supabase
+        .from('pagos')
+        .select('id, compra_id, monto, fecha_emision, instrumento, condicion_pago, numero_cuota, total_cuotas, fecha_vencimiento')
+        .in('compra_id', compraIds)
+    : null
+
+  const [pagosResult, { data: proveedores }] = await Promise.all([
+    pagosQuery,
+    supabase
+      .from('proveedores')
+      .select('id, nombre')
+      .eq('activo', true)
+      .order('nombre'),
+  ])
+  const pagos = pagosResult?.data ?? []
+
+  // 3) Re-armar el shape esperado por el client
+  type PagoRow = (typeof pagos)[number]
+  const pagosByCompra = new Map<string, PagoRow[]>()
+  for (const p of pagos) {
+    if (!p.compra_id) continue
+    const arr = pagosByCompra.get(p.compra_id) ?? []
+    arr.push(p)
+    pagosByCompra.set(p.compra_id, arr)
+  }
+  const compras = (comprasRaw ?? []).map((c) => ({
+    ...c,
+    pagos: pagosByCompra.get(c.id) ?? [],
+  }))
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-100">Compras</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{compras?.length ?? 0} registros · Total: {formatCurrency(total)}</p>
-        </div>
-      </div>
-
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-800">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Descripción</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Proveedor</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Negocio</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Monto</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Fecha</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!compras?.length ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-slate-500">No hay compras registradas</td>
-              </tr>
-            ) : (
-              compras.map((c) => (
-                <tr key={c.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
-                  <td className="px-4 py-3">
-                    <p className="text-slate-100">{c.descripcion}</p>
-                    <p className="text-xs text-slate-500">Cant: {c.cantidad}</p>
-                  </td>
-                  <td className="px-4 py-3 text-slate-400">{(c.proveedor as { nombre: string } | null)?.nombre ?? '—'}</td>
-                  <td className="px-4 py-3"><MarcaBadge marca={c.negocio} /></td>
-                  <td className="px-4 py-3 text-right font-mono text-slate-100">
-                    {formatCurrency(c.precio_unitario * c.cantidad)} {c.moneda !== 'ARS' && <span className="text-xs text-slate-400">({c.moneda})</span>}
-                  </td>
-                  <td className="px-4 py-3 text-slate-400 text-xs">{formatDate(c.fecha)}</td>
-                  <td className="px-4 py-3"><EstadoBadge estado={c.estado} /></td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <ComprasClient
+      compras={compras}
+      proveedores={proveedores ?? []}
+    />
   )
 }

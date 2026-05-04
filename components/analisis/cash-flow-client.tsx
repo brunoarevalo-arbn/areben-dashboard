@@ -60,7 +60,7 @@ export function CashFlowClient({ gastos, saldoInicial, mesPivot }: CashFlowClien
         </ResponsiveContainer>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {chartData.map((d) => (
           <div key={d.mes} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
             <p className="text-xs text-slate-400 mb-2">{d.mes}</p>

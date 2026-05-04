@@ -1,30 +1,110 @@
 'use client'
 
-import { useActionState, useState, useTransition } from 'react'
-import { createRetiro, deleteRetiro } from '@/app/actions/finanzas'
-import type { RetiroSocio } from '@/types/database'
+import { useActionState, useState, useTransition, useMemo, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { createRetiro, deleteRetiro, cerrarConvertirRetirosMes } from '@/app/actions/finanzas'
+import type { RetiroSocio, CategoriaRetiro, TipoCambioMes } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { formatCurrency, formatDate } from '@/lib/utils'
-import { Plus, Trash2, CreditCard, Loader2 } from 'lucide-react'
+import { Input, Select } from '@/components/ui/input'
+import { formatCurrency, formatDate, formatMonth } from '@/lib/utils'
+import { Plus, Trash2, CreditCard, Loader2, DollarSign, TrendingUp, RefreshCcw, Lock, Banknote } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-const SOCIOS_PREDEFINIDOS = ['Socio 1', 'Socio 2']
+const SOCIOS_PREDEFINIDOS = ['Darío Arévalo', 'Bruno Arévalo']
 
-export function RetirosClient({ retiros, socios }: { retiros: RetiroSocio[]; socios: string[] }) {
+const COLORES_CATEGORIA: Record<string, string> = {
+  amber: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  orange: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+  blue: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  red: 'bg-red-500/15 text-red-400 border-red-500/30',
+  green: 'bg-green-500/15 text-green-400 border-green-500/30',
+  indigo: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+  purple: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+  pink: 'bg-pink-500/15 text-pink-400 border-pink-500/30',
+  slate: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+}
+
+interface Props {
+  retiros: (RetiroSocio & { categoria?: CategoriaRetiro | null })[]
+  socios: string[]
+  categorias: CategoriaRetiro[]
+  tiposCambio: TipoCambioMes[]
+  tarjetas: { id: string; nombre: string; banco: string }[]
+}
+
+function CategoriaTag({ categoria }: { categoria?: CategoriaRetiro | null }) {
+  if (!categoria) return <span className="text-slate-600 text-xs">—</span>
+  const cls = COLORES_CATEGORIA[categoria.color] ?? COLORES_CATEGORIA.slate
+  return (
+    <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium', cls)}>
+      {categoria.emoji && <span>{categoria.emoji}</span>}
+      {categoria.nombre}
+    </span>
+  )
+}
+
+export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjetas }: Props) {
   const [modalOpen, setModalOpen] = useState(false)
+  const [filtroSocio, setFiltroSocio] = useState<string>('')
+  const [filtroMes, setFiltroMes] = useState<string>('')
+  const [defaultSocio, setDefaultSocio] = useState<string>('')
+  const [medioPago, setMedioPago] = useState<'TRANSFERENCIA' | 'EFECTIVO' | 'TARJETA'>('TRANSFERENCIA')
+  const [cuotasTotal, setCuotasTotal] = useState(1)
+  const [cierreModalOpen, setCierreModalOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Quick action: ?nuevo=1&socio=NOMBRE abre modal pre-llenado
+  useEffect(() => {
+    if (searchParams.get('nuevo') === '1') {
+      const s = searchParams.get('socio') ?? ''
+      setDefaultSocio(s)
+      setModalOpen(true)
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('nuevo')
+      params.delete('socio')
+      router.replace(`?${params.toString()}`)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const todosLosSocios = [...new Set([...SOCIOS_PREDEFINIDOS, ...socios])]
+  const tcByMes = new Map(tiposCambio.map((t) => [t.mes, t.tipo_cambio]))
 
-  const totalesPorSocio = todosLosSocios.reduce<Record<string, { pesos: number; usd: number }>>((acc, s) => {
-    const retirosDelSocio = retiros.filter((r) => r.socio === s)
-    acc[s] = {
-      pesos: retirosDelSocio.reduce((sum, r) => sum + r.monto_pesos, 0),
-      usd: retirosDelSocio.reduce((sum, r) => sum + r.monto_usd, 0),
+  // Filtros
+  const retirosFiltrados = useMemo(() => {
+    return retiros.filter((r) => {
+      if (filtroSocio && r.socio !== filtroSocio) return false
+      if (filtroMes && r.mes !== filtroMes) return false
+      return true
+    })
+  }, [retiros, filtroSocio, filtroMes])
+
+  // Resumen por socio (USD master)
+  const resumenSocios = useMemo(() => {
+    return todosLosSocios.map((socio) => {
+      const rs = retiros.filter((r) => r.socio === socio)
+      const usd = rs.reduce((s, r) => s + (r.monto_usd_calculado ?? r.monto_usd ?? 0), 0)
+      const ars = rs.reduce((s, r) => s + r.monto_pesos, 0)
+      return { socio, usd, ars, count: rs.length }
+    })
+  }, [retiros, todosLosSocios])
+
+  // Resumen por categoría (del filtrado)
+  const resumenCategorias = useMemo(() => {
+    const map = new Map<string, { categoria: CategoriaRetiro; usd: number; count: number }>()
+    for (const r of retirosFiltrados) {
+      if (!r.categoria) continue
+      const k = r.categoria.id
+      if (!map.has(k)) map.set(k, { categoria: r.categoria, usd: 0, count: 0 })
+      const v = map.get(k)!
+      v.usd += r.monto_usd_calculado ?? r.monto_usd ?? 0
+      v.count += 1
     }
-    return acc
-  }, {})
+    return Array.from(map.values()).sort((a, b) => b.usd - a.usd)
+  }, [retirosFiltrados])
 
   function handleDelete(id: string) {
     if (!confirm('¿Eliminar este retiro?')) return
@@ -40,46 +120,150 @@ export function RetirosClient({ retiros, socios }: { retiros: RetiroSocio[]; soc
     null
   )
 
+  // Mes actual para sugerir TC
+  const hoy = new Date().toISOString().substring(0, 7)
+  const tcSugerido = tcByMes.get(hoy) ?? Array.from(tcByMes.values())[0] ?? 1
+
+  // Lista de meses con datos para filtrar
+  const mesesDisponibles = [...new Set(retiros.map((r) => r.mes).filter(Boolean))] as string[]
+  mesesDisponibles.sort().reverse()
+
+  function abrirConSocio(socio: string) {
+    setDefaultSocio(socio)
+    setMedioPago('TRANSFERENCIA')
+    setCuotasTotal(1)
+    setModalOpen(true)
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-100">Retiros de Socios</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{retiros.length} registros</p>
+          <p className="text-sm text-slate-400 mt-0.5">
+            {retiros.length} registros · USD como moneda maestra
+          </p>
         </div>
-        <Button onClick={() => setModalOpen(true)}>
-          <Plus className="w-4 h-4" />
-          Registrar retiro
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="secondary"
+            onClick={() => setCierreModalOpen(true)}
+            title="Convertir todos los retiros del mes a USD usando un único TC de cierre"
+          >
+            <RefreshCcw className="w-4 h-4" />
+            Cerrar y convertir
+          </Button>
+          {SOCIOS_PREDEFINIDOS.map((socio) => (
+            <Button
+              key={socio}
+              onClick={() => abrirConSocio(socio)}
+              title={`Registrar retiro de ${socio}`}
+              className="bg-purple-600 border-purple-500 hover:bg-purple-500"
+            >
+              <Plus className="w-4 h-4" />
+              Retiro {socio.split(' ')[0]}
+            </Button>
+          ))}
+          <Button
+            variant="secondary"
+            onClick={() => abrirConSocio('')}
+            title="Registrar retiro de otro socio (cargar nombre manualmente)"
+          >
+            <Plus className="w-4 h-4" />
+            Otro
+          </Button>
+        </div>
       </div>
 
+      {/* Resumen por socio */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {todosLosSocios.map((socio) => (
+        {resumenSocios.map(({ socio, usd, ars, count }) => (
           <div key={socio} className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-            <p className="text-sm font-medium text-slate-300 mb-3">{socio}</p>
-            <div className="space-y-1">
-              <div className="flex justify-between">
-                <span className="text-xs text-slate-400">Total retirado (ARS)</span>
-                <span className="text-sm font-mono font-medium text-slate-100">
-                  {formatCurrency(totalesPorSocio[socio]?.pesos ?? 0)}
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-slate-300">{socio}</p>
+              <span className="text-xs text-slate-500">{count} retiro{count !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-baseline">
+                <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <DollarSign className="w-3 h-3" />
+                  Total USD
+                </span>
+                <span className="text-xl font-mono font-bold text-green-400">
+                  {formatCurrency(usd, 'USD')}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-xs text-slate-400">Total retirado (USD)</span>
-                <span className="text-sm font-mono font-medium text-slate-100">
-                  {formatCurrency(totalesPorSocio[socio]?.usd ?? 0, 'USD')}
-                </span>
+              <div className="flex justify-between items-baseline">
+                <span className="text-xs text-slate-400">Equivalente ARS (histórico)</span>
+                <span className="text-sm font-mono text-slate-300">{formatCurrency(ars)}</span>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      {/* Filtros */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <select
+          value={filtroSocio}
+          onChange={(e) => setFiltroSocio(e.target.value)}
+          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        >
+          <option value="">Todos los socios</option>
+          {todosLosSocios.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <select
+          value={filtroMes}
+          onChange={(e) => setFiltroMes(e.target.value)}
+          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        >
+          <option value="">Todos los meses</option>
+          {mesesDisponibles.map((m) => <option key={m} value={m}>{formatMonth(m)}</option>)}
+        </select>
+        {(filtroSocio || filtroMes) && (
+          <button
+            type="button"
+            onClick={() => { setFiltroSocio(''); setFiltroMes('') }}
+            className="text-xs text-slate-400 hover:text-slate-200"
+          >
+            Limpiar filtros
+          </button>
+        )}
+      </div>
+
+      {/* Resumen por categoría (del filtrado) */}
+      {resumenCategorias.length > 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+          <div className="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-indigo-400" />
+            <h2 className="text-sm font-semibold text-slate-100">Análisis por categoría (USD)</h2>
+          </div>
+          <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+            {resumenCategorias.map(({ categoria, usd, count }) => (
+              <div key={categoria.id} className={cn(
+                'rounded-lg border p-3',
+                COLORES_CATEGORIA[categoria.color] ?? COLORES_CATEGORIA.slate
+              )}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs flex items-center gap-1">
+                    {categoria.emoji} {categoria.nombre}
+                  </span>
+                  <span className="text-xs opacity-60">{count}</span>
+                </div>
+                <p className="text-base font-mono font-bold">{formatCurrency(usd, 'USD')}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tabla */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-800">
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Socio</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Categoría</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Fecha</th>
               <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">ARS</th>
               <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">USD</th>
@@ -88,20 +272,23 @@ export function RetirosClient({ retiros, socios }: { retiros: RetiroSocio[]; soc
             </tr>
           </thead>
           <tbody>
-            {retiros.length === 0 ? (
+            {retirosFiltrados.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+                <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
                   <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  No hay retiros registrados
+                  No hay retiros con esos filtros
                 </td>
               </tr>
             ) : (
-              retiros.map((r) => (
+              retirosFiltrados.map((r) => (
                 <tr key={r.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
                   <td className="px-4 py-3 text-slate-100 font-medium">{r.socio}</td>
-                  <td className="px-4 py-3 text-slate-400">{formatDate(r.fecha)}</td>
-                  <td className="px-4 py-3 text-right font-mono text-slate-100">{formatCurrency(r.monto_pesos)}</td>
-                  <td className="px-4 py-3 text-right font-mono text-slate-100">{formatCurrency(r.monto_usd, 'USD')}</td>
+                  <td className="px-4 py-3"><CategoriaTag categoria={r.categoria} /></td>
+                  <td className="px-4 py-3 text-slate-400 text-xs">{formatDate(r.fecha)}</td>
+                  <td className="px-4 py-3 text-right font-mono text-slate-300">{formatCurrency(r.monto_pesos)}</td>
+                  <td className="px-4 py-3 text-right font-mono text-green-400 font-medium">
+                    {formatCurrency(r.monto_usd_calculado ?? r.monto_usd, 'USD')}
+                  </td>
                   <td className="px-4 py-3 text-right text-slate-400 text-xs">{r.tipo_cambio.toFixed(0)}</td>
                   <td className="px-4 py-3">
                     <Button size="sm" variant="danger" onClick={() => handleDelete(r.id)} disabled={isPending}>
@@ -115,38 +302,247 @@ export function RetirosClient({ retiros, socios }: { retiros: RetiroSocio[]; soc
         </table>
       </div>
 
-      <Modal open={modalOpen} onOpenChange={setModalOpen} title="Registrar retiro">
+      <Modal open={modalOpen} onOpenChange={(o) => { setModalOpen(o); if (!o) setDefaultSocio('') }} title="Registrar retiro" className="max-w-md">
         <form action={action} className="space-y-4">
           <Input
             label="Socio"
             name="socio"
             list="socios-list"
             placeholder="Nombre del socio"
+            defaultValue={defaultSocio}
             required
           />
           <datalist id="socios-list">
             {todosLosSocios.map((s) => <option key={s} value={s} />)}
           </datalist>
 
-          <Input label="Fecha" name="fecha" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
+          <Select
+            label="Categoría"
+            name="categoria_id"
+            defaultValue=""
+            options={[
+              { value: '', label: '— Sin categoría —' },
+              ...categorias.map((c) => ({ value: c.id, label: `${c.emoji ?? ''} ${c.nombre}` })),
+            ]}
+          />
 
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Monto (ARS)" name="monto_pesos" type="number" step="0.01" defaultValue="0" />
-            <Input label="Monto (USD)" name="monto_usd" type="number" step="0.01" defaultValue="0" />
+          <Input
+            label="Fecha"
+            name="fecha"
+            type="date"
+            defaultValue={new Date().toISOString().split('T')[0]}
+            required
+          />
+
+          {/* Medio de pago */}
+          <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3 space-y-3">
+            <Select
+              label="Medio de pago"
+              name="medio_pago"
+              value={medioPago}
+              onChange={(e) => setMedioPago(e.target.value as typeof medioPago)}
+              options={[
+                { value: 'TRANSFERENCIA', label: 'Transferencia' },
+                { value: 'EFECTIVO', label: 'Efectivo' },
+                { value: 'TARJETA', label: 'Tarjeta de crédito' },
+              ]}
+            />
+
+            {medioPago === 'TARJETA' && (
+              <>
+                <Select
+                  label="Tarjeta *"
+                  name="tarjeta_id"
+                  defaultValue=""
+                  options={[{ value: '', label: '— Seleccionar —' }, ...tarjetas.map((t) => ({ value: t.id, label: `${t.banco} · ${t.nombre}` }))]}
+                  required
+                />
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5 flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5" />
+                    Cantidad de cuotas
+                  </label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {[1, 3, 6, 12, 18].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setCuotasTotal(n)}
+                        className={cn(
+                          'px-3 py-1 rounded-lg border text-sm font-mono font-medium transition-colors',
+                          cuotasTotal === n
+                            ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300'
+                            : 'bg-slate-700 border-slate-600 text-slate-400 hover:text-slate-200'
+                        )}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      min="1"
+                      value={cuotasTotal}
+                      onChange={(e) => setCuotasTotal(Math.max(1, Number(e.target.value)))}
+                      className="w-20 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-slate-100 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <input type="hidden" name="cuotas_total" value={cuotasTotal} />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Las cuotas se generan como pasivo financiero en /finanzas/tarjetas.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
-          <Input label="Tipo de cambio" name="tipo_cambio" type="number" step="0.01" defaultValue="1" required />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <Input label="Monto ARS" name="monto_pesos" type="number" step="0.01" defaultValue="0" />
+            <Input label="Monto USD" name="monto_usd" type="number" step="0.01" defaultValue="0" />
+          </div>
+          <input type="hidden" name="tipo_cambio" value="0" />
+          <p className="text-xs text-slate-500 bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2">
+            La conversión a USD se aplica a fin de mes con <strong>Cerrar y convertir</strong> usando un único TC.
+          </p>
+
+          <Input label="Notas" name="notas" />
 
           {error && <p className="text-sm text-red-400">{error}</p>}
 
           <div className="flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button type="submit" disabled={isFormPending}>
+            <Button type="submit" disabled={isFormPending} title="Guardar el retiro y, si es con tarjeta, generar las cuotas en pasivos">
               {isFormPending && <Loader2 className="w-4 h-4 animate-spin" />}
               Registrar
             </Button>
           </div>
         </form>
       </Modal>
+
+      {/* Modal cierre/conversión */}
+      <CierreConversionModal
+        open={cierreModalOpen}
+        onOpenChange={setCierreModalOpen}
+        retiros={retiros}
+        tcSugerido={tcSugerido}
+      />
     </div>
+  )
+}
+
+// ─── CierreConversionModal ───────────────────────────────────────────────────
+
+function CierreConversionModal({
+  open,
+  onOpenChange,
+  retiros,
+  tcSugerido,
+}: {
+  open: boolean
+  onOpenChange: (o: boolean) => void
+  retiros: RetiroSocio[]
+  tcSugerido: number
+}) {
+  const [mes, setMes] = useState<string>(new Date().toISOString().substring(0, 7))
+  const [tc, setTc] = useState(tcSugerido)
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState<number | null>(null)
+
+  const retirosDelMes = retiros.filter((r) => r.mes === mes)
+  const totalArs = retirosDelMes.reduce((s, r) => s + (r.monto_pesos || 0), 0)
+  const totalUsdActual = retirosDelMes.reduce((s, r) => s + (r.monto_usd_calculado ?? 0), 0)
+  const totalUsdNuevo = tc > 0 ? totalArs / tc + retirosDelMes.reduce((s, r) => s + (r.monto_usd > 0 ? r.monto_usd : 0), 0) : 0
+
+  const mesesDisponibles = [...new Set(retiros.map((r) => r.mes).filter(Boolean))] as string[]
+  mesesDisponibles.sort().reverse()
+
+  function ejecutar() {
+    setError(null)
+    setDone(null)
+    if (!tc || tc <= 0) {
+      setError('Ingresá un tipo de cambio válido')
+      return
+    }
+    if (retirosDelMes.length === 0) {
+      setError('No hay retiros en este mes')
+      return
+    }
+    if (!confirm(`¿Convertir ${retirosDelMes.length} retiro(s) de ${mes} usando TC = ${tc}?\nEsto recalcula el USD de cada uno.`)) return
+    startTransition(async () => {
+      try {
+        const r = await cerrarConvertirRetirosMes(mes, tc)
+        setDone(r.ok)
+      } catch (e) {
+        setError((e as Error).message)
+      }
+    })
+  }
+
+  return (
+    <Modal open={open} onOpenChange={onOpenChange} title="Cerrar y convertir retiros del mes" className="max-w-md">
+      <div className="space-y-4">
+        <div className="bg-slate-800/40 border border-slate-700/40 rounded-lg p-3 text-xs text-slate-300 space-y-1">
+          <p>Convierte todos los retiros ARS del mes a USD usando un único tipo de cambio.</p>
+          <p className="text-slate-400">Los retiros que ya estaban cargados directamente en USD se respetan.</p>
+        </div>
+
+        <Select
+          label="Mes a convertir"
+          value={mes}
+          onChange={(e) => setMes(e.target.value)}
+          options={mesesDisponibles.length > 0
+            ? mesesDisponibles.map((m) => ({ value: m, label: formatMonth(m) }))
+            : [{ value: mes, label: formatMonth(mes) }]}
+        />
+
+        <Input
+          label="Tipo de cambio de cierre"
+          type="number"
+          step="0.01"
+          value={tc || ''}
+          onChange={(e) => setTc(Number(e.target.value))}
+        />
+
+        <div className="bg-slate-900/60 border border-slate-700/40 rounded-lg p-3 grid grid-cols-2 gap-3 text-xs">
+          <div>
+            <p className="text-slate-400">Retiros del mes</p>
+            <p className="text-base font-semibold text-slate-100">{retirosDelMes.length}</p>
+          </div>
+          <div>
+            <p className="text-slate-400">Total ARS</p>
+            <p className="text-base font-mono text-indigo-400">{formatCurrency(totalArs)}</p>
+          </div>
+          <div>
+            <p className="text-slate-400">USD actual</p>
+            <p className="text-base font-mono text-slate-300">{formatCurrency(totalUsdActual, 'USD')}</p>
+          </div>
+          <div>
+            <p className="text-slate-400">USD c/TC nuevo</p>
+            <p className="text-base font-mono text-green-400">{formatCurrency(totalUsdNuevo, 'USD')}</p>
+          </div>
+        </div>
+
+        {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+        {done !== null && (
+          <p className="text-sm text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
+            ✓ {done} retiro(s) convertidos. El TC quedó registrado en cada fila.
+          </p>
+        )}
+
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>Cerrar</Button>
+          <Button
+            type="button"
+            variant="success"
+            onClick={ejecutar}
+            disabled={isPending}
+            title="Aplicar el TC a todos los retiros del mes y recalcular sus USD"
+          >
+            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+            Convertir y cerrar
+          </Button>
+        </div>
+      </div>
+    </Modal>
   )
 }

@@ -1,142 +1,1323 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, requireUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { optUuid } from '@/lib/zod-helpers'
+import { createPagoUnificado } from './pagos'
+import { calcularMesesTarjeta as calcMesesTarjetaPure, calcularMontosCuota } from '@/lib/calc/tarjeta'
+import { calcularMontoNeto } from '@/lib/calc/gasto'
 
 // ============ GASTOS ============
+
+const MARCAS = ['BDI', 'ZATTIA', 'STUNNED', 'GENERAL'] as const
+type Marca = typeof MARCAS[number]
+
+function parseProrrateo(raw: FormDataEntryValue | null): Record<string, number> | null {
+  if (!raw || typeof raw !== 'string' || raw === '') return null
+  try {
+    const obj = JSON.parse(raw)
+    if (typeof obj !== 'object' || obj === null) return null
+    const total = Object.values(obj as Record<string, unknown>)
+      .reduce((s: number, v) => s + (typeof v === 'number' ? v : 0), 0)
+    if (Math.abs(total - 100) > 0.5) return null
+    return obj as Record<string, number>
+  } catch {
+    return null
+  }
+}
 
 const gastoSchema = z.object({
   categoria: z.string().min(1, 'Requerido'),
   concepto: z.string().min(1, 'Requerido'),
   monto: z.coerce.number().positive('Debe ser positivo'),
+  moneda: z.enum(['ARS', 'USD']).default('ARS'),
+  monto_secundario: z.coerce.number().optional().nullable(),
+  moneda_secundaria: z.enum(['ARS', 'USD']).optional().nullable(),
+  iva_incluido: z.coerce.boolean().optional().default(false),
+  porcentaje_iva: z.coerce.number().min(0).max(100).optional().default(21),
   negocio: z.enum(['BDI', 'ZATTIA', 'STUNNED', 'GENERAL']),
-  mes: z.string().regex(/^\d{4}-\d{2}$/, 'Formato YYYY-MM'),
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato YYYY-MM-DD'),
   estado: z.enum(['PENDIENTE', 'PAGADO', 'VENCIDO']),
   fecha_pago: z.string().optional().nullable(),
   notas: z.string().optional().nullable(),
+  medio_pago: z.string().optional().nullable(),
+  cuenta_id: optUuid,
+  cuenta_origen_pago_id: optUuid,
+  tarjeta_id: optUuid,
+  cuotas_total: z.coerce.number().int().min(1).optional().nullable(),
+  recurrente_id: optUuid,
+  tiene_intereses: z.coerce.boolean().optional().default(false),
+  interes_tipo: z.preprocess(
+    (v) => (v === '' ? null : v),
+    z.enum(['MONTO', 'PORCENTAJE']).nullable(),
+  ).optional(),
+  interes_valor: z.coerce.number().min(0).optional().default(0),
 })
 
+/**
+ * Calcula el monto del interés según tipo y valor.
+ * MONTO → es el valor en pesos directo. PORCENTAJE → se aplica sobre el monto base (con IVA).
+ */
+function calcularInteresMonto(montoBase: number, tipo: string | null | undefined, valor: number | null | undefined): number {
+  if (!tipo || !valor || valor <= 0) return 0
+  if (tipo === 'MONTO') return Math.round(valor * 100) / 100
+  if (tipo === 'PORCENTAJE') return Math.round((montoBase * valor / 100) * 100) / 100
+  return 0
+}
+
+function buildGastoData(parsed: z.infer<typeof gastoSchema>, prorrateo: Record<string, number> | null) {
+  const monto_neto = calcularMontoNeto(parsed.monto, parsed.iva_incluido, parsed.porcentaje_iva)
+  const aplicaInteres = !!parsed.tiene_intereses && (parsed.cuotas_total ?? 1) > 1 && parsed.medio_pago === 'TARJETA'
+  const interes_monto = aplicaInteres
+    ? calcularInteresMonto(parsed.monto, parsed.interes_tipo, parsed.interes_valor)
+    : 0
+  return {
+    ...parsed,
+    mes: parsed.fecha.substring(0, 7),
+    monto_neto,
+    monto_secundario: parsed.monto_secundario || null,
+    moneda_secundaria: parsed.moneda_secundaria || null,
+    fecha_pago: parsed.fecha_pago || null,
+    notas: parsed.notas || null,
+    medio_pago: parsed.medio_pago || null,
+    cuenta_id: parsed.cuenta_id || null,
+    cuenta_origen_pago_id: parsed.cuenta_origen_pago_id || null,
+    tarjeta_id: parsed.tarjeta_id || null,
+    cuotas_total: parsed.cuotas_total || 1,
+    recurrente_id: parsed.recurrente_id || null,
+    tiene_intereses: aplicaInteres,
+    interes_tipo: aplicaInteres ? parsed.interes_tipo ?? null : null,
+    interes_valor: aplicaInteres ? parsed.interes_valor ?? null : null,
+    interes_monto: aplicaInteres ? interes_monto : null,
+    prorrateo,
+    confirmado: true,
+  }
+}
+
+/**
+ * Sincroniza el gasto-intereses auto-generado con el principal.
+ * - Si el principal pasó a tener intereses → crea el gasto secundario y vincula
+ * - Si los datos cambiaron → recrea/actualiza el secundario
+ * - Si dejó de tener intereses → borra el secundario
+ */
+async function syncGastoIntereses(principalId: string) {
+  const supabase = await createClient()
+  const { data: p } = await supabase
+    .from('gastos')
+    .select('id, concepto, categoria, monto, moneda, negocio, mes, fecha, fecha_pago, medio_pago, tarjeta_id, cuotas_total, prorrateo, detalles, tiene_intereses, interes_monto, gasto_intereses_id')
+    .eq('id', principalId)
+    .single()
+  if (!p) return
+
+  const aplicaInteres = !!p.tiene_intereses && (p.interes_monto ?? 0) > 0
+
+  // CASO 1: ya no aplica → borrar secundario si existe
+  if (!aplicaInteres) {
+    if (p.gasto_intereses_id) {
+      // Borrar cuotas del secundario primero, luego el gasto
+      await supabase.from('cuotas_tarjeta').delete().eq('origen_tipo', 'GASTO').eq('origen_id', p.gasto_intereses_id).eq('pagada', false)
+      await supabase.from('gastos').delete().eq('id', p.gasto_intereses_id)
+      await supabase.from('gastos').update({ gasto_intereses_id: null }).eq('id', principalId)
+    }
+    return
+  }
+
+  // CASO 2: aplica intereses
+  const datosIntereses = {
+    categoria: 'Gasto Financiero',
+    concepto: `Intereses — ${p.concepto}`,
+    monto: p.interes_monto!,
+    monto_neto: p.interes_monto!,
+    iva_incluido: false,
+    porcentaje_iva: 0,
+    moneda: p.moneda ?? 'ARS',
+    negocio: p.negocio,
+    mes: p.mes,
+    fecha: p.fecha,
+    fecha_pago: p.fecha_pago,
+    estado: 'PENDIENTE',
+    medio_pago: p.medio_pago,
+    tarjeta_id: p.tarjeta_id,
+    cuotas_total: p.cuotas_total,
+    prorrateo: p.prorrateo,
+    detalles: p.detalles,
+    confirmado: true,
+    gasto_padre_id: principalId,
+  }
+
+  if (p.gasto_intereses_id) {
+    // CASO 2a: actualizar el existente
+    await supabase.from('gastos').update(datosIntereses).eq('id', p.gasto_intereses_id)
+    // Regenerar cuotas no pagadas
+    await supabase.from('cuotas_tarjeta').delete().eq('origen_tipo', 'GASTO').eq('origen_id', p.gasto_intereses_id).eq('pagada', false)
+    if (p.tarjeta_id && (p.cuotas_total ?? 1) >= 1) {
+      const fechaCompra = p.fecha_pago || `${p.mes}-01`
+      await generarCuotasTarjeta({
+        tarjetaId: p.tarjeta_id,
+        origenTipo: 'GASTO',
+        origenId: p.gasto_intereses_id,
+        concepto: datosIntereses.concepto,
+        montoTotal: Number(p.interes_monto),
+        cuotasTotal: p.cuotas_total ?? 1,
+        fechaCompra,
+      })
+    }
+  } else {
+    // CASO 2b: crear nuevo
+    const { data: nuevo } = await supabase.from('gastos').insert(datosIntereses).select('id').single()
+    if (nuevo) {
+      await supabase.from('gastos').update({ gasto_intereses_id: nuevo.id }).eq('id', principalId)
+      if (p.tarjeta_id && (p.cuotas_total ?? 1) >= 1) {
+        const fechaCompra = p.fecha_pago || `${p.mes}-01`
+        await generarCuotasTarjeta({
+          tarjetaId: p.tarjeta_id,
+          origenTipo: 'GASTO',
+          origenId: nuevo.id,
+          concepto: datosIntereses.concepto,
+          montoTotal: Number(p.interes_monto),
+          cuotasTotal: p.cuotas_total ?? 1,
+          fechaCompra,
+        })
+      }
+    }
+  }
+}
+
+/**
+ * Regenera las cuotas de tarjeta asociadas a un gasto.
+ * Borra las existentes (no pagadas) y crea nuevas según los datos del gasto.
+ * Las cuotas ya pagadas no se tocan.
+ */
+async function regenerarCuotasGasto(gastoId: string) {
+  const supabase = await createClient()
+  const { data: g } = await supabase
+    .from('gastos')
+    .select('id, concepto, monto, tarjeta_id, cuotas_total, fecha_pago, mes')
+    .eq('id', gastoId)
+    .single()
+  if (!g || !g.tarjeta_id) return
+
+  const cuotasTotal = g.cuotas_total ?? 1
+  if (cuotasTotal < 1) return
+
+  // Borrar cuotas no pagadas asociadas a este gasto (las pagadas las preservamos)
+  await supabase
+    .from('cuotas_tarjeta')
+    .delete()
+    .eq('origen_tipo', 'GASTO')
+    .eq('origen_id', gastoId)
+    .eq('pagada', false)
+
+  // Si ya hay cuotas pagadas, no regenerar (sería complejo merging)
+  const { count } = await supabase
+    .from('cuotas_tarjeta')
+    .select('*', { count: 'exact', head: true })
+    .eq('origen_tipo', 'GASTO')
+    .eq('origen_id', gastoId)
+  if ((count ?? 0) > 0) return
+
+  const fechaCompra = g.fecha_pago || `${g.mes}-01`
+  await generarCuotasTarjeta({
+    tarjetaId: g.tarjeta_id,
+    origenTipo: 'GASTO',
+    origenId: g.id,
+    concepto: g.concepto,
+    montoTotal: Number(g.monto),
+    cuotasTotal,
+    fechaCompra,
+  })
+}
+
+/**
+ * Paid-on-commit: cuando un gasto se paga con un instrumento que desplaza el
+ * compromiso (tarjeta, cheque, cta. corriente del proveedor), contra el
+ * proveedor el gasto está saldado al momento de la operación. El compromiso
+ * real es la cuota / el cheque / el saldo en cta. cte. Por eso creamos un
+ * pago en el ledger por el total del gasto con ese instrumento, y el trigger
+ * `recomputarOrigen` marca el gasto como PAGADO.
+ *
+ * Para TARJETA/CHEQUE el pago no afecta tesorería (acreditado=false): el dinero
+ * sale recién cuando se paga la cuota o se acredita el cheque.
+ */
+async function marcarGastoPagadoOnCommit(gastoId: string) {
+  const supabase = await createClient()
+  const { data: g } = await supabase
+    .from('gastos')
+    .select('id, monto, moneda, fecha, fecha_pago, medio_pago, cuenta_id, estado')
+    .eq('id', gastoId)
+    .single()
+  if (!g || g.estado === 'PAGADO') return
+
+  const medio = g.medio_pago
+  const aplicaCommit =
+    medio === 'TARJETA' ||
+    medio === 'CUENTA_CORRIENTE' ||
+    medio === 'CHEQUE_FISICO' ||
+    medio === 'ECHEQ'
+  if (!aplicaCommit) return
+
+  // Evitar duplicar el pago si ya hay alguno asociado (ej. al editar un gasto existente)
+  const { data: prev } = await supabase
+    .from('pagos')
+    .select('monto')
+    .eq('tipo_origen', 'GASTO')
+    .eq('origen_id', gastoId)
+  const yaPagado = (prev ?? []).reduce((s, p) => s + Number(p.monto), 0)
+  const restante = Math.max(0, Number(g.monto) - yaPagado)
+  if (restante <= 0.01) return
+
+  await createPagoUnificado({
+    tipo_origen: 'GASTO',
+    origen_id: gastoId,
+    monto: restante,
+    moneda: (g.moneda as 'ARS' | 'USD') || 'ARS',
+    fecha_emision: g.fecha_pago || g.fecha || new Date().toISOString().split('T')[0],
+    instrumento: medio as 'TARJETA' | 'CUENTA_CORRIENTE' | 'CHEQUE_FISICO' | 'ECHEQ',
+    cuenta_id: g.cuenta_id || null,
+    notas: 'Auto-saldo: compromiso desplazado al instrumento de pago',
+  })
+}
+
 export async function createGasto(prevState: string | null, formData: FormData) {
-  const raw = Object.fromEntries(formData)
+  await requireUser()
+  const raw = {
+    ...Object.fromEntries(formData),
+    iva_incluido: formData.get('iva_incluido') === 'true' || formData.get('iva_incluido') === 'on',
+  }
   const result = gastoSchema.safeParse(raw)
   if (!result.success) return result.error.issues[0].message
 
+  const prorrateo = parseProrrateo(formData.get('prorrateo'))
+
   const supabase = await createClient()
-  const { error } = await supabase.from('gastos').insert({
-    ...result.data,
-    fecha_pago: result.data.fecha_pago || null,
-    notas: result.data.notas || null,
-  })
+  const { data: gasto, error } = await supabase
+    .from('gastos')
+    .insert(buildGastoData(result.data, prorrateo))
+    .select('id')
+    .single()
   if (error) return error.message
 
+  // Si es con tarjeta, generar cuotas desde el inicio (compromisos futuros)
+  if (gasto && result.data.tarjeta_id && (result.data.cuotas_total ?? 1) >= 1) {
+    await regenerarCuotasGasto(gasto.id)
+  }
+
+  // Si tiene intereses, crear el gasto-intereses vinculado y sus cuotas
+  if (gasto && result.data.tiene_intereses && (result.data.cuotas_total ?? 1) > 1) {
+    await syncGastoIntereses(gasto.id)
+  }
+
+  // Paid-on-commit: tarjeta/cheque/cta-cte saldan contra el proveedor al momento
+  if (gasto) {
+    await marcarGastoPagadoOnCommit(gasto.id)
+  }
+
   revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/tarjetas')
+  revalidatePath('/finanzas/pendientes')
   revalidatePath('/')
   return null
 }
 
 export async function updateGasto(id: string, prevState: string | null, formData: FormData) {
-  const raw = Object.fromEntries(formData)
+  await requireUser()
+  const raw = {
+    ...Object.fromEntries(formData),
+    iva_incluido: formData.get('iva_incluido') === 'true' || formData.get('iva_incluido') === 'on',
+  }
   const result = gastoSchema.safeParse(raw)
   if (!result.success) return result.error.issues[0].message
 
+  const prorrateo = parseProrrateo(formData.get('prorrateo'))
   const supabase = await createClient()
   const { error } = await supabase
     .from('gastos')
-    .update({ ...result.data, fecha_pago: result.data.fecha_pago || null, notas: result.data.notas || null })
+    .update(buildGastoData(result.data, prorrateo))
     .eq('id', id)
   if (error) return error.message
 
+  // Re-generar cuotas si hay tarjeta (preserva las pagadas)
+  if (result.data.tarjeta_id && (result.data.cuotas_total ?? 1) >= 1) {
+    await regenerarCuotasGasto(id)
+  } else {
+    // Si se cambió a sin tarjeta, borrar cuotas no pagadas
+    await supabase
+      .from('cuotas_tarjeta')
+      .delete()
+      .eq('origen_tipo', 'GASTO')
+      .eq('origen_id', id)
+      .eq('pagada', false)
+  }
+
+  // Sincronizar el gasto-intereses (crea, actualiza o borra según corresponda)
+  await syncGastoIntereses(id)
+
+  // Paid-on-commit: si pasó a un instrumento de compromiso desplazado, saldarlo
+  await marcarGastoPagadoOnCommit(id)
+
   revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/tarjetas')
+  revalidatePath('/finanzas/pendientes')
   revalidatePath('/')
   return null
 }
 
 export async function deleteGasto(id: string) {
+  await requireUser()
   const supabase = await createClient()
+  // Si tiene un gasto-intereses vinculado, borrarlo en cascada
+  const { data: g } = await supabase
+    .from('gastos')
+    .select('gasto_intereses_id')
+    .eq('id', id)
+    .single()
+  if (g?.gasto_intereses_id) {
+    await supabase
+      .from('cuotas_tarjeta')
+      .delete()
+      .eq('origen_tipo', 'GASTO')
+      .eq('origen_id', g.gasto_intereses_id)
+      .eq('pagada', false)
+    await supabase.from('gastos').delete().eq('id', g.gasto_intereses_id)
+  }
+  // Limpiar cuotas no pagadas del gasto principal
+  await supabase
+    .from('cuotas_tarjeta')
+    .delete()
+    .eq('origen_tipo', 'GASTO')
+    .eq('origen_id', id)
+    .eq('pagada', false)
   const { error } = await supabase.from('gastos').delete().eq('id', id)
   if (error) throw new Error(error.message)
-
   revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/tarjetas')
+  revalidatePath('/finanzas/pendientes')
   revalidatePath('/')
 }
 
-export async function marcarGastoPagado(id: string) {
+/**
+ * Marca un gasto como pagado total. Delega al ledger unificado: crea un pago
+ * por el saldo restante (monto - SUM(pagos previos)) con tipo_origen=GASTO.
+ * El trigger de recomputarOrigen marca el gasto como PAGADO automáticamente.
+ */
+export async function marcarGastoPagado(id: string, cuentaOrigenId: string | null, fechaPago?: string) {
+  await requireUser()
   const supabase = await createClient()
-  const { error } = await supabase
+
+  const { data: g } = await supabase
     .from('gastos')
-    .update({ estado: 'PAGADO', fecha_pago: new Date().toISOString().split('T')[0] })
+    .select('id, concepto, monto, moneda, tarjeta_id, cuotas_total, fecha_pago, mes')
     .eq('id', id)
-  if (error) throw new Error(error.message)
+    .single()
+  if (!g) throw new Error('Gasto no encontrado')
+
+  // Saldo restante = monto - SUM(pagos previos al ledger)
+  const { data: prev } = await supabase
+    .from('pagos')
+    .select('monto')
+    .eq('tipo_origen', 'GASTO')
+    .eq('origen_id', id)
+  const yaPagado = (prev ?? []).reduce((s, p) => s + Number(p.monto), 0)
+  const restante = Math.max(0, Number(g.monto) - yaPagado)
+  const fechaEmision = fechaPago || new Date().toISOString().split('T')[0]
+
+  if (restante > 0.01) {
+    await createPagoUnificado({
+      tipo_origen: 'GASTO',
+      origen_id: id,
+      monto: restante,
+      moneda: (g.moneda as 'ARS' | 'USD') || 'ARS',
+      fecha_emision: fechaEmision,
+      instrumento: 'TRANSFERENCIA',
+      cuenta_id: cuentaOrigenId,
+      notas: 'Marcado pagado (saldo total)',
+    })
+  } else {
+    // Ya estaba 100% pagado por adelantos, sólo asegurar estado PAGADO
+    await supabase
+      .from('gastos')
+      .update({ estado: 'PAGADO', fecha_pago: fechaEmision, cuenta_origen_pago_id: cuentaOrigenId })
+      .eq('id', id)
+  }
+
+  // Persistir cuenta_origen_pago_id en el gasto (compatibilidad con UI existente)
+  if (cuentaOrigenId) {
+    await supabase
+      .from('gastos')
+      .update({ cuenta_origen_pago_id: cuentaOrigenId })
+      .eq('id', id)
+  }
+
+  // Generar cuotas de tarjeta si aplica y aún no fueron generadas
+  if (g.tarjeta_id && (g.cuotas_total || 1) >= 1) {
+    const { data: existeCuota } = await supabase
+      .from('cuotas_tarjeta')
+      .select('id')
+      .eq('origen_tipo', 'GASTO')
+      .eq('origen_id', id)
+      .maybeSingle()
+    if (!existeCuota) {
+      const fechaCompra = g.fecha_pago || `${g.mes}-01`
+      await generarCuotasTarjeta({
+        tarjetaId: g.tarjeta_id,
+        origenTipo: 'GASTO',
+        origenId: id,
+        concepto: g.concepto,
+        montoTotal: g.monto,
+        cuotasTotal: g.cuotas_total || 1,
+        fechaCompra,
+      })
+    }
+  }
 
   revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/tarjetas')
+  revalidatePath('/finanzas/pagos')
+  revalidatePath('/rrhh/nomina')
   revalidatePath('/')
 }
 
-// ============ SALDOS ============
+// ============ GASTOS RECURRENTES ============
 
-const saldoSchema = z.object({
-  mes: z.string().regex(/^\d{4}-\d{2}$/),
-  saldo_pesos: z.coerce.number(),
-  saldo_usd: z.coerce.number(),
-  caja_pesos: z.coerce.number(),
-  caja_usd: z.coerce.number(),
-  cuentas_corrientes: z.coerce.number(),
-  notas: z.string().optional().nullable(),
+const recurrenteSchema = z.object({
+  concepto: z.string().min(1),
+  categoria: z.string().min(1),
+  monto_estimado: z.coerce.number().positive(),
+  moneda: z.enum(['ARS', 'USD']).default('ARS'),
+  monto_secundario: z.coerce.number().optional().nullable(),
+  moneda_secundaria: z.enum(['ARS', 'USD']).optional().nullable(),
+  iva_incluido: z.coerce.boolean(),
+  porcentaje_iva: z.coerce.number().min(0).max(100).default(21),
+  medio_pago: z.string().min(1),
+  cuenta_id: optUuid,
+  tarjeta_id: optUuid,
+  dia_vencimiento: z.coerce.number().int().min(1).max(31).optional().nullable(),
+  tipo_mes: z.enum(['CORRIENTE', 'VENCIDO']),
 })
 
-export async function upsertSaldo(prevState: string | null, formData: FormData) {
-  const raw = Object.fromEntries(formData)
-  const result = saldoSchema.safeParse(raw)
+export async function createRecurrente(prevState: string | null, formData: FormData) {
+  await requireUser()
+  const raw = {
+    ...Object.fromEntries(formData),
+    iva_incluido: formData.get('iva_incluido') === 'true' || formData.get('iva_incluido') === 'on',
+  }
+  const result = recurrenteSchema.safeParse(raw)
   if (!result.success) return result.error.issues[0].message
 
+  const prorrateo = parseProrrateo(formData.get('prorrateo'))
+  const detallesRaw = formData.get('detalles') as string | null
+  let detalles: Record<string, unknown> | null = null
+  if (detallesRaw) {
+    try { detalles = JSON.parse(detallesRaw) } catch {}
+  }
+
   const supabase = await createClient()
-  const { error } = await supabase
-    .from('saldos_mensuales')
-    .upsert({ ...result.data, notas: result.data.notas || null }, { onConflict: 'mes' })
+  const { error } = await supabase.from('gastos_recurrentes').insert({
+    ...result.data,
+    monto_secundario: result.data.monto_secundario || null,
+    moneda_secundaria: result.data.moneda_secundaria || null,
+    cuenta_id: result.data.cuenta_id || null,
+    tarjeta_id: result.data.tarjeta_id || null,
+    dia_vencimiento: result.data.dia_vencimiento || null,
+    prorrateo,
+    detalles,
+    activo: true,
+  })
   if (error) return error.message
 
-  revalidatePath('/finanzas/saldos')
-  revalidatePath('/')
+  revalidatePath('/finanzas/recurrentes')
   return null
 }
 
-// ============ RETIROS ============
+export async function updateRecurrente(id: string, prevState: string | null, formData: FormData) {
+  await requireUser()
+  const raw = {
+    ...Object.fromEntries(formData),
+    iva_incluido: formData.get('iva_incluido') === 'true' || formData.get('iva_incluido') === 'on',
+  }
+  const result = recurrenteSchema.safeParse(raw)
+  if (!result.success) return result.error.issues[0].message
+
+  const prorrateo = parseProrrateo(formData.get('prorrateo'))
+  const detallesRaw = formData.get('detalles') as string | null
+  let detalles: Record<string, unknown> | null = null
+  if (detallesRaw) {
+    try { detalles = JSON.parse(detallesRaw) } catch {}
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('gastos_recurrentes').update({
+    ...result.data,
+    monto_secundario: result.data.monto_secundario || null,
+    moneda_secundaria: result.data.moneda_secundaria || null,
+    cuenta_id: result.data.cuenta_id || null,
+    tarjeta_id: result.data.tarjeta_id || null,
+    dia_vencimiento: result.data.dia_vencimiento || null,
+    prorrateo,
+    detalles,
+  }).eq('id', id)
+  if (error) return error.message
+
+  revalidatePath('/finanzas/recurrentes')
+  return null
+}
+
+export async function deleteRecurrente(id: string) {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase.from('gastos_recurrentes').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/gastos-recurrentes')
+}
+
+/**
+ * Confirma masivamente varios recurrentes para un mes — usa el monto_estimado.
+ * Para montos personalizados, usar confirmarRecurrente uno por uno.
+ */
+export async function confirmarRecurrentesMasivo(recurrenteIds: string[], mes: string) {
+  await requireUser()
+  if (!recurrenteIds.length) return { ok: 0, errors: [] as string[] }
+  const supabase = await createClient()
+
+  // Filtrar los que ya tienen gasto del mes
+  const { data: gastosExistentes } = await supabase
+    .from('gastos')
+    .select('recurrente_id')
+    .eq('mes', mes)
+    .in('recurrente_id', recurrenteIds)
+  const yaConfirmados = new Set((gastosExistentes ?? []).map((g) => g.recurrente_id))
+
+  const errors: string[] = []
+  let ok = 0
+  for (const recId of recurrenteIds) {
+    if (yaConfirmados.has(recId)) {
+      errors.push(`Recurrente ${recId.slice(0, 8)}…: ya confirmado para ${mes}`)
+      continue
+    }
+    try {
+      const { data: rec } = await supabase
+        .from('gastos_recurrentes')
+        .select('*')
+        .eq('id', recId)
+        .single()
+      if (!rec) {
+        errors.push(`Recurrente ${recId.slice(0, 8)}…: no encontrado`)
+        continue
+      }
+
+      const tieneSec = !!rec.monto_secundario && rec.monto_secundario > 0 && !!rec.moneda_secundaria
+      const monedaP = (rec.moneda || 'ARS') as 'ARS' | 'USD'
+      const fechaPagoMasivo = calcularFechaPagoRecurrente(mes, rec.dia_vencimiento, rec.tipo_mes)
+      const fechaDevengoMasivo = `${mes}-01`
+
+      function buildGastoMasivo(monto: number, moneda: 'ARS' | 'USD', sufijo?: string) {
+        const monto_neto = rec.iva_incluido
+          ? Math.round((monto / (1 + Number(rec.porcentaje_iva) / 100)) * 100) / 100
+          : monto
+        return {
+          categoria: rec.categoria,
+          concepto: sufijo ? `${rec.concepto} (${sufijo})` : rec.concepto,
+          monto,
+          monto_neto,
+          iva_incluido: rec.iva_incluido,
+          porcentaje_iva: rec.porcentaje_iva,
+          moneda,
+          negocio: 'GENERAL',
+          mes,
+          fecha: fechaDevengoMasivo,
+          fecha_pago: fechaPagoMasivo,
+          estado: 'PENDIENTE',
+          medio_pago: rec.medio_pago,
+          cuenta_id: rec.cuenta_id,
+          tarjeta_id: rec.tarjeta_id,
+          cuotas_total: rec.cuotas_total ?? null,
+          prorrateo: rec.prorrateo,
+          detalles: rec.detalles,
+          recurrente_id: rec.id,
+          confirmado: true,
+        }
+      }
+
+      // Masivo: si tiene secundario, crea 2 gastos (modo DUAL).
+      // Para conversión a una sola moneda, confirmar individual.
+      const rows = tieneSec
+        ? [
+            buildGastoMasivo(Number(rec.monto_estimado), monedaP, monedaP),
+            buildGastoMasivo(Number(rec.monto_secundario), rec.moneda_secundaria as 'ARS' | 'USD', rec.moneda_secundaria),
+          ]
+        : [buildGastoMasivo(Number(rec.monto_estimado), monedaP)]
+
+      const { data: insertadosMasivo, error } = await supabase.from('gastos').insert(rows).select('id, monto, concepto, tarjeta_id, cuotas_total, fecha')
+      if (error) {
+        errors.push(`${rec.concepto}: ${error.message}`)
+      } else {
+        ok++
+        if (rec.medio_pago === 'TARJETA' && rec.tarjeta_id) {
+          for (const g of insertadosMasivo ?? []) {
+            const cuotas = Math.max(1, Number(g.cuotas_total ?? rec.cuotas_total ?? 1))
+            try {
+              await generarCuotasTarjeta({
+                tarjetaId: rec.tarjeta_id,
+                origenTipo: 'GASTO',
+                origenId: g.id,
+                concepto: g.concepto,
+                montoTotal: Number(g.monto),
+                cuotasTotal: cuotas,
+                fechaCompra: g.fecha,
+              })
+            } catch (e) {
+              errors.push(`${rec.concepto}: cuotas — ${(e as Error).message}`)
+            }
+          }
+        }
+        // Paid-on-commit
+        for (const g of insertadosMasivo ?? []) {
+          try {
+            await marcarGastoPagadoOnCommit(g.id)
+          } catch (e) {
+            errors.push(`${rec.concepto}: auto-saldo — ${(e as Error).message}`)
+          }
+        }
+      }
+    } catch (e) {
+      errors.push(`Recurrente ${recId.slice(0, 8)}…: ${(e as Error).message}`)
+    }
+  }
+
+  revalidatePath('/finanzas/gastos-recurrentes')
+  revalidatePath('/finanzas/recurrentes')
+  revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/cierre-mes')
+  return { ok, errors }
+}
+
+/**
+ * Calcula la fecha tope de pago de un gasto generado desde un recurrente,
+ * según el día de vencimiento y el tipo (CORRIENTE = mes mismo, VENCIDO = mes siguiente).
+ */
+function calcularFechaPagoRecurrente(
+  mes: string,
+  diaVenc: number | null | undefined,
+  tipoMes: 'CORRIENTE' | 'VENCIDO' | string | null | undefined,
+): string {
+  const dia = Math.max(1, Math.min(31, Number(diaVenc) || 15))
+  const [y, m] = mes.split('-').map(Number)
+  const offset = tipoMes === 'VENCIDO' ? 1 : 0
+  const refY = m + offset > 12 ? y + 1 : y
+  const refM = ((m - 1 + offset) % 12) + 1
+  const ultimoDia = new Date(refY, refM, 0).getDate()
+  const diaFinal = Math.min(dia, ultimoDia)
+  return `${refY}-${String(refM).padStart(2, '0')}-${String(diaFinal).padStart(2, '0')}`
+}
+
+/**
+ * Confirma un recurrente para un mes. Soporta 3 modos cuando hay parte secundaria:
+ *
+ * - 'PRINCIPAL_SOLO': crea 1 gasto sólo con el principal (default si no tiene secundario)
+ * - 'DUAL': crea 2 gastos separados, uno por cada moneda
+ * - 'CONVERTIR': convierte el secundario a la moneda principal con un TC y crea 1 gasto unificado
+ */
+export async function confirmarRecurrente(args: {
+  recurrenteId: string
+  mes: string
+  montoPrincipal: number
+  monedaPrincipal: 'ARS' | 'USD'
+  montoSecundario?: number
+  monedaSecundaria?: 'ARS' | 'USD' | null
+  modo?: 'PRINCIPAL_SOLO' | 'DUAL' | 'CONVERTIR'
+  tipoCambio?: number // requerido si modo=CONVERTIR
+}) {
+  await requireUser()
+  const supabase = await createClient()
+
+  const { data: rec } = await supabase
+    .from('gastos_recurrentes')
+    .select('*')
+    .eq('id', args.recurrenteId)
+    .single()
+  if (!rec) throw new Error('Recurrente no encontrado')
+
+  // Anti-duplicación: si ya hay gasto para este recurrente y mes, no crear otro.
+  const { data: existente } = await supabase
+    .from('gastos')
+    .select('id')
+    .eq('recurrente_id', args.recurrenteId)
+    .eq('mes', args.mes)
+    .limit(1)
+  if (existente && existente.length > 0) {
+    throw new Error(`El recurrente "${rec.concepto}" ya está confirmado para ${args.mes}`)
+  }
+
+  const modo = args.modo ?? 'PRINCIPAL_SOLO'
+  const fechaPago = calcularFechaPagoRecurrente(args.mes, rec.dia_vencimiento, rec.tipo_mes)
+  const fechaDevengo = `${args.mes}-01`
+
+  function buildGasto(monto: number, moneda: 'ARS' | 'USD', sufijo?: string) {
+    const monto_neto = rec.iva_incluido
+      ? Math.round((monto / (1 + Number(rec.porcentaje_iva) / 100)) * 100) / 100
+      : monto
+    return {
+      categoria: rec.categoria,
+      concepto: sufijo ? `${rec.concepto} (${sufijo})` : rec.concepto,
+      monto,
+      monto_neto,
+      iva_incluido: rec.iva_incluido,
+      porcentaje_iva: rec.porcentaje_iva,
+      moneda,
+      negocio: 'GENERAL' as const,
+      mes: args.mes,
+      fecha: fechaDevengo,
+      fecha_pago: fechaPago,
+      estado: 'PENDIENTE' as const,
+      medio_pago: rec.medio_pago,
+      cuenta_id: rec.cuenta_id,
+      tarjeta_id: rec.tarjeta_id,
+      cuotas_total: rec.cuotas_total ?? null,
+      prorrateo: rec.prorrateo,
+      detalles: rec.detalles,
+      recurrente_id: rec.id,
+      confirmado: true,
+    }
+  }
+
+  const tieneSecundario = (args.montoSecundario ?? 0) > 0 && !!args.monedaSecundaria
+
+  let inserts: ReturnType<typeof buildGasto>[] = []
+
+  if (modo === 'PRINCIPAL_SOLO' || !tieneSecundario) {
+    inserts = [buildGasto(args.montoPrincipal, args.monedaPrincipal)]
+  } else if (modo === 'DUAL') {
+    inserts = [
+      buildGasto(args.montoPrincipal, args.monedaPrincipal, args.monedaPrincipal),
+      buildGasto(args.montoSecundario!, args.monedaSecundaria!, args.monedaSecundaria!),
+    ]
+  } else if (modo === 'CONVERTIR') {
+    if (!args.tipoCambio || args.tipoCambio <= 0) {
+      throw new Error('Tipo de cambio es obligatorio para conversión')
+    }
+    // Convertir el secundario al destino (moneda principal)
+    let secundarioConvertido = args.montoSecundario!
+    if (args.monedaSecundaria !== args.monedaPrincipal) {
+      // USD -> ARS: multiplica por TC. ARS -> USD: divide.
+      if (args.monedaSecundaria === 'USD' && args.monedaPrincipal === 'ARS') {
+        secundarioConvertido = args.montoSecundario! * args.tipoCambio
+      } else if (args.monedaSecundaria === 'ARS' && args.monedaPrincipal === 'USD') {
+        secundarioConvertido = args.montoSecundario! / args.tipoCambio
+      }
+    }
+    const total = args.montoPrincipal + secundarioConvertido
+    inserts = [buildGasto(Math.round(total * 100) / 100, args.monedaPrincipal)]
+  }
+
+  const { data: insertados, error } = await supabase.from('gastos').insert(inserts).select('id, monto, concepto, tarjeta_id, cuotas_total, fecha')
+  if (error) throw new Error(error.message)
+
+  // Si el recurrente se paga con tarjeta, generar las cuotas en cuotas_tarjeta.
+  // Una cuota incluso para el caso "1 cuota" — así queda registrada en la proyección de la tarjeta.
+  if (rec.medio_pago === 'TARJETA' && rec.tarjeta_id) {
+    for (const g of insertados ?? []) {
+      const cuotas = Math.max(1, Number(g.cuotas_total ?? rec.cuotas_total ?? 1))
+      await generarCuotasTarjeta({
+        tarjetaId: rec.tarjeta_id,
+        origenTipo: 'GASTO',
+        origenId: g.id,
+        concepto: g.concepto,
+        montoTotal: Number(g.monto),
+        cuotasTotal: cuotas,
+        fechaCompra: g.fecha,
+      })
+    }
+  }
+
+  // Paid-on-commit: tarjeta/cheque/cta-cte saldan contra el proveedor al momento
+  for (const g of insertados ?? []) {
+    await marcarGastoPagadoOnCommit(g.id)
+  }
+
+  revalidatePath('/finanzas/gastos-recurrentes')
+  revalidatePath('/finanzas/recurrentes')
+  revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/tarjetas')
+  return { ok: inserts.length }
+}
+
+// ============ SALDOS / TESORERÍA ============
+
+const cuentaTitularSchema = z.object({
+  nombre: z.string().min(1),
+  tipo: z.enum(['EMPRESA', 'SOCIO', 'OTRO']),
+})
+
+export async function createTitular(prevState: string | null, formData: FormData) {
+  await requireUser()
+  const result = cuentaTitularSchema.safeParse(Object.fromEntries(formData))
+  if (!result.success) return result.error.issues[0].message
+  const supabase = await createClient()
+  const { error } = await supabase.from('cuentas_titulares').insert({ ...result.data, activo: true })
+  if (error) return error.message
+  revalidatePath('/finanzas/saldos')
+  return null
+}
+
+const cuentaSchema = z.object({
+  titular_id: z.string().uuid(),
+  nombre: z.string().min(1),
+  banco: z.string().min(1),
+  tipo: z.enum(['BANCO', 'BILLETERA', 'CAJA', 'CTA_CORRIENTE']),
+  permite_dual: z.coerce.boolean(),
+  notas: z.string().optional().nullable(),
+})
+
+export async function createCuenta(prevState: string | null, formData: FormData) {
+  await requireUser()
+  const raw = {
+    ...Object.fromEntries(formData),
+    permite_dual: formData.get('permite_dual') === 'true' || formData.get('permite_dual') === 'on',
+  }
+  const result = cuentaSchema.safeParse(raw)
+  if (!result.success) return result.error.issues[0].message
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('cuentas_bancarias').insert({
+    ...result.data,
+    notas: result.data.notas || null,
+    activo: true,
+  })
+  if (error) return error.message
+  revalidatePath('/finanzas/saldos')
+  return null
+}
+
+export async function updateCuenta(id: string, prevState: string | null, formData: FormData) {
+  await requireUser()
+  const raw = {
+    ...Object.fromEntries(formData),
+    permite_dual: formData.get('permite_dual') === 'true' || formData.get('permite_dual') === 'on',
+  }
+  const result = cuentaSchema.safeParse(raw)
+  if (!result.success) return result.error.issues[0].message
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('cuentas_bancarias').update({
+    ...result.data,
+    notas: result.data.notas || null,
+  }).eq('id', id)
+  if (error) return error.message
+  revalidatePath('/finanzas/saldos')
+  return null
+}
+
+export async function toggleCuentaActiva(id: string, activo: boolean) {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase.from('cuentas_bancarias').update({ activo }).eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/saldos')
+}
+
+export async function upsertSaldoCuenta(
+  cuentaId: string,
+  mes: string,
+  saldoArs: number,
+  saldoUsd: number,
+  notas?: string | null,
+) {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase.from('saldos_cuentas').upsert(
+    {
+      cuenta_id: cuentaId,
+      mes,
+      saldo_ars: saldoArs,
+      saldo_usd: saldoUsd,
+      notas: notas || null,
+    },
+    { onConflict: 'cuenta_id,mes' }
+  )
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/saldos')
+}
+
+/**
+ * Upsert masivo de saldos para varias cuentas en un mes (modo carga rápida).
+ * Permite editar todas las cuentas en una sola pasada.
+ */
+export async function bulkUpsertSaldosCuentas(
+  mes: string,
+  items: Array<{ cuenta_id: string; saldo_ars: number; saldo_usd: number }>,
+) {
+  await requireUser()
+  if (!items.length) return { ok: 0 }
+  const supabase = await createClient()
+  const rows = items.map((i) => ({
+    cuenta_id: i.cuenta_id,
+    mes,
+    saldo_ars: Number(i.saldo_ars) || 0,
+    saldo_usd: Number(i.saldo_usd) || 0,
+  }))
+  const { error } = await supabase
+    .from('saldos_cuentas')
+    .upsert(rows, { onConflict: 'cuenta_id,mes' })
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/saldos')
+  return { ok: items.length }
+}
+
+export async function cerrarSaldoMes(cuentaId: string, mes: string, cerrar: boolean) {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase.from('saldos_cuentas').update({
+    cerrado: cerrar,
+    fecha_cierre: cerrar ? new Date().toISOString() : null,
+  }).eq('cuenta_id', cuentaId).eq('mes', mes)
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/saldos')
+}
+
+export async function upsertTipoCambioMes(mes: string, tipoCambio: number, fuente?: string | null) {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase.from('tipos_cambio_mes').upsert(
+    { mes, tipo_cambio: tipoCambio, fuente: fuente || null },
+    { onConflict: 'mes' }
+  )
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/saldos')
+  revalidatePath('/finanzas/retiros')
+}
+
+// ============ TARJETAS ============
+
+const tarjetaSchema = z.object({
+  titular_id: optUuid,
+  nombre: z.string().min(1),
+  banco: z.string().min(1),
+  tipo: z.enum(['CREDITO', 'DEBITO']),
+  ultimos_4: z.string().optional().nullable(),
+  dia_cierre: z.coerce.number().int().min(1).max(31),
+  dia_vencimiento: z.coerce.number().int().min(1).max(31),
+  limite_ars: z.coerce.number().optional().nullable(),
+  notas: z.string().optional().nullable(),
+})
+
+export async function createTarjeta(prevState: string | null, formData: FormData) {
+  await requireUser()
+  const result = tarjetaSchema.safeParse(Object.fromEntries(formData))
+  if (!result.success) return result.error.issues[0].message
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('tarjetas_credito').insert({
+    ...result.data,
+    titular_id: result.data.titular_id || null,
+    ultimos_4: result.data.ultimos_4 || null,
+    limite_ars: result.data.limite_ars || null,
+    notas: result.data.notas || null,
+    activo: true,
+  })
+  if (error) return error.message
+  revalidatePath('/finanzas/tarjetas')
+  return null
+}
+
+export async function updateTarjeta(id: string, prevState: string | null, formData: FormData) {
+  await requireUser()
+  const result = tarjetaSchema.safeParse(Object.fromEntries(formData))
+  if (!result.success) return result.error.issues[0].message
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('tarjetas_credito').update({
+    ...result.data,
+    titular_id: result.data.titular_id || null,
+    ultimos_4: result.data.ultimos_4 || null,
+    limite_ars: result.data.limite_ars || null,
+    notas: result.data.notas || null,
+  }).eq('id', id)
+  if (error) return error.message
+  revalidatePath('/finanzas/tarjetas')
+  return null
+}
+
+export async function toggleTarjetaActiva(id: string, activo: boolean) {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase.from('tarjetas_credito').update({ activo }).eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/tarjetas')
+}
+
+// Re-export para compatibilidad interna (la implementación pura está en lib/calc/tarjeta.ts)
+const calcularMesesTarjeta = calcMesesTarjetaPure
+
+export async function generarCuotasTarjeta(args: {
+  tarjetaId: string
+  origenTipo: 'COMPRA' | 'GASTO' | 'MANUAL'
+  origenId?: string | null
+  concepto: string
+  montoTotal: number
+  cuotasTotal: number
+  fechaCompra: string
+}) {
+  await requireUser()
+  const supabase = await createClient()
+  const { data: tarjeta } = await supabase
+    .from('tarjetas_credito')
+    .select('dia_cierre, dia_vencimiento')
+    .eq('id', args.tarjetaId)
+    .single()
+  if (!tarjeta) throw new Error('Tarjeta no encontrada')
+
+  const montos = calcularMontosCuota(args.montoTotal, args.cuotasTotal)
+  const { mesCierre } = calcularMesesTarjeta(args.fechaCompra, tarjeta.dia_cierre)
+
+  const rows = Array.from({ length: args.cuotasTotal }, (_, i) => {
+    const mesC = new Date(mesCierre + '-01T00:00:00')
+    mesC.setMonth(mesC.getMonth() + i)
+    const mesV = new Date(mesC.getFullYear(), mesC.getMonth() + 1, 1)
+    // Fecha exacta de vencimiento: día_vencimiento de la tarjeta, acotado al último día del mes
+    const ultimoDiaMesV = new Date(mesV.getFullYear(), mesV.getMonth() + 1, 0).getDate()
+    const diaV = Math.min(Math.max(1, tarjeta.dia_vencimiento || 10), ultimoDiaMesV)
+    const fechaVenc = `${mesV.getFullYear()}-${String(mesV.getMonth() + 1).padStart(2, '0')}-${String(diaV).padStart(2, '0')}`
+    return {
+      tarjeta_id: args.tarjetaId,
+      origen_tipo: args.origenTipo,
+      origen_id: args.origenId || null,
+      concepto: args.cuotasTotal > 1 ? `${args.concepto} (cuota ${i + 1}/${args.cuotasTotal})` : args.concepto,
+      monto_total: args.montoTotal,
+      cuotas_total: args.cuotasTotal,
+      cuota_numero: i + 1,
+      monto_cuota: montos[i],
+      mes_cierre: `${mesC.getFullYear()}-${String(mesC.getMonth() + 1).padStart(2, '0')}`,
+      mes_vencimiento: `${mesV.getFullYear()}-${String(mesV.getMonth() + 1).padStart(2, '0')}`,
+      fecha_vencimiento: fechaVenc,
+      pagada: false,
+    }
+  })
+
+  const { error } = await supabase.from('cuotas_tarjeta').insert(rows)
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/tarjetas')
+}
+
+/**
+ * Marca una cuota de tarjeta como pagada/no pagada. Pagar delega al ledger
+ * unificado (crea pago tipo_origen=CUOTA por el saldo restante). Despagar
+ * solo invierte el flag (no se borran pagos automáticamente para preservar
+ * el historial; si querés borrarlos individualmente, usá deletePagoUnificado).
+ */
+export async function marcarCuotaPagada(id: string, pagada: boolean) {
+  await requireUser()
+  const supabase = await createClient()
+
+  if (!pagada) {
+    // Despagar: invertir el flag únicamente. Los pagos en el ledger se preservan.
+    const { error } = await supabase
+      .from('cuotas_tarjeta')
+      .update({ pagada: false, fecha_pago: null })
+      .eq('id', id)
+    if (error) throw new Error(error.message)
+    revalidatePath('/finanzas/tarjetas')
+    revalidatePath('/finanzas/pendientes')
+    revalidatePath('/finanzas/pagos')
+    return
+  }
+
+  // Pagar: crear pago en el ledger por el saldo restante
+  const { data: c } = await supabase
+    .from('cuotas_tarjeta')
+    .select('monto_cuota')
+    .eq('id', id)
+    .single()
+  if (!c) throw new Error('Cuota no encontrada')
+
+  const { data: prev } = await supabase
+    .from('pagos')
+    .select('monto')
+    .eq('tipo_origen', 'CUOTA')
+    .eq('origen_id', id)
+  const yaPagado = (prev ?? []).reduce((s, p) => s + Number(p.monto), 0)
+  const restante = Math.max(0, Number(c.monto_cuota) - yaPagado)
+
+  if (restante > 0.01) {
+    await createPagoUnificado({
+      tipo_origen: 'CUOTA',
+      origen_id: id,
+      monto: restante,
+      moneda: 'ARS',
+      fecha_emision: new Date().toISOString().split('T')[0],
+      instrumento: 'TRANSFERENCIA',
+      notas: 'Marcado pagado (saldo total)',
+    })
+  } else {
+    // Ya estaba cubierto, solo flagear
+    await supabase
+      .from('cuotas_tarjeta')
+      .update({ pagada: true, fecha_pago: new Date().toISOString().split('T')[0] })
+      .eq('id', id)
+  }
+
+  revalidatePath('/finanzas/tarjetas')
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/pagos')
+}
+
+// ============ RETIROS (con categorías y USD master) ============
 
 const retiroSchema = z.object({
   socio: z.string().min(1, 'Requerido'),
   fecha: z.string().min(1, 'Requerido'),
   monto_usd: z.coerce.number().min(0),
   monto_pesos: z.coerce.number().min(0),
-  tipo_cambio: z.coerce.number().positive(),
+  tipo_cambio: z.coerce.number().min(0).default(0),
+  categoria_id: optUuid,
   notas: z.string().optional().nullable(),
+  medio_pago: z.enum(['TRANSFERENCIA', 'EFECTIVO', 'TARJETA']).default('TRANSFERENCIA'),
+  tarjeta_id: optUuid,
+  cuotas_total: z.coerce.number().int().min(1).optional().nullable(),
 })
 
 export async function createRetiro(prevState: string | null, formData: FormData) {
-  const raw = Object.fromEntries(formData)
-  const result = retiroSchema.safeParse(raw)
+  await requireUser()
+  const result = retiroSchema.safeParse(Object.fromEntries(formData))
   if (!result.success) return result.error.issues[0].message
 
+  const d = result.data
+  const mes = d.fecha.substring(0, 7)
+  // monto_usd_calculado: si se cargó pesos, lo dividimos por TC; si se cargó USD directo, usamos ese
+  const monto_usd_calculado = d.monto_usd > 0
+    ? d.monto_usd
+    : d.tipo_cambio > 0
+      ? Math.round((d.monto_pesos / d.tipo_cambio) * 100) / 100
+      : 0
+
+  // Validar tarjeta cuando medio = TARJETA
+  if (d.medio_pago === 'TARJETA' && !d.tarjeta_id) {
+    return 'Seleccioná una tarjeta'
+  }
+
   const supabase = await createClient()
-  const { error } = await supabase.from('retiros_socios').insert({
-    ...result.data,
-    notas: result.data.notas || null,
-  })
+  const { data: retiroIns, error } = await supabase.from('retiros_socios').insert({
+    socio: d.socio,
+    fecha: d.fecha,
+    monto_usd: d.monto_usd,
+    monto_pesos: d.monto_pesos,
+    tipo_cambio: d.tipo_cambio,
+    mes,
+    monto_usd_calculado,
+    categoria_id: d.categoria_id || null,
+    notas: d.notas || null,
+    medio_pago: d.medio_pago,
+    tarjeta_id: d.medio_pago === 'TARJETA' ? d.tarjeta_id : null,
+    cuotas_total: d.medio_pago === 'TARJETA' ? (d.cuotas_total || 1) : null,
+  }).select('id').single()
   if (error) return error.message
 
+  // Si es con tarjeta, generar las cuotas como pasivos del sistema
+  if (retiroIns && d.medio_pago === 'TARJETA' && d.tarjeta_id) {
+    const cuotas = d.cuotas_total || 1
+    const monto = d.monto_pesos > 0 ? d.monto_pesos : (d.monto_usd * d.tipo_cambio)
+    if (monto > 0) {
+      try {
+        await generarCuotasTarjeta({
+          tarjetaId: d.tarjeta_id,
+          origenTipo: 'MANUAL',
+          origenId: retiroIns.id,
+          concepto: `Retiro tarjeta - ${d.socio}`,
+          montoTotal: Math.round(monto * 100) / 100,
+          cuotasTotal: cuotas,
+          fechaCompra: d.fecha,
+        })
+      } catch (e) {
+        // El retiro ya quedó cargado; el error sólo afecta a la generación de cuotas
+        console.error('Error generando cuotas para retiro:', (e as Error).message)
+      }
+    }
+  }
+
   revalidatePath('/finanzas/retiros')
+  revalidatePath('/finanzas/tarjetas')
+  revalidatePath('/finanzas/pendientes')
   revalidatePath('/')
   return null
 }
 
+/**
+ * Cierra y convierte todos los retiros del mes a USD usando un TC fijo.
+ * Recalcula monto_usd_calculado para cada retiro y deja un timestamp de conversión.
+ * Idempotente: se puede re-ejecutar para actualizar el TC.
+ */
+export async function cerrarConvertirRetirosMes(mes: string, tcCierre: number) {
+  await requireUser()
+  if (!mes || !tcCierre || tcCierre <= 0) {
+    throw new Error('Mes y tipo de cambio son obligatorios')
+  }
+  const supabase = await createClient()
+
+  const { data: retiros, error: errFetch } = await supabase
+    .from('retiros_socios')
+    .select('id, monto_usd, monto_pesos')
+    .eq('mes', mes)
+  if (errFetch) throw new Error(errFetch.message)
+  if (!retiros || retiros.length === 0) {
+    throw new Error('No hay retiros para este mes')
+  }
+
+  const ahora = new Date().toISOString()
+  // Updates en paralelo (1 RTT × N en vez de serial)
+  const results = await Promise.all(retiros.map((r) => {
+    const usdFromPesos = Math.round((Number(r.monto_pesos) / tcCierre) * 100) / 100
+    const usdFinal = Number(r.monto_usd) > 0 ? Number(r.monto_usd) : usdFromPesos
+    return supabase
+      .from('retiros_socios')
+      .update({
+        tipo_cambio: tcCierre,
+        monto_usd_calculado: usdFinal,
+        tc_cierre: tcCierre,
+        convertido_at: ahora,
+      })
+      .eq('id', r.id)
+  }))
+  const firstError = results.find((r) => r.error)
+  if (firstError?.error) throw new Error(firstError.error.message)
+
+  revalidatePath('/finanzas/retiros')
+  revalidatePath('/finanzas/cierre-mes')
+  return { ok: retiros.length }
+}
+
 export async function deleteRetiro(id: string) {
+  await requireUser()
   const supabase = await createClient()
   const { error } = await supabase.from('retiros_socios').delete().eq('id', id)
   if (error) throw new Error(error.message)
   revalidatePath('/finanzas/retiros')
 }
 
-// ============ AFIP ============
+const categoriaRetiroSchema = z.object({
+  nombre: z.string().min(1),
+  emoji: z.string().optional().nullable(),
+  color: z.string().min(1),
+  orden: z.coerce.number().int().min(0).default(0),
+})
+
+export async function createCategoriaRetiro(prevState: string | null, formData: FormData) {
+  await requireUser()
+  const result = categoriaRetiroSchema.safeParse(Object.fromEntries(formData))
+  if (!result.success) return result.error.issues[0].message
+  const supabase = await createClient()
+  const { error } = await supabase.from('categorias_retiro').insert({
+    ...result.data,
+    emoji: result.data.emoji || null,
+    activo: true,
+  })
+  if (error) return error.message
+  revalidatePath('/finanzas/retiros')
+  return null
+}
+
+// ============ AFIP / BIENES (sin cambios) ============
 
 const afipSchema = z.object({
   mes: z.string().regex(/^\d{4}-\d{2}$/),
@@ -148,22 +1329,18 @@ const afipSchema = z.object({
 })
 
 export async function createAfip(prevState: string | null, formData: FormData) {
-  const raw = Object.fromEntries(formData)
-  const result = afipSchema.safeParse(raw)
+  await requireUser()
+  const result = afipSchema.safeParse(Object.fromEntries(formData))
   if (!result.success) return result.error.issues[0].message
-
   const supabase = await createClient()
   const { error } = await supabase.from('afip_facturacion').insert({
     ...result.data,
     fecha_vencimiento: result.data.fecha_vencimiento || null,
   })
   if (error) return error.message
-
   revalidatePath('/finanzas/afip')
   return null
 }
-
-// ============ BIENES ============
 
 const bienSchema = z.object({
   nombre: z.string().min(1),
@@ -176,10 +1353,9 @@ const bienSchema = z.object({
 })
 
 export async function createBien(prevState: string | null, formData: FormData) {
-  const raw = Object.fromEntries(formData)
-  const result = bienSchema.safeParse(raw)
+  await requireUser()
+  const result = bienSchema.safeParse(Object.fromEntries(formData))
   if (!result.success) return result.error.issues[0].message
-
   const supabase = await createClient()
   const { error } = await supabase.from('bienes_uso').insert({
     ...result.data,
@@ -187,7 +1363,549 @@ export async function createBien(prevState: string | null, formData: FormData) {
     activo: true,
   })
   if (error) return error.message
-
   revalidatePath('/finanzas/bienes')
+  return null
+}
+
+// ============ CONFIGURACION PRORRATEO (settings) ============
+
+export async function updateProrrateoConfig(porcentajes: { marca: string; porcentaje: number }[]) {
+  await requireUser()
+  const total = porcentajes.reduce((s, p) => s + p.porcentaje, 0)
+  if (Math.abs(total - 100) > 0.5) {
+    throw new Error('Los porcentajes deben sumar 100%')
+  }
+
+  const supabase = await createClient()
+  // Bulk update: paralelizamos los N updates (4 marcas) en un solo RTT
+  const results = await Promise.all(
+    porcentajes.map((p) =>
+      supabase
+        .from('configuracion_prorrateo')
+        .update({ porcentaje: p.porcentaje })
+        .eq('marca', p.marca)
+    )
+  )
+  const firstError = results.find((r) => r.error)
+  if (firstError?.error) throw new Error(firstError.error.message)
+
+  revalidatePath('/settings/prorrateo')
+  revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/recurrentes')
+}
+
+// ============ IMPORTACION EXCEL ============
+
+interface RecurrenteImport {
+  concepto: string
+  categoria: string
+  monto_estimado: number
+  moneda?: string
+  iva_incluido?: boolean
+  porcentaje_iva?: number
+  medio_pago?: string
+  dia_vencimiento?: number
+  tipo_mes?: string
+}
+
+export async function importRecurrentesExcel(rows: RecurrenteImport[]) {
+  await requireUser()
+  if (!rows.length) return { ok: 0, errors: ['No hay filas para importar'] }
+  const supabase = await createClient()
+  const errors: string[] = []
+  let ok = 0
+
+  for (const [i, row] of rows.entries()) {
+    if (!row.concepto || !row.monto_estimado) {
+      errors.push(`Fila ${i + 2}: falta concepto o monto`)
+      continue
+    }
+    const { error } = await supabase.from('gastos_recurrentes').insert({
+      concepto: row.concepto,
+      categoria: row.categoria || 'Otros',
+      monto_estimado: row.monto_estimado,
+      moneda: row.moneda === 'USD' ? 'USD' : 'ARS',
+      iva_incluido: !!row.iva_incluido,
+      porcentaje_iva: row.porcentaje_iva ?? 21,
+      medio_pago: row.medio_pago || 'TRANSFERENCIA',
+      dia_vencimiento: row.dia_vencimiento || null,
+      tipo_mes: row.tipo_mes === 'VENCIDO' ? 'VENCIDO' : 'CORRIENTE',
+      activo: true,
+    })
+    if (error) errors.push(`Fila ${i + 2}: ${error.message}`)
+    else ok++
+  }
+
+  revalidatePath('/finanzas/recurrentes')
+  return { ok, errors }
+}
+
+interface ProveedorImport {
+  nombre: string
+  tipo?: string
+  contacto?: string
+  email?: string
+  telefono?: string
+  pais?: string
+  moneda?: string
+  condiciones_pago?: string
+}
+
+export async function importProveedoresExcel(rows: ProveedorImport[]) {
+  await requireUser()
+  if (!rows.length) return { ok: 0, errors: ['No hay filas para importar'] }
+  const supabase = await createClient()
+  const errors: string[] = []
+  let ok = 0
+
+  for (const [i, row] of rows.entries()) {
+    if (!row.nombre) {
+      errors.push(`Fila ${i + 2}: falta nombre`)
+      continue
+    }
+    const { error } = await supabase.from('proveedores').insert({
+      nombre: row.nombre,
+      tipo: row.tipo === 'IMPORTACION' ? 'IMPORTACION' : 'NACIONAL',
+      contacto: row.contacto || null,
+      email: row.email || null,
+      telefono: row.telefono || null,
+      pais: row.pais || 'Argentina',
+      moneda: row.moneda === 'USD' ? 'USD' : 'ARS',
+      condiciones_pago: row.condiciones_pago || null,
+      activo: true,
+    })
+    if (error) errors.push(`Fila ${i + 2}: ${error.message}`)
+    else ok++
+  }
+
+  revalidatePath('/compras/proveedores')
+  return { ok, errors }
+}
+
+// ============ ACTIVOS MANUALES (no bancarios) ============
+
+const activoManualSchema = z.object({
+  mes: z.string().regex(/^\d{4}-\d{2}$/),
+  descripcion: z.string().min(1),
+  categoria: z.string().optional().nullable(),
+  monto: z.coerce.number().min(0),
+  moneda: z.enum(['ARS', 'USD']),
+  titular_id: optUuid,
+  notas: z.string().optional().nullable(),
+})
+
+export async function createActivoManual(prevState: string | null, formData: FormData) {
+  await requireUser()
+  const result = activoManualSchema.safeParse(Object.fromEntries(formData))
+  if (!result.success) return result.error.issues[0].message
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('activos_manuales').insert({
+    ...result.data,
+    categoria: result.data.categoria || null,
+    titular_id: result.data.titular_id || null,
+    notas: result.data.notas || null,
+  })
+  if (error) return error.message
+  revalidatePath('/finanzas/saldos')
+  revalidatePath('/finanzas/cierre-mes')
+  return null
+}
+
+export async function updateActivoManual(id: string, prevState: string | null, formData: FormData) {
+  await requireUser()
+  const result = activoManualSchema.safeParse(Object.fromEntries(formData))
+  if (!result.success) return result.error.issues[0].message
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('activos_manuales').update({
+    ...result.data,
+    categoria: result.data.categoria || null,
+    titular_id: result.data.titular_id || null,
+    notas: result.data.notas || null,
+  }).eq('id', id)
+  if (error) return error.message
+  revalidatePath('/finanzas/saldos')
+  revalidatePath('/finanzas/cierre-mes')
+  return null
+}
+
+export async function deleteActivoManual(id: string) {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase.from('activos_manuales').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/saldos')
+  revalidatePath('/finanzas/cierre-mes')
+}
+
+// ============ CUENTAS PATRIMONIALES ============
+
+const cuentaPatrimSchema = z.object({
+  codigo: z.string().optional().nullable(),
+  nombre: z.string().min(1),
+  tipo: z.enum(['INVERSION', 'PROVISION', 'CTA_CTE_MARCA', 'PASIVO_ROTATIVO', 'IMPOSITIVO', 'OTRO_ACTIVO', 'OTRO_PASIVO']),
+  categoria: z.string().optional().nullable(),
+  marca: z.string().optional().nullable(),
+  moneda: z.enum(['ARS', 'USD']).default('ARS'),
+  signo_pn: z.coerce.number().refine((v) => v === 1 || v === -1, 'Signo debe ser 1 o -1'),
+  saldo_inicial: z.coerce.number().default(0),
+  mes_inicial: z.string().optional().nullable(),
+  notas: z.string().optional().nullable(),
+  orden: z.coerce.number().int().default(0),
+})
+
+export async function createCuentaPatrim(prevState: string | null, formData: FormData) {
+  await requireUser()
+  const result = cuentaPatrimSchema.safeParse(Object.fromEntries(formData))
+  if (!result.success) return result.error.issues[0].message
+
+  const supabase = await createClient()
+  const { data: cuenta, error } = await supabase.from('cuentas_patrimoniales').insert({
+    ...result.data,
+    codigo: result.data.codigo || null,
+    categoria: result.data.categoria || null,
+    marca: result.data.marca || null,
+    mes_inicial: result.data.mes_inicial || null,
+    notas: result.data.notas || null,
+    activo: true,
+  }).select('id').single()
+  if (error) return error.message
+
+  // Crear el saldo inicial automáticamente si hay mes_inicial
+  if (cuenta && result.data.mes_inicial && result.data.saldo_inicial !== 0) {
+    await supabase.from('saldos_cuentas_patrim').insert({
+      cuenta_id: cuenta.id,
+      mes: result.data.mes_inicial,
+      saldo_inicio: 0,
+      movimiento: result.data.saldo_inicial,
+      saldo_cierre: result.data.saldo_inicial,
+      notas: 'Saldo inicial',
+    })
+  }
+
+  revalidatePath('/finanzas/cuentas-patrimoniales')
+  revalidatePath('/finanzas/cierre-mes')
+  return null
+}
+
+export async function updateCuentaPatrim(id: string, prevState: string | null, formData: FormData) {
+  await requireUser()
+  const result = cuentaPatrimSchema.safeParse(Object.fromEntries(formData))
+  if (!result.success) return result.error.issues[0].message
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('cuentas_patrimoniales').update({
+    ...result.data,
+    codigo: result.data.codigo || null,
+    categoria: result.data.categoria || null,
+    marca: result.data.marca || null,
+    mes_inicial: result.data.mes_inicial || null,
+    notas: result.data.notas || null,
+  }).eq('id', id)
+  if (error) return error.message
+  revalidatePath('/finanzas/cuentas-patrimoniales')
+  revalidatePath('/finanzas/cierre-mes')
+  return null
+}
+
+export async function toggleCuentaPatrimActiva(id: string, activo: boolean) {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase.from('cuentas_patrimoniales').update({ activo }).eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/cuentas-patrimoniales')
+}
+
+export async function deleteCuentaPatrim(id: string) {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase.from('cuentas_patrimoniales').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/cuentas-patrimoniales')
+  revalidatePath('/finanzas/cierre-mes')
+}
+
+export async function upsertSaldoCuentaPatrim(args: {
+  cuentaId: string
+  mes: string
+  saldoInicio: number
+  movimiento: number
+  notas?: string | null
+}) {
+  await requireUser()
+  const supabase = await createClient()
+  const saldoCierre = Math.round((args.saldoInicio + args.movimiento) * 100) / 100
+  const { error } = await supabase.from('saldos_cuentas_patrim').upsert(
+    {
+      cuenta_id: args.cuentaId,
+      mes: args.mes,
+      saldo_inicio: args.saldoInicio,
+      movimiento: args.movimiento,
+      saldo_cierre: saldoCierre,
+      notas: args.notas || null,
+    },
+    { onConflict: 'cuenta_id,mes' },
+  )
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/cuentas-patrimoniales')
+  revalidatePath('/finanzas/cierre-mes')
+}
+
+/**
+ * Sugiere el movimiento de una cuenta INVENTARIO de una marca específica para el mes:
+ * movimiento = SUM(compras.monto_total WHERE negocio=marca, mes) − datos_ventas_gn.cmv
+ */
+export async function sugerirMovimientoInventario(args: {
+  cuentaId: string
+  marca: 'BDI' | 'ZATTIA' | 'STUNNED'
+  mes: string
+}) {
+  await requireUser()
+  const supabase = await createClient()
+
+  // Sumar compras de la marca en el mes (rango: primer y último día)
+  const [year, m] = args.mes.split('-').map(Number)
+  const desde = `${args.mes}-01`
+  const hasta = new Date(year, m, 0).toISOString().split('T')[0]
+
+  const { data: compras } = await supabase
+    .from('compras')
+    .select('monto_total')
+    .eq('negocio', args.marca)
+    .gte('fecha', desde)
+    .lte('fecha', hasta)
+
+  const totalCompras = (compras ?? []).reduce((s, c) => s + Number(c.monto_total), 0)
+
+  // CMV de la marca en el mes
+  const { data: ventas } = await supabase
+    .from('datos_ventas_gn')
+    .select('cmv')
+    .eq('marca', args.marca)
+    .eq('mes', args.mes)
+    .maybeSingle()
+  const cmv = Number(ventas?.cmv ?? 0)
+
+  const movimiento = totalCompras - cmv
+
+  // Cargar saldo actual del mes (si existe)
+  const { data: saldoActual } = await supabase
+    .from('saldos_cuentas_patrim')
+    .select('saldo_inicio')
+    .eq('cuenta_id', args.cuentaId)
+    .eq('mes', args.mes)
+    .maybeSingle()
+
+  // Si no hay saldo, buscar saldo del mes anterior
+  let saldoInicio = Number(saldoActual?.saldo_inicio ?? 0)
+  if (saldoInicio === 0 && !saldoActual) {
+    const prevDate = new Date(year, m - 2, 1)
+    const mesAnterior = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
+    const { data: saldoAnt } = await supabase
+      .from('saldos_cuentas_patrim')
+      .select('saldo_cierre')
+      .eq('cuenta_id', args.cuentaId)
+      .eq('mes', mesAnterior)
+      .maybeSingle()
+    if (saldoAnt) saldoInicio = Number(saldoAnt.saldo_cierre)
+  }
+
+  return {
+    totalCompras: Math.round(totalCompras * 100) / 100,
+    cmv: Math.round(cmv * 100) / 100,
+    movimiento: Math.round(movimiento * 100) / 100,
+    saldoInicio: Math.round(saldoInicio * 100) / 100,
+    saldoCierreSugerido: Math.round((saldoInicio + movimiento) * 100) / 100,
+  }
+}
+
+/**
+ * Arrastra los saldos del mes anterior:
+ * para cada cuenta activa, crea o actualiza el saldo del mes destino con
+ * saldo_inicio = saldo_cierre del mes anterior (movimiento queda en 0).
+ */
+export async function arrastrarSaldosPatrim(mes: string) {
+  await requireUser()
+  const supabase = await createClient()
+  const [y, m] = mes.split('-').map(Number)
+  const prevDate = new Date(y, m - 2, 1)
+  const mesAnterior = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
+
+  const { data: cuentas } = await supabase.from('cuentas_patrimoniales').select('id, saldo_inicial, mes_inicial').eq('activo', true)
+  const { data: saldosAnt } = await supabase.from('saldos_cuentas_patrim').select('cuenta_id, saldo_cierre').eq('mes', mesAnterior)
+  const saldoAntMap = new Map<string, number>()
+  for (const s of saldosAnt ?? []) saldoAntMap.set(s.cuenta_id, Number(s.saldo_cierre))
+
+  // Buscar saldos existentes del mes destino para no pisar movimientos ya cargados
+  const { data: saldosActuales } = await supabase.from('saldos_cuentas_patrim').select('cuenta_id').eq('mes', mes)
+  const yaTieneSaldo = new Set((saldosActuales ?? []).map((s) => s.cuenta_id))
+
+  for (const c of cuentas ?? []) {
+    if (yaTieneSaldo.has(c.id)) continue
+    let saldoInicio = saldoAntMap.get(c.id) ?? 0
+    // Si no hay mes anterior pero el mes_inicial coincide con este mes, usar saldo_inicial
+    if (saldoInicio === 0 && c.mes_inicial && c.mes_inicial <= mes) {
+      saldoInicio = Number(c.saldo_inicial ?? 0)
+    }
+    await supabase.from('saldos_cuentas_patrim').insert({
+      cuenta_id: c.id,
+      mes,
+      saldo_inicio: saldoInicio,
+      movimiento: 0,
+      saldo_cierre: saldoInicio,
+    })
+  }
+  revalidatePath('/finanzas/cuentas-patrimoniales')
+  revalidatePath('/finanzas/cierre-mes')
+}
+
+// ============ CIERRE DE MES (ARQUEO PATRIMONIAL) ============
+
+export async function upsertCierreMes(args: {
+  mes: string
+  tipo_cambio: number
+  caja_ars: number
+  caja_usd: number
+  pasivos_manuales: Array<{
+    id?: string
+    descripcion: string
+    monto: number
+    moneda: 'ARS' | 'USD'
+    acreedor?: string | null
+    notas?: string | null
+  }>
+  notas?: string | null
+}) {
+  await requireUser()
+  const supabase = await createClient()
+
+  // Verificar que no esté cerrado
+  const { data: existente } = await supabase
+    .from('cierres_mensuales')
+    .select('id, cerrado')
+    .eq('mes', args.mes)
+    .maybeSingle()
+  if (existente?.cerrado) throw new Error('Este cierre ya está confirmado y no se puede editar')
+
+  const { error } = await supabase.from('cierres_mensuales').upsert(
+    {
+      mes: args.mes,
+      tipo_cambio: args.tipo_cambio,
+      caja_ars: args.caja_ars,
+      caja_usd: args.caja_usd,
+      pasivos_manuales: args.pasivos_manuales,
+      notas: args.notas || null,
+    },
+    { onConflict: 'mes' },
+  )
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/cierre-mes')
+}
+
+export async function confirmarCierreMes(args: {
+  mes: string
+  tipo_cambio: number
+  caja_ars: number
+  caja_usd: number
+  pasivos_manuales: PasivoManualInput[]
+  snapshotCuentas: SnapshotCuentaInput[]
+  snapshotPasivos: Record<string, unknown>
+  snapshotRetiros: Record<string, unknown>
+  totales: {
+    total_activos_ars: number
+    total_activos_usd: number
+    total_pasivos_ars: number
+    total_pasivos_usd: number
+    pn_ars: number
+    pn_usd: number
+    total_retiros_ars: number
+    total_retiros_usd: number
+    resultado_ars: number
+  }
+  notas?: string | null
+}) {
+  await requireUser()
+  const supabase = await createClient()
+
+  const { data: existente } = await supabase
+    .from('cierres_mensuales')
+    .select('id, cerrado')
+    .eq('mes', args.mes)
+    .maybeSingle()
+  if (existente?.cerrado) throw new Error('Este cierre ya está confirmado')
+
+  const { error } = await supabase.from('cierres_mensuales').upsert(
+    {
+      mes: args.mes,
+      tipo_cambio: args.tipo_cambio,
+      caja_ars: args.caja_ars,
+      caja_usd: args.caja_usd,
+      pasivos_manuales: args.pasivos_manuales,
+      snapshot_cuentas: args.snapshotCuentas,
+      snapshot_pasivos: args.snapshotPasivos,
+      snapshot_retiros: args.snapshotRetiros,
+      ...args.totales,
+      cerrado: true,
+      fecha_cierre: new Date().toISOString(),
+      notas: args.notas || null,
+    },
+    { onConflict: 'mes' },
+  )
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/cierre-mes')
+}
+
+export async function reabrirCierreMes(mes: string) {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('cierres_mensuales')
+    .update({ cerrado: false, fecha_cierre: null })
+    .eq('mes', mes)
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/cierre-mes')
+}
+
+interface PasivoManualInput {
+  id?: string
+  descripcion: string
+  monto: number
+  moneda: 'ARS' | 'USD'
+  acreedor?: string | null
+  notas?: string | null
+}
+
+interface SnapshotCuentaInput {
+  cuenta_id: string
+  titular_nombre: string
+  banco: string
+  nombre: string
+  tipo: string
+  saldo_ars: number
+  saldo_usd: number
+}
+
+// Backward compat: upsertSaldo legado (mantiene tabla saldos_mensuales si la usás)
+const saldoSchema = z.object({
+  mes: z.string().regex(/^\d{4}-\d{2}$/),
+  saldo_pesos: z.coerce.number(),
+  saldo_usd: z.coerce.number(),
+  caja_pesos: z.coerce.number(),
+  caja_usd: z.coerce.number(),
+  cuentas_corrientes: z.coerce.number(),
+  notas: z.string().optional().nullable(),
+})
+
+export async function upsertSaldo(prevState: string | null, formData: FormData) {
+  await requireUser()
+  const result = saldoSchema.safeParse(Object.fromEntries(formData))
+  if (!result.success) return result.error.issues[0].message
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('saldos_mensuales')
+    .upsert({ ...result.data, notas: result.data.notas || null }, { onConflict: 'mes' })
+  if (error) return error.message
+  revalidatePath('/finanzas/saldos')
   return null
 }

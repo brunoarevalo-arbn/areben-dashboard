@@ -1,10 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { formatCurrency, getCurrentMonth, formatMonth } from '@/lib/utils'
-import { DollarSign, TrendingDown, Users, AlertTriangle, Wallet, CreditCard } from 'lucide-react'
-import { EstadoBadge } from '@/components/ui/badge'
-import { formatDate } from '@/lib/utils'
+import { TrendingDown, Users, AlertTriangle, Wallet, CreditCard, Boxes } from 'lucide-react'
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -16,6 +15,8 @@ export default async function DashboardPage() {
     { data: gastosVencidos },
     { data: nominaPendiente },
     { data: empleadosActivos },
+    { data: cuentasInventario },
+    { data: saldosInventario },
   ] = await Promise.all([
     supabase
       .from('gastos')
@@ -33,14 +34,24 @@ export default async function DashboardPage() {
       .order('mes', { ascending: false })
       .limit(5),
     supabase
-      .from('nomina_mensual')
-      .select('neto, empleado:empleados(nombre, apellido)')
+      .from('v_nominas_con_empleado')
+      .select('neto, empleado_nombre, empleado_apellido')
       .eq('mes', mes)
       .eq('estado', 'PENDIENTE'),
     supabase
       .from('empleados')
       .select('id')
       .eq('activo', true),
+    supabase
+      .from('cuentas_patrimoniales')
+      .select('*')
+      .eq('tipo', 'INVENTARIO')
+      .eq('activo', true)
+      .order('orden'),
+    supabase
+      .from('saldos_cuentas_patrim')
+      .select('cuenta_id, saldo_cierre')
+      .eq('mes', mes),
   ])
 
   const totalGastosMes = gastosMes?.reduce((sum, g) => sum + g.monto, 0) ?? 0
@@ -159,8 +170,7 @@ export default async function DashboardPage() {
               {nominaPendiente.map((n, i) => (
                 <div key={i} className="flex items-center justify-between py-2 border-b border-slate-800 last:border-0">
                   <p className="text-sm text-slate-200">
-                    {(n.empleado as unknown as { nombre: string; apellido: string } | null)?.nombre}{' '}
-                    {(n.empleado as unknown as { nombre: string; apellido: string } | null)?.apellido}
+                    {n.empleado_nombre} {n.empleado_apellido}
                   </p>
                   <span className="text-sm font-medium text-amber-400">{formatCurrency(n.neto)}</span>
                 </div>
@@ -180,6 +190,66 @@ export default async function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Posición de inventario por marca */}
+      {cuentasInventario && cuentasInventario.length > 0 && (() => {
+        const saldosMap = new Map<string, number>()
+        for (const s of saldosInventario ?? []) saldosMap.set(s.cuenta_id, Number(s.saldo_cierre))
+        return (
+          <div className="bg-slate-900 border border-teal-500/20 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                <Boxes className="w-4 h-4 text-teal-400" />
+                Inventario por marca — {formatMonth(mes)}
+              </h2>
+              <Link href="/finanzas/cuentas-patrimoniales" className="text-xs text-indigo-400 hover:text-indigo-300">
+                Editar saldos
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {cuentasInventario.map((c) => {
+                const saldo = saldosMap.get(c.id) ?? 0
+                const positivo = saldo > 0
+                const negativo = saldo < 0
+                return (
+                  <div
+                    key={c.id}
+                    className={cn(
+                      'rounded-lg border p-3',
+                      positivo && 'bg-teal-500/5 border-teal-500/30',
+                      negativo && 'bg-amber-500/5 border-amber-500/30',
+                      !positivo && !negativo && 'bg-slate-800/40 border-slate-700/40',
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-slate-300">{c.marca}</span>
+                      <span className={cn(
+                        'text-[10px] font-medium px-1.5 py-0.5 rounded',
+                        positivo && 'bg-teal-500/15 text-teal-300',
+                        negativo && 'bg-amber-500/15 text-amber-300',
+                        !positivo && !negativo && 'bg-slate-700 text-slate-400',
+                      )}>
+                        {positivo ? 'Activo · Stock' : negativo ? 'Pasivo · Reposición' : 'Equilibrado'}
+                      </span>
+                    </div>
+                    <p className={cn(
+                      'text-lg font-mono font-bold',
+                      positivo && 'text-teal-400',
+                      negativo && 'text-amber-400',
+                      !positivo && !negativo && 'text-slate-300',
+                    )}>
+                      {positivo ? '+' : negativo ? '−' : ''}{formatCurrency(Math.abs(saldo))}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+            <p className="text-[10px] text-slate-500 italic mt-3">
+              Saldo = Compras acumuladas − CMV. Positivo = stock disponible · Negativo = deuda de reposición.
+            </p>
+          </div>
+        )
+      })()}
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
         <h2 className="text-sm font-semibold text-slate-100 mb-4">Accesos rápidos</h2>

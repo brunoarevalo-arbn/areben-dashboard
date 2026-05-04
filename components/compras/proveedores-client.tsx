@@ -1,13 +1,16 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createProveedor, updateProveedor } from '@/app/actions/compras'
+import { importProveedoresExcel } from '@/app/actions/finanzas'
 import type { Proveedor } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pencil, Truck, Globe, Loader2, Mail, Phone } from 'lucide-react'
+import { ExcelImport } from '@/components/ui/excel-import'
+import { Plus, Pencil, Truck, Globe, Loader2, Mail, Phone, Upload } from 'lucide-react'
 
 function ProveedorForm({ prov, onClose }: { prov?: Proveedor; onClose: () => void }) {
   const action = prov ? updateProveedor.bind(null, prov.id) : createProveedor
@@ -23,7 +26,7 @@ function ProveedorForm({ prov, onClose }: { prov?: Proveedor; onClose: () => voi
   return (
     <form action={formAction} className="space-y-4">
       <Input label="Nombre" name="nombre" defaultValue={prov?.nombre} required />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Select
           label="Tipo"
           name="tipo"
@@ -43,11 +46,11 @@ function ProveedorForm({ prov, onClose }: { prov?: Proveedor; onClose: () => voi
           ]}
         />
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Input label="Contacto" name="contacto" defaultValue={prov?.contacto ?? ''} />
         <Input label="País" name="pais" defaultValue={prov?.pais ?? 'Argentina'} required />
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Input label="Email" name="email" type="email" defaultValue={prov?.email ?? ''} />
         <Input label="Teléfono" name="telefono" defaultValue={prov?.telefono ?? ''} />
       </div>
@@ -69,7 +72,22 @@ function ProveedorForm({ prov, onClose }: { prov?: Proveedor; onClose: () => voi
 
 export function ProveedoresClient({ proveedores }: { proveedores: Proveedor[] }) {
   const [modalOpen, setModalOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [editProv, setEditProv] = useState<Proveedor | undefined>()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Quick action: ?nuevo=1 abre modal automáticamente
+  useEffect(() => {
+    if (searchParams.get('nuevo') === '1') {
+      setEditProv(undefined)
+      setModalOpen(true)
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('nuevo')
+      router.replace(`?${params.toString()}`)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const nacionales = proveedores.filter((p) => p.tipo === 'NACIONAL')
   const importacion = proveedores.filter((p) => p.tipo === 'IMPORTACION')
@@ -81,10 +99,16 @@ export function ProveedoresClient({ proveedores }: { proveedores: Proveedor[] })
           <h1 className="text-2xl font-bold text-slate-100">Proveedores</h1>
           <p className="text-sm text-slate-400 mt-0.5">{proveedores.length} registros · {nacionales.length} nacionales · {importacion.length} importación</p>
         </div>
-        <Button onClick={() => { setEditProv(undefined); setModalOpen(true) }}>
-          <Plus className="w-4 h-4" />
-          Nuevo proveedor
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={() => setImportOpen(true)} title="Importar proveedores desde Excel">
+            <Upload className="w-4 h-4" />
+            Importar
+          </Button>
+          <Button onClick={() => { setEditProv(undefined); setModalOpen(true) }} title="Crear nuevo proveedor">
+            <Plus className="w-4 h-4" />
+            Nuevo proveedor
+          </Button>
+        </div>
       </div>
 
       {['NACIONAL', 'IMPORTACION'].map((tipo) => {
@@ -131,6 +155,28 @@ export function ProveedoresClient({ proveedores }: { proveedores: Proveedor[] })
       <Modal open={modalOpen} onOpenChange={setModalOpen} title={editProv ? 'Editar proveedor' : 'Nuevo proveedor'} className="max-w-xl">
         <ProveedorForm prov={editProv} onClose={() => setModalOpen(false)} />
       </Modal>
+
+      <ExcelImport
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title="Importar proveedores"
+        description="Subí un Excel con la lista de proveedores"
+        templateName="proveedores"
+        templateColumns={[
+          { key: 'nombre', label: 'nombre', required: true, example: 'Distribuidora SA' },
+          { key: 'tipo', label: 'tipo', example: 'NACIONAL' },
+          { key: 'contacto', label: 'contacto', example: 'Juan Pérez' },
+          { key: 'email', label: 'email', example: 'ventas@dist.com' },
+          { key: 'telefono', label: 'telefono', example: '11 1234-5678' },
+          { key: 'pais', label: 'pais', example: 'Argentina' },
+          { key: 'moneda', label: 'moneda', example: 'ARS' },
+          { key: 'condiciones_pago', label: 'condiciones_pago', example: '30 días' },
+        ]}
+        onImport={async (rows) => {
+          const r = await importProveedoresExcel(rows as unknown as Parameters<typeof importProveedoresExcel>[0])
+          return r
+        }}
+      />
     </div>
   )
 }

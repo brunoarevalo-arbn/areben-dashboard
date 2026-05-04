@@ -27,8 +27,11 @@ import {
   UserCheck,
   CalendarDays,
   CreditCard,
-  Landmark,
   Boxes,
+  ArrowDownCircle,
+  FileCheck,
+  PiggyBank,
+  Clock,
 } from 'lucide-react'
 
 interface NavItem {
@@ -48,11 +51,27 @@ const navItems: NavItem[] = [
     label: 'Finanzas',
     icon: DollarSign,
     children: [
-      { label: 'Saldos', href: '/finanzas/saldos', icon: Wallet },
+      { label: 'Tesorería', href: '/finanzas/saldos', icon: Wallet },
+      { label: 'Cuentas patrimoniales', href: '/finanzas/cuentas-patrimoniales', icon: Boxes },
       { label: 'Gastos', href: '/finanzas/gastos', icon: TrendingDown },
+      { label: 'Recurrentes', href: '/finanzas/recurrentes', icon: Receipt },
+      { label: 'Tarjetas', href: '/finanzas/tarjetas', icon: CreditCard },
       { label: 'Retiros', href: '/finanzas/retiros', icon: CreditCard },
       { label: 'AFIP', href: '/finanzas/afip', icon: Receipt },
       { label: 'Bienes de Uso', href: '/finanzas/bienes', icon: Boxes },
+      { label: 'Pendientes', href: '/finanzas/pendientes', icon: Clock },
+      { label: 'Pagos del mes', href: '/finanzas/pagos', icon: Wallet },
+      { label: 'Cierre de mes', href: '/finanzas/cierre-mes', icon: FileCheck },
+      {
+        label: 'Inversiones',
+        icon: PiggyBank,
+        children: [
+          { label: 'Inversores', href: '/inversiones', icon: Users },
+          { label: 'Préstamos', href: '/inversiones/prestamos', icon: TrendingUp },
+          { label: 'Cierre mensual', href: '/inversiones/cierre', icon: FileCheck },
+          { label: 'Gastos financieros', href: '/inversiones/gastos', icon: TrendingUp },
+        ],
+      },
     ],
   },
   {
@@ -75,6 +94,14 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    label: 'Egresos',
+    icon: ArrowDownCircle,
+    children: [
+      { label: 'Pagos', href: '/egresos/pagos', icon: CreditCard },
+      { label: 'Cartera de Cheques', href: '/egresos/cheques', icon: FileCheck },
+    ],
+  },
+  {
     label: 'Análisis',
     icon: BarChart3,
     children: [
@@ -88,6 +115,7 @@ const navItems: NavItem[] = [
     label: 'Configuración',
     icon: Settings,
     children: [
+      { label: 'Prorrateo', href: '/settings/prorrateo', icon: Sliders },
       { label: 'Aportes', href: '/settings/aportes', icon: Sliders },
       { label: 'Depreciación', href: '/settings/depreciacion', icon: Calculator },
       { label: 'API Gestión Nube', href: '/settings/api-gestion-nube', icon: Plug },
@@ -95,42 +123,69 @@ const navItems: NavItem[] = [
   },
 ]
 
-function NavGroup({ item }: { item: NavItem }) {
-  const pathname = usePathname()
-  const isChildActive = item.children?.some((c) => c.href && pathname.startsWith(c.href))
-  const [open, setOpen] = useState(isChildActive ?? false)
+function isAnyDescendantActive(item: NavItem, pathname: string): boolean {
+  if (item.href) {
+    if (pathname === item.href) return true
+    if (item.href !== '/' && pathname.startsWith(item.href + '/')) return true
+  }
+  return item.children?.some((c) => isAnyDescendantActive(c, pathname)) ?? false
+}
 
-  if (!item.children) {
-    const isActive = pathname === item.href
+function NavGroup({ item, level = 0 }: { item: NavItem; level?: number }) {
+  const pathname = usePathname()
+  const hasChildren = !!item.children?.length
+  const childActive = hasChildren && (item.children?.some((c) => isAnyDescendantActive(c, pathname)) ?? false)
+  const [open, setOpen] = useState(childActive)
+
+  // Hoja: link directo
+  if (!hasChildren) {
+    const isActive = item.href
+      ? pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'))
+      : false
+
+    // Estilos por nivel: top level usa el del menú principal, children usan el más chico
+    const baseLeaf = level === 0
+      ? 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors'
+      : 'flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-colors'
+
+    const activeLeaf = level === 0
+      ? 'bg-indigo-600/20 text-indigo-400'
+      : 'bg-indigo-600/20 text-indigo-400'
+
+    const inactiveLeaf = level === 0
+      ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+      : 'text-slate-500 hover:text-slate-100 hover:bg-slate-800'
+
     return (
       <Link
         href={item.href!}
-        className={cn(
-          'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-          isActive
-            ? 'bg-indigo-600/20 text-indigo-400'
-            : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
-        )}
+        className={cn(baseLeaf, isActive ? activeLeaf : inactiveLeaf)}
       >
-        <item.icon className="w-4 h-4 shrink-0" />
+        <item.icon className={level === 0 ? 'w-4 h-4 shrink-0' : 'w-3.5 h-3.5 shrink-0'} />
         {item.label}
       </Link>
     )
   }
 
+  // Group: botón con chevron + children indentados
+  const baseGroup = level === 0
+    ? 'w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors'
+    : 'w-full flex items-center justify-between gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-colors'
+
+  const groupColor = childActive
+    ? 'text-indigo-400'
+    : level === 0
+      ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+      : 'text-slate-500 hover:text-slate-100 hover:bg-slate-800'
+
   return (
     <div>
       <button
         onClick={() => setOpen(!open)}
-        className={cn(
-          'w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-          isChildActive
-            ? 'text-indigo-400'
-            : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
-        )}
+        className={cn(baseGroup, groupColor)}
       >
-        <span className="flex items-center gap-3">
-          <item.icon className="w-4 h-4 shrink-0" />
+        <span className={level === 0 ? 'flex items-center gap-3' : 'flex items-center gap-2.5'}>
+          <item.icon className={level === 0 ? 'w-4 h-4 shrink-0' : 'w-3.5 h-3.5 shrink-0'} />
           {item.label}
         </span>
         <ChevronDown
@@ -139,24 +194,9 @@ function NavGroup({ item }: { item: NavItem }) {
       </button>
       {open && (
         <div className="mt-1 ml-4 pl-3 border-l border-slate-800 space-y-0.5">
-          {item.children.map((child) => {
-            const isActive = child.href ? pathname === child.href || pathname.startsWith(child.href + '/') : false
-            return (
-              <Link
-                key={child.href}
-                href={child.href!}
-                className={cn(
-                  'flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-colors',
-                  isActive
-                    ? 'bg-indigo-600/20 text-indigo-400'
-                    : 'text-slate-500 hover:text-slate-100 hover:bg-slate-800'
-                )}
-              >
-                <child.icon className="w-3.5 h-3.5 shrink-0" />
-                {child.label}
-              </Link>
-            )
-          })}
+          {item.children!.map((child) => (
+            <NavGroup key={child.label} item={child} level={level + 1} />
+          ))}
         </div>
       )}
     </div>
@@ -165,7 +205,7 @@ function NavGroup({ item }: { item: NavItem }) {
 
 export function Sidebar() {
   return (
-    <aside className="w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0">
+    <aside className="w-64 md:w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0">
       <div className="p-4 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shrink-0">

@@ -1,48 +1,69 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, requireUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { optUuid } from '@/lib/zod-helpers'
 
 // ============ EMPLEADOS ============
 
 const empleadoSchema = z.object({
-  nombre: z.string().min(1),
-  apellido: z.string().min(1),
-  dni: z.string().min(1),
+  nombre: z.string().min(1, 'Nombre es obligatorio'),
+  apellido: z.string().min(1, 'Apellido es obligatorio'),
+  dni: z.string().optional().nullable().or(z.literal('')),
   email: z.string().email().optional().nullable().or(z.literal('')),
   telefono: z.string().optional().nullable(),
   tipo_empleado: z.enum(['BLANCO', 'NEGRO']),
   sueldo_basico: z.coerce.number().min(0),
   valor_hora: z.coerce.number().min(0),
+  horas_mensuales: z.coerce.number().int().positive(),
+  corresponde_aguinaldo: z.coerce.boolean(),
+  porcentaje_aguinaldo: z.coerce.number().min(0).max(100),
+  monto_comidas: z.coerce.number().min(0).default(0),
+  presentismo_pct: z.coerce.number().min(0).max(100).default(0),
+  horas_acuerdo_negro: z.coerce.number().min(0).default(0),
+  plus_negro_tipo: z.preprocess(
+    (v) => (v === '' || v === 'NONE' ? null : v),
+    z.enum(['MONTO', 'PORCENTAJE']).nullable(),
+  ).optional(),
+  plus_negro_valor: z.coerce.number().min(0).default(0),
   cbu: z.string().optional().nullable(),
   banco: z.string().optional().nullable(),
   metodo_pago: z.enum(['EFECTIVO', 'TRANSFERENCIA']).optional().nullable(),
-  fecha_ingreso: z.string().min(1),
+  fecha_ingreso: z.string().optional().nullable().or(z.literal('')),
   fecha_nacimiento: z.string().optional().nullable(),
 })
 
 export async function createEmpleado(prevState: string | null, formData: FormData) {
-  const raw = Object.fromEntries(formData)
+  await requireUser()
+  const raw = {
+    ...Object.fromEntries(formData),
+    corresponde_aguinaldo: formData.get('corresponde_aguinaldo') === 'true' || formData.get('corresponde_aguinaldo') === 'on',
+  }
   const result = empleadoSchema.safeParse(raw)
   if (!result.success) return result.error.issues[0].message
 
   const supabase = await createClient()
 
-  const { data: existing } = await supabase
-    .from('empleados')
-    .select('id')
-    .eq('dni', result.data.dni)
-    .maybeSingle()
-  if (existing) return 'Ya existe un empleado con ese DNI.'
+  // Solo verificar DNI duplicado si se cargó uno
+  if (result.data.dni) {
+    const { data: existing } = await supabase
+      .from('empleados')
+      .select('id')
+      .eq('dni', result.data.dni)
+      .maybeSingle()
+    if (existing) return 'Ya existe un empleado con ese DNI.'
+  }
 
   const { error } = await supabase.from('empleados').insert({
     ...result.data,
+    dni: result.data.dni || null,
     email: result.data.email || null,
     telefono: result.data.telefono || null,
     cbu: result.data.cbu || null,
     banco: result.data.banco || null,
     metodo_pago: result.data.metodo_pago || null,
+    fecha_ingreso: result.data.fecha_ingreso || null,
     fecha_nacimiento: result.data.fecha_nacimiento || null,
     activo: true,
   })
@@ -54,18 +75,24 @@ export async function createEmpleado(prevState: string | null, formData: FormDat
 }
 
 export async function updateEmpleado(id: string, prevState: string | null, formData: FormData) {
-  const raw = Object.fromEntries(formData)
+  await requireUser()
+  const raw = {
+    ...Object.fromEntries(formData),
+    corresponde_aguinaldo: formData.get('corresponde_aguinaldo') === 'true' || formData.get('corresponde_aguinaldo') === 'on',
+  }
   const result = empleadoSchema.safeParse(raw)
   if (!result.success) return result.error.issues[0].message
 
   const supabase = await createClient()
   const { error } = await supabase.from('empleados').update({
     ...result.data,
+    dni: result.data.dni || null,
     email: result.data.email || null,
     telefono: result.data.telefono || null,
     cbu: result.data.cbu || null,
     banco: result.data.banco || null,
     metodo_pago: result.data.metodo_pago || null,
+    fecha_ingreso: result.data.fecha_ingreso || null,
     fecha_nacimiento: result.data.fecha_nacimiento || null,
   }).eq('id', id)
   if (error) return error.message
@@ -74,7 +101,210 @@ export async function updateEmpleado(id: string, prevState: string | null, formD
   return null
 }
 
+// ============ HORAS EXTRAS ============
+
+const horaExtraSchema = z.object({
+  empleado_id: z.string().uuid(),
+  fecha: z.string().min(1),
+  cantidad: z.coerce.number().positive(),
+  porcentaje: z.coerce.number().min(0).max(200).default(50),
+  notas: z.string().optional().nullable(),
+})
+
+export async function createHoraExtra(prevState: string | null, formData: FormData) {
+  await requireUser()
+  const result = horaExtraSchema.safeParse(Object.fromEntries(formData))
+  if (!result.success) return result.error.issues[0].message
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('horas_extras_registros').insert({
+    ...result.data,
+    notas: result.data.notas || null,
+  })
+  if (error) return error.message
+  revalidatePath('/rrhh/empleados')
+  revalidatePath('/rrhh/nomina')
+  return null
+}
+
+export async function deleteHoraExtra(id: string) {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase.from('horas_extras_registros').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/rrhh/empleados')
+  revalidatePath('/rrhh/nomina')
+}
+
+// ============ AUSENCIAS / FALTAS ============
+
+const ausenciaSchema = z.object({
+  empleado_id: z.string().uuid(),
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha YYYY-MM-DD'),
+  dias: z.coerce.number().positive().max(31),
+  tipo: z.enum(['FALTA', 'LICENCIA_NO_PAGA', 'SIN_AVISO', 'JUSTIFICADA', 'OTRO']).default('FALTA'),
+  justificada: z.coerce.boolean().default(false),
+  notas: z.string().optional().nullable(),
+})
+
+/**
+ * Calcula el monto del descuento por ausencia.
+ * Convención: 1 día = 8 horas × valor_hora del empleado.
+ * Si el empleado no tiene valor_hora pero sí sueldo_basico, divide /22 (días laborales).
+ */
+function calcularDescuentoAusencia(dias: number, empleado: { valor_hora?: number; sueldo_basico?: number }): number {
+  const valorHora = Number(empleado.valor_hora ?? 0)
+  if (valorHora > 0) {
+    return Math.round(dias * 8 * valorHora * 100) / 100
+  }
+  const basico = Number(empleado.sueldo_basico ?? 0)
+  return Math.round((dias * basico / 22) * 100) / 100
+}
+
+export async function createAusencia(prevState: string | null, formData: FormData) {
+  await requireUser()
+  const raw = {
+    ...Object.fromEntries(formData),
+    justificada: formData.get('justificada') === 'true' || formData.get('justificada') === 'on',
+  }
+  const result = ausenciaSchema.safeParse(raw)
+  if (!result.success) return result.error.issues[0].message
+
+  const supabase = await createClient()
+  const { data: emp } = await supabase
+    .from('empleados')
+    .select('valor_hora, sueldo_basico')
+    .eq('id', result.data.empleado_id)
+    .single()
+  if (!emp) return 'Empleado no encontrado'
+
+  const monto_descuento = calcularDescuentoAusencia(result.data.dias, emp)
+
+  const { error } = await supabase.from('ausencias_registros').insert({
+    empleado_id: result.data.empleado_id,
+    fecha: result.data.fecha,
+    dias: result.data.dias,
+    tipo: result.data.tipo,
+    justificada: result.data.justificada,
+    monto_descuento,
+    notas: result.data.notas || null,
+  })
+  if (error) return error.message
+
+  revalidatePath('/rrhh/empleados')
+  revalidatePath('/rrhh/nomina')
+  return null
+}
+
+export async function deleteAusencia(id: string) {
+  await requireUser()
+  const supabase = await createClient()
+  // No permitir borrar si ya fue incluida en una nómina (preserva auditoría)
+  const { data: a } = await supabase
+    .from('ausencias_registros')
+    .select('incluido_en_nomina_id')
+    .eq('id', id)
+    .single()
+  if (a?.incluido_en_nomina_id) {
+    throw new Error('No se puede borrar: ya fue aplicada en una nómina. Borrá primero la nómina.')
+  }
+  const { error } = await supabase.from('ausencias_registros').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/rrhh/empleados')
+  revalidatePath('/rrhh/nomina')
+}
+
+// ============ EVENTOS / INCIDENCIAS / AJUSTES ============
+
+const eventoSchema = z.object({
+  empleado_id: z.string().uuid(),
+  tipo: z.enum(['INCIDENCIA', 'AJUSTE_SALARIAL', 'LICENCIA', 'PREMIO', 'AMONESTACION', 'OTRO']),
+  fecha: z.string().min(1),
+  titulo: z.string().min(1),
+  descripcion: z.string().optional().nullable(),
+})
+
+export async function createEvento(prevState: string | null, formData: FormData) {
+  await requireUser()
+  const raw = Object.fromEntries(formData)
+  const result = eventoSchema.safeParse(raw)
+  if (!result.success) return result.error.issues[0].message
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('eventos_empleado').insert({
+    ...result.data,
+    descripcion: result.data.descripcion || null,
+  })
+  if (error) return error.message
+
+  revalidatePath('/rrhh/empleados')
+  return null
+}
+
+const ajusteSchema = z.object({
+  empleado_id: z.string().uuid(),
+  fecha: z.string().min(1),
+  sueldo_nuevo: z.coerce.number().positive(),
+  descripcion: z.string().optional().nullable(),
+})
+
+export async function createAjusteSalarial(prevState: string | null, formData: FormData) {
+  await requireUser()
+  const raw = Object.fromEntries(formData)
+  const result = ajusteSchema.safeParse(raw)
+  if (!result.success) return result.error.issues[0].message
+
+  const supabase = await createClient()
+
+  const { data: emp } = await supabase
+    .from('empleados')
+    .select('sueldo_basico, horas_mensuales')
+    .eq('id', result.data.empleado_id)
+    .single()
+  if (!emp) return 'Empleado no encontrado'
+
+  const sueldoAnterior = emp.sueldo_basico
+  const horasMensuales = emp.horas_mensuales || 160
+  const nuevoValorHora = result.data.sueldo_nuevo / horasMensuales
+
+  const { error: ev } = await supabase.from('eventos_empleado').insert({
+    empleado_id: result.data.empleado_id,
+    tipo: 'AJUSTE_SALARIAL',
+    fecha: result.data.fecha,
+    titulo: `Ajuste salarial: ${formatPesos(sueldoAnterior)} → ${formatPesos(result.data.sueldo_nuevo)}`,
+    descripcion: result.data.descripcion || null,
+    sueldo_anterior: sueldoAnterior,
+    sueldo_nuevo: result.data.sueldo_nuevo,
+  })
+  if (ev) return ev.message
+
+  const { error: up } = await supabase
+    .from('empleados')
+    .update({
+      sueldo_basico: result.data.sueldo_nuevo,
+      valor_hora: Math.round(nuevoValorHora * 100) / 100,
+    })
+    .eq('id', result.data.empleado_id)
+  if (up) return up.message
+
+  revalidatePath('/rrhh/empleados')
+  return null
+}
+
+export async function deleteEvento(id: string) {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase.from('eventos_empleado').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/rrhh/empleados')
+}
+
+function formatPesos(n: number) {
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
+}
+
 export async function toggleEmpleadoActivo(id: string, activo: boolean) {
+  await requireUser()
   const supabase = await createClient()
   const updates: { activo: boolean; fecha_egreso?: string | null } = { activo }
   if (!activo) updates.fecha_egreso = new Date().toISOString().split('T')[0]
@@ -88,6 +318,7 @@ export async function toggleEmpleadoActivo(id: string, activo: boolean) {
 // ============ NÓMINA ============
 
 export async function calcularNomina(empleadoId: string, mes: string) {
+  await requireUser()
   const supabase = await createClient()
 
   const { data: empleado } = await supabase
@@ -113,13 +344,116 @@ const nominaSchema = z.object({
   horas_trabajadas: z.coerce.number().min(0),
   valor_hora: z.coerce.number().min(0),
   horas_extras: z.coerce.number().min(0),
+  porcentaje_extras: z.coerce.number().min(0).max(200).default(50),
   comida: z.coerce.number().min(0),
   aguinaldo: z.coerce.number().min(0),
+  asistencia_completa: z.coerce.boolean().default(false),
+  presentismo_monto: z.coerce.number().min(0).default(0),
+  monto_recibo_oficial: z.coerce.number().min(0).default(0),
+  adicional_no_registrado: z.coerce.number().min(0).default(0),
+  aguinaldo_pagado_de_caja: z.coerce.number().min(0).default(0),
+  ausencias_horas: z.coerce.number().min(0).default(0),
+  ausencias_motivo: z.string().optional().nullable(),
+  bono_monto: z.coerce.number().min(0).default(0),
+  bono_concepto: z.preprocess(
+    (v) => (v === '' ? null : v),
+    z.enum(['BONO', 'PREMIO', 'COMISION', 'OTRO']).nullable(),
+  ).optional(),
+  bono_descripcion: z.string().optional().nullable(),
+  descuento_otro_monto: z.coerce.number().min(0).default(0),
+  descuento_otro_concepto: z.preprocess(
+    (v) => (v === '' ? null : v),
+    z.enum(['MULTA', 'DEVOLUCION_ADELANTO', 'OTRO']).nullable(),
+  ).optional(),
+  descuento_otro_descripcion: z.string().optional().nullable(),
+  fecha_programada_pago: z.string().min(1, 'La fecha programada de pago es obligatoria'),
   notas: z.string().optional().nullable(),
 })
 
+/**
+ * Vencimiento típico para aportes patronales (AFIP): día 15 del mes siguiente.
+ */
+function fechaVencimientoAportes(mes: string): string {
+  const [y, m] = mes.split('-').map(Number)
+  const d = new Date(y, m, 15) // m está 0-indexed → m+1 = mes siguiente, día 15
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-15`
+}
+
+/**
+ * Sincroniza el gasto pendiente de "Cargas Sociales" (aportes patronales) vinculado a una nómina.
+ * - Si aportes_patronales > 0 y no hay gasto: crea uno
+ * - Si hay gasto y los aportes cambiaron: actualiza monto/fecha
+ * - Si aportes pasan a 0 y hay gasto: lo borra
+ */
+async function syncGastoAportesPatronales(nominaId: string) {
+  const supabase = await createClient()
+  const { data: n } = await supabase
+    .from('nomina_mensual')
+    .select(`
+      id, mes, aportes_patronales, gasto_aportes_patronales_id,
+      empleado:empleados(nombre, apellido)
+    `)
+    .eq('id', nominaId)
+    .single()
+  if (!n) return
+
+  const aportes = Number(n.aportes_patronales ?? 0)
+  const empleado = Array.isArray(n.empleado) ? n.empleado[0] : n.empleado
+  const empleadoLabel = empleado ? `${empleado.nombre} ${empleado.apellido}` : 'empleado'
+
+  if (aportes <= 0) {
+    // No corresponden aportes — borrar el gasto si existe
+    if (n.gasto_aportes_patronales_id) {
+      await supabase.from('gastos').delete().eq('id', n.gasto_aportes_patronales_id)
+      await supabase.from('nomina_mensual').update({ gasto_aportes_patronales_id: null }).eq('id', nominaId)
+    }
+    return
+  }
+
+  const fechaVenc = fechaVencimientoAportes(n.mes)
+  const gastoData = {
+    categoria: 'Cargas Sociales',
+    concepto: `Aportes patronales — ${empleadoLabel} — ${n.mes}`,
+    monto: aportes,
+    monto_neto: aportes,
+    iva_incluido: false,
+    porcentaje_iva: 0,
+    moneda: 'ARS',
+    negocio: 'GENERAL',
+    mes: n.mes,
+    fecha: `${n.mes}-01`,
+    estado: 'PENDIENTE',
+    fecha_pago: fechaVenc,
+    medio_pago: 'TRANSFERENCIA',
+    notas: 'Aportes/contribuciones patronales — generado automáticamente desde la nómina',
+    confirmado: true,
+  }
+
+  if (n.gasto_aportes_patronales_id) {
+    // Actualizar el existente — pero solo si NO está pagado
+    const { data: g } = await supabase
+      .from('gastos')
+      .select('estado')
+      .eq('id', n.gasto_aportes_patronales_id)
+      .single()
+    if (g?.estado !== 'PAGADO') {
+      await supabase.from('gastos').update(gastoData).eq('id', n.gasto_aportes_patronales_id)
+    }
+  } else {
+    // Crear nuevo
+    const { data: nuevo } = await supabase.from('gastos').insert(gastoData).select('id').single()
+    if (nuevo) {
+      await supabase.from('nomina_mensual').update({ gasto_aportes_patronales_id: nuevo.id }).eq('id', nominaId)
+    }
+  }
+}
+
 export async function createNomina(prevState: string | null, formData: FormData) {
-  const raw = Object.fromEntries(formData)
+  await requireUser()
+  const raw = {
+    ...Object.fromEntries(formData),
+    asistencia_completa: formData.get('asistencia_completa') === 'true' || formData.get('asistencia_completa') === 'on',
+  }
   const result = nominaSchema.safeParse(raw)
   if (!result.success) return result.error.issues[0].message
 
@@ -135,74 +469,619 @@ export async function createNomina(prevState: string | null, formData: FormData)
 
   const { data: empleado } = await supabase
     .from('empleados')
-    .select('tipo_empleado')
+    .select('*')
     .eq('id', result.data.empleado_id)
     .single()
+  if (!empleado) return 'Empleado no encontrado'
 
   const { data: aportes } = await supabase
     .from('configuracion_aportes')
     .select('*')
     .eq('activo', true)
-    .or(`aplicable_a.eq.AMBOS,aplicable_a.eq.${empleado?.tipo_empleado ?? 'NEGRO'}`)
+    .or(`aplicable_a.eq.AMBOS,aplicable_a.eq.${empleado.tipo_empleado}`)
 
   const d = result.data
-  const sueldo_horas = d.horas_trabajadas * d.valor_hora
-  const horas_extras_monto = d.horas_extras * d.valor_hora * 1.5
-  const subtotal = d.sueldo_basico + sueldo_horas + horas_extras_monto + d.comida + d.aguinaldo
+  const esBlanco = empleado.tipo_empleado === 'BLANCO'
 
-  let aportes_empleado = 0
+  // Para BLANCO: el monto_recibo_oficial es el NETO que se paga del recibo (no se le restan
+  // aportes empleado — eso lo maneja el contador externo). Para NEGRO usamos sueldo_basico.
+  const basicoEfectivo = esBlanco && d.monto_recibo_oficial > 0
+    ? d.monto_recibo_oficial
+    : d.sueldo_basico
+
+  const horas_extras_monto = d.horas_extras * d.valor_hora * (1 + d.porcentaje_extras / 100)
+
+  // Presentismo solo para NEGRO con asistencia completa
+  const presentismo = !esBlanco && d.asistencia_completa
+    ? Math.round(basicoEfectivo * (empleado.presentismo_pct ?? 0)) / 100
+    : 0
+
+  const ausenciasDescuento = Math.round(d.ausencias_horas * d.valor_hora * 100) / 100
+  const ausenciasHoras = d.ausencias_horas
+  const desdeMes = `${d.mes}-01`
+  const fIni = new Date(desdeMes + 'T00:00:00')
+  const hastaMes = new Date(fIni.getFullYear(), fIni.getMonth() + 1, 0).toISOString().split('T')[0]
+
+  // Base del aguinaldo = sueldo FIJO mensual (oficial + acuerdo fijo en negro).
+  // No incluye horas extras reales (variables) ni comida/presentismo/aguinaldo de caja.
+  const baseAguinaldo = basicoEfectivo + d.adicional_no_registrado
+  const aguinaldoProvisionado = empleado.corresponde_aguinaldo
+    ? Math.round(baseAguinaldo * (empleado.porcentaje_aguinaldo ?? 0)) / 100
+    : 0
+
+  // Subtotal = lo que efectivamente se paga al empleado este mes.
+  // Bono y descuento_otro son puntuales (no afectan base del aguinaldo).
+  const subtotal = basicoEfectivo + horas_extras_monto + d.comida + presentismo
+    + d.aguinaldo_pagado_de_caja + d.adicional_no_registrado - ausenciasDescuento
+    + d.bono_monto - d.descuento_otro_monto
+
+  // Aportes patronales (es_patronal=true): cargas sociales que paga la empresa al estado.
+  // Base: el bruto del recibo oficial para BLANCO, o el sueldo fijo en negro.
+  const baseAportesPatronales = esBlanco && d.monto_recibo_oficial > 0
+    ? d.monto_recibo_oficial
+    : basicoEfectivo
+
   let aportes_patronales = 0
-
   for (const aporte of aportes ?? []) {
-    const monto = aporte.tipo === 'PORCENTAJE' ? (subtotal * aporte.valor) / 100 : aporte.valor
-    if (aporte.es_patronal) aportes_patronales += monto
-    else aportes_empleado += monto
+    if (!aporte.es_patronal) continue
+    const monto = aporte.tipo === 'PORCENTAJE' ? (baseAportesPatronales * aporte.valor) / 100 : aporte.valor
+    aportes_patronales += monto
   }
 
-  const neto = subtotal - aportes_empleado
-  const costo_empresa = subtotal + aportes_patronales
+  // Neto a pagar = subtotal (lo que efectivamente sale para el empleado).
+  // Costo empresa = neto + cargas sociales + provisión aguinaldo.
+  const neto = subtotal
+  const costo_empresa = neto + aportes_patronales + aguinaldoProvisionado
 
-  const { error } = await supabase.from('nomina_mensual').insert({
+  const valor_hora_real = d.horas_trabajadas > 0 && d.monto_recibo_oficial > 0
+    ? d.monto_recibo_oficial / d.horas_trabajadas
+    : d.valor_hora
+
+  const netoFinal = Math.round(neto * 100) / 100
+
+  const { data: nominaInserted, error } = await supabase.from('nomina_mensual').insert({
     empleado_id: d.empleado_id,
     mes: d.mes,
-    sueldo_basico: d.sueldo_basico,
+    sueldo_basico: basicoEfectivo,
     horas_trabajadas: d.horas_trabajadas,
     valor_hora: d.valor_hora,
+    valor_hora_real: Math.round(valor_hora_real * 100) / 100,
     horas_extras: d.horas_extras,
+    porcentaje_extras: d.porcentaje_extras,
     comida: d.comida,
-    aguinaldo: d.aguinaldo,
-    aportes_empleado: Math.round(aportes_empleado * 100) / 100,
+    aguinaldo: d.aguinaldo_pagado_de_caja,
+    aguinaldo_pagado_de_caja: d.aguinaldo_pagado_de_caja,
+    aguinaldo_provisionado: aguinaldoProvisionado,
+    asistencia_completa: d.asistencia_completa,
+    presentismo_monto: Math.round(presentismo * 100) / 100,
+    monto_recibo_oficial: d.monto_recibo_oficial,
+    adicional_no_registrado: d.adicional_no_registrado,
+    aportes_empleado: 0,
     aportes_patronales: Math.round(aportes_patronales * 100) / 100,
     subtotal: Math.round(subtotal * 100) / 100,
-    neto: Math.round(neto * 100) / 100,
+    neto: netoFinal,
     costo_empresa: Math.round(costo_empresa * 100) / 100,
     estado: 'PENDIENTE',
+    fecha_programada_pago: d.fecha_programada_pago,
     notas: d.notas || null,
-  })
+    ausencias_descuento: ausenciasDescuento,
+    ausencias_horas: ausenciasHoras,
+    ausencias_motivo: d.ausencias_motivo || null,
+    bono_monto: d.bono_monto || 0,
+    bono_concepto: d.bono_concepto || null,
+    bono_descripcion: d.bono_descripcion || null,
+    descuento_otro_monto: d.descuento_otro_monto || 0,
+    descuento_otro_concepto: d.descuento_otro_concepto || null,
+    descuento_otro_descripcion: d.descuento_otro_descripcion || null,
+  }).select('id').single()
   if (error) return error.message
 
+  // Marcar horas extras del mes como incluidas en esta nómina
+  if (nominaInserted && d.horas_extras > 0) {
+    await supabase
+      .from('horas_extras_registros')
+      .update({ incluido_en_nomina_id: nominaInserted.id })
+      .eq('empleado_id', d.empleado_id)
+      .gte('fecha', desdeMes)
+      .lte('fecha', hastaMes)
+      .is('incluido_en_nomina_id', null)
+  }
+
+  // Crear gasto pendiente vinculado para que aparezca en /finanzas/pendientes y en el cierre
+  if (nominaInserted) {
+    const concepto = `Pago Nómina - ${empleado.nombre} ${empleado.apellido} - ${d.mes}`
+    const { data: gastoInserted } = await supabase.from('gastos').insert({
+      categoria: 'Sueldos',
+      concepto,
+      monto: netoFinal,
+      monto_neto: netoFinal,
+      iva_incluido: false,
+      porcentaje_iva: 0,
+      moneda: 'ARS',
+      negocio: 'GENERAL',
+      mes: d.mes,
+      estado: 'PENDIENTE',
+      fecha_pago: d.fecha_programada_pago,
+      medio_pago: 'TRANSFERENCIA',
+      notas: `Nómina vinculada · empleado ${empleado.tipo_empleado}`,
+      confirmado: true,
+    }).select('id').single()
+
+    if (gastoInserted) {
+      await supabase
+        .from('nomina_mensual')
+        .update({ gasto_pendiente_id: gastoInserted.id })
+        .eq('id', nominaInserted.id)
+    }
+  }
+
+  // Sincronizar el gasto de aportes patronales (si aportes_patronales > 0)
+  if (nominaInserted) {
+    await syncGastoAportesPatronales(nominaInserted.id)
+  }
+
   revalidatePath('/rrhh/nomina')
+  revalidatePath('/rrhh/empleados')
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/cierre-mes')
   revalidatePath('/')
   return null
 }
 
 export async function marcarNominaPagada(id: string) {
+  await requireUser()
   const supabase = await createClient()
+
+  // Buscar la nómina y su gasto vinculado para marcar ambos como pagados
+  const { data: nomina } = await supabase
+    .from('nomina_mensual')
+    .select('id, gasto_pendiente_id, fecha_programada_pago')
+    .eq('id', id)
+    .single()
+  if (!nomina) throw new Error('Nómina no encontrada')
+
+  const fechaPago = new Date().toISOString().split('T')[0]
+
   const { error } = await supabase
     .from('nomina_mensual')
     .update({ estado: 'PAGADO' })
     .eq('id', id)
   if (error) throw new Error(error.message)
+
+  // Sincronizar el gasto vinculado
+  if (nomina.gasto_pendiente_id) {
+    await supabase
+      .from('gastos')
+      .update({ estado: 'PAGADO', fecha_pago: fechaPago })
+      .eq('id', nomina.gasto_pendiente_id)
+  }
+
   revalidatePath('/rrhh/nomina')
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/cierre-mes')
   revalidatePath('/')
 }
 
-export async function deleteNomina(id: string) {
+/**
+ * Edita una nómina existente. Aplica 3 guardas para evitar inconsistencias:
+ *  1. Si la nómina está PAGADA → solo permite editar `notas`
+ *  2. Si tiene pagos parciales → exige que el nuevo neto sea ≥ total ya pagado
+ *  3. Sin pagos → edit libre, recalcula y sincroniza el gasto vinculado
+ */
+export async function updateNomina(id: string, prevState: string | null, formData: FormData) {
+  await requireUser()
+  const raw = {
+    ...Object.fromEntries(formData),
+    asistencia_completa: formData.get('asistencia_completa') === 'true' || formData.get('asistencia_completa') === 'on',
+  }
+  const result = nominaSchema.safeParse(raw)
+  if (!result.success) return result.error.issues[0].message
+
   const supabase = await createClient()
+
+  // Cargar la nómina actual + pagos parciales
+  const { data: nominaActual } = await supabase
+    .from('nomina_mensual')
+    .select('id, neto, estado, gasto_pendiente_id, mes')
+    .eq('id', id)
+    .single()
+  if (!nominaActual) return 'Nómina no encontrada'
+
+  const { data: pagosPrev } = await supabase
+    .from('pagos')
+    .select('monto')
+    .eq('tipo_origen', 'NOMINA')
+    .eq('origen_id', id)
+  const totalPagado = (pagosPrev ?? []).reduce((s, p) => s + Number(p.monto), 0)
+
+  // GUARDA 1: nómina ya totalmente pagada
+  if (nominaActual.estado === 'PAGADO') {
+    // Sólo permitir cambio de notas
+    const { error } = await supabase
+      .from('nomina_mensual')
+      .update({ notas: result.data.notas || null })
+      .eq('id', id)
+    if (error) return error.message
+    revalidatePath('/rrhh/nomina')
+    return null
+  }
+
+  // Re-cargar empleado y aportes para recalcular
+  const { data: empleado } = await supabase
+    .from('empleados')
+    .select('*')
+    .eq('id', result.data.empleado_id)
+    .single()
+  if (!empleado) return 'Empleado no encontrado'
+
+  const { data: aportes } = await supabase
+    .from('configuracion_aportes')
+    .select('*')
+    .eq('activo', true)
+    .or(`aplicable_a.eq.AMBOS,aplicable_a.eq.${empleado.tipo_empleado}`)
+
+  const d = result.data
+  const esBlanco = empleado.tipo_empleado === 'BLANCO'
+  const basicoEfectivo = esBlanco && d.monto_recibo_oficial > 0 ? d.monto_recibo_oficial : d.sueldo_basico
+  const horas_extras_monto = d.horas_extras * d.valor_hora * (1 + d.porcentaje_extras / 100)
+  const presentismo = !esBlanco && d.asistencia_completa
+    ? Math.round(basicoEfectivo * (empleado.presentismo_pct ?? 0)) / 100
+    : 0
+  const ausenciasDescuento = Math.round(d.ausencias_horas * d.valor_hora * 100) / 100
+
+  // Aguinaldo sobre el sueldo FIJO mensual (oficial + acuerdo fijo en negro)
+  const baseAguinaldo = basicoEfectivo + d.adicional_no_registrado
+  const aguinaldoProvisionado = empleado.corresponde_aguinaldo
+    ? Math.round(baseAguinaldo * (empleado.porcentaje_aguinaldo ?? 0)) / 100
+    : 0
+
+  const subtotal = basicoEfectivo + horas_extras_monto + d.comida + presentismo
+    + d.aguinaldo_pagado_de_caja + d.adicional_no_registrado - ausenciasDescuento
+    + d.bono_monto - d.descuento_otro_monto
+
+  // Aportes patronales sobre el bruto del recibo oficial (BLANCO) o el básico negro
+  const baseAportesPatronales = esBlanco && d.monto_recibo_oficial > 0
+    ? d.monto_recibo_oficial
+    : basicoEfectivo
+  let aportes_patronales = 0
+  for (const aporte of aportes ?? []) {
+    if (!aporte.es_patronal) continue
+    const monto = aporte.tipo === 'PORCENTAJE' ? (baseAportesPatronales * aporte.valor) / 100 : aporte.valor
+    aportes_patronales += monto
+  }
+  // Neto = subtotal (lo que se paga al empleado, sin aplicar aportes empleado).
+  const neto = Math.round(subtotal * 100) / 100
+  const costo_empresa = neto + aportes_patronales + aguinaldoProvisionado
+
+  // GUARDA 2: si tiene pagos parciales, no permitir bajar el neto debajo de lo ya pagado
+  if (totalPagado > 0 && neto + 0.01 < totalPagado) {
+    return `El nuevo neto ($${neto.toFixed(2)}) es menor a lo ya pagado a cuenta ($${totalPagado.toFixed(2)}). Borrá pagos parciales primero.`
+  }
+
+  const valor_hora_real = d.horas_trabajadas > 0 && d.monto_recibo_oficial > 0
+    ? d.monto_recibo_oficial / d.horas_trabajadas
+    : d.valor_hora
+
+  const { error } = await supabase.from('nomina_mensual').update({
+    sueldo_basico: basicoEfectivo,
+    horas_trabajadas: d.horas_trabajadas,
+    valor_hora: d.valor_hora,
+    valor_hora_real: Math.round(valor_hora_real * 100) / 100,
+    horas_extras: d.horas_extras,
+    porcentaje_extras: d.porcentaje_extras,
+    comida: d.comida,
+    aguinaldo: d.aguinaldo_pagado_de_caja,
+    aguinaldo_pagado_de_caja: d.aguinaldo_pagado_de_caja,
+    aguinaldo_provisionado: aguinaldoProvisionado,
+    asistencia_completa: d.asistencia_completa,
+    presentismo_monto: Math.round(presentismo * 100) / 100,
+    monto_recibo_oficial: d.monto_recibo_oficial,
+    adicional_no_registrado: d.adicional_no_registrado,
+    aportes_empleado: 0,
+    aportes_patronales: Math.round(aportes_patronales * 100) / 100,
+    subtotal: Math.round(subtotal * 100) / 100,
+    neto,
+    costo_empresa: Math.round(costo_empresa * 100) / 100,
+    fecha_programada_pago: d.fecha_programada_pago,
+    notas: d.notas || null,
+    ausencias_descuento: ausenciasDescuento,
+    ausencias_horas: d.ausencias_horas,
+    ausencias_motivo: d.ausencias_motivo || null,
+    bono_monto: d.bono_monto || 0,
+    bono_concepto: d.bono_concepto || null,
+    bono_descripcion: d.bono_descripcion || null,
+    descuento_otro_monto: d.descuento_otro_monto || 0,
+    descuento_otro_concepto: d.descuento_otro_concepto || null,
+    descuento_otro_descripcion: d.descuento_otro_descripcion || null,
+  }).eq('id', id)
+  if (error) return error.message
+
+  // Sincronizar el gasto vinculado con el nuevo neto
+  if (nominaActual.gasto_pendiente_id) {
+    await supabase
+      .from('gastos')
+      .update({
+        monto: neto,
+        monto_neto: neto,
+        fecha_pago: d.fecha_programada_pago,
+      })
+      .eq('id', nominaActual.gasto_pendiente_id)
+  }
+
+  // Sincronizar el gasto de aportes patronales con el nuevo monto
+  await syncGastoAportesPatronales(id)
+
+  revalidatePath('/rrhh/nomina')
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/cierre-mes')
+  revalidatePath('/finanzas/pagos')
+  revalidatePath('/')
+  return null
+}
+
+export async function deleteNomina(id: string) {
+  await requireUser()
+  const supabase = await createClient()
+
+  // Liberar las horas extras vinculadas (ausencias ya no se vinculan)
+  await supabase
+    .from('horas_extras_registros')
+    .update({ incluido_en_nomina_id: null })
+    .eq('incluido_en_nomina_id', id)
+
+  // Buscar y eliminar los gastos vinculados (sueldo + aportes patronales)
+  const { data: nomina } = await supabase
+    .from('nomina_mensual')
+    .select('gasto_pendiente_id, gasto_aportes_patronales_id')
+    .eq('id', id)
+    .single()
+
   const { error } = await supabase.from('nomina_mensual').delete().eq('id', id)
   if (error) throw new Error(error.message)
+
+  if (nomina?.gasto_pendiente_id) {
+    await supabase.from('gastos').delete().eq('id', nomina.gasto_pendiente_id)
+  }
+  if (nomina?.gasto_aportes_patronales_id) {
+    await supabase.from('gastos').delete().eq('id', nomina.gasto_aportes_patronales_id)
+  }
+
   revalidatePath('/rrhh/nomina')
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/cierre-mes')
   revalidatePath('/')
+}
+
+// ============ LIQUIDACIÓN MASIVA DE NÓMINAS ============
+
+/**
+ * Genera nóminas en lote para múltiples empleados de un mes,
+ * usando los valores por defecto de cada empleado (básico, horas, valor hora, comida).
+ * Saltea los que ya tienen nómina ese mes. Sin horas extras ni adicionales.
+ */
+export async function liquidacionMasiva(args: {
+  empleadoIds: string[]
+  mes: string
+  fechaProgramadaPago: string
+}) {
+  await requireUser()
+  if (!args.empleadoIds.length) return { ok: 0, errors: [] as string[] }
+  const supabase = await createClient()
+
+  // Saltear los que ya tienen nómina del mes
+  const { data: existentes } = await supabase
+    .from('nomina_mensual')
+    .select('empleado_id')
+    .eq('mes', args.mes)
+    .in('empleado_id', args.empleadoIds)
+  const yaLiquidados = new Set((existentes ?? []).map((n) => n.empleado_id))
+
+  // Empleados con sus configs
+  const { data: empleados } = await supabase
+    .from('empleados')
+    .select('*')
+    .in('id', args.empleadoIds)
+  const { data: aportes } = await supabase
+    .from('configuracion_aportes')
+    .select('*')
+    .eq('activo', true)
+
+  const errors: string[] = []
+  let ok = 0
+
+  // 1) Filtrar empleados elegibles (no ya liquidados) y construir todas las filas en memoria
+  const empleadosElegibles = (empleados ?? []).filter((emp) => {
+    if (yaLiquidados.has(emp.id)) {
+      errors.push(`${emp.nombre} ${emp.apellido}: ya tenía nómina del ${args.mes}`)
+      return false
+    }
+    return true
+  })
+
+  if (empleadosElegibles.length === 0) {
+    return { ok, errors }
+  }
+
+  // 2) Calcular las filas de nómina y gasto vinculado para cada uno
+  type CalcRow = { empleado: typeof empleadosElegibles[number]; nomina: Record<string, unknown>; gasto: Record<string, unknown>; netoFinal: number }
+  const filas: CalcRow[] = empleadosElegibles.map((empleado) => {
+    const esBlanco = empleado.tipo_empleado === 'BLANCO'
+    const basicoEfectivo = Number(empleado.sueldo_basico ?? 0)
+    const horasTrabajadas = Number(empleado.horas_mensuales ?? 0)
+    const valorHora = Number(empleado.valor_hora ?? 0)
+    const comida = Number(empleado.monto_comidas ?? 0)
+    const aguinaldoProvisionado = empleado.corresponde_aguinaldo
+      ? Math.round(basicoEfectivo * (Number(empleado.porcentaje_aguinaldo) ?? 0)) / 100
+      : 0
+    const subtotal = basicoEfectivo + comida
+    const baseAportes = subtotal
+    let aportes_empleado = 0
+    let aportes_patronales = 0
+    for (const a of aportes ?? []) {
+      if (a.aplicable_a !== 'AMBOS' && a.aplicable_a !== empleado.tipo_empleado) continue
+      const monto = a.tipo === 'PORCENTAJE' ? (baseAportes * Number(a.valor)) / 100 : Number(a.valor)
+      if (a.es_patronal) aportes_patronales += monto
+      else aportes_empleado += monto
+    }
+    const neto = subtotal - aportes_empleado
+    const costo_empresa = subtotal + aportes_patronales + aguinaldoProvisionado
+    const netoFinal = Math.round(neto * 100) / 100
+    return {
+      empleado,
+      netoFinal,
+      nomina: {
+        empleado_id: empleado.id,
+        mes: args.mes,
+        sueldo_basico: basicoEfectivo,
+        horas_trabajadas: horasTrabajadas,
+        valor_hora: valorHora,
+        valor_hora_real: valorHora,
+        horas_extras: 0,
+        porcentaje_extras: 50,
+        comida,
+        aguinaldo: 0,
+        aguinaldo_pagado_de_caja: 0,
+        aguinaldo_provisionado: aguinaldoProvisionado,
+        asistencia_completa: false,
+        presentismo_monto: 0,
+        monto_recibo_oficial: esBlanco ? basicoEfectivo : 0,
+        adicional_no_registrado: 0,
+        aportes_empleado: Math.round(aportes_empleado * 100) / 100,
+        aportes_patronales: Math.round(aportes_patronales * 100) / 100,
+        subtotal: Math.round(subtotal * 100) / 100,
+        neto: netoFinal,
+        costo_empresa: Math.round(costo_empresa * 100) / 100,
+        estado: 'PENDIENTE',
+        fecha_programada_pago: args.fechaProgramadaPago,
+        notas: 'Generada por liquidación masiva',
+      },
+      gasto: {
+        categoria: 'Sueldos',
+        concepto: `Pago Nómina - ${empleado.nombre} ${empleado.apellido} - ${args.mes}`,
+        monto: netoFinal,
+        monto_neto: netoFinal,
+        iva_incluido: false,
+        porcentaje_iva: 0,
+        moneda: 'ARS',
+        negocio: 'GENERAL',
+        mes: args.mes,
+        fecha: args.fechaProgramadaPago,
+        estado: 'PENDIENTE',
+        fecha_pago: args.fechaProgramadaPago,
+        medio_pago: 'TRANSFERENCIA',
+        notas: `Nómina vinculada · ${empleado.tipo_empleado} (liq. masiva)`,
+        confirmado: true,
+      },
+    }
+  })
+
+  // 3) Bulk insert de nóminas (1 query). El orden de retorno coincide con el orden de inserción.
+  const { data: nominasInsertadas, error: errNomina } = await supabase
+    .from('nomina_mensual')
+    .insert(filas.map((f) => f.nomina))
+    .select('id, empleado_id')
+  if (errNomina) {
+    errors.push(`Error insertando nóminas: ${errNomina.message}`)
+    return { ok, errors }
+  }
+
+  // Map empleado_id → nomina.id
+  const nominaByEmpleado = new Map<string, string>()
+  for (const n of nominasInsertadas ?? []) nominaByEmpleado.set(n.empleado_id, n.id)
+
+  // 4) Bulk insert de gastos vinculados (1 query)
+  const { data: gastosInsertados, error: errGasto } = await supabase
+    .from('gastos')
+    .insert(filas.map((f) => f.gasto))
+    .select('id, concepto')
+
+  // 5) Vincular gastos a nóminas correspondientes (matcheamos por concepto, contiene apellido y mes)
+  if (gastosInsertados && !errGasto) {
+    const updates = filas
+      .map((f) => {
+        const nominaId = nominaByEmpleado.get(f.empleado.id)
+        const gasto = gastosInsertados.find((g) => g.concepto === f.gasto.concepto)
+        if (!nominaId || !gasto) return null
+        return supabase
+          .from('nomina_mensual')
+          .update({ gasto_pendiente_id: gasto.id })
+          .eq('id', nominaId)
+      })
+      .filter((u): u is NonNullable<typeof u> => u !== null)
+    await Promise.all(updates)
+  }
+
+  ok = nominasInsertadas?.length ?? 0
+
+  // Sincronizar gastos de aportes patronales para todas las nóminas insertadas
+  if (nominasInsertadas?.length) {
+    await Promise.all(nominasInsertadas.map((n) => syncGastoAportesPatronales(n.id)))
+  }
+
+  revalidatePath('/rrhh/nomina')
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/cierre-mes')
+  revalidatePath('/')
+
+  return { ok, errors }
+}
+
+// ============ PAGOS PARCIALES NOMINA ============
+// Wrappers que delegan al ledger unificado (`pagos`) — escriben tipo_origen=NOMINA.
+
+import { createPagoUnificado, deletePagoUnificado } from './pagos'
+
+const pagoParcialSchema = z.object({
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha YYYY-MM-DD'),
+  monto: z.coerce.number().positive('El monto debe ser positivo'),
+  moneda: z.enum(['ARS', 'USD']).default('ARS'),
+  medio_pago: z.string().min(1, 'Requerido'),
+  cuenta_id: optUuid,
+  notas: z.string().optional().nullable(),
+})
+
+function medioToInstrumento(medio: string): 'TRANSFERENCIA' | 'EFECTIVO' | 'CUENTA_CORRIENTE' | 'CHEQUE_FISICO' {
+  if (medio === 'EFECTIVO') return 'EFECTIVO'
+  if (medio === 'CTA_CORRIENTE') return 'CUENTA_CORRIENTE'
+  if (medio === 'CHEQUE') return 'CHEQUE_FISICO'
+  return 'TRANSFERENCIA'
+}
+
+export async function createPagoParcialNomina(
+  nominaId: string,
+  prevState: string | null,
+  formData: FormData,
+) {
+  await requireUser()
+  const raw = Object.fromEntries(formData)
+  const result = pagoParcialSchema.safeParse(raw)
+  if (!result.success) return result.error.issues[0].message
+
+  try {
+    await createPagoUnificado({
+      tipo_origen: 'NOMINA',
+      origen_id: nominaId,
+      monto: result.data.monto,
+      moneda: result.data.moneda,
+      fecha_emision: result.data.fecha,
+      instrumento: medioToInstrumento(result.data.medio_pago),
+      cuenta_id: result.data.cuenta_id || null,
+      notas: result.data.notas || null,
+    })
+    return null
+  } catch (e) {
+    return (e as Error).message
+  }
+}
+
+export async function deletePagoParcialNomina(id: string) {
+  await requireUser()
+  await deletePagoUnificado(id)
 }
 
 // ============ VACACIONES ============
@@ -213,6 +1092,7 @@ export async function upsertVacaciones(
   diasDisponibles: number,
   periodos: { fecha_inicio: string; fecha_fin: string; dias: number; notas?: string }[]
 ) {
+  await requireUser()
   const diasTomados = periodos.reduce((s, p) => s + p.dias, 0)
   const supabase = await createClient()
 
@@ -244,6 +1124,7 @@ const aporteSchema = z.object({
 })
 
 export async function createAporte(prevState: string | null, formData: FormData) {
+  await requireUser()
   const raw = {
     ...Object.fromEntries(formData),
     es_patronal: formData.get('es_patronal') === 'true',
@@ -261,6 +1142,7 @@ export async function createAporte(prevState: string | null, formData: FormData)
 }
 
 export async function updateAporte(id: string, prevState: string | null, formData: FormData) {
+  await requireUser()
   const raw = {
     ...Object.fromEntries(formData),
     es_patronal: formData.get('es_patronal') === 'true',
@@ -279,6 +1161,7 @@ export async function updateAporte(id: string, prevState: string | null, formDat
 }
 
 export async function deleteAporte(id: string) {
+  await requireUser()
   const supabase = await createClient()
   const { error } = await supabase.from('configuracion_aportes').delete().eq('id', id)
   if (error) throw new Error(error.message)

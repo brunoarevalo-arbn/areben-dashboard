@@ -10,11 +10,37 @@ export interface Gasto {
   categoria: string
   concepto: string
   monto: number
+  monto_neto: number
+  moneda: 'ARS' | 'USD'
+  monto_secundario?: number | null
+  moneda_secundaria?: 'ARS' | 'USD' | null
+  iva_incluido: boolean
+  porcentaje_iva: number
   negocio: Marca
   mes: string
+  fecha: string
   estado: EstadoGasto
   fecha_pago?: string | null
   notas?: string | null
+  recurrente_id?: string | null
+  prorrateo?: ProrrateoMarcas | null
+  medio_pago?: string | null
+  cuenta_id?: string | null
+  cuenta_origen_pago_id?: string | null
+  tarjeta_id?: string | null
+  cuotas_total?: number | null
+  detalles?: Record<string, unknown> | null
+  confirmado: boolean
+  /** Si el gasto se paga financiado (cuotas con interés) */
+  tiene_intereses?: boolean
+  interes_tipo?: 'MONTO' | 'PORCENTAJE' | null
+  interes_valor?: number | null
+  /** Snapshot del interés calculado en pesos */
+  interes_monto?: number | null
+  /** FK al gasto auto-generado de "Gasto Financiero" (en el gasto principal) */
+  gasto_intereses_id?: string | null
+  /** FK al gasto padre (en el gasto-intereses auto-generado) */
+  gasto_padre_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -36,9 +62,336 @@ export interface RetiroSocio {
   id: string
   socio: string
   fecha: string
+  mes?: string | null
   monto_usd: number
   monto_pesos: number
+  monto_usd_calculado?: number | null
   tipo_cambio: number
+  categoria_id?: string | null
+  notas?: string | null
+  medio_pago?: string | null
+  tarjeta_id?: string | null
+  cuotas_total?: number | null
+  convertido_at?: string | null
+  tc_cierre?: number | null
+  created_at: string
+  categoria?: CategoriaRetiro | null
+}
+
+export interface CategoriaRetiro {
+  id: string
+  nombre: string
+  emoji?: string | null
+  color: string
+  orden: number
+  activo: boolean
+  created_at: string
+}
+
+// ============ Cuentas / Tesorería ============
+
+export type TipoTitular = 'EMPRESA' | 'SOCIO' | 'OTRO'
+export type TipoCuenta = 'BANCO' | 'BILLETERA' | 'CAJA' | 'CTA_CORRIENTE'
+
+export interface CuentaTitular {
+  id: string
+  nombre: string
+  tipo: TipoTitular
+  activo: boolean
+  created_at: string
+}
+
+export interface CuentaBancaria {
+  id: string
+  titular_id: string
+  nombre: string
+  banco: string
+  tipo: TipoCuenta
+  permite_dual: boolean
+  activo: boolean
+  notas?: string | null
+  created_at: string
+  titular?: CuentaTitular
+}
+
+export interface SaldoCuenta {
+  id: string
+  cuenta_id: string
+  mes: string
+  saldo_ars: number
+  saldo_usd: number
+  cerrado: boolean
+  fecha_cierre?: string | null
+  notas?: string | null
+  created_at: string
+  updated_at: string
+  cuenta?: CuentaBancaria
+}
+
+export interface TipoCambioMes {
+  id: string
+  mes: string
+  tipo_cambio: number
+  fuente?: string | null
+  notas?: string | null
+  created_at: string
+}
+
+export interface ActivoManual {
+  id: string
+  mes: string
+  descripcion: string
+  categoria?: string | null
+  monto: number
+  moneda: 'ARS' | 'USD'
+  titular_id?: string | null
+  notas?: string | null
+  created_at: string
+  updated_at: string
+  titular?: CuentaTitular | null
+}
+
+// ============ CUENTAS PATRIMONIALES (plan de cuentas) ============
+
+export type TipoCuentaPatrim =
+  | 'INVENTARIO'
+  | 'INVERSION'
+  | 'PROVISION'
+  | 'CTA_CTE_MARCA'
+  | 'PASIVO_ROTATIVO'
+  | 'IMPOSITIVO'
+  | 'OTRO_ACTIVO'
+  | 'OTRO_PASIVO'
+
+export interface CuentaPatrimonial {
+  id: string
+  codigo?: string | null
+  nombre: string
+  tipo: TipoCuentaPatrim
+  categoria?: string | null
+  marca?: string | null
+  moneda: 'ARS' | 'USD'
+  signo_pn: 1 | -1
+  saldo_inicial: number
+  mes_inicial?: string | null
+  notas?: string | null
+  activo: boolean
+  orden: number
+  created_at: string
+  updated_at: string
+}
+
+export interface SaldoCuentaPatrim {
+  id: string
+  cuenta_id: string
+  mes: string
+  saldo_inicio: number
+  movimiento: number
+  saldo_cierre: number
+  notas?: string | null
+  created_at: string
+  updated_at: string
+  cuenta?: CuentaPatrimonial
+}
+
+// ============ Tarjetas ============
+
+export type TipoTarjeta = 'CREDITO' | 'DEBITO'
+
+export interface TarjetaCredito {
+  id: string
+  titular_id?: string | null
+  nombre: string
+  banco: string
+  tipo: TipoTarjeta
+  ultimos_4?: string | null
+  dia_cierre: number
+  dia_vencimiento: number
+  limite_ars?: number | null
+  activo: boolean
+  notas?: string | null
+  created_at: string
+  titular?: CuentaTitular | null
+}
+
+export interface CuotaTarjeta {
+  id: string
+  tarjeta_id: string
+  origen_tipo: 'COMPRA' | 'GASTO' | 'MANUAL'
+  origen_id?: string | null
+  concepto: string
+  monto_total: number
+  cuotas_total: number
+  cuota_numero: number
+  monto_cuota: number
+  mes_cierre: string
+  mes_vencimiento: string
+  /** Fecha exacta de vencimiento (mes + dia_vencimiento de la tarjeta). */
+  fecha_vencimiento?: string | null
+  pagada: boolean
+  fecha_pago?: string | null
+  created_at: string
+  tarjeta?: TarjetaCredito
+}
+
+// ============ Gastos extendidos ============
+
+export interface ProrrateoMarcas {
+  BDI?: number
+  ZATTIA?: number
+  STUNNED?: number
+  GENERAL?: number
+}
+
+export interface ProrrateoDefault {
+  id: string
+  nombre: string
+  porcentajes: ProrrateoMarcas
+  es_default: boolean
+  created_at: string
+}
+
+export interface GastoRecurrente {
+  id: string
+  concepto: string
+  categoria: string
+  monto_estimado: number
+  moneda: 'ARS' | 'USD'
+  monto_secundario?: number | null
+  moneda_secundaria?: 'ARS' | 'USD' | null
+  iva_incluido: boolean
+  porcentaje_iva: number
+  medio_pago: string
+  cuenta_id?: string | null
+  tarjeta_id?: string | null
+  dia_vencimiento?: number | null
+  tipo_mes: 'CORRIENTE' | 'VENCIDO'
+  prorrateo?: ProrrateoMarcas | null
+  detalles?: Record<string, unknown> | null
+  activo: boolean
+  created_at: string
+}
+
+export interface TipoIVA {
+  id: string
+  nombre: string
+  porcentaje: number
+  activo: boolean
+  orden: number
+  created_at: string
+}
+
+export interface ConfiguracionProrrateo {
+  id: string
+  marca: string
+  porcentaje: number
+  orden: number
+  activo: boolean
+  updated_at: string
+}
+
+// ============ CIERRE DE MES ============
+
+export interface PasivoManual {
+  id: string
+  descripcion: string
+  monto: number
+  moneda: 'ARS' | 'USD'
+  acreedor?: string | null
+  notas?: string | null
+}
+
+export interface SnapshotCuenta {
+  cuenta_id: string
+  titular_nombre: string
+  banco: string
+  nombre: string
+  tipo: string
+  saldo_ars: number
+  saldo_usd: number
+}
+
+export interface CierreMensual {
+  id: string
+  mes: string
+  tipo_cambio: number
+  caja_ars: number
+  caja_usd: number
+  snapshot_cuentas: SnapshotCuenta[]
+  snapshot_pasivos: Record<string, unknown>
+  snapshot_retiros: Record<string, unknown>
+  pasivos_manuales: PasivoManual[]
+  total_activos_ars: number
+  total_activos_usd: number
+  total_pasivos_ars: number
+  total_pasivos_usd: number
+  pn_ars: number
+  pn_usd: number
+  total_retiros_ars: number
+  total_retiros_usd: number
+  resultado_ars: number
+  cerrado: boolean
+  fecha_cierre?: string | null
+  notas?: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ============ INVERSIONES DE TERCEROS ============
+
+export type TipoInversor = 'persona_fisica' | 'empresa'
+export type EstadoInstrumento = 'activo' | 'cerrado' | 'renovado'
+
+export interface Inversor {
+  id: string
+  nombre: string
+  tipo: TipoInversor
+  notas?: string | null
+  activo: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface Instrumento {
+  id: string
+  inversor_id: string
+  codigo?: string | null
+  moneda: 'USD' | 'ARS'
+  capital_inicial: number
+  tasa_mensual: number
+  capitalizable: boolean
+  fecha_inicio: string
+  fecha_fin?: string | null
+  estado: EstadoInstrumento
+  notas?: string | null
+  created_at: string
+  updated_at: string
+  inversor?: Inversor
+}
+
+export interface PeriodoInstrumento {
+  id: string
+  instrumento_id: string
+  mes: string
+  saldo_inicio: number
+  interes_devengado: number
+  int_inicio_prorrateado: number
+  int_fin_prorrateado: number
+  movimiento: number
+  saldo_cierre: number
+  tasa_aplicada: number
+  cerrado: boolean
+  fecha_cierre?: string | null
+  created_at: string
+  updated_at: string
+  instrumento?: Instrumento
+}
+
+export interface TramoTasa {
+  id: string
+  instrumento_id: string
+  tasa_mensual: number
+  fecha_desde: string
   notas?: string | null
   created_at: string
 }
@@ -71,21 +424,73 @@ export interface Empleado {
   id: string
   nombre: string
   apellido: string
-  dni: string
+  dni?: string | null
   email?: string | null
   telefono?: string | null
   tipo_empleado: TipoEmpleado
   sueldo_basico: number
   valor_hora: number
+  horas_mensuales: number
+  corresponde_aguinaldo: boolean
+  porcentaje_aguinaldo: number
+  monto_comidas: number
+  presentismo_pct: number
+  /** Horas mensuales fijas acordadas en negro (no son extras). Suman al aguinaldo. */
+  horas_acuerdo_negro: number
+  /** Tipo del plus salarial fijo en negro (mensual). Suma al aguinaldo. */
+  plus_negro_tipo?: 'MONTO' | 'PORCENTAJE' | null
+  /** Si plus_negro_tipo=MONTO → pesos mensuales. Si PORCENTAJE → % sobre monto_recibo_oficial. */
+  plus_negro_valor?: number | null
   cbu?: string | null
   banco?: string | null
   metodo_pago?: MetodoPago | null
-  fecha_ingreso: string
+  fecha_ingreso?: string | null
   fecha_egreso?: string | null
   activo: boolean
   fecha_nacimiento?: string | null
   created_at: string
   updated_at: string
+}
+
+export interface HoraExtraRegistro {
+  id: string
+  empleado_id: string
+  fecha: string
+  cantidad: number
+  porcentaje: number
+  notas?: string | null
+  incluido_en_nomina_id?: string | null
+  created_at: string
+}
+
+export type TipoAusencia = 'FALTA' | 'LICENCIA_NO_PAGA' | 'SIN_AVISO' | 'JUSTIFICADA' | 'OTRO'
+
+export interface AusenciaRegistro {
+  id: string
+  empleado_id: string
+  fecha: string
+  dias: number
+  tipo: TipoAusencia
+  justificada: boolean
+  monto_descuento: number
+  notas?: string | null
+  incluido_en_nomina_id?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type TipoEvento = 'INCIDENCIA' | 'AJUSTE_SALARIAL' | 'LICENCIA' | 'PREMIO' | 'AMONESTACION' | 'OTRO'
+
+export interface EventoEmpleado {
+  id: string
+  empleado_id: string
+  tipo: TipoEvento
+  fecha: string
+  titulo: string
+  descripcion?: string | null
+  sueldo_anterior?: number | null
+  sueldo_nuevo?: number | null
+  created_at: string
 }
 
 export interface NominaMensual {
@@ -95,19 +500,81 @@ export interface NominaMensual {
   sueldo_basico: number
   horas_trabajadas: number
   valor_hora: number
+  valor_hora_real: number
   horas_extras: number
+  porcentaje_extras: number
   comida: number
   aguinaldo: number
+  aguinaldo_provisionado: number
+  aguinaldo_pagado_de_caja: number
+  asistencia_completa: boolean
+  presentismo_monto: number
+  monto_recibo_oficial: number
+  adicional_no_registrado: number
   aportes_empleado: number
   aportes_patronales: number
   subtotal: number
   neto: number
   costo_empresa: number
   estado: EstadoNomina
+  fecha_programada_pago?: string | null
+  gasto_pendiente_id?: string | null
+  gasto_aportes_patronales_id?: string | null
   notas?: string | null
+  ausencias_descuento?: number
+  ausencias_dias?: number
+  ausencias_horas?: number
+  ausencias_motivo?: string | null
+  bono_monto?: number
+  bono_concepto?: string | null
+  bono_descripcion?: string | null
+  descuento_otro_monto?: number
+  descuento_otro_concepto?: string | null
+  descuento_otro_descripcion?: string | null
   created_at: string
   updated_at: string
   empleado?: Empleado
+  pagos_parciales?: PagoParcialNomina[]
+  total_pagado?: number
+  saldo_pendiente?: number
+}
+
+/**
+ * Pago: ledger único de salidas. Polimórfico por (tipo_origen, origen_id).
+ * - COMPRA: origen_id = compra.id (también compra_id por compatibilidad)
+ * - GASTO/NOMINA/CUOTA: origen_id apunta a la entidad correspondiente
+ * - LIBRE: origen_id = NULL (cheques históricos sin asignar)
+ */
+export type TipoOrigenPago = 'COMPRA' | 'GASTO' | 'NOMINA' | 'CUOTA' | 'LIBRE'
+export type InstrumentoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'CUENTA_CORRIENTE' | 'CHEQUE_FISICO' | 'ECHEQ' | 'TARJETA'
+
+export interface Pago {
+  id: string
+  tipo_origen: TipoOrigenPago
+  origen_id?: string | null
+  compra_id?: string | null
+  monto: number
+  moneda: 'ARS' | 'USD'
+  fecha_emision: string
+  fecha_vencimiento?: string | null
+  condicion_pago: string
+  instrumento: InstrumentoPago
+  numero_cheque?: string | null
+  banco_emisor?: string | null
+  numero_cuota?: number | null
+  total_cuotas?: number | null
+  cuenta_id?: string | null
+  acreditado?: boolean
+  fecha_acreditacion?: string | null
+  notas?: string | null
+  created_at: string
+}
+
+/** @deprecated — la tabla pagos_parciales_nomina fue migrada a pagos en 019. Mantenido como alias. */
+export type PagoParcialNomina = Pago & {
+  nomina_id: string
+  fecha: string
+  medio_pago: string
 }
 
 export interface VacacionEmpleado {

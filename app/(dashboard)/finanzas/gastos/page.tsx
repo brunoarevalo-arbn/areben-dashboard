@@ -8,6 +8,7 @@ export default async function GastosPage({
   searchParams: Promise<{ mes?: string; negocio?: string; estado?: string }>
 }) {
   const params = await searchParams
+  // Gastos comunes se cargan en el día → mes calendario actual
   const mes = params.mes ?? getCurrentMonth()
 
   const supabase = await createClient()
@@ -21,12 +22,15 @@ export default async function GastosPage({
   if (params.negocio) query = query.eq('negocio', params.negocio)
   if (params.estado) query = query.eq('estado', params.estado)
 
-  const { data: gastos } = await query
-
-  const { data: categorias } = await supabase
-    .from('gastos')
-    .select('categoria')
-    .order('categoria')
+  const [{ data: gastos }, { data: categorias }, { data: cuentas }, { data: tarjetas }, { data: prorrateoDef }, { data: tiposIva }, { data: configProrrateo }] = await Promise.all([
+    query,
+    supabase.from('gastos').select('categoria').order('categoria'),
+    supabase.from('cuentas_bancarias').select('id, nombre, banco').eq('activo', true).order('banco'),
+    supabase.from('tarjetas_credito').select('id, nombre, banco').eq('activo', true).order('banco'),
+    supabase.from('prorrateos_default').select('*'),
+    supabase.from('tipos_iva').select('*').eq('activo', true).order('orden'),
+    supabase.from('configuracion_prorrateo').select('*').eq('activo', true).order('orden'),
+  ])
 
   const uniqueCategorias = [...new Set(categorias?.map((c) => c.categoria) ?? [])]
 
@@ -36,6 +40,11 @@ export default async function GastosPage({
       mes={mes}
       categorias={uniqueCategorias}
       filtros={{ negocio: params.negocio, estado: params.estado }}
+      cuentas={cuentas ?? []}
+      tarjetas={tarjetas ?? []}
+      prorrateosDefault={prorrateoDef ?? []}
+      tiposIva={tiposIva ?? []}
+      configProrrateo={configProrrateo ?? []}
     />
   )
 }

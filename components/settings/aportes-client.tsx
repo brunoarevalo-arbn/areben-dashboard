@@ -24,7 +24,7 @@ function AporteForm({ aporte, onClose }: { aporte?: ConfiguracionAporte; onClose
     <form action={formAction} className="space-y-4">
       <Input label="Nombre" name="nombre" defaultValue={aporte?.nombre} placeholder="Ej: ADESUR, Obra Social" required />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Select
           label="Tipo"
           name="tipo"
@@ -56,7 +56,7 @@ function AporteForm({ aporte, onClose }: { aporte?: ConfiguracionAporte; onClose
         ]}
       />
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-slate-300">Patronal</label>
           <select
@@ -124,7 +124,7 @@ export function AportesClient({ aportes }: { aportes: ConfiguracionAporte[] }) {
         </p>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-800">

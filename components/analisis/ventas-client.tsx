@@ -25,7 +25,7 @@ function VentaForm({ mes, onClose }: { mes: string; onClose: () => void }) {
 
   return (
     <form action={action} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Select
           label="Mes"
           name="mes"
@@ -40,7 +40,7 @@ function VentaForm({ mes, onClose }: { mes: string; onClose: () => void }) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Input label="Ventas brutas" name="ventas_brutas" type="number" step="0.01" defaultValue="0" />
         <Input label="Devoluciones" name="devoluciones" type="number" step="0.01" defaultValue="0" />
         <Input label="Ventas netas" name="ventas_netas" type="number" step="0.01" defaultValue="0" />
@@ -89,7 +89,7 @@ export function VentasClient({ ventas, mes }: { ventas: DatosVentasGN[]; mes: st
         </div>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-800">

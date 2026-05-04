@@ -54,3 +54,54 @@ input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   opacity: 0.5;
 }
+
+/* Touch targets en mobile: min 44px */
+@media (hover: none) and (pointer: coarse) {
+  button:not(.no-touch-min),
+  a:not(.no-touch-min),
+  [role="button"] {
+    min-height: 40px;
+  }
+}
+
+/* Tablas con scroll horizontal automático en mobile */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll table {
+  min-width: 100%;
+}
+
+/* Mantener ancho mínimo de las tablas dentro de cards
+   para forzar scroll horizontal en mobile en lugar de cortar columnas */
+@media (max-width: 768px) {
+  .overflow-x-auto > table {
+    min-width: 600px;
+  }
+}
+
+/* Smooth scrolling en mobile */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Evitar que números muy grandes rompan layouts */
+.money,
+.font-mono {
+  white-space: nowrap;
+}
+
+/* Stack form columns on mobile by default */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+@media (min-width: 640px) {
+  .form-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
