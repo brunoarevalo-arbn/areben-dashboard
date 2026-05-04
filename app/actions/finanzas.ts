@@ -267,12 +267,18 @@ async function marcarGastoPagadoOnCommit(gastoId: string) {
   const restante = Math.max(0, Number(g.monto) - yaPagado)
   if (restante <= 0.01) return
 
+  // Compromisos con vencimiento futuro (cheque y cta. cte.) deben aparecer en
+  // pendientes hasta que se acrediten/paguen. Para tarjeta el compromiso son
+  // las cuotas — el pago contra el gasto es virtual y no debe aparecer.
+  const fechaVenc = medio === 'TARJETA' ? null : (g.fecha_pago || g.fecha || null)
+
   await createPagoUnificado({
     tipo_origen: 'GASTO',
     origen_id: gastoId,
     monto: restante,
     moneda: (g.moneda as 'ARS' | 'USD') || 'ARS',
     fecha_emision: g.fecha_pago || g.fecha || new Date().toISOString().split('T')[0],
+    fecha_vencimiento: fechaVenc,
     instrumento: medio as 'TARJETA' | 'CUENTA_CORRIENTE' | 'CHEQUE_FISICO' | 'ECHEQ',
     cuenta_id: g.cuenta_id || null,
     notas: 'Auto-saldo: compromiso desplazado al instrumento de pago',
@@ -1161,6 +1167,78 @@ export async function marcarCuotaPagada(id: string, pagada: boolean) {
   revalidatePath('/finanzas/tarjetas')
   revalidatePath('/finanzas/pendientes')
   revalidatePath('/finanzas/pagos')
+}
+
+/**
+ * Liquida en una sola operación todas las cuotas pendientes de una tarjeta con
+ * fecha_vencimiento <= hastaMes (formato YYYY-MM). Genera un pago en el ledger
+ * por cada cuota desde la cuenta elegida — todos con la misma fecha_emision,
+ * representando el débito único del banco al emisor de la tarjeta.
+ */
+export async function pagarResumenTarjeta(args: {
+  tarjetaId: string
+  hastaMes: string // YYYY-MM
+  cuentaOrigenId: string
+  fechaPago: string // YYYY-MM-DD
+}) {
+  await requireUser()
+  if (!/^\d{4}-\d{2}$/.test(args.hastaMes)) throw new Error('Mes inválido (formato YYYY-MM)')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(args.fechaPago)) throw new Error('Fecha inválida')
+  if (!args.cuentaOrigenId) throw new Error('Seleccioná la cuenta de origen')
+
+  const supabase = await createClient()
+  const { data: cuotasPend } = await supabase
+    .from('cuotas_tarjeta')
+    .select('id, monto_cuota')
+    .eq('tarjeta_id', args.tarjetaId)
+    .eq('pagada', false)
+    .lte('mes_vencimiento', args.hastaMes)
+  if (!cuotasPend || cuotasPend.length === 0) {
+    return { ok: 0, total: 0, errors: [] as string[] }
+  }
+
+  // Pagos previos por cuota (para no duplicar saldos cubiertos parcialmente)
+  const ids = cuotasPend.map((c) => c.id)
+  const { data: prevPagos } = await supabase
+    .from('pagos')
+    .select('origen_id, monto')
+    .eq('tipo_origen', 'CUOTA')
+    .in('origen_id', ids)
+  const pagadoPorCuota = new Map<string, number>()
+  for (const p of prevPagos ?? []) {
+    if (!p.origen_id) continue
+    pagadoPorCuota.set(p.origen_id, (pagadoPorCuota.get(p.origen_id) ?? 0) + Number(p.monto))
+  }
+
+  const errors: string[] = []
+  let ok = 0
+  let total = 0
+  for (const c of cuotasPend) {
+    const yaPagado = pagadoPorCuota.get(c.id) ?? 0
+    const restante = Math.max(0, Number(c.monto_cuota) - yaPagado)
+    if (restante <= 0.01) continue
+    try {
+      await createPagoUnificado({
+        tipo_origen: 'CUOTA',
+        origen_id: c.id,
+        monto: restante,
+        moneda: 'ARS',
+        fecha_emision: args.fechaPago,
+        instrumento: 'TRANSFERENCIA',
+        cuenta_id: args.cuentaOrigenId,
+        notas: `Pago resumen tarjeta — hasta ${args.hastaMes}`,
+      })
+      ok++
+      total += restante
+    } catch (e) {
+      errors.push(`Cuota ${c.id.slice(0, 8)}…: ${(e as Error).message}`)
+    }
+  }
+
+  revalidatePath('/finanzas/tarjetas')
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/pagos')
+  return { ok, total, errors }
 }
 
 // ============ RETIROS (con categorías y USD master) ============

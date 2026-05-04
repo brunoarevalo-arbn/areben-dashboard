@@ -28,7 +28,10 @@ interface ChequePendiente {
   numero_cheque: string | null
   banco_emisor: string | null
   instrumento: string
+  tipo_origen?: string | null
+  origen_id?: string | null
   compra?: { descripcion: string; proveedor?: { nombre: string } | null } | null
+  gasto?: { concepto: string; categoria: string } | null
 }
 
 interface CuotaPendiente {
@@ -53,7 +56,10 @@ interface PagoCtaCte {
   instrumento: string
   numero_cuota: number | null
   total_cuotas: number | null
+  tipo_origen?: string | null
+  origen_id?: string | null
   compra?: { descripcion: string; proveedor?: { nombre: string } | null } | null
+  gasto?: { concepto: string; categoria: string } | null
 }
 
 interface CompraSinPlanPago {
@@ -201,7 +207,13 @@ function ChequeItem({
           )} />
           <div className="min-w-0">
             <p className="text-sm font-medium text-slate-100 truncate">
-              {cheque.compra?.proveedor?.nombre ?? cheque.compra?.descripcion ?? '—'}
+              {cheque.compra?.proveedor?.nombre
+                ?? cheque.compra?.descripcion
+                ?? cheque.gasto?.concepto
+                ?? '—'}
+              {cheque.gasto?.categoria && !cheque.compra && (
+                <span className="text-xs text-slate-500 ml-2">{cheque.gasto.categoria}</span>
+              )}
               {cheque.numero_cheque && (
                 <span className="text-xs text-slate-500 ml-2 font-mono">Nº {cheque.numero_cheque}</span>
               )}
@@ -481,7 +493,13 @@ function PagoCtaCteItem({ pago, hoy, onAcreditar }: { pago: PagoCtaCte; hoy: str
         <Receipt className="w-4 h-4 text-blue-400 shrink-0" />
         <div className="min-w-0">
           <p className="text-sm font-medium text-slate-100 truncate">
-            {pago.compra?.proveedor?.nombre ?? pago.compra?.descripcion ?? '—'}
+            {pago.compra?.proveedor?.nombre
+              ?? pago.compra?.descripcion
+              ?? pago.gasto?.concepto
+              ?? '—'}
+            {pago.gasto?.categoria && !pago.compra && (
+              <span className="ml-2 text-xs text-slate-500">{pago.gasto.categoria}</span>
+            )}
             {pago.numero_cuota && pago.total_cuotas && pago.total_cuotas > 1 && (
               <span className="ml-2 text-xs text-slate-500">cuota {pago.numero_cuota}/{pago.total_cuotas}</span>
             )}

@@ -3,7 +3,7 @@ import { TarjetasClient } from '@/components/finanzas/tarjetas-client'
 
 export default async function TarjetasPage() {
   const supabase = await createClient()
-  const [{ data: tarjetas }, { data: titulares }, { data: cuotas }] = await Promise.all([
+  const [{ data: tarjetas }, { data: titulares }, { data: cuotas }, { data: cuentas }] = await Promise.all([
     supabase
       .from('tarjetas_credito')
       .select('*, titular:cuentas_titulares(*)')
@@ -13,6 +13,7 @@ export default async function TarjetasPage() {
       .from('cuotas_tarjeta')
       .select('*, tarjeta:tarjetas_credito(nombre, banco)')
       .order('mes_vencimiento', { ascending: true }),
+    supabase.from('cuentas_bancarias').select('id, nombre, banco').eq('activo', true).order('banco'),
   ])
 
   return (
@@ -20,6 +21,7 @@ export default async function TarjetasPage() {
       tarjetas={tarjetas ?? []}
       titulares={titulares ?? []}
       cuotas={cuotas ?? []}
+      cuentas={cuentas ?? []}
     />
   )
 }

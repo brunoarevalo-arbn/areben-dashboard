@@ -1,16 +1,16 @@
 'use client'
 
 import { useActionState, useState, useTransition, useMemo } from 'react'
-import { createTarjeta, updateTarjeta, toggleTarjetaActiva, marcarCuotaPagada } from '@/app/actions/finanzas'
+import { createTarjeta, updateTarjeta, toggleTarjetaActiva, marcarCuotaPagada, pagarResumenTarjeta } from '@/app/actions/finanzas'
 import type { TarjetaCredito, CuotaTarjeta, CuentaTitular } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency, formatMonth } from '@/lib/utils'
+import { formatCurrency, formatDate, formatMonth } from '@/lib/utils'
 import {
   Plus, CreditCard, Pencil, Power, Loader2, Calendar,
-  TrendingUp, AlertTriangle, CheckCircle2,
+  TrendingUp, AlertTriangle, CheckCircle2, Wallet,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -18,6 +18,7 @@ interface Props {
   tarjetas: TarjetaCredito[]
   titulares: CuentaTitular[]
   cuotas: (CuotaTarjeta & { tarjeta?: { nombre: string; banco: string } })[]
+  cuentas: { id: string; nombre: string; banco: string }[]
 }
 
 // ─── TarjetaForm ──────────────────────────────────────────────────────────────
@@ -94,9 +95,10 @@ function TarjetaForm({
 
 // ─── TarjetasClient ───────────────────────────────────────────────────────────
 
-export function TarjetasClient({ tarjetas, titulares, cuotas }: Props) {
+export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) {
   const [modal, setModal] = useState(false)
   const [editTarjeta, setEditTarjeta] = useState<TarjetaCredito | undefined>()
+  const [resumenTarjeta, setResumenTarjeta] = useState<TarjetaCredito | null>(null)
   const [isPending, startTransition] = useTransition()
 
   // Proyección de pasivos por mes
@@ -227,6 +229,17 @@ export function TarjetasClient({ tarjetas, titulares, cuotas }: Props) {
                     <p className="text-base font-mono font-bold text-amber-400">{formatCurrency(totalT)}</p>
                   </div>
                   <div className="flex gap-1">
+                    {cuotasT.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="success"
+                        onClick={() => setResumenTarjeta(t)}
+                        title="Liquidar cuotas con un único pago desde una cuenta"
+                      >
+                        <Wallet className="w-3.5 h-3.5" />
+                        Pagar resumen
+                      </Button>
+                    )}
                     <Button size="sm" variant="ghost" onClick={() => { setEditTarjeta(t); setModal(true) }}>
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
@@ -339,6 +352,156 @@ export function TarjetasClient({ tarjetas, titulares, cuotas }: Props) {
       <Modal open={modal} onOpenChange={setModal} title={editTarjeta ? 'Editar tarjeta' : 'Nueva tarjeta'} className="max-w-md">
         <TarjetaForm tarjeta={editTarjeta} titulares={titulares} onClose={() => setModal(false)} />
       </Modal>
+
+      <Modal
+        open={!!resumenTarjeta}
+        onOpenChange={(o) => { if (!o) setResumenTarjeta(null) }}
+        title={`Pagar resumen — ${resumenTarjeta?.nombre ?? ''}`}
+        className="max-w-lg"
+      >
+        {resumenTarjeta && (
+          <PagarResumenForm
+            tarjeta={resumenTarjeta}
+            cuotas={cuotas.filter((c) => c.tarjeta_id === resumenTarjeta.id && !c.pagada)}
+            cuentas={cuentas}
+            onClose={() => setResumenTarjeta(null)}
+          />
+        )}
+      </Modal>
+    </div>
+  )
+}
+
+// ─── PagarResumenForm ─────────────────────────────────────────────────────────
+
+function PagarResumenForm({
+  tarjeta,
+  cuotas,
+  cuentas,
+  onClose,
+}: {
+  tarjeta: TarjetaCredito
+  cuotas: CuotaTarjeta[]
+  cuentas: { id: string; nombre: string; banco: string }[]
+  onClose: () => void
+}) {
+  // Mes por defecto: el más alto entre todas las cuotas vencidas o el mes actual
+  const mesActual = new Date().toISOString().substring(0, 7)
+  const mesesUnicos = useMemo(() => {
+    const set = new Set<string>()
+    for (const c of cuotas) set.add(c.mes_vencimiento)
+    return Array.from(set).sort()
+  }, [cuotas])
+  const mesDefault = mesesUnicos.find((m) => m >= mesActual) ?? mesesUnicos[mesesUnicos.length - 1] ?? mesActual
+
+  const [hastaMes, setHastaMes] = useState(mesDefault)
+  const [cuentaId, setCuentaId] = useState('')
+  const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0])
+  const [error, setError] = useState<string | null>(null)
+  const [resultado, setResultado] = useState<{ ok: number; total: number } | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  // Cuotas que se van a pagar con el "hasta mes" elegido
+  const cuotasIncluidas = cuotas.filter((c) => c.mes_vencimiento <= hastaMes)
+  const totalAPagar = cuotasIncluidas.reduce((s, c) => s + Number(c.monto_cuota), 0)
+
+  function submit() {
+    setError(null)
+    setResultado(null)
+    if (!cuentaId) { setError('Seleccioná la cuenta de origen'); return }
+    if (cuotasIncluidas.length === 0) { setError('No hay cuotas para pagar con ese límite'); return }
+    startTransition(async () => {
+      try {
+        const r = await pagarResumenTarjeta({
+          tarjetaId: tarjeta.id,
+          hastaMes,
+          cuentaOrigenId: cuentaId,
+          fechaPago,
+        })
+        setResultado({ ok: r.ok, total: r.total })
+        if (r.errors.length === 0) {
+          setTimeout(onClose, 1200)
+        } else {
+          setError(r.errors.join(' · '))
+        }
+      } catch (e) {
+        setError((e as Error).message)
+      }
+    })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/40">
+        <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Tarjeta</p>
+        <p className="text-sm font-medium text-slate-100">{tarjeta.banco} · {tarjeta.nombre}</p>
+        <p className="text-xs text-slate-500 mt-0.5">Día de vencimiento: {tarjeta.dia_vencimiento}</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-slate-400 mb-1.5">Pagar hasta el mes</label>
+          <input
+            type="month"
+            value={hastaMes}
+            onChange={(e) => setHastaMes(e.target.value)}
+            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+          />
+          <p className="text-[10px] text-slate-500 mt-1">Incluye todas las cuotas con vencimiento ≤ este mes</p>
+        </div>
+        <Input label="Fecha del pago" type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} />
+      </div>
+
+      <Select
+        label="Cuenta de origen"
+        value={cuentaId}
+        onChange={(e) => setCuentaId(e.target.value)}
+        options={[{ value: '', label: '— Seleccionar cuenta —' }, ...cuentas.map((c) => ({ value: c.id, label: `${c.banco} · ${c.nombre}` }))]}
+      />
+
+      <div className="bg-slate-800/40 border border-slate-700/40 rounded-lg overflow-hidden">
+        <div className="px-3 py-2 border-b border-slate-700/40 flex items-center justify-between">
+          <p className="text-xs font-semibold text-slate-300">
+            Cuotas incluidas ({cuotasIncluidas.length})
+          </p>
+          <p className="font-mono text-sm font-bold text-amber-400">{formatCurrency(totalAPagar)}</p>
+        </div>
+        <div className="max-h-48 overflow-y-auto divide-y divide-slate-700/40">
+          {cuotasIncluidas.length === 0 ? (
+            <p className="px-3 py-3 text-xs text-slate-500 text-center">No hay cuotas con ese límite</p>
+          ) : (
+            cuotasIncluidas
+              .sort((a, b) => a.mes_vencimiento.localeCompare(b.mes_vencimiento))
+              .map((c) => (
+                <div key={c.id} className="px-3 py-2 flex items-center justify-between text-xs">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-slate-200 truncate">{c.concepto}</p>
+                    <p className="text-slate-500">
+                      {c.fecha_vencimiento ? formatDate(c.fecha_vencimiento) : formatMonth(c.mes_vencimiento)}
+                      {c.cuotas_total > 1 && <span className="ml-1">· {c.cuota_numero}/{c.cuotas_total}</span>}
+                    </p>
+                  </div>
+                  <p className="font-mono text-slate-100 ml-2">{formatCurrency(c.monto_cuota)}</p>
+                </div>
+              ))
+          )}
+        </div>
+      </div>
+
+      {resultado && (
+        <p className="text-sm text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
+          ✓ {resultado.ok} cuota(s) pagada(s) por {formatCurrency(resultado.total)}
+        </p>
+      )}
+      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+
+      <div className="flex justify-end gap-3">
+        <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button type="button" onClick={submit} disabled={isPending || cuotasIncluidas.length === 0}>
+          {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+          Liquidar {cuotasIncluidas.length} cuota(s) — {formatCurrency(totalAPagar)}
+        </Button>
+      </div>
     </div>
   )
 }

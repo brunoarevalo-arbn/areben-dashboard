@@ -120,6 +120,32 @@ export default async function PendientesPage() {
   const compraIdsConPagosCtaCte = new Set((pagosCtaCte ?? []).map((p) => p.compra_id).filter(Boolean))
   const comprasCtaCteSinPlanPago = (comprasCtaCte ?? []).filter((c) => !compraIdsConPagosCtaCte.has(c.id))
 
+  // Para pagos paid-on-commit (tipo_origen=GASTO), traer info del gasto para mostrar contexto
+  const gastoIdsEnPagos = new Set<string>([
+    ...(cheques ?? []).filter((p) => p.tipo_origen === 'GASTO' && p.origen_id).map((p) => p.origen_id as string),
+    ...(pagosCtaCte ?? []).filter((p) => p.tipo_origen === 'GASTO' && p.origen_id).map((p) => p.origen_id as string),
+  ])
+  const gastosByPagoOrigen = new Map<string, { concepto: string; categoria: string }>()
+  if (gastoIdsEnPagos.size > 0) {
+    const { data: gastosLookup } = await supabase
+      .from('gastos')
+      .select('id, concepto, categoria')
+      .in('id', Array.from(gastoIdsEnPagos))
+    for (const g of gastosLookup ?? []) {
+      gastosByPagoOrigen.set(g.id, { concepto: g.concepto, categoria: g.categoria })
+    }
+  }
+  // Enriquecer cheques y pagosCtaCte con info del gasto
+  const enriquecerConGasto = <T extends { tipo_origen: string; origen_id: string | null }>(p: T) => {
+    if (p.tipo_origen === 'GASTO' && p.origen_id) {
+      const g = gastosByPagoOrigen.get(p.origen_id)
+      if (g) return { ...p, gasto: g }
+    }
+    return p
+  }
+  const chequesConGasto = (cheques ?? []).map(enriquecerConGasto)
+  const pagosCtaCteConGasto = (pagosCtaCte ?? []).map(enriquecerConGasto)
+
   // Pagos parciales del ledger unificado para gastos y cuotas (para mostrar saldo real)
   const gastoIds = (gastosPendientes ?? []).map((g) => g.id)
   const cuotaIds = (cuotas ?? []).map((c) => c.id)
@@ -171,8 +197,8 @@ export default async function PendientesPage() {
       hoy={hoy}
       saldoActualARS={saldoActualARS}
       saldoActualUSD={saldoActualUSD}
-      cheques={cheques ?? []}
-      pagosCtaCte={pagosCtaCte ?? []}
+      cheques={chequesConGasto}
+      pagosCtaCte={pagosCtaCteConGasto}
       comprasSinPlanPago={comprasCtaCteSinPlanPago}
       cuotas={cuotasConSaldo}
       instrumentosProximos={instrumentosProximos}
