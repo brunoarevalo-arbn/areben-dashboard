@@ -5,9 +5,9 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
-import { Loader2, Wallet, CreditCard, Banknote, FileCheck, Trash2, AlertCircle } from 'lucide-react'
+import { Loader2, Wallet, CreditCard, Banknote, FileCheck, Trash2, Pencil, AlertCircle } from 'lucide-react'
 import type { TipoOrigenPago, InstrumentoPago } from '@/types/database'
-import { createPagoUnificado, deletePagoUnificado, crearGastoIntereses } from '@/app/actions/pagos'
+import { createPagoUnificado, deletePagoUnificado, crearGastoIntereses, editPago } from '@/app/actions/pagos'
 
 export interface PagoTarget {
   tipo_origen: TipoOrigenPago
@@ -26,10 +26,13 @@ export interface PagoTarget {
 export interface PagoHistorialItem {
   id: string
   fecha_emision: string
+  fecha_vencimiento?: string | null
   monto: number
   moneda: 'ARS' | 'USD'
   instrumento: string
   cuenta_id?: string | null
+  numero_cheque?: string | null
+  banco_emisor?: string | null
   notas?: string | null
 }
 
@@ -72,6 +75,7 @@ export function RegistrarPagoModal({
   const [interesTipo, setInteresTipo] = useState<'MONTO' | 'PORCENTAJE'>('MONTO')
   const [interesValor, setInteresValor] = useState<number>(0)
   const [interesConcepto, setInteresConcepto] = useState<'INTERES' | 'PUNITORIO' | 'MORA'>('PUNITORIO')
+  const [editTarget, setEditTarget] = useState<PagoHistorialItem | null>(null)
   const [isPending, startTransition] = useTransition()
 
   // Pre-fill cuenta cuando cambia el target (al abrir contra otro gasto/cuota)
@@ -216,29 +220,50 @@ export function RegistrarPagoModal({
             <div className="space-y-1.5 max-h-40 overflow-y-auto">
               {historial.map((p) => {
                 const cuenta = cuentas.find((c) => c.id === p.cuenta_id)
+                const editing = editTarget?.id === p.id
                 return (
-                  <div key={p.id} className="bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2 flex items-center justify-between">
-                    <div className="text-xs">
-                      <p className="text-slate-200">
-                        <span className="font-mono text-green-400 font-semibold">{formatCurrency(p.monto, p.moneda)}</span>
-                        <span className="text-slate-500 ml-2">·</span>
-                        <span className="text-slate-300 ml-2">{formatDate(p.fecha_emision)}</span>
-                      </p>
-                      <p className="text-slate-500 mt-0.5">
-                        {p.instrumento.replace('_', ' ').toLowerCase()}
-                        {cuenta ? ` · ${cuenta.banco} ${cuenta.nombre}` : ''}
-                        {p.notas ? ` · ${p.notas}` : ''}
-                      </p>
+                  <div key={p.id} className="bg-slate-800/40 border border-slate-700/40 rounded-lg overflow-hidden">
+                    <div className="px-3 py-2 flex items-center justify-between">
+                      <div className="text-xs">
+                        <p className="text-slate-200">
+                          <span className="font-mono text-green-400 font-semibold">{formatCurrency(p.monto, p.moneda)}</span>
+                          <span className="text-slate-500 ml-2">·</span>
+                          <span className="text-slate-300 ml-2">{formatDate(p.fecha_emision)}</span>
+                        </p>
+                        <p className="text-slate-500 mt-0.5">
+                          {p.instrumento.replace('_', ' ').toLowerCase()}
+                          {cuenta ? ` · ${cuenta.banco} ${cuenta.nombre}` : ''}
+                          {p.notas ? ` · ${p.notas}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setEditTarget(editing ? null : p)}
+                          disabled={isPending}
+                          title="Editar fechas, número/banco de cheque o notas"
+                          className="text-indigo-400 hover:text-indigo-300 disabled:opacity-40"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => borrarPago(p.id)}
+                          disabled={isPending}
+                          title="Eliminar este pago"
+                          className="text-red-400 hover:text-red-300 disabled:opacity-40"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => borrarPago(p.id)}
-                      disabled={isPending}
-                      title="Eliminar este pago"
-                      className="text-red-400 hover:text-red-300 disabled:opacity-40"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {editing && (
+                      <EditarPagoInline
+                        pago={p}
+                        onClose={() => setEditTarget(null)}
+                        onSaved={() => { setEditTarget(null); onSuccess?.() }}
+                      />
+                    )}
                   </div>
                 )
               })}
@@ -405,5 +430,93 @@ export function RegistrarPagoModal({
         </div>
       </div>
     </Modal>
+  )
+}
+
+// ─── EditarPagoInline ─────────────────────────────────────────────────────────
+// Edición liviana inline: fechas, datos de cheque, notas. Para cambios estructurales
+// (monto/instrumento/cuenta) se borra y se recrea.
+
+function EditarPagoInline({
+  pago,
+  onClose,
+  onSaved,
+}: {
+  pago: PagoHistorialItem
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [fechaEmision, setFechaEmision] = useState(pago.fecha_emision)
+  const [fechaVencimiento, setFechaVencimiento] = useState(pago.fecha_vencimiento ?? '')
+  const [numeroCheque, setNumeroCheque] = useState(pago.numero_cheque ?? '')
+  const [bancoEmisor, setBancoEmisor] = useState(pago.banco_emisor ?? '')
+  const [notas, setNotas] = useState(pago.notas ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+  const esCheque = pago.instrumento === 'CHEQUE_FISICO' || pago.instrumento === 'ECHEQ'
+
+  function submit() {
+    setError(null)
+    startTransition(async () => {
+      try {
+        await editPago(pago.id, {
+          fecha_emision: fechaEmision,
+          fecha_vencimiento: fechaVencimiento || null,
+          numero_cheque: numeroCheque || null,
+          banco_emisor: bancoEmisor || null,
+          notas: notas || null,
+        })
+        onSaved()
+      } catch (e) {
+        setError((e as Error).message)
+      }
+    })
+  }
+
+  return (
+    <div className="border-t border-slate-700/40 bg-slate-900/40 px-3 py-3 space-y-2">
+      <p className="text-[10px] text-slate-500">
+        Para cambiar monto, instrumento o cuenta: eliminá este pago y creá uno nuevo.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-[10px] text-slate-400 mb-0.5">Fecha emisión</label>
+          <input type="date" value={fechaEmision} onChange={(e) => setFechaEmision(e.target.value)}
+            className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100" />
+        </div>
+        <div>
+          <label className="block text-[10px] text-slate-400 mb-0.5">Fecha vencimiento</label>
+          <input type="date" value={fechaVencimiento} onChange={(e) => setFechaVencimiento(e.target.value)}
+            className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100" />
+        </div>
+      </div>
+      {esCheque && (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-[10px] text-slate-400 mb-0.5">N° cheque</label>
+            <input type="text" value={numeroCheque} onChange={(e) => setNumeroCheque(e.target.value)}
+              className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100" />
+          </div>
+          <div>
+            <label className="block text-[10px] text-slate-400 mb-0.5">Banco emisor</label>
+            <input type="text" value={bancoEmisor} onChange={(e) => setBancoEmisor(e.target.value)}
+              className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100" />
+          </div>
+        </div>
+      )}
+      <div>
+        <label className="block text-[10px] text-slate-400 mb-0.5">Notas</label>
+        <input type="text" value={notas} onChange={(e) => setNotas(e.target.value)}
+          className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100" />
+      </div>
+      {error && <p className="text-[11px] text-red-400">{error}</p>}
+      <div className="flex justify-end gap-2 pt-1">
+        <Button size="sm" variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button size="sm" onClick={submit} disabled={isPending}>
+          {isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+          Guardar
+        </Button>
+      </div>
+    </div>
   )
 }

@@ -212,16 +212,31 @@ export async function createPagoUnificado(input: PagoUnifInput) {
 
 /**
  * Borra un pago y recomputa el estado del origen.
+ * Bloquea si el pago está dentro de un mes cerrado para su cuenta de origen.
  */
 export async function deletePagoUnificado(id: string) {
   await requireUser()
   const supabase = await createClient()
   const { data: pago } = await supabase
     .from('pagos')
-    .select('tipo_origen, origen_id')
+    .select('tipo_origen, origen_id, fecha_emision, cuenta_id')
     .eq('id', id)
     .single()
   if (!pago) throw new Error('Pago no encontrado')
+
+  // Guard: si la cuenta del pago tiene saldo cerrado en ese mes, no permitir
+  if (pago.cuenta_id && pago.fecha_emision) {
+    const mesPago = pago.fecha_emision.substring(0, 7)
+    const { data: saldo } = await supabase
+      .from('saldos_cuentas')
+      .select('cerrado')
+      .eq('cuenta_id', pago.cuenta_id)
+      .eq('mes', mesPago)
+      .maybeSingle()
+    if (saldo?.cerrado) {
+      throw new Error(`No se puede eliminar: el mes ${mesPago} está cerrado para esa cuenta. Reabrí el saldo del mes para poder borrar.`)
+    }
+  }
 
   const { error } = await supabase.from('pagos').delete().eq('id', id)
   if (error) throw new Error(error.message)
@@ -301,18 +316,16 @@ export async function crearGastoIntereses(args: {
 }
 
 /**
- * Edita un pago existente. Sólo se permite editar pagos no acreditados o pagos LIBRE.
- * Si cambia el monto, recomputa el saldo del origen.
+ * Edita un pago existente — sólo campos no estructurales (notas, datos del cheque,
+ * fechas). Para cambiar monto / instrumento / cuenta, eliminá y recreá el pago.
+ *
+ * Bloquea: pagos acreditados (excepto LIBRE) y pagos en meses cerrados de su cuenta.
  */
 const editPagoSchema = z.object({
   fecha_emision: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha YYYY-MM-DD').optional(),
   fecha_vencimiento: z.string().optional().nullable(),
-  monto: z.coerce.number().positive('El monto debe ser positivo').optional(),
-  moneda: z.enum(['ARS', 'USD']).optional(),
-  instrumento: z.enum(INSTRUMENTOS as [InstrumentoPago, ...InstrumentoPago[]]).optional(),
   numero_cheque: z.string().optional().nullable(),
   banco_emisor: z.string().optional().nullable(),
-  cuenta_id: z.string().uuid().optional().nullable(),
   notas: z.string().optional().nullable(),
 })
 
@@ -324,7 +337,7 @@ export async function editPago(pagoId: string, input: z.infer<typeof editPagoSch
   const supabase = await createClient()
   const { data: pago } = await supabase
     .from('pagos')
-    .select('id, tipo_origen, origen_id, acreditado, monto')
+    .select('id, tipo_origen, origen_id, acreditado, monto, fecha_emision, cuenta_id')
     .eq('id', pagoId)
     .single()
   if (!pago) throw new Error('Pago no encontrado')
@@ -333,24 +346,34 @@ export async function editPago(pagoId: string, input: z.infer<typeof editPagoSch
     throw new Error('No se puede editar un pago ya acreditado. Borralo y volvé a cargar.')
   }
 
+  // Guard: si la cuenta del pago tiene saldo cerrado en el mes original o
+  // en el mes destino (si cambia la fecha), bloquear.
+  const mesesAValidar = new Set<string>()
+  if (pago.fecha_emision) mesesAValidar.add(pago.fecha_emision.substring(0, 7))
+  if (result.data.fecha_emision) mesesAValidar.add(result.data.fecha_emision.substring(0, 7))
+  if (pago.cuenta_id && mesesAValidar.size > 0) {
+    const { data: saldosCerrados } = await supabase
+      .from('saldos_cuentas')
+      .select('mes')
+      .eq('cuenta_id', pago.cuenta_id)
+      .in('mes', Array.from(mesesAValidar))
+      .eq('cerrado', true)
+    if (saldosCerrados && saldosCerrados.length > 0) {
+      throw new Error(`No se puede editar: el mes ${saldosCerrados[0].mes} está cerrado para esa cuenta.`)
+    }
+  }
+
   const updates: Record<string, unknown> = {}
   if (result.data.fecha_emision !== undefined) updates.fecha_emision = result.data.fecha_emision
   if (result.data.fecha_vencimiento !== undefined) updates.fecha_vencimiento = result.data.fecha_vencimiento || null
-  if (result.data.monto !== undefined) updates.monto = result.data.monto
-  if (result.data.moneda !== undefined) updates.moneda = result.data.moneda
-  if (result.data.instrumento !== undefined) updates.instrumento = result.data.instrumento
   if (result.data.numero_cheque !== undefined) updates.numero_cheque = result.data.numero_cheque || null
   if (result.data.banco_emisor !== undefined) updates.banco_emisor = result.data.banco_emisor || null
-  if (result.data.cuenta_id !== undefined) updates.cuenta_id = result.data.cuenta_id || null
   if (result.data.notas !== undefined) updates.notas = result.data.notas || null
+
+  if (Object.keys(updates).length === 0) return
 
   const { error } = await supabase.from('pagos').update(updates).eq('id', pagoId)
   if (error) throw new Error(error.message)
-
-  // Si cambió el monto, recomputar saldo del origen (excepto LIBRE)
-  if (result.data.monto !== undefined && pago.tipo_origen !== 'LIBRE') {
-    await recomputarOrigen(pago.tipo_origen as TipoOrigenPago, pago.origen_id)
-  }
 
   revalidatePath('/finanzas/pagos')
   revalidatePath('/finanzas/pendientes')

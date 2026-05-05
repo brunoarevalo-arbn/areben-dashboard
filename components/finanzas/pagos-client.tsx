@@ -332,7 +332,6 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
       {editTarget && (
         <EditPagoModal
           pago={editTarget}
-          cuentas={cuentas}
           onOpenChange={(o) => { if (!o) setEditTarget(null) }}
         />
       )}
@@ -344,47 +343,31 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
 
 function EditPagoModal({
   pago,
-  cuentas,
   onOpenChange,
 }: {
   pago: Pago
-  cuentas: { id: string; nombre: string; banco: string }[]
   onOpenChange: (o: boolean) => void
 }) {
   const router = useRouter()
   const [fechaEmision, setFechaEmision] = useState(pago.fecha_emision)
   const [fechaVencimiento, setFechaVencimiento] = useState(pago.fecha_vencimiento ?? '')
-  const [monto, setMonto] = useState(Number(pago.monto))
-  const [moneda, setMoneda] = useState<'ARS' | 'USD'>(pago.moneda as 'ARS' | 'USD')
-  const [instrumento, setInstrumento] = useState(pago.instrumento as Pago['instrumento'])
   const [numeroCheque, setNumeroCheque] = useState(pago.numero_cheque ?? '')
   const [bancoEmisor, setBancoEmisor] = useState(pago.banco_emisor ?? '')
-  const [cuentaId, setCuentaId] = useState(pago.cuenta_id ?? '')
   const [notas, setNotas] = useState(pago.notas ?? '')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
+  const esCheque = pago.instrumento === 'CHEQUE_FISICO' || pago.instrumento === 'ECHEQ'
+
   function submit() {
     setError(null)
-    if (monto <= 0) {
-      setError('El monto debe ser positivo')
-      return
-    }
-    if ((instrumento === 'CHEQUE_FISICO' || instrumento === 'ECHEQ') && !fechaVencimiento) {
-      setError('Los cheques requieren fecha de vencimiento')
-      return
-    }
     startTransition(async () => {
       try {
         await editPago(pago.id, {
           fecha_emision: fechaEmision,
           fecha_vencimiento: fechaVencimiento || null,
-          monto,
-          moneda,
-          instrumento,
           numero_cheque: numeroCheque || null,
           banco_emisor: bancoEmisor || null,
-          cuenta_id: cuentaId || null,
           notas: notas || null,
         })
         onOpenChange(false)
@@ -395,16 +378,21 @@ function EditPagoModal({
     })
   }
 
-  const requiereCheque = instrumento === 'CHEQUE_FISICO' || instrumento === 'ECHEQ'
-
   return (
     <Modal open={!!pago} onOpenChange={onOpenChange} title="Editar pago" className="max-w-md">
       <div className="space-y-4">
-        <div className="bg-slate-800/60 rounded-lg p-3 text-xs text-slate-400">
-          {pago.tipo_origen === 'LIBRE' ? 'Pago LIBRE (sin asignar)' : `Pago contra ${pago.tipo_origen}`}
-          {pago.acreditado && pago.tipo_origen === 'LIBRE' && (
-            <span className="ml-2 text-amber-400">(acreditado — el monto sigue editable)</span>
-          )}
+        <div className="bg-slate-800/40 border border-slate-700/40 rounded-lg p-3 space-y-1">
+          <p className="text-xs text-slate-400">
+            {pago.tipo_origen === 'LIBRE' ? 'Pago LIBRE (sin asignar)' : `Pago contra ${pago.tipo_origen}`}
+            {' · '}
+            <span className="text-slate-500">{pago.instrumento.replace('_', ' ').toLowerCase()}</span>
+          </p>
+          <p className="font-mono text-sm text-slate-100">
+            {new Intl.NumberFormat('es-AR', { style: 'currency', currency: pago.moneda }).format(Number(pago.monto))}
+          </p>
+          <p className="text-[11px] text-slate-500">
+            Para cambiar monto, instrumento o cuenta: eliminá este pago y creá uno nuevo.
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -412,47 +400,12 @@ function EditPagoModal({
           <Input label="Fecha vencimiento" type="date" value={fechaVencimiento} onChange={(e) => setFechaVencimiento(e.target.value)} />
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
-          <div className="col-span-2">
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">Monto</label>
-            <input
-              type="number" step="0.01" min="0.01"
-              value={monto || ''}
-              onChange={(e) => setMonto(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <Select label="Moneda" value={moneda} onChange={(e) => setMoneda(e.target.value as 'ARS' | 'USD')}
-            options={[{ value: 'ARS', label: 'ARS' }, { value: 'USD', label: 'USD' }]} />
-        </div>
-
-        <Select
-          label="Instrumento"
-          value={instrumento}
-          onChange={(e) => setInstrumento(e.target.value as Pago['instrumento'])}
-          options={[
-            { value: 'TRANSFERENCIA', label: 'Transferencia' },
-            { value: 'EFECTIVO', label: 'Efectivo' },
-            { value: 'CHEQUE_FISICO', label: 'Cheque físico' },
-            { value: 'ECHEQ', label: 'E-cheq' },
-            { value: 'CUENTA_CORRIENTE', label: 'Cuenta corriente' },
-            { value: 'TARJETA', label: 'Tarjeta' },
-          ]}
-        />
-
-        {requiereCheque && (
+        {esCheque && (
           <div className="grid grid-cols-2 gap-3">
             <Input label="N° de cheque" value={numeroCheque} onChange={(e) => setNumeroCheque(e.target.value)} />
             <Input label="Banco emisor" value={bancoEmisor} onChange={(e) => setBancoEmisor(e.target.value)} />
           </div>
         )}
-
-        <Select
-          label="Cuenta"
-          value={cuentaId}
-          onChange={(e) => setCuentaId(e.target.value)}
-          options={[{ value: '', label: '— Sin asignar —' }, ...cuentas.map((c) => ({ value: c.id, label: `${c.banco} · ${c.nombre}` }))]}
-        />
 
         <Input label="Notas" value={notas} onChange={(e) => setNotas(e.target.value)} />
 

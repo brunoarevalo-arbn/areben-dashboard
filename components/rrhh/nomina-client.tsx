@@ -498,10 +498,13 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
         historial={pagosNomina?.pagos_parciales?.map((p) => ({
           id: p.id,
           fecha_emision: p.fecha,
+          fecha_vencimiento: p.fecha_vencimiento,
           monto: Number(p.monto),
           moneda: p.moneda,
           instrumento: p.medio_pago,
           cuenta_id: p.cuenta_id,
+          numero_cheque: p.numero_cheque,
+          banco_emisor: p.banco_emisor,
           notas: p.notas,
         })) as PagoHistorialItem[] | undefined}
       />
