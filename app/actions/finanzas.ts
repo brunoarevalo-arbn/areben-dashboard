@@ -3,7 +3,7 @@
 import { createClient, requireUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { optUuid } from '@/lib/zod-helpers'
+import { optUuid, optInt } from '@/lib/zod-helpers'
 import { createPagoUnificado } from './pagos'
 import { calcularMesesTarjeta as calcMesesTarjetaPure, calcularMontosCuota } from '@/lib/calc/tarjeta'
 import { calcularMontoNeto } from '@/lib/calc/gasto'
@@ -45,7 +45,7 @@ const gastoSchema = z.object({
   cuenta_id: optUuid,
   cuenta_origen_pago_id: optUuid,
   tarjeta_id: optUuid,
-  cuotas_total: z.coerce.number().int().min(1).optional().nullable(),
+  cuotas_total: optInt({ min: 1 }),
   recurrente_id: optUuid,
   tiene_intereses: z.coerce.boolean().optional().default(false),
   interes_tipo: z.preprocess(
@@ -498,7 +498,7 @@ const recurrenteSchema = z.object({
   medio_pago: z.string().min(1),
   cuenta_id: optUuid,
   tarjeta_id: optUuid,
-  dia_vencimiento: z.coerce.number().int().min(1).max(31).optional().nullable(),
+  dia_vencimiento: optInt({ min: 1, max: 31 }),
   tipo_mes: z.enum(['CORRIENTE', 'VENCIDO']),
 })
 
@@ -1253,7 +1253,7 @@ const retiroSchema = z.object({
   notas: z.string().optional().nullable(),
   medio_pago: z.enum(['TRANSFERENCIA', 'EFECTIVO', 'TARJETA']).default('TRANSFERENCIA'),
   tarjeta_id: optUuid,
-  cuotas_total: z.coerce.number().int().min(1).optional().nullable(),
+  cuotas_total: optInt({ min: 1 }),
 })
 
 export async function createRetiro(prevState: string | null, formData: FormData) {
