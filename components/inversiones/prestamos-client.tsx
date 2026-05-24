@@ -72,37 +72,37 @@ export function PrestamosClient({ instrumentos, periodos }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-          <TrendingUp className="w-6 h-6 text-indigo-400" />
+        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <TrendingUp className="w-6 h-6 text-orange-500" />
           Préstamos / Instrumentos
         </h1>
-        <p className="text-sm text-slate-400 mt-0.5">
+        <p className="text-sm text-slate-600 mt-0.5">
           Vista plana de todos los instrumentos cargados — {instrumentos.length} en total
         </p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-green-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Capital activo USD</p>
+        <div className="bg-white border border-green-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Capital activo USD</p>
           <p className="text-xl font-bold text-green-400">{formatMoneda(totalUsd, 'USD')}</p>
         </div>
-        <div className="bg-slate-900 border border-indigo-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Capital activo ARS</p>
-          <p className="text-xl font-bold text-indigo-400">{formatMoneda(totalArs, 'ARS')}</p>
+        <div className="bg-white border border-orange-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Capital activo ARS</p>
+          <p className="text-xl font-bold text-orange-500">{formatMoneda(totalArs, 'ARS')}</p>
         </div>
-        <div className="bg-slate-900 border border-amber-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Interés mensual USD</p>
+        <div className="bg-white border border-amber-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Interés mensual USD</p>
           <p className="text-xl font-bold text-amber-400">{formatMoneda(interesUsdMensual, 'USD')}</p>
         </div>
-        <div className="bg-slate-900 border border-amber-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Interés mensual ARS</p>
+        <div className="bg-white border border-amber-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Interés mensual ARS</p>
           <p className="text-xl font-bold text-amber-400">{formatMoneda(interesArsMensual, 'ARS')}</p>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center gap-3">
+      <div className="bg-white border border-[#e8e4dc] rounded-xl p-4 flex flex-wrap items-center gap-3">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input
@@ -110,14 +110,14 @@ export function PrestamosClient({ instrumentos, periodos }: Props) {
             placeholder="Buscar por código o inversor..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
+            className="w-full pl-9 pr-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-orange-500 text-sm"
           />
         </div>
         <Filter className="w-3.5 h-3.5 text-slate-500" />
         <select
           value={filtroMoneda}
           onChange={(e) => setFiltroMoneda(e.target.value as typeof filtroMoneda)}
-          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
         >
           <option value="TODOS">Todas las monedas</option>
           <option value="USD">USD</option>
@@ -126,7 +126,7 @@ export function PrestamosClient({ instrumentos, periodos }: Props) {
         <select
           value={filtroEstado}
           onChange={(e) => setFiltroEstado(e.target.value as typeof filtroEstado)}
-          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
         >
           <option value="TODOS">Todos los estados</option>
           <option value="activo">Activo</option>
@@ -136,7 +136,7 @@ export function PrestamosClient({ instrumentos, periodos }: Props) {
         <select
           value={filtroCap}
           onChange={(e) => setFiltroCap(e.target.value as typeof filtroCap)}
-          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
         >
           <option value="TODOS">Cualquier tipo</option>
           <option value="CAPITALIZABLE">Capitalizable</option>
@@ -145,19 +145,19 @@ export function PrestamosClient({ instrumentos, periodos }: Props) {
       </div>
 
       {/* Tabla */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-800">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Código</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Inversor</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Moneda</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Capital</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Tasa</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Tipo</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Inicio</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Saldo actual</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Estado</th>
+            <tr className="border-b border-[#e8e4dc]">
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Código</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Inversor</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Moneda</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Capital</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Tasa</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Tipo</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Inicio</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Saldo actual</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Estado</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -173,24 +173,24 @@ export function PrestamosClient({ instrumentos, periodos }: Props) {
               filtrados.map((i) => {
                 const saldo = ultimoSaldo.get(i.id) ?? Number(i.capital_inicial)
                 return (
-                  <tr key={i.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
-                    <td className="px-4 py-3 font-mono text-xs text-slate-300">{i.codigo ?? i.id.substring(0, 8)}</td>
+                  <tr key={i.id} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
+                    <td className="px-4 py-3 font-mono text-xs text-slate-700">{i.codigo ?? i.id.substring(0, 8)}</td>
                     <td className="px-4 py-3">
-                      <Link href={`/inversiones/${i.inversor_id}`} className="text-slate-100 font-medium hover:text-indigo-400">
+                      <Link href={`/inversiones/${i.inversor_id}`} className="text-slate-900 font-medium hover:text-orange-500">
                         {i.inversor?.nombre ?? '—'}
                       </Link>
                     </td>
                     <td className="px-4 py-3"><Badge variant={i.moneda === 'USD' ? 'success' : 'info'}>{i.moneda}</Badge></td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-300">{formatMoneda(Number(i.capital_inicial), i.moneda)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-200">{(Number(i.tasa_mensual) * 100).toFixed(2)}%</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-700">{formatMoneda(Number(i.capital_inicial), i.moneda)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-800">{(Number(i.tasa_mensual) * 100).toFixed(2)}%</td>
                     <td className="px-4 py-3">
-                      <span className={cn('inline-flex items-center gap-1 text-xs', i.capitalizable ? 'text-purple-400' : 'text-slate-400')}>
+                      <span className={cn('inline-flex items-center gap-1 text-xs', i.capitalizable ? 'text-purple-400' : 'text-slate-600')}>
                         {i.capitalizable ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
                         {i.capitalizable ? 'Capitalizable' : 'No cap.'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-400">{formatDate(i.fecha_inicio)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-100 font-medium">{formatMoneda(saldo, i.moneda)}</td>
+                    <td className="px-4 py-3 text-xs text-slate-600">{formatDate(i.fecha_inicio)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-900 font-medium">{formatMoneda(saldo, i.moneda)}</td>
                     <td className="px-4 py-3">
                       <Badge variant={i.estado === 'activo' ? 'success' : i.estado === 'cerrado' ? 'danger' : 'warning'}>
                         {i.estado}

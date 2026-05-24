@@ -36,9 +36,9 @@ const TIPO_EVENTO_COLOR: Record<TipoEvento, string> = {
   INCIDENCIA: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
   AJUSTE_SALARIAL: 'bg-green-500/15 text-green-400 border-green-500/30',
   LICENCIA: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  PREMIO: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+  PREMIO: 'bg-orange-500/15 text-orange-500 border-orange-500/30',
   AMONESTACION: 'bg-red-500/15 text-red-400 border-red-500/30',
-  OTRO: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+  OTRO: 'bg-slate-500/15 text-slate-600 border-slate-500/30',
 }
 
 // ─── EmpleadoForm ─────────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
       </div>
 
       {/* Opcionales */}
-      <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4 space-y-3">
+      <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-xl p-4 space-y-3">
         <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">Datos personales (opcionales)</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input label="DNI" name="dni" defaultValue={emp?.dni ?? ''} placeholder="—" />
@@ -118,30 +118,30 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
       />
 
       {/* Sueldo / horas / valor hora */}
-      <div className="bg-slate-800 rounded-xl p-4 space-y-3">
-        <div className="flex items-center gap-2 text-slate-300">
+      <div className="bg-[#f5f0e6] rounded-xl p-4 space-y-3">
+        <div className="flex items-center gap-2 text-slate-700">
           <Calculator className="w-4 h-4" />
           <span className="text-sm font-medium">Cálculo salarial</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-400">Sueldo básico (ARS)</label>
+            <label className="block text-xs font-medium text-slate-600">Sueldo básico (ARS)</label>
             <input
               type="number"
               step="0.01"
               name="sueldo_basico"
               value={sueldoBasico || ''}
               onChange={(e) => setSueldoBasico(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
               placeholder="0.00"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-400">Horas mensuales</label>
+            <label className="block text-xs font-medium text-slate-600">Horas mensuales</label>
             <select
               value={horasMensuales}
               onChange={(e) => setHorasMensuales(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
             >
               {HORAS_OPCIONES.map((h) => (
                 <option key={h} value={h}>{h} hs</option>
@@ -150,7 +150,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
           </div>
         </div>
         <div className="bg-slate-700/50 rounded-lg px-3 py-2 flex items-center justify-between">
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-600">
             Valor hora <span className="text-slate-500">(auto)</span>
           </span>
           <span className="font-mono text-base text-green-400 font-semibold">
@@ -163,23 +163,23 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
       </div>
 
       {/* Aguinaldo (acuerdo contractual) */}
-      <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 space-y-3">
+      <div className="bg-[#f5f0e6]/60 border border-[#d6d0c4]/60 rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={correspondeAguinaldo}
               onChange={(e) => setCorrespondeAguinaldo(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-indigo-500 focus:ring-indigo-500"
+              className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700 text-orange-600 focus:ring-orange-500"
             />
-            <span className="text-sm font-medium text-slate-300">Acuerdo de aguinaldo (SAC)</span>
+            <span className="text-sm font-medium text-slate-700">Acuerdo de aguinaldo (SAC)</span>
           </label>
           <span className="text-xs text-slate-500">parte del contrato base</span>
         </div>
         {correspondeAguinaldo && (
           <div className="grid grid-cols-2 gap-3 pl-6">
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-400">Porcentaje mensual (%)</label>
+              <label className="block text-xs font-medium text-slate-600">Porcentaje mensual (%)</label>
               <input
                 type="number"
                 step="0.01"
@@ -187,12 +187,12 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
                 max="100"
                 value={porcentajeAguinaldo}
                 onChange={(e) => setPorcentajeAguinaldo(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
               />
               <p className="text-xs text-slate-500">8.33% = 1/12 del básico anual (SAC)</p>
             </div>
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex flex-col justify-center">
-              <span className="text-xs text-slate-400">Provisión mensual</span>
+              <span className="text-xs text-slate-600">Provisión mensual</span>
               <span className="font-mono text-sm text-amber-400 font-semibold">
                 {formatCurrency(sueldoBasico * porcentajeAguinaldo / 100)}
               </span>
@@ -203,14 +203,14 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
       </div>
 
       {/* Acuerdo en negro (horas fijas mensuales) */}
-      <div className="bg-slate-800/60 border border-amber-500/20 rounded-xl p-4 space-y-3">
+      <div className="bg-[#f5f0e6]/60 border border-amber-500/20 rounded-xl p-4 space-y-3">
         <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
           <BadgeCheck className="w-4 h-4" />
           Acuerdo fijo en negro <span className="text-xs text-slate-500 font-normal">(horas extras del acuerdo, no son extras reales)</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-400">
+            <label className="block text-xs font-medium text-slate-600">
               Horas mensuales acordadas
             </label>
             <input
@@ -220,12 +220,12 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
               value={horasAcuerdoNegro || ''}
               onChange={(e) => setHorasAcuerdoNegro(Math.max(0, Number(e.target.value)))}
               placeholder="0"
-              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
             />
             <p className="text-[11px] text-slate-500">Ej: 3 hs/día × 22 días = 66 hs/mes</p>
           </div>
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex flex-col justify-center">
-            <span className="text-xs text-slate-400">Monto fijo mensual en negro</span>
+            <span className="text-xs text-slate-600">Monto fijo mensual en negro</span>
             <span className="font-mono text-sm text-amber-400 font-semibold">
               {formatCurrency(montoAcuerdoNegro)}
             </span>
@@ -233,21 +233,21 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
           </div>
         </div>
         {horasAcuerdoNegro > 0 && correspondeAguinaldo && (
-          <div className="bg-slate-700/40 rounded-lg px-3 py-2 text-xs text-slate-400">
+          <div className="bg-slate-700/40 rounded-lg px-3 py-2 text-xs text-slate-600">
             Este monto suma a la base del aguinaldo: <span className="font-mono text-amber-300">+{formatCurrency(montoAcuerdoNegro * porcentajeAguinaldo / 100)} mensual</span>
           </div>
         )}
       </div>
 
       {/* Plus salarial fijo en negro */}
-      <div className="bg-slate-800/60 border border-amber-500/20 rounded-xl p-4 space-y-3">
+      <div className="bg-[#f5f0e6]/60 border border-amber-500/20 rounded-xl p-4 space-y-3">
         <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
           <TrendingUp className="w-4 h-4" />
           Plus salarial fijo en negro
           <span className="text-xs text-slate-500 font-normal">(monto o % adicional al recibo oficial)</span>
         </div>
         <div className="space-y-2">
-          <label className="block text-xs font-medium text-slate-400">Tipo de plus</label>
+          <label className="block text-xs font-medium text-slate-600">Tipo de plus</label>
           <div className="grid grid-cols-3 gap-2">
             {([
               { v: 'NONE' as const, label: 'Sin plus' },
@@ -262,7 +262,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
                   'px-3 py-2 rounded-lg border text-xs font-medium transition-colors',
                   plusNegroTipo === v
                     ? 'bg-amber-600/20 border-amber-500/50 text-amber-300'
-                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                    : 'bg-[#f5f0e6] border-[#d6d0c4] text-slate-600 hover:text-slate-800'
                 )}
               >
                 {label}
@@ -273,7 +273,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
         {plusNegroTipo !== 'NONE' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-400">
+              <label className="block text-xs font-medium text-slate-600">
                 {plusNegroTipo === 'MONTO' ? 'Monto fijo mensual ($)' : 'Porcentaje (%)'}
               </label>
               <div className="relative">
@@ -283,7 +283,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
                   min="0"
                   value={plusNegroValor || ''}
                   onChange={(e) => setPlusNegroValor(Math.max(0, Number(e.target.value)))}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+                  className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
                   placeholder="0"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">
@@ -295,7 +295,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
               </p>
             </div>
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex flex-col justify-center">
-              <span className="text-xs text-slate-400">Plus mensual estimado</span>
+              <span className="text-xs text-slate-600">Plus mensual estimado</span>
               <span className="font-mono text-sm text-amber-400 font-semibold">
                 {formatCurrency(montoPlusNegro)}
               </span>
@@ -306,7 +306,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
           </div>
         )}
         {plusNegroTipo !== 'NONE' && montoPlusNegro > 0 && correspondeAguinaldo && (
-          <div className="bg-slate-700/40 rounded-lg px-3 py-2 text-xs text-slate-400">
+          <div className="bg-slate-700/40 rounded-lg px-3 py-2 text-xs text-slate-600">
             Suma a la base del aguinaldo: <span className="font-mono text-amber-300">+{formatCurrency(montoPlusNegro * porcentajeAguinaldo / 100)} mensual</span>
           </div>
         )}
@@ -314,14 +314,14 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
 
       {/* Comidas + Presentismo (solo NEGRO) */}
       {tipo === 'NEGRO' && (
-        <div className="bg-slate-800/60 border border-amber-500/20 rounded-xl p-4 space-y-3">
+        <div className="bg-[#f5f0e6]/60 border border-amber-500/20 rounded-xl p-4 space-y-3">
           <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
             <BadgeCheck className="w-4 h-4" />
             Acuerdos adicionales (Negro)
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-400 flex items-center gap-1">
+              <label className="block text-xs font-medium text-slate-600 flex items-center gap-1">
                 <UtensilsCrossed className="w-3 h-3" />
                 Monto de comidas (mensual)
               </label>
@@ -332,11 +332,11 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
                 value={montoComidas || ''}
                 onChange={(e) => setMontoComidas(Number(e.target.value))}
                 placeholder="0.00"
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-400">
+              <label className="block text-xs font-medium text-slate-600">
                 Presentismo (% sobre básico)
               </label>
               <div className="relative">
@@ -348,7 +348,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
                   value={presentismoPct || ''}
                   onChange={(e) => setPresentismoPct(Number(e.target.value))}
                   placeholder="0"
-                  className="w-full px-3 py-2 pr-7 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  className="w-full px-3 py-2 pr-7 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">%</span>
               </div>
@@ -407,7 +407,7 @@ function EventoForm({ empleado, onClose }: { empleado: Empleado; onClose: () => 
 
   return (
     <form action={formAction} className="space-y-4">
-      <div className="bg-slate-800/60 rounded-lg px-4 py-2 text-sm text-slate-300">
+      <div className="bg-[#f5f0e6]/60 rounded-lg px-4 py-2 text-sm text-slate-700">
         <span className="text-slate-500">Empleado:</span> {empleado.apellido}, {empleado.nombre}
       </div>
 
@@ -468,27 +468,27 @@ function AjusteSalarialForm({ empleado, onClose }: { empleado: Empleado; onClose
 
   return (
     <form action={formAction} className="space-y-4">
-      <div className="bg-slate-800/60 rounded-lg px-4 py-2 text-sm text-slate-300">
+      <div className="bg-[#f5f0e6]/60 rounded-lg px-4 py-2 text-sm text-slate-700">
         <span className="text-slate-500">Empleado:</span> {empleado.apellido}, {empleado.nombre}
       </div>
 
       <Input label="Fecha de aplicación" name="fecha" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="bg-slate-800 rounded-lg p-3">
-          <p className="text-xs text-slate-400 mb-1">Sueldo actual</p>
-          <p className="text-base font-mono text-slate-300">{formatCurrency(empleado.sueldo_basico)}</p>
+        <div className="bg-[#f5f0e6] rounded-lg p-3">
+          <p className="text-xs text-slate-600 mb-1">Sueldo actual</p>
+          <p className="text-base font-mono text-slate-700">{formatCurrency(empleado.sueldo_basico)}</p>
           <p className="text-xs text-slate-500 mt-1">{formatCurrency(empleado.valor_hora)} / hora</p>
         </div>
         <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
-          <p className="text-xs text-slate-400 mb-1">Sueldo nuevo</p>
+          <p className="text-xs text-slate-600 mb-1">Sueldo nuevo</p>
           <input
             type="number"
             step="0.01"
             min="0"
             value={sueldoNuevo || ''}
             onChange={(e) => setSueldoNuevo(Number(e.target.value))}
-            className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-green-400 font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500 text-base"
+            className="w-full px-2 py-1 bg-[#f5f0e6] border border-[#d6d0c4] rounded text-green-400 font-mono focus:outline-none focus:ring-1 focus:ring-orange-500 text-base"
             required
           />
           <p className="text-xs text-slate-500 mt-1">{formatCurrency(valorHoraNuevo)} / hora</p>
@@ -498,7 +498,7 @@ function AjusteSalarialForm({ empleado, onClose }: { empleado: Empleado; onClose
       {sueldoNuevo > 0 && empleado.sueldo_basico > 0 && (
         <div className={cn(
           'rounded-lg p-3 flex items-center justify-between text-sm',
-          incremento > 0 ? 'bg-green-500/10 text-green-400' : incremento < 0 ? 'bg-red-500/10 text-red-400' : 'bg-slate-800 text-slate-400'
+          incremento > 0 ? 'bg-green-500/10 text-green-400' : incremento < 0 ? 'bg-red-500/10 text-red-400' : 'bg-[#f5f0e6] text-slate-600'
         )}>
           <span className="flex items-center gap-1.5">
             <TrendingUp className="w-4 h-4" />
@@ -539,9 +539,9 @@ function HoraExtraRow({ he, valorHora }: { he: HoraExtraRegistro; valorHora: num
   const [isPending, startTransition] = useTransition()
   const monto = he.cantidad * valorHora * (1 + he.porcentaje / 100)
   return (
-    <div className="bg-slate-800/40 rounded-lg px-3 py-1.5 flex items-center justify-between text-xs group">
-      <span className="text-slate-400">{formatDate(he.fecha)}</span>
-      <span className="font-mono text-slate-200">{he.cantidad}h al {he.porcentaje}%</span>
+    <div className="bg-[#f5f0e6]/40 rounded-lg px-3 py-1.5 flex items-center justify-between text-xs group">
+      <span className="text-slate-600">{formatDate(he.fecha)}</span>
+      <span className="font-mono text-slate-800">{he.cantidad}h al {he.porcentaje}%</span>
       <span className="font-mono text-amber-400">{formatCurrency(monto)}</span>
       <button
         type="button"
@@ -550,7 +550,7 @@ function HoraExtraRow({ he, valorHora }: { he: HoraExtraRegistro; valorHora: num
           if (!confirm('¿Eliminar este registro?')) return
           startTransition(() => deleteHoraExtra(he.id))
         }}
-        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-slate-700 text-slate-500 hover:text-red-400 transition-all"
+        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#e8e0d0] text-slate-500 hover:text-red-400 transition-all"
       >
         <Trash2 className="w-3 h-3" />
       </button>
@@ -577,7 +577,7 @@ function HoraExtraForm({ empleado, onClose }: { empleado: Empleado; onClose: () 
 
   return (
     <form action={formAction} className="space-y-4">
-      <div className="bg-slate-800/60 rounded-lg px-4 py-2 text-sm text-slate-300">
+      <div className="bg-[#f5f0e6]/60 rounded-lg px-4 py-2 text-sm text-slate-700">
         <span className="text-slate-500">Empleado:</span> {empleado.apellido}, {empleado.nombre}
         <span className="ml-2 text-xs text-slate-500">Valor hora: {formatCurrency(empleado.valor_hora || (empleado.sueldo_basico / (empleado.horas_mensuales || 160)))}</span>
       </div>
@@ -588,7 +588,7 @@ function HoraExtraForm({ empleado, onClose }: { empleado: Empleado; onClose: () 
       </div>
 
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-slate-300">Porcentaje extra</label>
+        <label className="block text-sm font-medium text-slate-700">Porcentaje extra</label>
         <div className="grid grid-cols-4 gap-2">
           {PORCENTAJES_HE.map((p) => (
             <button
@@ -598,8 +598,8 @@ function HoraExtraForm({ empleado, onClose }: { empleado: Empleado; onClose: () 
               className={cn(
                 'px-3 py-2 rounded-lg border text-sm font-medium transition-colors',
                 porcentaje === p
-                  ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                  ? 'bg-orange-500/20 border-orange-500/50 text-orange-600'
+                  : 'bg-[#f5f0e6] border-[#d6d0c4] text-slate-600 hover:text-slate-800'
               )}
             >
               {p}%
@@ -636,9 +636,9 @@ const TIPO_AUSENCIA_LABEL: Record<TipoAusencia, string> = {
 function AusenciaRow({ a }: { a: AusenciaRegistro }) {
   const [isPending, startTransition] = useTransition()
   return (
-    <div className="bg-slate-800/40 rounded-lg px-3 py-1.5 flex items-center justify-between text-xs group">
-      <span className="text-slate-400">{formatDate(a.fecha)}</span>
-      <span className="font-mono text-slate-200 flex-1 ml-3">
+    <div className="bg-[#f5f0e6]/40 rounded-lg px-3 py-1.5 flex items-center justify-between text-xs group">
+      <span className="text-slate-600">{formatDate(a.fecha)}</span>
+      <span className="font-mono text-slate-800 flex-1 ml-3">
         {a.dias} día{a.dias !== 1 ? 's' : ''} · {TIPO_AUSENCIA_LABEL[a.tipo]}
         {a.notas && <span className="text-slate-500 ml-2">— {a.notas}</span>}
       </span>
@@ -655,7 +655,7 @@ function AusenciaRow({ a }: { a: AusenciaRegistro }) {
             }
           })
         }}
-        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-slate-700 text-slate-500 hover:text-red-400 transition-all"
+        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#e8e0d0] text-slate-500 hover:text-red-400 transition-all"
         title="Eliminar ausencia"
       >
         <Trash2 className="w-3 h-3" />
@@ -686,7 +686,7 @@ function AusenciaForm({ empleado, onClose }: { empleado: Empleado; onClose: () =
 
   return (
     <form action={formAction} className="space-y-4">
-      <div className="bg-slate-800/60 rounded-lg px-4 py-2 text-sm text-slate-300">
+      <div className="bg-[#f5f0e6]/60 rounded-lg px-4 py-2 text-sm text-slate-700">
         <span className="text-slate-500">Empleado:</span> {empleado.apellido}, {empleado.nombre}
         <span className="ml-2 text-xs text-slate-500">Valor hora: {formatCurrency(valorHora)}</span>
       </div>
@@ -694,7 +694,7 @@ function AusenciaForm({ empleado, onClose }: { empleado: Empleado; onClose: () =
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Input label="Fecha" name="fecha" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-slate-300">Cantidad de días</label>
+          <label className="block text-sm font-medium text-slate-700">Cantidad de días</label>
           <input
             type="number"
             step="0.5"
@@ -702,14 +702,14 @@ function AusenciaForm({ empleado, onClose }: { empleado: Empleado; onClose: () =
             max="31"
             value={dias}
             onChange={(e) => setDias(Math.max(0.5, Number(e.target.value)))}
-            className="w-full px-3.5 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            className="w-full px-3.5 py-2.5 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
             placeholder="Ej: 1 o 0.5 (medio día)"
           />
         </div>
       </div>
 
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-slate-300">Tipo de ausencia</label>
+        <label className="block text-sm font-medium text-slate-700">Tipo de ausencia</label>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {(Object.keys(TIPO_AUSENCIA_LABEL) as TipoAusencia[]).map((t) => (
             <button
@@ -720,7 +720,7 @@ function AusenciaForm({ empleado, onClose }: { empleado: Empleado; onClose: () =
                 'px-3 py-2 rounded-lg border text-xs font-medium transition-colors',
                 tipo === t
                   ? 'bg-red-600/20 border-red-500/50 text-red-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                  : 'bg-[#f5f0e6] border-[#d6d0c4] text-slate-600 hover:text-slate-800'
               )}
             >
               {TIPO_AUSENCIA_LABEL[t]}
@@ -729,11 +729,11 @@ function AusenciaForm({ empleado, onClose }: { empleado: Empleado; onClose: () =
         </div>
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+      <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
         <input
           type="checkbox"
           name="justificada"
-          className="w-4 h-4 rounded border-slate-600 bg-slate-700"
+          className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700"
         />
         Marcar como justificada (solo informativo, no afecta el descuento)
       </label>
@@ -776,7 +776,7 @@ function HistorialPanel({ eventos }: { eventos: EventoEmpleado[] }) {
       {eventos.map((ev) => (
         <div
           key={ev.id}
-          className="bg-slate-800/40 border border-slate-700/40 rounded-lg p-3 group"
+          className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg p-3 group"
         >
           <div className="flex items-start justify-between gap-2 mb-1">
             <div className="flex items-center gap-2">
@@ -795,14 +795,14 @@ function HistorialPanel({ eventos }: { eventos: EventoEmpleado[] }) {
                 if (!confirm('¿Eliminar este evento del historial?')) return
                 startTransition(() => deleteEvento(ev.id))
               }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-red-400 transition-all"
+              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[#e8e0d0] text-slate-500 hover:text-red-400 transition-all"
             >
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
-          <p className="text-sm text-slate-200 font-medium">{ev.titulo}</p>
+          <p className="text-sm text-slate-800 font-medium">{ev.titulo}</p>
           {ev.descripcion && (
-            <p className="text-xs text-slate-400 mt-1 whitespace-pre-line">{ev.descripcion}</p>
+            <p className="text-xs text-slate-600 mt-1 whitespace-pre-line">{ev.descripcion}</p>
           )}
           {ev.tipo === 'AJUSTE_SALARIAL' && ev.sueldo_anterior && ev.sueldo_nuevo && (
             <div className="mt-2 flex items-center gap-2 text-xs font-mono">
@@ -855,12 +855,12 @@ function EmpleadoCard({
 
   return (
     <div className={cn(
-      'bg-slate-900 border rounded-xl p-5',
-      !emp.activo ? 'border-slate-800 opacity-60' : 'border-slate-800'
+      'bg-white border rounded-xl p-5',
+      !emp.activo ? 'border-[#e8e4dc] opacity-60' : 'border-[#e8e4dc]'
     )}>
       <div className="flex items-start justify-between mb-3">
         <div>
-          <p className="font-semibold text-slate-100">{emp.nombre} {emp.apellido}</p>
+          <p className="font-semibold text-slate-900">{emp.nombre} {emp.apellido}</p>
           {emp.dni && <p className="text-xs text-slate-500">DNI {emp.dni}</p>}
         </div>
         <div className="flex gap-1 flex-wrap justify-end">
@@ -874,12 +874,12 @@ function EmpleadoCard({
 
       <div className="space-y-1.5 mb-4">
         <div className="flex justify-between text-sm">
-          <span className="text-slate-400">Sueldo básico</span>
-          <span className="font-mono text-slate-100">{formatCurrency(emp.sueldo_basico)}</span>
+          <span className="text-slate-600">Sueldo básico</span>
+          <span className="font-mono text-slate-900">{formatCurrency(emp.sueldo_basico)}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-slate-400">Valor hora ({emp.horas_mensuales}h)</span>
-          <span className="font-mono text-slate-100">{formatCurrency(emp.valor_hora)}</span>
+          <span className="text-slate-600">Valor hora ({emp.horas_mensuales}h)</span>
+          <span className="font-mono text-slate-900">{formatCurrency(emp.valor_hora)}</span>
         </div>
         {(emp.horas_acuerdo_negro ?? 0) > 0 && (
           <div className="flex justify-between text-sm bg-amber-500/5 border border-amber-500/20 rounded px-2 py-1">
@@ -905,20 +905,20 @@ function EmpleadoCard({
         )}
         {emp.tipo_empleado === 'BLANCO' && emp.banco && (
           <div className="flex justify-between text-sm">
-            <span className="text-slate-400">Banco</span>
-            <span className="text-slate-300">{emp.banco}</span>
+            <span className="text-slate-600">Banco</span>
+            <span className="text-slate-700">{emp.banco}</span>
           </div>
         )}
         {emp.tipo_empleado === 'NEGRO' && (
           <div className="flex justify-between text-sm">
-            <span className="text-slate-400">Pago</span>
-            <span className="text-slate-300">{emp.metodo_pago ?? '—'}</span>
+            <span className="text-slate-600">Pago</span>
+            <span className="text-slate-700">{emp.metodo_pago ?? '—'}</span>
           </div>
         )}
         {emp.fecha_ingreso && (
           <div className="flex justify-between text-sm">
-            <span className="text-slate-400">Ingreso</span>
-            <span className="text-slate-300">{formatDate(emp.fecha_ingreso)}</span>
+            <span className="text-slate-600">Ingreso</span>
+            <span className="text-slate-700">{formatDate(emp.fecha_ingreso)}</span>
           </div>
         )}
       </div>
@@ -926,12 +926,12 @@ function EmpleadoCard({
       {(emp.email || emp.telefono) && (
         <div className="flex items-center gap-1.5 mb-3">
           {emp.email && (
-            <a href={`mailto:${emp.email}`} className="p-1.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors">
+            <a href={`mailto:${emp.email}`} className="p-1.5 rounded hover:bg-[#f5f0e6] text-slate-500 hover:text-slate-700 transition-colors">
               <Mail className="w-3.5 h-3.5" />
             </a>
           )}
           {emp.telefono && (
-            <a href={`tel:${emp.telefono}`} className="p-1.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors">
+            <a href={`tel:${emp.telefono}`} className="p-1.5 rounded hover:bg-[#f5f0e6] text-slate-500 hover:text-slate-700 transition-colors">
               <Phone className="w-3.5 h-3.5" />
             </a>
           )}
@@ -939,12 +939,12 @@ function EmpleadoCard({
       )}
 
       {/* Acciones */}
-      <div className="flex flex-wrap gap-1.5 pt-3 border-t border-slate-800">
+      <div className="flex flex-wrap gap-1.5 pt-3 border-t border-[#e8e4dc]">
         <button
           type="button"
           onClick={onEdit}
           title="Editar datos"
-          className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition-colors"
+          className="p-2 rounded-lg hover:bg-[#f5f0e6] text-slate-600 hover:text-slate-900 transition-colors"
         >
           <Pencil className="w-3.5 h-3.5" />
         </button>
@@ -977,7 +977,7 @@ function EmpleadoCard({
         <button
           type="button"
           onClick={() => setHorasOpen(!horasOpen)}
-          className="w-full mt-2 flex items-center justify-between px-3 py-2 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/15 border border-indigo-500/20 text-xs text-indigo-300 transition-colors"
+          className="w-full mt-2 flex items-center justify-between px-3 py-2 rounded-lg bg-orange-500/10 hover:bg-orange-500/15 border border-orange-500/20 text-xs text-orange-600 transition-colors"
         >
           <span className="flex items-center gap-2">
             <Clock className="w-3.5 h-3.5" />
@@ -1001,11 +1001,11 @@ function EmpleadoCard({
         <button
           type="button"
           onClick={() => setAusenciasOpen(!ausenciasOpen)}
-          className="w-full mt-2 flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/40 hover:bg-slate-800 border border-slate-700/40 text-xs text-slate-400 transition-colors"
+          className="w-full mt-2 flex items-center justify-between px-3 py-2 rounded-lg bg-[#f5f0e6]/40 hover:bg-[#f5f0e6] border border-[#d6d0c4]/40 text-xs text-slate-600 transition-colors"
         >
           <span className="flex items-center gap-2">
             <CalendarX className="w-3.5 h-3.5 text-slate-500" />
-            Historial de faltas: <span className="font-mono font-semibold text-slate-300">{ausenciasTotalDias} día(s)</span>
+            Historial de faltas: <span className="font-mono font-semibold text-slate-700">{ausenciasTotalDias} día(s)</span>
             <span className="text-[10px] text-slate-600">({ausenciasEmp.length} registros)</span>
           </span>
           {ausenciasOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -1027,7 +1027,7 @@ function EmpleadoCard({
       <button
         type="button"
         onClick={() => setHistorialOpen(!historialOpen)}
-        className="w-full mt-3 flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/40 hover:bg-slate-800 text-xs text-slate-400 transition-colors"
+        className="w-full mt-3 flex items-center justify-between px-3 py-2 rounded-lg bg-[#f5f0e6]/40 hover:bg-[#f5f0e6] text-xs text-slate-600 transition-colors"
       >
         <span className="flex items-center gap-2">
           <History className="w-3.5 h-3.5" />
@@ -1073,11 +1073,11 @@ export function EmpleadosClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Empleados</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{activos} activos · {empleados.length} total</p>
+          <h1 className="text-2xl font-bold text-slate-900">Empleados</h1>
+          <p className="text-sm text-slate-600 mt-0.5">{activos} activos · {empleados.length} total</p>
         </div>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
             <input
               type="checkbox"
               checked={showInactivos}
@@ -1095,7 +1095,7 @@ export function EmpleadosClient({
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.length === 0 ? (
-          <div className="col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-12 text-center">
+          <div className="col-span-3 bg-white border border-[#e8e4dc] rounded-xl p-12 text-center">
             <Users className="w-8 h-8 mx-auto mb-2 text-slate-600" />
             <p className="text-slate-500">No hay empleados cargados</p>
           </div>

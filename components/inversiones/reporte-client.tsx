@@ -74,16 +74,16 @@ export function ReporteClient({ mes, inversores, inversorSelected, instrumentos,
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-            <FileText className="w-6 h-6 text-indigo-400" />
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <FileText className="w-6 h-6 text-orange-500" />
             Reporte por inversor
           </h1>
-          <p className="text-sm text-slate-400 mt-0.5">Vista previa imprimible para enviar al inversor</p>
+          <p className="text-sm text-slate-600 mt-0.5">Vista previa imprimible para enviar al inversor</p>
         </div>
       </div>
 
       {/* Selectores */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center gap-3">
+      <div className="bg-white border border-[#e8e4dc] rounded-xl p-4 flex flex-wrap items-center gap-3">
         <Select
           options={[{ value: '', label: '— Seleccionar inversor —' }, ...inversores.map((i) => ({ value: i.id, label: i.nombre }))]}
           value={inversorSelected?.id ?? ''}
@@ -101,12 +101,12 @@ export function ReporteClient({ mes, inversores, inversorSelected, instrumentos,
 
       {/* Vista previa */}
       {!inversorSelected ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center">
+        <div className="bg-white border border-[#e8e4dc] rounded-xl p-12 text-center">
           <User className="w-8 h-8 mx-auto mb-2 text-slate-600" />
           <p className="text-slate-500">Seleccioná un inversor para generar el reporte</p>
         </div>
       ) : periodos.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center">
+        <div className="bg-white border border-[#e8e4dc] rounded-xl p-12 text-center">
           <p className="text-slate-500">No hay períodos para {inversorSelected.nombre} en {formatMonth(mes)}</p>
         </div>
       ) : (
@@ -231,21 +231,21 @@ export function ReporteClient({ mes, inversores, inversorSelected, instrumentos,
 
       {/* Info detallada en oscuro debajo */}
       {inversorSelected && instrumentos.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-          <div className="px-4 py-3 border-b border-slate-800">
-            <h2 className="text-sm font-semibold text-slate-100">Instrumentos del inversor</h2>
+        <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+          <div className="px-4 py-3 border-b border-[#e8e4dc]">
+            <h2 className="text-sm font-semibold text-slate-900">Instrumentos del inversor</h2>
           </div>
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             {instrumentos.map((i) => (
-              <div key={i.id} className="bg-slate-800/40 rounded-lg p-3">
+              <div key={i.id} className="bg-[#f5f0e6]/40 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-slate-100">{i.codigo ?? i.id.substring(0, 8)}</span>
+                  <span className="text-sm font-medium text-slate-900">{i.codigo ?? i.id.substring(0, 8)}</span>
                   <Badge variant={i.moneda === 'USD' ? 'success' : 'info'}>{i.moneda}</Badge>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-600">
                   Capital {formatMoneda(Number(i.capital_inicial), i.moneda)} · Tasa {(Number(i.tasa_mensual) * 100).toFixed(2)}%
                 </p>
-                <p className={cn('text-xs flex items-center gap-1 mt-1', i.capitalizable ? 'text-purple-400' : 'text-slate-400')}>
+                <p className={cn('text-xs flex items-center gap-1 mt-1', i.capitalizable ? 'text-purple-400' : 'text-slate-600')}>
                   {i.capitalizable ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
                   {i.capitalizable ? 'Capitalizable' : 'No capitalizable'}
                 </p>

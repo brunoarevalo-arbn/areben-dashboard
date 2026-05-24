@@ -192,17 +192,17 @@ export function RegistrarPagoModal({
     <Modal open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o) }} title="Registrar pago" className="max-w-md">
       <div className="space-y-4">
         {/* Contexto del pago */}
-        <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/40">
-          <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Pagar contra</p>
-          <p className="text-sm font-medium text-slate-100">{target.descripcion}</p>
+        <div className="bg-[#f5f0e6]/60 rounded-lg p-3 border border-[#d6d0c4]/40">
+          <p className="text-xs text-slate-600 uppercase tracking-wider mb-1">Pagar contra</p>
+          <p className="text-sm font-medium text-slate-900">{target.descripcion}</p>
           {target.contexto && <p className="text-xs text-slate-500 mt-0.5">{target.contexto}</p>}
           <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
             <div>
-              <p className="text-slate-400">Total deuda</p>
-              <p className="font-mono font-semibold text-slate-100">{formatCurrency(target.monto_total, moneda)}</p>
+              <p className="text-slate-600">Total deuda</p>
+              <p className="font-mono font-semibold text-slate-900">{formatCurrency(target.monto_total, moneda)}</p>
             </div>
             <div>
-              <p className="text-slate-400">Saldo pendiente</p>
+              <p className="text-slate-600">Saldo pendiente</p>
               <p className="font-mono font-semibold text-amber-400">{formatCurrency(saldo, moneda)}</p>
             </div>
           </div>
@@ -216,19 +216,19 @@ export function RegistrarPagoModal({
         {/* Historial de pagos previos */}
         {historial && historial.length > 0 && (
           <div className="space-y-1.5">
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Historial de pagos ({historial.length})</p>
+            <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Historial de pagos ({historial.length})</p>
             <div className="space-y-1.5 max-h-40 overflow-y-auto">
               {historial.map((p) => {
                 const cuenta = cuentas.find((c) => c.id === p.cuenta_id)
                 const editing = editTarget?.id === p.id
                 return (
-                  <div key={p.id} className="bg-slate-800/40 border border-slate-700/40 rounded-lg overflow-hidden">
+                  <div key={p.id} className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg overflow-hidden">
                     <div className="px-3 py-2 flex items-center justify-between">
                       <div className="text-xs">
-                        <p className="text-slate-200">
+                        <p className="text-slate-800">
                           <span className="font-mono text-green-400 font-semibold">{formatCurrency(p.monto, p.moneda)}</span>
                           <span className="text-slate-500 ml-2">·</span>
-                          <span className="text-slate-300 ml-2">{formatDate(p.fecha_emision)}</span>
+                          <span className="text-slate-700 ml-2">{formatDate(p.fecha_emision)}</span>
                         </p>
                         <p className="text-slate-500 mt-0.5">
                           {p.instrumento.replace('_', ' ').toLowerCase()}
@@ -242,7 +242,7 @@ export function RegistrarPagoModal({
                           onClick={() => setEditTarget(editing ? null : p)}
                           disabled={isPending}
                           title="Editar fechas, número/banco de cheque o notas"
-                          className="text-indigo-400 hover:text-indigo-300 disabled:opacity-40"
+                          className="text-orange-500 hover:text-orange-600 disabled:opacity-40"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -274,12 +274,12 @@ export function RegistrarPagoModal({
         {/* Monto + atajo "pagar todo" */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <label className="block text-xs font-medium text-slate-400">Monto a pagar</label>
+            <label className="block text-xs font-medium text-slate-600">Monto a pagar</label>
             {target.saldo_pendiente != null && Number(target.saldo_pendiente) > 0 && (
               <button
                 type="button"
                 onClick={pagarTodo}
-                className="text-xs text-indigo-400 hover:text-indigo-300"
+                className="text-xs text-orange-500 hover:text-orange-600"
                 title="Cargar el saldo pendiente completo"
               >
                 Pagar todo ({formatCurrency(saldo, moneda)})
@@ -293,7 +293,7 @@ export function RegistrarPagoModal({
             value={monto || ''}
             onChange={(e) => setMonto(Number(e.target.value))}
             placeholder="0,00"
-            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
           {excede && (
             <p className="text-xs text-amber-400">El monto excede el saldo pendiente</p>
@@ -319,7 +319,7 @@ export function RegistrarPagoModal({
         )}
 
         {requiereCheque && (
-          <div className="bg-slate-800/40 border border-slate-700/40 rounded-lg p-3 space-y-3">
+          <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg p-3 space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <Input label="N° de cheque" value={numeroCheque} onChange={(e) => setNumeroCheque(e.target.value)} placeholder="12345678" />
               <Input label="Banco emisor" value={bancoEmisor} onChange={(e) => setBancoEmisor(e.target.value)} placeholder="Galicia, MP, etc." />
@@ -345,17 +345,17 @@ export function RegistrarPagoModal({
         {/* Interés / Punitorio (deudas vencidas) */}
         <div className={cn(
           'border rounded-lg p-3 space-y-2 transition-colors',
-          tieneInteres ? 'bg-amber-500/10 border-amber-500/30' : 'bg-slate-800/40 border-slate-700/40'
+          tieneInteres ? 'bg-amber-500/10 border-amber-500/30' : 'bg-[#f5f0e6]/40 border-[#d6d0c4]/40'
         )}>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={tieneInteres}
               onChange={(e) => setTieneInteres(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-600 bg-slate-700"
+              className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700"
             />
             <AlertCircle className={cn('w-4 h-4', tieneInteres ? 'text-amber-400' : 'text-slate-500')} />
-            <span className="text-sm text-slate-300">Cobro interés / punitorio (pago vencido)</span>
+            <span className="text-sm text-slate-700">Cobro interés / punitorio (pago vencido)</span>
           </label>
           {tieneInteres && (
             <>
@@ -381,7 +381,7 @@ export function RegistrarPagoModal({
                 />
               </div>
               <div className="pl-6">
-                <label className="block text-xs font-medium text-slate-400 mb-1">
+                <label className="block text-xs font-medium text-slate-600 mb-1">
                   {interesTipo === 'MONTO' ? 'Monto del recargo ($)' : 'Porcentaje (%)'}
                 </label>
                 <div className="relative">
@@ -391,7 +391,7 @@ export function RegistrarPagoModal({
                     min="0"
                     value={interesValor || ''}
                     onChange={(e) => setInteresValor(Math.max(0, Number(e.target.value)))}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+                    className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
                     placeholder="0"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">
@@ -404,7 +404,7 @@ export function RegistrarPagoModal({
                   ? interesValor
                   : Math.round((monto * interesValor / 100) * 100) / 100
                 return (
-                  <div className="pl-6 bg-slate-900/40 rounded-lg px-3 py-2 text-xs text-slate-400 flex items-center justify-between">
+                  <div className="pl-6 bg-white/40 rounded-lg px-3 py-2 text-xs text-slate-600 flex items-center justify-between">
                     <span>Se creará un gasto en <strong>"Gasto Financiero"</strong> por:</span>
                     <span className="font-mono text-amber-400 font-semibold">{formatCurrency(calc, target.moneda ?? 'ARS')}</span>
                   </div>
@@ -474,40 +474,40 @@ function EditarPagoInline({
   }
 
   return (
-    <div className="border-t border-slate-700/40 bg-slate-900/40 px-3 py-3 space-y-2">
+    <div className="border-t border-[#d6d0c4]/40 bg-white/40 px-3 py-3 space-y-2">
       <p className="text-[10px] text-slate-500">
         Para cambiar monto, instrumento o cuenta: eliminá este pago y creá uno nuevo.
       </p>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-[10px] text-slate-400 mb-0.5">Fecha emisión</label>
+          <label className="block text-[10px] text-slate-600 mb-0.5">Fecha emisión</label>
           <input type="date" value={fechaEmision} onChange={(e) => setFechaEmision(e.target.value)}
-            className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100" />
+            className="w-full px-2 py-1 bg-[#f5f0e6] border border-[#d6d0c4] rounded text-xs text-slate-900" />
         </div>
         <div>
-          <label className="block text-[10px] text-slate-400 mb-0.5">Fecha vencimiento</label>
+          <label className="block text-[10px] text-slate-600 mb-0.5">Fecha vencimiento</label>
           <input type="date" value={fechaVencimiento} onChange={(e) => setFechaVencimiento(e.target.value)}
-            className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100" />
+            className="w-full px-2 py-1 bg-[#f5f0e6] border border-[#d6d0c4] rounded text-xs text-slate-900" />
         </div>
       </div>
       {esCheque && (
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-[10px] text-slate-400 mb-0.5">N° cheque</label>
+            <label className="block text-[10px] text-slate-600 mb-0.5">N° cheque</label>
             <input type="text" value={numeroCheque} onChange={(e) => setNumeroCheque(e.target.value)}
-              className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100" />
+              className="w-full px-2 py-1 bg-[#f5f0e6] border border-[#d6d0c4] rounded text-xs text-slate-900" />
           </div>
           <div>
-            <label className="block text-[10px] text-slate-400 mb-0.5">Banco emisor</label>
+            <label className="block text-[10px] text-slate-600 mb-0.5">Banco emisor</label>
             <input type="text" value={bancoEmisor} onChange={(e) => setBancoEmisor(e.target.value)}
-              className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100" />
+              className="w-full px-2 py-1 bg-[#f5f0e6] border border-[#d6d0c4] rounded text-xs text-slate-900" />
           </div>
         </div>
       )}
       <div>
-        <label className="block text-[10px] text-slate-400 mb-0.5">Notas</label>
+        <label className="block text-[10px] text-slate-600 mb-0.5">Notas</label>
         <input type="text" value={notas} onChange={(e) => setNotas(e.target.value)}
-          className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100" />
+          className="w-full px-2 py-1 bg-[#f5f0e6] border border-[#d6d0c4] rounded text-xs text-slate-900" />
       </div>
       {error && <p className="text-[11px] text-red-400">{error}</p>}
       <div className="flex justify-end gap-2 pt-1">

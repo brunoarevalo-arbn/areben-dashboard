@@ -10,7 +10,7 @@ const COLORES: Record<string, string> = {
   BDI: 'text-purple-400',
   ZATTIA: 'text-pink-400',
   STUNNED: 'text-amber-400',
-  GENERAL: 'text-slate-400',
+  GENERAL: 'text-slate-600',
 }
 
 interface Props {
@@ -54,7 +54,7 @@ export function ProrrateoEditor({ value, onChange, defaults }: Props) {
                 max="100"
                 value={value[m] ?? 0}
                 onChange={(e) => setMarca(m, Number(e.target.value))}
-                className="w-full px-2 py-1.5 bg-slate-700 border border-slate-600 rounded text-slate-100 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 pr-6"
+                className="w-full px-2 py-1.5 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-orange-500 pr-6"
               />
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">%</span>
             </div>
@@ -67,7 +67,7 @@ export function ProrrateoEditor({ value, onChange, defaults }: Props) {
           <button
             type="button"
             onClick={distribuirEqui}
-            className="text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300"
+            className="text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-700"
           >
             Equitativo
           </button>
@@ -76,7 +76,7 @@ export function ProrrateoEditor({ value, onChange, defaults }: Props) {
               key={d.id}
               type="button"
               onClick={() => aplicarDefault(d)}
-              className="text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300"
+              className="text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-700"
             >
               {d.nombre}
             </button>

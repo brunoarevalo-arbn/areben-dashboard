@@ -65,26 +65,26 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
 
   return (
     <div className="space-y-6">
-      <Link href="/inversiones" className="text-sm text-slate-400 hover:text-slate-200 inline-flex items-center gap-1">
+      <Link href="/inversiones" className="text-sm text-slate-600 hover:text-slate-800 inline-flex items-center gap-1">
         <ChevronLeft className="w-4 h-4" /> Volver a inversores
       </Link>
 
       {/* Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+      <div className="bg-white border border-[#e8e4dc] rounded-xl p-6">
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             {inversor.tipo === 'empresa'
-              ? <Briefcase className="w-10 h-10 text-indigo-400" />
-              : <User className="w-10 h-10 text-slate-400" />}
+              ? <Briefcase className="w-10 h-10 text-orange-500" />
+              : <User className="w-10 h-10 text-slate-600" />}
             <div>
-              <h1 className="text-2xl font-bold text-slate-100">{inversor.nombre}</h1>
-              <p className="text-sm text-slate-400">
+              <h1 className="text-2xl font-bold text-slate-900">{inversor.nombre}</h1>
+              <p className="text-sm text-slate-600">
                 {inversor.tipo === 'empresa' ? 'Empresa' : 'Persona física'}
                 {' · '}
                 {instrumentos.length} instrumento(s)
                 {!inversor.activo && <Badge variant="danger" className="ml-2">Inactivo</Badge>}
               </p>
-              {inversor.notas && <p className="text-sm text-slate-300 mt-2 max-w-xl">{inversor.notas}</p>}
+              {inversor.notas && <p className="text-sm text-slate-700 mt-2 max-w-xl">{inversor.notas}</p>}
             </div>
           </div>
           <Button onClick={() => { setEditInstr(undefined); setModal(true) }} title="Crear nuevo instrumento">
@@ -97,7 +97,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
       {/* Lista de instrumentos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {instrumentos.length === 0 ? (
-          <div className="col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-12 text-center">
+          <div className="col-span-2 bg-white border border-[#e8e4dc] rounded-xl p-12 text-center">
             <TrendingUp className="w-8 h-8 mx-auto mb-2 text-slate-600" />
             <p className="text-slate-500 mb-3">Sin instrumentos cargados</p>
             <Button onClick={() => { setEditInstr(undefined); setModal(true) }} size="sm">
@@ -116,14 +116,14 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                 key={i.id}
                 onClick={() => setSelectedInstr(i)}
                 className={cn(
-                  'bg-slate-900 border rounded-xl p-4 cursor-pointer transition-colors',
-                  isSelected ? 'border-indigo-500/50 ring-1 ring-indigo-500/30' : 'border-slate-800 hover:border-slate-700'
+                  'bg-white border rounded-xl p-4 cursor-pointer transition-colors',
+                  isSelected ? 'border-orange-500/50 ring-1 ring-orange-500/30' : 'border-[#e8e4dc] hover:border-[#d6d0c4]'
                 )}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="font-mono text-xs text-slate-400">{i.codigo ?? i.id.substring(0, 8)}</p>
-                    <p className="text-sm font-semibold text-slate-100 mt-0.5">
+                    <p className="font-mono text-xs text-slate-600">{i.codigo ?? i.id.substring(0, 8)}</p>
+                    <p className="text-sm font-semibold text-slate-900 mt-0.5">
                       {formatMoneda(Number(i.capital_inicial), i.moneda)}
                     </p>
                   </div>
@@ -137,36 +137,36 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
 
                 <div className="space-y-1 text-xs mb-3">
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Tasa mensual</span>
-                    <span className="font-mono text-slate-200">{(Number(i.tasa_mensual) * 100).toFixed(2)}%</span>
+                    <span className="text-slate-600">Tasa mensual</span>
+                    <span className="font-mono text-slate-800">{(Number(i.tasa_mensual) * 100).toFixed(2)}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Capitalización</span>
-                    <span className={cn('flex items-center gap-1 font-medium', i.capitalizable ? 'text-purple-400' : 'text-slate-300')}>
+                    <span className="text-slate-600">Capitalización</span>
+                    <span className={cn('flex items-center gap-1 font-medium', i.capitalizable ? 'text-purple-400' : 'text-slate-700')}>
                       {i.capitalizable ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
                       {i.capitalizable ? 'Capitalizable' : 'No capitalizable'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Inicio</span>
-                    <span className="text-slate-300">{formatDate(i.fecha_inicio)}</span>
+                    <span className="text-slate-600">Inicio</span>
+                    <span className="text-slate-700">{formatDate(i.fecha_inicio)}</span>
                   </div>
                   {i.fecha_fin && (
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Vencimiento</span>
-                      <span className="text-slate-300">{formatDate(i.fecha_fin)}</span>
+                      <span className="text-slate-600">Vencimiento</span>
+                      <span className="text-slate-700">{formatDate(i.fecha_fin)}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="bg-slate-800/60 rounded-lg p-2.5 flex items-center justify-between border-t border-slate-700/40">
-                  <span className="text-xs text-slate-400">Saldo actual</span>
-                  <span className="font-mono text-base font-bold text-slate-100">
+                <div className="bg-[#f5f0e6]/60 rounded-lg p-2.5 flex items-center justify-between border-t border-[#d6d0c4]/40">
+                  <span className="text-xs text-slate-600">Saldo actual</span>
+                  <span className="font-mono text-base font-bold text-slate-900">
                     {formatMoneda(saldoActual, i.moneda)}
                   </span>
                 </div>
 
-                <div className="flex gap-1 mt-2 pt-2 border-t border-slate-800">
+                <div className="flex gap-1 mt-2 pt-2 border-t border-[#e8e4dc]">
                   <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditInstr(i); setModal(true) }} title="Editar instrumento">
                     <Pencil className="w-3 h-3" />
                   </Button>
@@ -215,9 +215,9 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
 
       {/* Tramos de tasa del instrumento seleccionado */}
       {selectedInstr && tramosSelected.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-          <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+        <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+          <div className="px-4 py-3 border-b border-[#e8e4dc] flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
               <Percent className="w-4 h-4 text-purple-400" />
               Historial de tasas · {selectedInstr.codigo ?? selectedInstr.id.substring(0, 8)}
             </h2>
@@ -237,7 +237,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-purple-400 shrink-0" />
                     <div>
-                      <p className="text-sm text-slate-100 font-mono">
+                      <p className="text-sm text-slate-900 font-mono">
                         {(Number(t.tasa_mensual) * 100).toFixed(4)}%
                         {idx === 0 && <span className="text-[10px] text-slate-500 ml-2 font-sans">tasa inicial</span>}
                         {idx > 0 && variacion !== 0 && (
@@ -254,7 +254,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                         {siguiente && <> <ArrowRight className="w-3 h-3 inline mx-1" /> hasta {formatDate(siguiente.fecha_desde)}</>}
                         {!siguiente && <span className="text-purple-400 ml-1">· vigente</span>}
                       </p>
-                      {t.notas && <p className="text-xs text-slate-400 mt-0.5">{t.notas}</p>}
+                      {t.notas && <p className="text-xs text-slate-600 mt-0.5">{t.notas}</p>}
                     </div>
                   </div>
                   {tramosSelected.length > 1 && (
@@ -265,7 +265,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                         startTransition(() => deleteTramoTasa(t.id))
                       }}
                       disabled={isPending}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-500 hover:text-red-400 hover:bg-slate-800 transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-500 hover:text-red-400 hover:bg-[#f5f0e6] transition-all"
                       title="Eliminar tramo"
                     >
                       <Trash2 className="w-3 h-3" />
@@ -295,10 +295,10 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
 
       {/* Timeline de períodos del instrumento seleccionado */}
       {selectedInstr && periodosSelected.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-          <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-indigo-400" />
+        <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+          <div className="px-4 py-3 border-b border-[#e8e4dc] flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-orange-500" />
               Períodos · {selectedInstr.codigo ?? selectedInstr.id.substring(0, 8)}
             </h2>
             <span className="text-xs text-slate-500">
@@ -307,14 +307,14 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800">
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Mes</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Saldo inicio</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Tasa</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Interés</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Movimiento</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Saldo cierre</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Estado</th>
+              <tr className="border-b border-[#e8e4dc]">
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Mes</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Saldo inicio</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Tasa</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Interés</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Movimiento</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Saldo cierre</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Estado</th>
               </tr>
             </thead>
             <tbody>
@@ -326,11 +326,11 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                 })
                 return (
                   <tr key={p.id} className={cn(
-                    'border-b border-slate-800/60',
+                    'border-b border-[#e8e4dc]/60',
                     p.cerrado && 'bg-green-500/5'
                   )}>
-                    <td className="px-4 py-2 text-slate-200">{formatMonth(p.mes)}</td>
-                    <td className="px-4 py-2 text-right font-mono text-slate-300">{formatMoneda(Number(p.saldo_inicio), selectedInstr.moneda)}</td>
+                    <td className="px-4 py-2 text-slate-800">{formatMonth(p.mes)}</td>
+                    <td className="px-4 py-2 text-right font-mono text-slate-700">{formatMoneda(Number(p.saldo_inicio), selectedInstr.moneda)}</td>
                     <td className="px-4 py-2 text-right font-mono text-purple-400 text-xs">
                       {(Number(p.tasa_aplicada) * 100).toFixed(4)}%
                       {cambiosEnMes.length > 0 && (
@@ -343,10 +343,10 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                         <p className="text-[10px] text-slate-500">prorrateado</p>
                       )}
                     </td>
-                    <td className="px-4 py-2 text-right font-mono text-slate-400">
+                    <td className="px-4 py-2 text-right font-mono text-slate-600">
                       {Number(p.movimiento) !== 0 ? formatMoneda(Number(p.movimiento), selectedInstr.moneda) : '—'}
                     </td>
-                    <td className="px-4 py-2 text-right font-mono text-slate-100 font-medium">
+                    <td className="px-4 py-2 text-right font-mono text-slate-900 font-medium">
                       {formatMoneda(Number(p.saldo_cierre), selectedInstr.moneda)}
                     </td>
                     <td className="px-4 py-2">

@@ -100,8 +100,8 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Inversiones de Terceros</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{inversores.length} inversores · {instrumentos.length} instrumentos</p>
+          <h1 className="text-2xl font-bold text-slate-900">Inversiones de Terceros</h1>
+          <p className="text-sm text-slate-600 mt-0.5">{inversores.length} inversores · {instrumentos.length} instrumentos</p>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/inversiones/cierre">
@@ -125,26 +125,26 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
 
       {/* KPIs totales */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <div className="bg-slate-900 border border-green-500/20 rounded-xl p-5">
-          <p className="text-xs text-slate-400 mb-1">Total invertido USD (saldos actuales)</p>
+        <div className="bg-white border border-green-500/20 rounded-xl p-5">
+          <p className="text-xs text-slate-600 mb-1">Total invertido USD (saldos actuales)</p>
           <p className="text-2xl font-bold text-green-400">{formatMoneda(totalUsd, 'USD')}</p>
         </div>
-        <div className="bg-slate-900 border border-indigo-500/20 rounded-xl p-5">
-          <p className="text-xs text-slate-400 mb-1">Total invertido ARS (saldos actuales)</p>
-          <p className="text-2xl font-bold text-indigo-400">{formatMoneda(totalArs, 'ARS')}</p>
+        <div className="bg-white border border-orange-500/20 rounded-xl p-5">
+          <p className="text-xs text-slate-600 mb-1">Total invertido ARS (saldos actuales)</p>
+          <p className="text-2xl font-bold text-orange-500">{formatMoneda(totalArs, 'ARS')}</p>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 text-sm text-slate-400">
+      <div className="bg-white border border-[#e8e4dc] rounded-xl p-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 text-sm text-slate-600">
           <Filter className="w-3.5 h-3.5" />
           Filtros:
         </div>
         <select
           value={filtroMoneda}
           onChange={(e) => setFiltroMoneda(e.target.value as typeof filtroMoneda)}
-          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
         >
           <option value="TODOS">Todas las monedas</option>
           <option value="USD">USD</option>
@@ -153,7 +153,7 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
         <select
           value={filtroEstado}
           onChange={(e) => setFiltroEstado(e.target.value as typeof filtroEstado)}
-          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
         >
           <option value="TODOS">Todos los estados</option>
           <option value="activo">Activo</option>
@@ -163,13 +163,13 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
         <select
           value={filtroCap}
           onChange={(e) => setFiltroCap(e.target.value as typeof filtroCap)}
-          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
         >
           <option value="TODOS">Cualquier tipo</option>
           <option value="CAPITALIZABLE">Capitalizable</option>
           <option value="NO_CAPITALIZABLE">No capitalizable</option>
         </select>
-        <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer ml-auto">
+        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer ml-auto">
           <input
             type="checkbox"
             checked={showInactivos}
@@ -183,7 +183,7 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
       {/* Lista */}
       <div className="space-y-3">
         {inversoresVisibles.length === 0 ? (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center">
+          <div className="bg-white border border-[#e8e4dc] rounded-xl p-12 text-center">
             <Briefcase className="w-8 h-8 mx-auto mb-2 text-slate-600" />
             <p className="text-slate-500">No hay inversores con esos filtros</p>
           </div>
@@ -199,15 +199,15 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
               <div
                 key={inv.id}
                 className={cn(
-                  'bg-slate-900 border rounded-xl p-5',
-                  !inv.activo ? 'border-slate-800 opacity-50' : 'border-slate-800 hover:border-slate-700 transition-colors'
+                  'bg-white border rounded-xl p-5',
+                  !inv.activo ? 'border-[#e8e4dc] opacity-50' : 'border-[#e8e4dc] hover:border-[#d6d0c4] transition-colors'
                 )}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    {inv.tipo === 'empresa' ? <Briefcase className="w-5 h-5 text-indigo-400" /> : <User className="w-5 h-5 text-slate-400" />}
+                    {inv.tipo === 'empresa' ? <Briefcase className="w-5 h-5 text-orange-500" /> : <User className="w-5 h-5 text-slate-600" />}
                     <div>
-                      <Link href={`/inversiones/${inv.id}`} className="font-semibold text-slate-100 hover:text-indigo-400 transition-colors">
+                      <Link href={`/inversiones/${inv.id}`} className="font-semibold text-slate-900 hover:text-orange-500 transition-colors">
                         {inv.nombre}
                       </Link>
                       <p className="text-xs text-slate-500">
@@ -239,24 +239,24 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
                   <>
                     <div className="grid grid-cols-2 gap-3 mb-3">
                       {totalUsdInv > 0 && (
-                        <div className="bg-slate-800/40 rounded-lg p-3">
+                        <div className="bg-[#f5f0e6]/40 rounded-lg p-3">
                           <p className="text-xs text-slate-500">Total USD</p>
                           <p className="text-base font-mono font-bold text-green-400">{formatMoneda(totalUsdInv, 'USD')}</p>
                         </div>
                       )}
                       {totalArsInv > 0 && (
-                        <div className="bg-slate-800/40 rounded-lg p-3">
+                        <div className="bg-[#f5f0e6]/40 rounded-lg p-3">
                           <p className="text-xs text-slate-500">Total ARS</p>
-                          <p className="text-base font-mono font-bold text-indigo-400">{formatMoneda(totalArsInv, 'ARS')}</p>
+                          <p className="text-base font-mono font-bold text-orange-500">{formatMoneda(totalArsInv, 'ARS')}</p>
                         </div>
                       )}
                     </div>
 
                     <div className="space-y-1.5">
                       {insts.map((i) => (
-                        <div key={i.id} className="flex items-center justify-between bg-slate-800/30 rounded-lg px-3 py-2 text-sm">
+                        <div key={i.id} className="flex items-center justify-between bg-[#f5f0e6]/30 rounded-lg px-3 py-2 text-sm">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs text-slate-400">{i.codigo ?? i.id.substring(0, 8)}</span>
+                            <span className="font-mono text-xs text-slate-600">{i.codigo ?? i.id.substring(0, 8)}</span>
                             <Badge variant={i.moneda === 'USD' ? 'success' : 'info'}>{i.moneda}</Badge>
                             <Badge variant={i.capitalizable ? 'purple' : 'default'}>
                               {i.capitalizable ? 'Capitalizable' : 'No cap.'}
@@ -265,7 +265,7 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
                               {i.estado}
                             </Badge>
                           </div>
-                          <span className="font-mono text-slate-200">
+                          <span className="font-mono text-slate-800">
                             {formatMoneda(ultimoSaldo.get(i.id) ?? Number(i.capital_inicial), i.moneda)}
                           </span>
                         </div>

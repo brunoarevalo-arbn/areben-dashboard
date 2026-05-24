@@ -4,16 +4,16 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  --color-bg: #0f172a;
-  --color-surface: #1e293b;
-  --color-surface-2: #334155;
-  --color-border: #334155;
-  --color-border-light: #475569;
-  --color-text: #f1f5f9;
-  --color-text-muted: #94a3b8;
-  --color-primary: #6366f1;
-  --color-primary-hover: #4f46e5;
-  --color-success: #22c55e;
+  --color-bg: #faf6ee;
+  --color-surface: #ffffff;
+  --color-surface-2: #f5f0e6;
+  --color-border: #e8e4dc;
+  --color-border-light: #d6d0c4;
+  --color-text: #1a1a1a;
+  --color-text-muted: #6b6b6b;
+  --color-primary: #e07840;
+  --color-primary-hover: #c8632d;
+  --color-success: #16a34a;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
   --color-bdi: #6366f1;
@@ -22,13 +22,13 @@
 }
 
 html {
-  background-color: #0f172a;
-  color: #f1f5f9;
+  background-color: #faf6ee;
+  color: #1a1a1a;
 }
 
 body {
-  background-color: #0f172a;
-  color: #f1f5f9;
+  background-color: #faf6ee;
+  color: #1a1a1a;
   font-family: var(--font-geist-sans), Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -39,14 +39,14 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #1e293b;
+  background: #f5f0e6;
 }
 ::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: #d6d0c4;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: #b8b0a0;
 }
 
 /* Input styling */

@@ -32,7 +32,7 @@ const TIPOS: { v: TipoCuentaPatrim; label: string; icon: React.ElementType; colo
 
 const COLORES: Record<string, string> = {
   teal: 'border-teal-500/30 text-teal-400',
-  indigo: 'border-indigo-500/30 text-indigo-400',
+  indigo: 'border-orange-500/30 text-orange-500',
   red: 'border-red-500/30 text-red-400',
   purple: 'border-purple-500/30 text-purple-400',
   amber: 'border-amber-500/30 text-amber-400',
@@ -79,12 +79,12 @@ function CuentaForm({ cuenta, onClose }: { cuenta?: CuentaPatrimonial; onClose: 
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-slate-300">Tipo</label>
+          <label className="block text-sm font-medium text-slate-700">Tipo</label>
           <select
             name="tipo"
             value={tipo}
             onChange={(e) => handleTipoChange(e.target.value as TipoCuentaPatrim)}
-            className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3.5 py-2.5 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
             required
           >
             {TIPOS.map((t) => (
@@ -93,7 +93,7 @@ function CuentaForm({ cuenta, onClose }: { cuenta?: CuentaPatrimonial; onClose: 
           </select>
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-slate-300">Signo en PN</label>
+          <label className="block text-sm font-medium text-slate-700">Signo en PN</label>
           <div className="grid grid-cols-2 gap-2">
             {([
               { v: 1, label: '+ Suma (activo)', color: 'green' },
@@ -109,7 +109,7 @@ function CuentaForm({ cuenta, onClose }: { cuenta?: CuentaPatrimonial; onClose: 
                     ? s.color === 'green'
                       ? 'bg-green-500/15 border-green-500/40 text-green-400'
                       : 'bg-red-500/15 border-red-500/40 text-red-400'
-                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                    : 'bg-[#f5f0e6] border-[#d6d0c4] text-slate-600 hover:text-slate-800'
                 )}
               >
                 {s.label}
@@ -149,8 +149,8 @@ function CuentaForm({ cuenta, onClose }: { cuenta?: CuentaPatrimonial; onClose: 
         <Input label="Orden" name="orden" type="number" defaultValue={cuenta?.orden ?? 0} />
       </div>
 
-      <div className="bg-slate-800/40 border border-slate-700/40 rounded-lg p-3 space-y-3">
-        <p className="text-xs font-medium text-slate-400 uppercase">Saldo histórico inicial (mes 0)</p>
+      <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg p-3 space-y-3">
+        <p className="text-xs font-medium text-slate-600 uppercase">Saldo histórico inicial (mes 0)</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input label="Saldo inicial" name="saldo_inicial" type="number" step="0.01" defaultValue={cuenta?.saldo_inicial ?? 0} />
           <Input label="Mes inicial (YYYY-MM)" name="mes_inicial" type="month" defaultValue={cuenta?.mes_inicial ?? ''} />
@@ -239,9 +239,9 @@ function SaldoRow({
   }
 
   return (
-    <tr className={cn('border-b border-slate-800/60 hover:bg-slate-800/30', !cuenta.activo && 'opacity-50')}>
+    <tr className={cn('border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30', !cuenta.activo && 'opacity-50')}>
       <td className="px-4 py-2">
-        <p className="text-slate-200 text-sm font-medium">{cuenta.nombre}</p>
+        <p className="text-slate-800 text-sm font-medium">{cuenta.nombre}</p>
         <p className="text-xs text-slate-500">
           {cuenta.codigo && <>{cuenta.codigo} · </>}
           {cuenta.categoria}
@@ -255,10 +255,10 @@ function SaldoRow({
             step="0.01"
             value={saldoInicio}
             onChange={(e) => setSaldoInicio(Number(e.target.value))}
-            className="w-32 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-slate-100 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-32 px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
           />
         ) : (
-          <span className="font-mono text-slate-300 text-xs">{formatCurrency(saldoInicio, cuenta.moneda)}</span>
+          <span className="font-mono text-slate-700 text-xs">{formatCurrency(saldoInicio, cuenta.moneda)}</span>
         )}
       </td>
       <td className="px-3 py-2 text-right">
@@ -268,7 +268,7 @@ function SaldoRow({
             step="0.01"
             value={movimiento}
             onChange={(e) => setMovimiento(Number(e.target.value))}
-            className="w-32 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-slate-100 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-32 px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
           />
         ) : (
           <span className={cn(
@@ -279,11 +279,11 @@ function SaldoRow({
           </span>
         )}
       </td>
-      <td className="px-3 py-2 text-right font-mono text-slate-100 text-sm font-medium">
+      <td className="px-3 py-2 text-right font-mono text-slate-900 text-sm font-medium">
         {formatCurrency(saldoCierre, cuenta.moneda)}
       </td>
       <td className="px-3 py-2 text-right text-xs">
-        <span className={cn('font-mono', aporta >= 0 ? 'text-indigo-400' : 'text-amber-400')}>
+        <span className={cn('font-mono', aporta >= 0 ? 'text-orange-500' : 'text-amber-400')}>
           {esInventario ? (
             <>
               {aporta >= 0 ? '+' : '−'} {formatCurrency(Math.abs(saldoCierre), cuenta.moneda)}
@@ -314,7 +314,7 @@ function SaldoRow({
                   setSaldoInicio(Number(saldo?.saldo_inicio ?? 0))
                   setMovimiento(Number(saldo?.movimiento ?? 0))
                 }}
-                className="p-1 rounded bg-slate-700 text-slate-400"
+                className="p-1 rounded bg-slate-700 text-slate-600"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -326,21 +326,21 @@ function SaldoRow({
                   onClick={sugerir}
                   disabled={isSugiriendo}
                   title="Sugerir movimiento (Compras − CMV del mes)"
-                  className="p-1 rounded hover:bg-slate-700 text-teal-400"
+                  className="p-1 rounded hover:bg-[#e8e0d0] text-teal-400"
                 >
                   {isSugiriendo ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
                 </button>
               )}
-              <button onClick={() => setEditing(true)} title="Editar saldo del mes" className="p-1 rounded hover:bg-slate-700 text-slate-400">
+              <button onClick={() => setEditing(true)} title="Editar saldo del mes" className="p-1 rounded hover:bg-[#e8e0d0] text-slate-600">
                 <Pencil className="w-3 h-3" />
               </button>
-              <button onClick={onEdit} title="Editar cuenta" className="p-1 rounded hover:bg-slate-700 text-slate-400">
+              <button onClick={onEdit} title="Editar cuenta" className="p-1 rounded hover:bg-[#e8e0d0] text-slate-600">
                 <Building2 className="w-3 h-3" />
               </button>
-              <button onClick={onToggle} title={cuenta.activo ? 'Desactivar' : 'Activar'} className="p-1 rounded hover:bg-slate-700">
+              <button onClick={onToggle} title={cuenta.activo ? 'Desactivar' : 'Activar'} className="p-1 rounded hover:bg-[#e8e0d0]">
                 <Power className={cn('w-3 h-3', cuenta.activo ? 'text-red-400' : 'text-green-400')} />
               </button>
-              <button onClick={onDelete} title="Eliminar cuenta" className="p-1 rounded hover:bg-slate-700 text-red-400">
+              <button onClick={onDelete} title="Eliminar cuenta" className="p-1 rounded hover:bg-[#e8e0d0] text-red-400">
                 <Trash2 className="w-3 h-3" />
               </button>
             </>
@@ -405,11 +405,11 @@ export function CuentasPatrimonialesClient({ mes, cuentas, saldos }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-            <Briefcase className="w-6 h-6 text-indigo-400" />
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Briefcase className="w-6 h-6 text-orange-500" />
             Cuentas patrimoniales
           </h1>
-          <p className="text-sm text-slate-400 mt-0.5">
+          <p className="text-sm text-slate-600 mt-0.5">
             Plan de cuentas para inversión, provisiones, impuestos y más — saldos arrastran mes a mes
           </p>
         </div>
@@ -437,14 +437,14 @@ export function CuentasPatrimonialesClient({ mes, cuentas, saldos }: Props) {
 
       {/* Resumen */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <div className="bg-slate-900 border border-indigo-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Aporte neto al PN — ARS</p>
-          <p className={cn('text-xl font-bold', totalArsAporte >= 0 ? 'text-indigo-400' : 'text-amber-400')}>
+        <div className="bg-white border border-orange-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Aporte neto al PN — ARS</p>
+          <p className={cn('text-xl font-bold', totalArsAporte >= 0 ? 'text-orange-500' : 'text-amber-400')}>
             {totalArsAporte >= 0 ? '+' : ''}{formatCurrency(totalArsAporte)}
           </p>
         </div>
-        <div className="bg-slate-900 border border-green-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Aporte neto al PN — USD</p>
+        <div className="bg-white border border-green-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Aporte neto al PN — USD</p>
           <p className={cn('text-xl font-bold', totalUsdAporte >= 0 ? 'text-green-400' : 'text-amber-400')}>
             {totalUsdAporte >= 0 ? '+' : ''}{formatCurrency(totalUsdAporte, 'USD')}
           </p>
@@ -461,11 +461,11 @@ export function CuentasPatrimonialesClient({ mes, cuentas, saldos }: Props) {
         const isOpen = openTipos[tipoCfg.v] ?? true
 
         return (
-          <div key={tipoCfg.v} className={cn('bg-slate-900 border rounded-xl overflow-x-auto', COLORES[tipoCfg.color])}>
+          <div key={tipoCfg.v} className={cn('bg-white border rounded-xl overflow-x-auto', COLORES[tipoCfg.color])}>
             <button
               type="button"
               onClick={() => setOpenTipos((o) => ({ ...o, [tipoCfg.v]: !isOpen }))}
-              className="w-full px-4 py-3 border-b border-slate-800 flex items-center justify-between hover:bg-slate-800/30 transition-colors"
+              className="w-full px-4 py-3 border-b border-[#e8e4dc] flex items-center justify-between hover:bg-[#f5f0e6]/30 transition-colors"
             >
               <h2 className="text-sm font-semibold flex items-center gap-2">
                 <Icon className="w-4 h-4" />
@@ -475,7 +475,7 @@ export function CuentasPatrimonialesClient({ mes, cuentas, saldos }: Props) {
               <div className="flex items-center gap-3 text-xs">
                 {total.aportaArs !== 0 && (
                   <span className="font-mono">
-                    Neto al PN: <span className={total.aportaArs >= 0 ? 'text-indigo-400' : 'text-amber-400'}>
+                    Neto al PN: <span className={total.aportaArs >= 0 ? 'text-orange-500' : 'text-amber-400'}>
                       {total.aportaArs >= 0 ? '+' : ''}{formatCurrency(total.aportaArs)}
                     </span>
                   </span>
@@ -487,12 +487,12 @@ export function CuentasPatrimonialesClient({ mes, cuentas, saldos }: Props) {
             {isOpen && (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800">
-                    <th className="text-left px-4 py-2 text-[10px] font-medium text-slate-400 uppercase">Cuenta</th>
-                    <th className="text-right px-3 py-2 text-[10px] font-medium text-slate-400 uppercase">Saldo inicio</th>
-                    <th className="text-right px-3 py-2 text-[10px] font-medium text-slate-400 uppercase">Movimiento</th>
-                    <th className="text-right px-3 py-2 text-[10px] font-medium text-slate-400 uppercase">Saldo cierre</th>
-                    <th className="text-right px-3 py-2 text-[10px] font-medium text-slate-400 uppercase">Aporte PN</th>
+                  <tr className="border-b border-[#e8e4dc]">
+                    <th className="text-left px-4 py-2 text-[10px] font-medium text-slate-600 uppercase">Cuenta</th>
+                    <th className="text-right px-3 py-2 text-[10px] font-medium text-slate-600 uppercase">Saldo inicio</th>
+                    <th className="text-right px-3 py-2 text-[10px] font-medium text-slate-600 uppercase">Movimiento</th>
+                    <th className="text-right px-3 py-2 text-[10px] font-medium text-slate-600 uppercase">Saldo cierre</th>
+                    <th className="text-right px-3 py-2 text-[10px] font-medium text-slate-600 uppercase">Aporte PN</th>
                     <th />
                   </tr>
                 </thead>
@@ -519,7 +519,7 @@ export function CuentasPatrimonialesClient({ mes, cuentas, saldos }: Props) {
       })}
 
       {cuentas.length === 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center">
+        <div className="bg-white border border-[#e8e4dc] rounded-xl p-12 text-center">
           <Briefcase className="w-8 h-8 mx-auto mb-2 text-slate-600" />
           <p className="text-slate-500 mb-3">Sin cuentas patrimoniales cargadas</p>
           <Button onClick={() => { setEditCuenta(undefined); setModal(true) }}>

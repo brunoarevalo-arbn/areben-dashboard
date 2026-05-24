@@ -19,10 +19,10 @@ const COLORES_CATEGORIA: Record<string, string> = {
   blue: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
   red: 'bg-red-500/15 text-red-400 border-red-500/30',
   green: 'bg-green-500/15 text-green-400 border-green-500/30',
-  indigo: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+  indigo: 'bg-orange-500/15 text-orange-500 border-orange-500/30',
   purple: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
   pink: 'bg-pink-500/15 text-pink-400 border-pink-500/30',
-  slate: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+  slate: 'bg-slate-500/15 text-slate-600 border-slate-500/30',
 }
 
 interface Props {
@@ -139,8 +139,8 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Retiros de Socios</h1>
-          <p className="text-sm text-slate-400 mt-0.5">
+          <h1 className="text-2xl font-bold text-slate-900">Retiros de Socios</h1>
+          <p className="text-sm text-slate-600 mt-0.5">
             {retiros.length} registros · USD como moneda maestra
           </p>
         </div>
@@ -178,14 +178,14 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
       {/* Resumen por socio */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {resumenSocios.map(({ socio, usd, ars, count }) => (
-          <div key={socio} className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+          <div key={socio} className="bg-white border border-[#e8e4dc] rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-medium text-slate-300">{socio}</p>
+              <p className="text-sm font-medium text-slate-700">{socio}</p>
               <span className="text-xs text-slate-500">{count} retiro{count !== 1 ? 's' : ''}</span>
             </div>
             <div className="space-y-1.5">
               <div className="flex justify-between items-baseline">
-                <span className="text-xs text-slate-400 flex items-center gap-1">
+                <span className="text-xs text-slate-600 flex items-center gap-1">
                   <DollarSign className="w-3 h-3" />
                   Total USD
                 </span>
@@ -194,8 +194,8 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
                 </span>
               </div>
               <div className="flex justify-between items-baseline">
-                <span className="text-xs text-slate-400">Equivalente ARS (histórico)</span>
-                <span className="text-sm font-mono text-slate-300">{formatCurrency(ars)}</span>
+                <span className="text-xs text-slate-600">Equivalente ARS (histórico)</span>
+                <span className="text-sm font-mono text-slate-700">{formatCurrency(ars)}</span>
               </div>
             </div>
           </div>
@@ -207,7 +207,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
         <select
           value={filtroSocio}
           onChange={(e) => setFiltroSocio(e.target.value)}
-          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
         >
           <option value="">Todos los socios</option>
           {todosLosSocios.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -215,7 +215,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
         <select
           value={filtroMes}
           onChange={(e) => setFiltroMes(e.target.value)}
-          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
         >
           <option value="">Todos los meses</option>
           {mesesDisponibles.map((m) => <option key={m} value={m}>{formatMonth(m)}</option>)}
@@ -224,7 +224,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
           <button
             type="button"
             onClick={() => { setFiltroSocio(''); setFiltroMes('') }}
-            className="text-xs text-slate-400 hover:text-slate-200"
+            className="text-xs text-slate-600 hover:text-slate-800"
           >
             Limpiar filtros
           </button>
@@ -233,10 +233,10 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
 
       {/* Resumen por categoría (del filtrado) */}
       {resumenCategorias.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-          <div className="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-indigo-400" />
-            <h2 className="text-sm font-semibold text-slate-100">Análisis por categoría (USD)</h2>
+        <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+          <div className="px-4 py-3 border-b border-[#e8e4dc] flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-orange-500" />
+            <h2 className="text-sm font-semibold text-slate-900">Análisis por categoría (USD)</h2>
           </div>
           <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
             {resumenCategorias.map(({ categoria, usd, count }) => (
@@ -258,16 +258,16 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
       )}
 
       {/* Tabla */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-800">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Socio</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Categoría</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Fecha</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">ARS</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">USD</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">TC</th>
+            <tr className="border-b border-[#e8e4dc]">
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Socio</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Categoría</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Fecha</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">ARS</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">USD</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">TC</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -281,15 +281,15 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
               </tr>
             ) : (
               retirosFiltrados.map((r) => (
-                <tr key={r.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
-                  <td className="px-4 py-3 text-slate-100 font-medium">{r.socio}</td>
+                <tr key={r.id} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
+                  <td className="px-4 py-3 text-slate-900 font-medium">{r.socio}</td>
                   <td className="px-4 py-3"><CategoriaTag categoria={r.categoria} /></td>
-                  <td className="px-4 py-3 text-slate-400 text-xs">{formatDate(r.fecha)}</td>
-                  <td className="px-4 py-3 text-right font-mono text-slate-300">{formatCurrency(r.monto_pesos)}</td>
+                  <td className="px-4 py-3 text-slate-600 text-xs">{formatDate(r.fecha)}</td>
+                  <td className="px-4 py-3 text-right font-mono text-slate-700">{formatCurrency(r.monto_pesos)}</td>
                   <td className="px-4 py-3 text-right font-mono text-green-400 font-medium">
                     {formatCurrency(r.monto_usd_calculado ?? r.monto_usd, 'USD')}
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-400 text-xs">{r.tipo_cambio.toFixed(0)}</td>
+                  <td className="px-4 py-3 text-right text-slate-600 text-xs">{r.tipo_cambio.toFixed(0)}</td>
                   <td className="px-4 py-3">
                     <Button size="sm" variant="danger" onClick={() => handleDelete(r.id)} disabled={isPending}>
                       <Trash2 className="w-3.5 h-3.5" />
@@ -335,7 +335,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
           />
 
           {/* Medio de pago */}
-          <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3 space-y-3">
+          <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-xl p-3 space-y-3">
             <Select
               label="Medio de pago"
               name="medio_pago"
@@ -358,7 +358,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
                   required
                 />
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1.5 flex items-center gap-1.5">
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
                     <CreditCard className="w-3.5 h-3.5" />
                     Cantidad de cuotas
                   </label>
@@ -371,8 +371,8 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
                         className={cn(
                           'px-3 py-1 rounded-lg border text-sm font-mono font-medium transition-colors',
                           cuotasTotal === n
-                            ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300'
-                            : 'bg-slate-700 border-slate-600 text-slate-400 hover:text-slate-200'
+                            ? 'bg-orange-500/20 border-orange-500/50 text-orange-600'
+                            : 'bg-slate-700 border-[#c8c0b0] text-slate-600 hover:text-slate-800'
                         )}
                       >
                         {n}
@@ -383,7 +383,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
                       min="1"
                       value={cuotasTotal}
                       onChange={(e) => setCuotasTotal(Math.max(1, Number(e.target.value)))}
-                      className="w-20 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-slate-100 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-20 px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
                     />
                   </div>
                   <input type="hidden" name="cuotas_total" value={cuotasTotal} />
@@ -400,7 +400,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
             <Input label="Monto USD" name="monto_usd" type="number" step="0.01" defaultValue="0" />
           </div>
           <input type="hidden" name="tipo_cambio" value="0" />
-          <p className="text-xs text-slate-500 bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2">
+          <p className="text-xs text-slate-500 bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg px-3 py-2">
             La conversión a USD se aplica a fin de mes con <strong>Cerrar y convertir</strong> usando un único TC.
           </p>
 
@@ -481,9 +481,9 @@ function CierreConversionModal({
   return (
     <Modal open={open} onOpenChange={onOpenChange} title="Cerrar y convertir retiros del mes" className="max-w-md">
       <div className="space-y-4">
-        <div className="bg-slate-800/40 border border-slate-700/40 rounded-lg p-3 text-xs text-slate-300 space-y-1">
+        <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg p-3 text-xs text-slate-700 space-y-1">
           <p>Convierte todos los retiros ARS del mes a USD usando un único tipo de cambio.</p>
-          <p className="text-slate-400">Los retiros que ya estaban cargados directamente en USD se respetan.</p>
+          <p className="text-slate-600">Los retiros que ya estaban cargados directamente en USD se respetan.</p>
         </div>
 
         <Select
@@ -503,21 +503,21 @@ function CierreConversionModal({
           onChange={(e) => setTc(Number(e.target.value))}
         />
 
-        <div className="bg-slate-900/60 border border-slate-700/40 rounded-lg p-3 grid grid-cols-2 gap-3 text-xs">
+        <div className="bg-white/60 border border-[#d6d0c4]/40 rounded-lg p-3 grid grid-cols-2 gap-3 text-xs">
           <div>
-            <p className="text-slate-400">Retiros del mes</p>
-            <p className="text-base font-semibold text-slate-100">{retirosDelMes.length}</p>
+            <p className="text-slate-600">Retiros del mes</p>
+            <p className="text-base font-semibold text-slate-900">{retirosDelMes.length}</p>
           </div>
           <div>
-            <p className="text-slate-400">Total ARS</p>
-            <p className="text-base font-mono text-indigo-400">{formatCurrency(totalArs)}</p>
+            <p className="text-slate-600">Total ARS</p>
+            <p className="text-base font-mono text-orange-500">{formatCurrency(totalArs)}</p>
           </div>
           <div>
-            <p className="text-slate-400">USD actual</p>
-            <p className="text-base font-mono text-slate-300">{formatCurrency(totalUsdActual, 'USD')}</p>
+            <p className="text-slate-600">USD actual</p>
+            <p className="text-base font-mono text-slate-700">{formatCurrency(totalUsdActual, 'USD')}</p>
           </div>
           <div>
-            <p className="text-slate-400">USD c/TC nuevo</p>
+            <p className="text-slate-600">USD c/TC nuevo</p>
             <p className="text-base font-mono text-green-400">{formatCurrency(totalUsdNuevo, 'USD')}</p>
           </div>
         </div>

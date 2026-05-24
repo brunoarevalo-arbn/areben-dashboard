@@ -22,21 +22,21 @@ export function Modal({ open, onOpenChange, title, description, children, classN
           className={cn(
             'fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50',
             'w-full max-w-lg max-h-[90vh] overflow-y-auto',
-            'bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl',
+            'bg-white border border-[#e8e4dc] rounded-2xl shadow-2xl',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
             className
           )}
         >
-          <div className="flex items-start justify-between p-6 border-b border-slate-800">
+          <div className="flex items-start justify-between p-6 border-b border-[#e8e4dc]">
             <div>
-              <Dialog.Title className="text-lg font-semibold text-slate-100">{title}</Dialog.Title>
+              <Dialog.Title className="text-lg font-semibold text-slate-900">{title}</Dialog.Title>
               {description && (
-                <Dialog.Description className="text-sm text-slate-400 mt-0.5">{description}</Dialog.Description>
+                <Dialog.Description className="text-sm text-slate-600 mt-0.5">{description}</Dialog.Description>
               )}
             </div>
-            <Dialog.Close className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition-colors">
+            <Dialog.Close className="p-1 rounded-lg hover:bg-[#f5f0e6] text-slate-600 hover:text-slate-900 transition-colors">
               <X className="w-5 h-5" />
             </Dialog.Close>
           </div>

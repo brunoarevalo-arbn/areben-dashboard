@@ -176,22 +176,22 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Info compra */}
-      <div className="bg-slate-800/60 rounded-xl px-4 py-3 flex items-center justify-between">
+      <div className="bg-[#f5f0e6]/60 rounded-xl px-4 py-3 flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-100">{compra.descripcion}</p>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-sm font-medium text-slate-900">{compra.descripcion}</p>
+          <p className="text-xs text-slate-600 mt-0.5">
             {(compra.proveedor as { nombre: string } | null)?.nombre ?? '—'}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-slate-400">Saldo pendiente</p>
+          <p className="text-xs text-slate-600">Saldo pendiente</p>
           <p className="text-lg font-bold text-amber-400">{formatCurrency(compra.saldo_pendiente)}</p>
         </div>
       </div>
 
       {/* Condición de pago */}
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-slate-300">Condición de pago</label>
+        <label className="block text-sm font-medium text-slate-700">Condición de pago</label>
         <div className="grid grid-cols-3 gap-2">
           {(['CONTADO', 'A_PLAZO', 'EN_CUOTAS'] as Condicion[]).map((c) => (
             <button
@@ -201,8 +201,8 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
               className={cn(
                 'px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors text-center',
                 condicion === c
-                  ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                  ? 'bg-orange-500/20 border-orange-500/50 text-orange-600'
+                  : 'bg-[#f5f0e6] border-[#d6d0c4] text-slate-600 hover:text-slate-800'
               )}
             >
               {c === 'CONTADO' ? 'Contado' : c === 'A_PLAZO' ? 'A Plazo' : 'En Cuotas'}
@@ -213,7 +213,7 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
 
       {/* Instrumento */}
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-slate-300">Instrumento de pago</label>
+        <label className="block text-sm font-medium text-slate-700">Instrumento de pago</label>
         <div className="grid grid-cols-2 gap-2">
           {opcionesInstrumento.map((op) => (
             <button
@@ -223,8 +223,8 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
               className={cn(
                 'flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors',
                 instrumento === op.value
-                  ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                  ? 'bg-orange-500/20 border-orange-500/50 text-orange-600'
+                  : 'bg-[#f5f0e6] border-[#d6d0c4] text-slate-600 hover:text-slate-800'
               )}
             >
               {INSTRUMENTO_ICONS[op.value]}
@@ -238,23 +238,23 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
       {condicion !== 'EN_CUOTAS' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">Fecha de emisión</label>
+            <label className="block text-sm font-medium text-slate-700">Fecha de emisión</label>
             <input
               type="date"
               value={fechaEmision}
               onChange={(e) => setFechaEmision(e.target.value)}
               required
-              className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-3.5 py-2.5 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">
+            <label className="block text-sm font-medium text-slate-700">
               Monto a pagar
               {compra.saldo_pendiente > 0 && (
                 <button
                   type="button"
                   onClick={() => setMonto(compra.saldo_pendiente)}
-                  className="ml-2 text-xs text-indigo-400 hover:text-indigo-300"
+                  className="ml-2 text-xs text-orange-500 hover:text-orange-600"
                 >
                   (usar saldo)
                 </button>
@@ -267,7 +267,7 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
               value={monto || ''}
               onChange={(e) => setMonto(Number(e.target.value))}
               required
-              className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-3.5 py-2.5 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
               placeholder="0.00"
             />
           </div>
@@ -277,13 +277,13 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
       {/* Fecha de emisión (cuotas) */}
       {condicion === 'EN_CUOTAS' && (
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-slate-300">Fecha de emisión</label>
+          <label className="block text-sm font-medium text-slate-700">Fecha de emisión</label>
           <input
             type="date"
             value={fechaEmision}
             onChange={(e) => setFechaEmision(e.target.value)}
             required
-            className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            className="w-full px-3.5 py-2.5 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
           />
         </div>
       )}
@@ -297,7 +297,7 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-300">
+              <label className="block text-xs font-medium text-slate-700">
                 Fecha de cobro / vencimiento *
               </label>
               <input
@@ -305,28 +305,28 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
                 value={fechaVencimiento}
                 onChange={(e) => setFechaVencimiento(e.target.value)}
                 required
-                className="w-full px-3 py-2 bg-slate-800 border border-amber-500/30 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+                className="w-full px-3 py-2 bg-[#f5f0e6] border border-amber-500/30 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-300">Número de cheque</label>
+              <label className="block text-xs font-medium text-slate-700">Número de cheque</label>
               <input
                 type="text"
                 value={numeroCheque}
                 onChange={(e) => setNumeroCheque(e.target.value)}
                 placeholder="Nro. cheque"
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
               />
             </div>
           </div>
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-300">Banco emisor</label>
+            <label className="block text-xs font-medium text-slate-700">Banco emisor</label>
             <input
               type="text"
               value={bancoEmisor}
               onChange={(e) => setBancoEmisor(e.target.value)}
               placeholder="Ej: Banco Nación"
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
             />
           </div>
         </div>
@@ -336,20 +336,20 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
       {condicion === 'EN_CUOTAS' && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className="block text-sm font-medium text-slate-300">Cuotas</label>
+            <label className="block text-sm font-medium text-slate-700">Cuotas</label>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setNumCuotas((n) => Math.max(2, n - 1))}
-                className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center text-lg font-bold"
+                className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-700 flex items-center justify-center text-lg font-bold"
               >
                 −
               </button>
-              <span className="text-sm font-mono text-slate-200 w-8 text-center">{numCuotas}</span>
+              <span className="text-sm font-mono text-slate-800 w-8 text-center">{numCuotas}</span>
               <button
                 type="button"
                 onClick={() => setNumCuotas((n) => Math.min(36, n + 1))}
-                className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center text-lg font-bold"
+                className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-700 flex items-center justify-center text-lg font-bold"
               >
                 +
               </button>
@@ -363,24 +363,24 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
             </div>
           )}
 
-          <div className="bg-slate-800/60 rounded-xl overflow-x-auto border border-slate-700/60">
+          <div className="bg-[#f5f0e6]/60 rounded-xl overflow-x-auto border border-[#d6d0c4]/60">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="text-left px-2 py-2 text-xs text-slate-400 font-medium w-8">#</th>
-                  <th className="text-left px-2 py-2 text-xs text-slate-400 font-medium">Monto</th>
-                  <th className="text-left px-2 py-2 text-xs text-slate-400 font-medium">Vencimiento</th>
+                <tr className="border-b border-[#d6d0c4]">
+                  <th className="text-left px-2 py-2 text-xs text-slate-600 font-medium w-8">#</th>
+                  <th className="text-left px-2 py-2 text-xs text-slate-600 font-medium">Monto</th>
+                  <th className="text-left px-2 py-2 text-xs text-slate-600 font-medium">Vencimiento</th>
                   {esCheque && (
                     <>
-                      <th className="text-left px-2 py-2 text-xs text-slate-400 font-medium">Nº cheque</th>
-                      <th className="text-left px-2 py-2 text-xs text-slate-400 font-medium">Banco</th>
+                      <th className="text-left px-2 py-2 text-xs text-slate-600 font-medium">Nº cheque</th>
+                      <th className="text-left px-2 py-2 text-xs text-slate-600 font-medium">Banco</th>
                     </>
                   )}
                 </tr>
               </thead>
               <tbody>
                 {cuotas.map((c, i) => (
-                  <tr key={i} className="border-b border-slate-700/50 last:border-0">
+                  <tr key={i} className="border-b border-[#d6d0c4]/50 last:border-0">
                     <td className="px-2 py-1.5 text-slate-500 font-mono text-xs">{i + 1}</td>
                     <td className="px-2 py-1.5">
                       <input
@@ -389,7 +389,7 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
                         min="0.01"
                         value={c.monto || ''}
                         onChange={(e) => updateCuota(i, 'monto', Number(e.target.value))}
-                        className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-slate-100 font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
+                        className="w-full px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 font-mono focus:outline-none focus:ring-1 focus:ring-orange-500 text-xs"
                       />
                     </td>
                     <td className="px-2 py-1.5">
@@ -398,7 +398,7 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
                         value={c.fecha_vencimiento}
                         onChange={(e) => updateCuota(i, 'fecha_vencimiento', e.target.value)}
                         required
-                        className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
+                        className="w-full px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500 text-xs"
                       />
                     </td>
                     {esCheque && (
@@ -409,7 +409,7 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
                             value={c.numero_cheque ?? ''}
                             onChange={(e) => updateCuota(i, 'numero_cheque', e.target.value)}
                             placeholder="Nº"
-                            className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-slate-100 font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
+                            className="w-full px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 font-mono focus:outline-none focus:ring-1 focus:ring-orange-500 text-xs"
                           />
                         </td>
                         <td className="px-2 py-1.5">
@@ -418,7 +418,7 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
                             value={c.banco_emisor ?? ''}
                             onChange={(e) => updateCuota(i, 'banco_emisor', e.target.value)}
                             placeholder="Banco"
-                            className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
+                            className="w-full px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500 text-xs"
                           />
                         </td>
                       </>
@@ -427,8 +427,8 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t border-slate-700 bg-slate-800">
-                  <td colSpan={1} className="px-2 py-2 text-xs text-slate-400 font-medium">Total</td>
+                <tr className="border-t border-[#d6d0c4] bg-[#f5f0e6]">
+                  <td colSpan={1} className="px-2 py-2 text-xs text-slate-600 font-medium">Total</td>
                   <td className="px-2 py-2">
                     <span className={cn(
                       'font-mono font-bold text-xs',
@@ -517,8 +517,8 @@ export function ComprasClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Compras</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{compras.length} registros</p>
+          <h1 className="text-2xl font-bold text-slate-900">Compras</h1>
+          <p className="text-sm text-slate-600 mt-0.5">{compras.length} registros</p>
         </div>
         <Button onClick={() => setModalOpen(true)}>
           <Plus className="w-4 h-4" />
@@ -528,37 +528,37 @@ export function ComprasClient({
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Total (con IVA)</p>
-          <p className="text-xl font-bold text-slate-100">{formatCurrency(totalMonto)}</p>
+        <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Total (con IVA)</p>
+          <p className="text-xl font-bold text-slate-900">{formatCurrency(totalMonto)}</p>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Neto (sin IVA)</p>
+        <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Neto (sin IVA)</p>
           <p className="text-xl font-bold text-green-400">{formatCurrency(totalNeto)}</p>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">IVA total</p>
+        <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">IVA total</p>
           <p className="text-xl font-bold text-amber-400">{formatCurrency(totalIVA)}</p>
         </div>
-        <div className="bg-slate-900 border border-amber-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Saldo pendiente</p>
+        <div className="bg-white border border-amber-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Saldo pendiente</p>
           <p className="text-xl font-bold text-red-400">{formatCurrency(totalSaldo)}</p>
         </div>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-800">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Descripción</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Proveedor</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Negocio</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Total</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Saldo</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Neto</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">IVA</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Fecha</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Estado</th>
+            <tr className="border-b border-[#e8e4dc]">
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Descripción</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Proveedor</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Negocio</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Total</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Saldo</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Neto</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">IVA</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Fecha</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Estado</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -575,23 +575,23 @@ export function ComprasClient({
                 const saldo = c.saldo_pendiente ?? c.monto_total
                 const pagada = c.estado === 'PAGADO' || saldo <= 0
                 return (
-                  <tr key={c.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
+                  <tr key={c.id} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
                     <td className="px-4 py-3">
-                      <p className="text-slate-100 font-medium">{c.descripcion}</p>
+                      <p className="text-slate-900 font-medium">{c.descripcion}</p>
                       {c.notas && (
                         <p className="text-xs text-slate-500 truncate max-w-[160px]">{c.notas}</p>
                       )}
                       {c.pagos && c.pagos.length > 0 && (
-                        <p className="text-xs text-indigo-400 mt-0.5">
+                        <p className="text-xs text-orange-500 mt-0.5">
                           {c.pagos.length} pago{c.pagos.length > 1 ? 's' : ''} registrado{c.pagos.length > 1 ? 's' : ''}
                         </p>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-400">
+                    <td className="px-4 py-3 text-slate-600">
                       {(c.proveedor as { nombre: string } | null)?.nombre ?? '—'}
                     </td>
                     <td className="px-4 py-3"><MarcaBadge marca={c.negocio} /></td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-100">
+                    <td className="px-4 py-3 text-right font-mono text-slate-900">
                       {formatCurrency(c.monto_total)}
                       {c.moneda !== 'ARS' && (
                         <span className="text-xs text-slate-500 ml-1">({c.moneda})</span>
@@ -610,7 +610,7 @@ export function ComprasClient({
                     <td className="px-4 py-3 text-right font-mono text-amber-400">
                       {c.iva > 0 ? formatCurrency(c.iva) : '—'}
                     </td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">{formatDate(c.fecha)}</td>
+                    <td className="px-4 py-3 text-slate-600 text-xs">{formatDate(c.fecha)}</td>
                     <td className="px-4 py-3"><EstadoBadge estado={c.estado} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
@@ -651,9 +651,9 @@ export function ComprasClient({
           </tbody>
           {compras.length > 0 && (
             <tfoot>
-              <tr className="border-t border-slate-700 bg-slate-800/50">
-                <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-slate-300">TOTAL</td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-slate-100">{formatCurrency(totalMonto)}</td>
+              <tr className="border-t border-[#d6d0c4] bg-[#f5f0e6]/50">
+                <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-slate-700">TOTAL</td>
+                <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">{formatCurrency(totalMonto)}</td>
                 <td className="px-4 py-3 text-right font-mono font-bold text-red-400">{formatCurrency(totalSaldo)}</td>
                 <td className="px-4 py-3 text-right font-mono font-bold text-green-400">{formatCurrency(totalNeto)}</td>
                 <td className="px-4 py-3 text-right font-mono font-bold text-amber-400">{formatCurrency(totalIVA)}</td>

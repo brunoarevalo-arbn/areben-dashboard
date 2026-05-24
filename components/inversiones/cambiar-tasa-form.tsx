@@ -45,17 +45,17 @@ export function CambiarTasaForm({
 
   return (
     <form action={formAction} className="space-y-4">
-      <div className="bg-slate-800/60 rounded-lg px-4 py-3 text-sm">
-        <p className="text-slate-300 font-medium mb-1">Cambio de tasa</p>
+      <div className="bg-[#f5f0e6]/60 rounded-lg px-4 py-3 text-sm">
+        <p className="text-slate-700 font-medium mb-1">Cambio de tasa</p>
         <p className="text-xs text-slate-500">
           Instrumento: {instrumento.codigo ?? instrumento.id.substring(0, 8)} ·
-          Tasa vigente: <span className="font-mono text-slate-300">{(tasaActual * 100).toFixed(4)}%</span>
+          Tasa vigente: <span className="font-mono text-slate-700">{(tasaActual * 100).toFixed(4)}%</span>
         </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="block text-xs font-medium text-slate-400">Nueva tasa mensual</label>
+          <label className="block text-xs font-medium text-slate-600">Nueva tasa mensual</label>
           <div className="relative">
             <input
               type="number"
@@ -64,20 +64,20 @@ export function CambiarTasaForm({
               value={tasaPct || ''}
               onChange={(e) => setTasaPct(Number(e.target.value))}
               required
-              className="w-full px-3 py-2 pr-7 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-3 py-2 pr-7 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">%</span>
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="block text-xs font-medium text-slate-400">Fecha desde</label>
+          <label className="block text-xs font-medium text-slate-600">Fecha desde</label>
           <input
             type="date"
             value={fechaDesde}
             onChange={(e) => setFechaDesde(e.target.value)}
             required
             min={instrumento.fecha_inicio}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
           />
           <p className="text-[10px] text-slate-500">Aplica desde esta fecha en adelante</p>
         </div>
@@ -85,7 +85,7 @@ export function CambiarTasaForm({
 
       {tasaPct > 0 && Number(instrumento.capital_inicial) > 0 && (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex items-center justify-between">
-          <span className="text-xs text-slate-400 flex items-center gap-1.5">
+          <span className="text-xs text-slate-600 flex items-center gap-1.5">
             <TrendingUp className="w-3.5 h-3.5" />
             Sobre capital actual ({formatMoneda(Number(instrumento.capital_inicial), instrumento.moneda)})
           </span>
@@ -109,11 +109,11 @@ export function CambiarTasaForm({
         rows={2}
       />
 
-      <div className="bg-slate-800/40 border border-slate-700/40 rounded-lg p-3 text-xs text-slate-400 flex items-start gap-2">
+      <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg p-3 text-xs text-slate-600 flex items-start gap-2">
         <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-400" />
         <div>
-          Al guardar, se recalcularán los <strong className="text-slate-200">períodos abiertos</strong> aplicando esta tasa desde la fecha indicada.
-          Los períodos ya cerrados <strong className="text-slate-200">no se modifican</strong>.
+          Al guardar, se recalcularán los <strong className="text-slate-800">períodos abiertos</strong> aplicando esta tasa desde la fecha indicada.
+          Los períodos ya cerrados <strong className="text-slate-800">no se modifican</strong>.
         </div>
       </div>
 

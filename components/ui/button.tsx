@@ -14,12 +14,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(
           'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
           {
-            'bg-indigo-600 hover:bg-indigo-500 text-white': variant === 'primary',
-            'bg-slate-700 hover:bg-slate-600 text-slate-100': variant === 'secondary',
-            'hover:bg-slate-800 text-slate-300 hover:text-slate-100': variant === 'ghost',
-            'bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30': variant === 'danger',
-            'bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-500/30': variant === 'success',
-            'bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30': variant === 'warning',
+            'bg-orange-500 hover:bg-orange-600 text-white': variant === 'primary',
+            'bg-white hover:bg-[#f5f0e6] text-slate-700 border border-[#e8e4dc]': variant === 'secondary',
+            'hover:bg-[#f0ebe0] text-slate-600 hover:text-slate-900': variant === 'ghost',
+            'bg-red-50 hover:bg-red-100 text-red-700 border border-red-200': variant === 'danger',
+            'bg-green-50 hover:bg-green-100 text-green-700 border border-green-200': variant === 'success',
+            'bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200': variant === 'warning',
           },
           {
             'px-2.5 py-1.5 text-xs': size === 'sm',

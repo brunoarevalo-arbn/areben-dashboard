@@ -35,8 +35,8 @@ export function CashFlowClient({ gastos, saldoInicial, mesPivot }: CashFlowClien
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-100">Cash Flow — Proyección 90 días</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Basado en gastos registrados y saldo actual</p>
+        <h1 className="text-2xl font-bold text-slate-900">Cash Flow — Proyección 90 días</h1>
+        <p className="text-sm text-slate-600 mt-0.5">Basado en gastos registrados y saldo actual</p>
       </div>
 
       {!saldoInicial && (
@@ -45,8 +45,8 @@ export function CashFlowClient({ gastos, saldoInicial, mesPivot }: CashFlowClien
         </div>
       )}
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-        <h2 className="text-sm font-semibold text-slate-300 mb-4">Proyección de saldo</h2>
+      <div className="bg-white border border-[#e8e4dc] rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-slate-700 mb-4">Proyección de saldo</h2>
         <ResponsiveContainer width="100%" height={280}>
           <AreaChart data={chartData}>
             <XAxis dataKey="mes" stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 12 }} />
@@ -62,9 +62,9 @@ export function CashFlowClient({ gastos, saldoInicial, mesPivot }: CashFlowClien
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {chartData.map((d) => (
-          <div key={d.mes} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-            <p className="text-xs text-slate-400 mb-2">{d.mes}</p>
-            <p className={`text-xl font-bold ${d.saldo >= 0 ? 'text-indigo-400' : 'text-red-400'}`}>{formatCurrency(d.saldo)}</p>
+          <div key={d.mes} className="bg-white border border-[#e8e4dc] rounded-xl p-4">
+            <p className="text-xs text-slate-600 mb-2">{d.mes}</p>
+            <p className={`text-xl font-bold ${d.saldo >= 0 ? 'text-orange-500' : 'text-red-400'}`}>{formatCurrency(d.saldo)}</p>
             <p className="text-xs text-slate-500 mt-1">Gastos: {formatCurrency(d.gastos)}</p>
           </div>
         ))}

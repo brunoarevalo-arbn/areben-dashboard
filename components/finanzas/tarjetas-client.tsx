@@ -135,8 +135,8 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Tarjetas de crédito</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{tarjetas.length} tarjetas · {cuotasPendientes.length} cuotas pendientes</p>
+          <h1 className="text-2xl font-bold text-slate-900">Tarjetas de crédito</h1>
+          <p className="text-sm text-slate-600 mt-0.5">{tarjetas.length} tarjetas · {cuotasPendientes.length} cuotas pendientes</p>
         </div>
         <Button onClick={() => { setEditTarjeta(undefined); setModal(true) }}>
           <Plus className="w-4 h-4" />
@@ -146,22 +146,22 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Pasivo total</p>
-          <p className="text-xl font-bold text-slate-100">{formatCurrency(totalPendiente)}</p>
+        <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Pasivo total</p>
+          <p className="text-xl font-bold text-slate-900">{formatCurrency(totalPendiente)}</p>
           <p className="text-xs text-slate-500 mt-0.5">{cuotasPendientes.length} cuotas</p>
         </div>
         <div className={cn(
-          'bg-slate-900 border rounded-xl p-4',
-          deudaVencida > 0 ? 'border-red-500/30' : 'border-slate-800'
+          'bg-white border rounded-xl p-4',
+          deudaVencida > 0 ? 'border-red-500/30' : 'border-[#e8e4dc]'
         )}>
-          <p className="text-xs text-slate-400 mb-1">Deuda vencida</p>
-          <p className={cn('text-xl font-bold', deudaVencida > 0 ? 'text-red-400' : 'text-slate-100')}>
+          <p className="text-xs text-slate-600 mb-1">Deuda vencida</p>
+          <p className={cn('text-xl font-bold', deudaVencida > 0 ? 'text-red-400' : 'text-slate-900')}>
             {formatCurrency(deudaVencida)}
           </p>
         </div>
-        <div className="bg-slate-900 border border-amber-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Próximo vencimiento</p>
+        <div className="bg-white border border-amber-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Próximo vencimiento</p>
           {proyeccion[0] ? (
             <>
               <p className="text-xl font-bold text-amber-400">{formatCurrency(proyeccion[0].total)}</p>
@@ -176,7 +176,7 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
       {/* Listado de tarjetas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {tarjetas.length === 0 ? (
-          <div className="col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-12 text-center">
+          <div className="col-span-2 bg-white border border-[#e8e4dc] rounded-xl p-12 text-center">
             <CreditCard className="w-8 h-8 mx-auto mb-2 text-slate-600" />
             <p className="text-slate-500">No hay tarjetas registradas</p>
           </div>
@@ -186,14 +186,14 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
             const totalT = cuotasT.reduce((s, c) => s + c.monto_cuota, 0)
             return (
               <div key={t.id} className={cn(
-                'bg-slate-900 border rounded-xl p-5',
-                !t.activo ? 'border-slate-800 opacity-50' : 'border-slate-800'
+                'bg-white border rounded-xl p-5',
+                !t.activo ? 'border-[#e8e4dc] opacity-50' : 'border-[#e8e4dc]'
               )}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <CreditCard className="w-5 h-5 text-indigo-400" />
+                    <CreditCard className="w-5 h-5 text-orange-500" />
                     <div>
-                      <p className="font-semibold text-slate-100">{t.nombre}</p>
+                      <p className="font-semibold text-slate-900">{t.nombre}</p>
                       <p className="text-xs text-slate-500">
                         {t.banco}
                         {t.ultimos_4 && <span className="ml-1 font-mono">···· {t.ultimos_4}</span>}
@@ -207,25 +207,25 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 text-xs mb-4">
-                  <div className="bg-slate-800/60 rounded-lg p-2">
+                  <div className="bg-[#f5f0e6]/60 rounded-lg p-2">
                     <p className="text-slate-500">Cierre</p>
-                    <p className="font-mono text-slate-200 font-medium">{t.dia_cierre}</p>
+                    <p className="font-mono text-slate-800 font-medium">{t.dia_cierre}</p>
                   </div>
-                  <div className="bg-slate-800/60 rounded-lg p-2">
+                  <div className="bg-[#f5f0e6]/60 rounded-lg p-2">
                     <p className="text-slate-500">Vencimiento</p>
-                    <p className="font-mono text-slate-200 font-medium">{t.dia_vencimiento}</p>
+                    <p className="font-mono text-slate-800 font-medium">{t.dia_vencimiento}</p>
                   </div>
-                  <div className="bg-slate-800/60 rounded-lg p-2">
+                  <div className="bg-[#f5f0e6]/60 rounded-lg p-2">
                     <p className="text-slate-500">Límite</p>
-                    <p className="font-mono text-slate-200 font-medium">
+                    <p className="font-mono text-slate-800 font-medium">
                       {t.limite_ars ? formatCurrency(t.limite_ars) : '—'}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+                <div className="flex items-center justify-between pt-3 border-t border-[#e8e4dc]">
                   <div>
-                    <p className="text-xs text-slate-400">Pasivo pendiente</p>
+                    <p className="text-xs text-slate-600">Pasivo pendiente</p>
                     <p className="text-base font-mono font-bold text-amber-400">{formatCurrency(totalT)}</p>
                   </div>
                   <div className="flex gap-1">
@@ -260,19 +260,19 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
 
       {/* Proyección de pasivos */}
       {proyeccion.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-          <div className="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-indigo-400" />
-            <h2 className="text-sm font-semibold text-slate-100">Proyección de pasivos por mes</h2>
+        <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+          <div className="px-4 py-3 border-b border-[#e8e4dc] flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-orange-500" />
+            <h2 className="text-sm font-semibold text-slate-900">Proyección de pasivos por mes</h2>
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800">
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Mes</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Cuotas</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Pendiente</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Pagado</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Estado</th>
+              <tr className="border-b border-[#e8e4dc]">
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Mes</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Cuotas</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Pendiente</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Pagado</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Estado</th>
               </tr>
             </thead>
             <tbody>
@@ -280,11 +280,11 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
                 const vencido = p.mes < mesActual && p.total > 0
                 return (
                   <tr key={p.mes} className={cn(
-                    'border-b border-slate-800/60',
+                    'border-b border-[#e8e4dc]/60',
                     vencido && 'bg-red-500/5'
                   )}>
-                    <td className="px-4 py-2 text-slate-200 font-medium">{formatMonth(p.mes)}</td>
-                    <td className="px-4 py-2 text-right text-slate-400 text-xs">{p.cantidad}</td>
+                    <td className="px-4 py-2 text-slate-800 font-medium">{formatMonth(p.mes)}</td>
+                    <td className="px-4 py-2 text-right text-slate-600 text-xs">{p.cantidad}</td>
                     <td className="px-4 py-2 text-right font-mono text-amber-400 font-medium">
                       {formatCurrency(p.total)}
                     </td>
@@ -301,7 +301,7 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
                           <CheckCircle2 className="w-3 h-3" /> Pagado
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                        <span className="inline-flex items-center gap-1 text-xs text-slate-600">
                           <Calendar className="w-3 h-3" /> Próximo
                         </span>
                       )}
@@ -316,27 +316,27 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
 
       {/* Detalle de cuotas */}
       {cuotasPendientes.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-          <div className="px-4 py-3 border-b border-slate-800">
-            <h2 className="text-sm font-semibold text-slate-100">Cuotas pendientes ({cuotasPendientes.length})</h2>
+        <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+          <div className="px-4 py-3 border-b border-[#e8e4dc]">
+            <h2 className="text-sm font-semibold text-slate-900">Cuotas pendientes ({cuotasPendientes.length})</h2>
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800">
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Concepto</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Tarjeta</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Vence</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Monto</th>
+              <tr className="border-b border-[#e8e4dc]">
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Concepto</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Tarjeta</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Vence</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Monto</th>
                 <th className="px-4 py-2" />
               </tr>
             </thead>
             <tbody>
               {cuotasPendientes.map((c) => (
-                <tr key={c.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
-                  <td className="px-4 py-2 text-slate-200">{c.concepto}</td>
-                  <td className="px-4 py-2 text-xs text-slate-400">{c.tarjeta?.nombre ?? '—'}</td>
-                  <td className="px-4 py-2 text-xs text-slate-400">{formatMonth(c.mes_vencimiento)}</td>
-                  <td className="px-4 py-2 text-right font-mono text-slate-100">{formatCurrency(c.monto_cuota)}</td>
+                <tr key={c.id} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
+                  <td className="px-4 py-2 text-slate-800">{c.concepto}</td>
+                  <td className="px-4 py-2 text-xs text-slate-600">{c.tarjeta?.nombre ?? '—'}</td>
+                  <td className="px-4 py-2 text-xs text-slate-600">{formatMonth(c.mes_vencimiento)}</td>
+                  <td className="px-4 py-2 text-right font-mono text-slate-900">{formatCurrency(c.monto_cuota)}</td>
                   <td className="px-4 py-2 text-right">
                     <Button size="sm" variant="success" onClick={() => startTransition(() => marcarCuotaPagada(c.id, true))}>
                       <CheckCircle2 className="w-3.5 h-3.5" />
@@ -432,20 +432,20 @@ function PagarResumenForm({
 
   return (
     <div className="space-y-4">
-      <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/40">
-        <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Tarjeta</p>
-        <p className="text-sm font-medium text-slate-100">{tarjeta.banco} · {tarjeta.nombre}</p>
+      <div className="bg-[#f5f0e6]/60 rounded-lg p-3 border border-[#d6d0c4]/40">
+        <p className="text-xs text-slate-600 uppercase tracking-wider mb-1">Tarjeta</p>
+        <p className="text-sm font-medium text-slate-900">{tarjeta.banco} · {tarjeta.nombre}</p>
         <p className="text-xs text-slate-500 mt-0.5">Día de vencimiento: {tarjeta.dia_vencimiento}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">Pagar hasta el mes</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Pagar hasta el mes</label>
           <input
             type="month"
             value={hastaMes}
             onChange={(e) => setHastaMes(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
           />
           <p className="text-[10px] text-slate-500 mt-1">Incluye todas las cuotas con vencimiento ≤ este mes</p>
         </div>
@@ -459,9 +459,9 @@ function PagarResumenForm({
         options={[{ value: '', label: '— Seleccionar cuenta —' }, ...cuentas.map((c) => ({ value: c.id, label: `${c.banco} · ${c.nombre}` }))]}
       />
 
-      <div className="bg-slate-800/40 border border-slate-700/40 rounded-lg overflow-hidden">
-        <div className="px-3 py-2 border-b border-slate-700/40 flex items-center justify-between">
-          <p className="text-xs font-semibold text-slate-300">
+      <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg overflow-hidden">
+        <div className="px-3 py-2 border-b border-[#d6d0c4]/40 flex items-center justify-between">
+          <p className="text-xs font-semibold text-slate-700">
             Cuotas incluidas ({cuotasIncluidas.length})
           </p>
           <p className="font-mono text-sm font-bold text-amber-400">{formatCurrency(totalAPagar)}</p>
@@ -475,13 +475,13 @@ function PagarResumenForm({
               .map((c) => (
                 <div key={c.id} className="px-3 py-2 flex items-center justify-between text-xs">
                   <div className="min-w-0 flex-1">
-                    <p className="text-slate-200 truncate">{c.concepto}</p>
+                    <p className="text-slate-800 truncate">{c.concepto}</p>
                     <p className="text-slate-500">
                       {c.fecha_vencimiento ? formatDate(c.fecha_vencimiento) : formatMonth(c.mes_vencimiento)}
                       {c.cuotas_total > 1 && <span className="ml-1">· {c.cuota_numero}/{c.cuotas_total}</span>}
                     </p>
                   </div>
-                  <p className="font-mono text-slate-100 ml-2">{formatCurrency(c.monto_cuota)}</p>
+                  <p className="font-mono text-slate-900 ml-2">{formatCurrency(c.monto_cuota)}</p>
                 </div>
               ))
           )}

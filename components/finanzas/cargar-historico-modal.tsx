@@ -83,8 +83,8 @@ export function CargarHistoricoModal({ open, tipo, onOpenChange, cuentas, tarjet
               className={cn(
                 'flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors',
                 modo === 'MANUAL'
-                  ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200',
+                  ? 'bg-orange-500/20 border-orange-500/50 text-orange-600'
+                  : 'bg-[#f5f0e6] border-[#d6d0c4] text-slate-600 hover:text-slate-800',
               )}
             >
               <Edit3 className="w-3.5 h-3.5" />
@@ -97,7 +97,7 @@ export function CargarHistoricoModal({ open, tipo, onOpenChange, cuentas, tarjet
                 'flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors',
                 modo === 'EXCEL'
                   ? 'bg-green-600/20 border-green-500/50 text-green-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200',
+                  : 'bg-[#f5f0e6] border-[#d6d0c4] text-slate-600 hover:text-slate-800',
               )}
             >
               <Upload className="w-3.5 h-3.5" />
@@ -117,7 +117,7 @@ export function CargarHistoricoModal({ open, tipo, onOpenChange, cuentas, tarjet
           {modo === 'EXCEL' && (
             <div className="text-center py-6">
               <Upload className="w-10 h-10 mx-auto mb-2 text-slate-500" />
-              <p className="text-sm text-slate-400 mb-4">Importá múltiples filas desde una planilla Excel</p>
+              <p className="text-sm text-slate-600 mb-4">Importá múltiples filas desde una planilla Excel</p>
               <Button onClick={() => setExcelOpen(true)} variant="success">
                 <Upload className="w-4 h-4" />
                 Abrir importador
@@ -277,9 +277,9 @@ function FormCheque({ cuentas, onSuccess, onClose }: { cuentas: Props['cuentas']
       ]} />
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">Monto</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Monto</label>
           <input type="number" step="0.01" min="0.01" value={monto || ''} onChange={(e) => setMonto(Number(e.target.value))} placeholder="0,00"
-            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
         </div>
         <Select label="Moneda" value={moneda} onChange={(e) => setMoneda(e.target.value as 'ARS' | 'USD')} options={[{ value: 'ARS', label: 'ARS' }, { value: 'USD', label: 'USD' }]} />
       </div>
@@ -355,36 +355,36 @@ function FormCuota({ tarjetas, onSuccess, onClose }: { tarjetas: NonNullable<Pro
       <Input label="Concepto" value={concepto} onChange={(e) => setConcepto(e.target.value)} placeholder="Ej: Notebook Apple" required />
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">Monto por cuota</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Monto por cuota</label>
           <input type="number" step="0.01" min="0.01" value={montoCuota || ''} onChange={(e) => setMontoCuota(Number(e.target.value))} placeholder="0,00"
-            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">Primer mes a vencer</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Primer mes a vencer</label>
           <input type="month" value={primerMesVencimiento} onChange={(e) => setPrimerMesVencimiento(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500" />
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">N° cuota actual</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">N° cuota actual</label>
           <input type="number" min="1" value={cuotaActual} onChange={(e) => setCuotaActual(Math.max(1, Number(e.target.value)))}
-            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">Cuotas total original</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Cuotas total original</label>
           <input type="number" min="1" value={cuotasTotalOriginal} onChange={(e) => setCuotasTotalOriginal(Math.max(1, Number(e.target.value)))}
-            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">Restantes a cargar</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Restantes a cargar</label>
           <input type="number" min="1" max="60" value={cuotasRestantes} onChange={(e) => setCuotasRestantes(Math.max(1, Number(e.target.value)))}
-            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-amber-400 font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-amber-400 font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500" />
         </div>
       </div>
-      <p className="text-xs text-slate-500 bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2">
+      <p className="text-xs text-slate-500 bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg px-3 py-2">
         Total a cargar: <span className="font-mono text-amber-400 font-semibold">{formatCurrency(totalRestante)}</span> en {cuotasRestantes} cuota(s)
-        desde <span className="text-slate-300">{primerMesVencimiento}</span> en adelante.
+        desde <span className="text-slate-700">{primerMesVencimiento}</span> en adelante.
         {cuotasTotalOriginal > cuotasRestantes && (
           <span className="block mt-1 text-slate-500">Las {cuotasTotalOriginal - cuotasRestantes} cuota(s) anteriores ({cuotaActual > 1 ? `1-${cuotaActual - 1}` : '—'}) se asumen pagadas.</span>
         )}
@@ -442,9 +442,9 @@ function FormCtaCte({ proveedores, onSuccess, onClose }: { proveedores: NonNulla
         options={[{ value: '', label: '— Seleccionar —' }, ...proveedores.map((p) => ({ value: p.id, label: p.nombre }))]} />
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">Monto adeudado</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Monto adeudado</label>
           <input type="number" step="0.01" min="0.01" value={monto || ''} onChange={(e) => setMonto(Number(e.target.value))} placeholder="0,00"
-            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
         </div>
         <Select label="Moneda" value={moneda} onChange={(e) => setMoneda(e.target.value as 'ARS' | 'USD')} options={[{ value: 'ARS', label: 'ARS' }, { value: 'USD', label: 'USD' }]} />
       </div>
@@ -453,7 +453,7 @@ function FormCtaCte({ proveedores, onSuccess, onClose }: { proveedores: NonNulla
         <Input label="Vencimiento" type="date" value={fechaVencimiento} onChange={(e) => setFechaVencimiento(e.target.value)} required />
       </div>
       <Textarea label="Notas" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="N° factura, condiciones, motivo..." />
-      <p className="text-xs text-slate-500 bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2">
+      <p className="text-xs text-slate-500 bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg px-3 py-2">
         Crea una <strong>compra histórica</strong> + un pago a plazo pendiente. Cuando lo pagues por la pantalla normal, el saldo se cierra solo.
       </p>
       {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
@@ -521,14 +521,14 @@ function FormGasto({ onSuccess, onClose }: { onSuccess?: () => void; onClose: ()
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">Monto</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Monto</label>
           <input type="number" step="0.01" min="0.01" value={monto || ''} onChange={(e) => setMonto(Number(e.target.value))} placeholder="0,00"
-            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
         </div>
         <Select label="Moneda" value={moneda} onChange={(e) => setMoneda(e.target.value as 'ARS' | 'USD')} options={[{ value: 'ARS', label: 'ARS' }, { value: 'USD', label: 'USD' }]} />
       </div>
-      <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-        <input type="checkbox" checked={ivaIncluido} onChange={(e) => setIvaIncluido(e.target.checked)} className="w-4 h-4 rounded border-slate-600 bg-slate-700" />
+      <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+        <input type="checkbox" checked={ivaIncluido} onChange={(e) => setIvaIncluido(e.target.checked)} className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700" />
         Monto incluye IVA
       </label>
       {ivaIncluido && (

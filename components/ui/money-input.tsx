@@ -67,7 +67,7 @@ export const MoneyInput = forwardRef<HTMLInputElement, Props>(function MoneyInpu
 
   return (
     <div className="space-y-1.5">
-      {label && <label className="block text-sm font-medium text-slate-300">{label}</label>}
+      {label && <label className="block text-sm font-medium text-slate-700">{label}</label>}
       <div className="relative">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none select-none">
           {prefix}
@@ -84,7 +84,7 @@ export const MoneyInput = forwardRef<HTMLInputElement, Props>(function MoneyInpu
           disabled={disabled}
           required={required}
           className={cn(
-            'w-full pl-8 pr-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-sm',
+            'w-full pl-8 pr-3.5 py-2.5 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all text-sm',
             disabled && 'opacity-60 cursor-not-allowed',
             className,
           )}

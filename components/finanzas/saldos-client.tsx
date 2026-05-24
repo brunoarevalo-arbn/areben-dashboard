@@ -106,14 +106,14 @@ function CuentaForm({
         <Input label="Banco / Plataforma" name="banco" placeholder="Ej: Galicia, MP" defaultValue={cuenta?.banco} required />
       </div>
       <Select label="Tipo" name="tipo" options={TIPOS_CUENTA} defaultValue={cuenta?.tipo ?? 'BANCO'} />
-      <label className="flex items-center gap-2 cursor-pointer p-3 bg-slate-800/60 border border-slate-700/60 rounded-lg">
+      <label className="flex items-center gap-2 cursor-pointer p-3 bg-[#f5f0e6]/60 border border-[#d6d0c4]/60 rounded-lg">
         <input
           type="checkbox"
           checked={permiteDual}
           onChange={(e) => setPermiteDual(e.target.checked)}
-          className="w-4 h-4 rounded border-slate-600 bg-slate-700"
+          className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700"
         />
-        <span className="text-sm text-slate-300">Permite saldo dual (ARS + USD)</span>
+        <span className="text-sm text-slate-700">Permite saldo dual (ARS + USD)</span>
       </label>
       <Input label="Notas" name="notas" defaultValue={cuenta?.notas ?? ''} />
       {error && <p className="text-sm text-red-400">{error}</p>}
@@ -164,7 +164,7 @@ function CuentaRow({
 
   return (
     <tr className={cn(
-      'border-b border-slate-800/60',
+      'border-b border-[#e8e4dc]/60',
       !cuenta.activo && 'opacity-50',
       cerrado && 'bg-green-500/5'
     )}>
@@ -172,7 +172,7 @@ function CuentaRow({
         <div className="flex items-center gap-2">
           <Building2 className="w-3.5 h-3.5 text-slate-500" />
           <div>
-            <p className="font-medium text-slate-100 text-sm">{cuenta.nombre}</p>
+            <p className="font-medium text-slate-900 text-sm">{cuenta.nombre}</p>
             <p className="text-xs text-slate-500">{cuenta.banco} · {cuenta.titular?.nombre ?? '—'}</p>
           </div>
         </div>
@@ -188,10 +188,10 @@ function CuentaRow({
             step="0.01"
             value={ars || ''}
             onChange={(e) => setArs(Number(e.target.value))}
-            className="w-32 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-slate-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-32 px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
         ) : (
-          <span className="font-mono text-slate-100 text-sm">{formatCurrency(saldo?.saldo_ars ?? 0)}</span>
+          <span className="font-mono text-slate-900 text-sm">{formatCurrency(saldo?.saldo_ars ?? 0)}</span>
         )}
       </td>
       <td className="px-4 py-3 text-right">
@@ -202,7 +202,7 @@ function CuentaRow({
               step="0.01"
               value={usd || ''}
               onChange={(e) => setUsd(Number(e.target.value))}
-              className="w-32 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-green-400 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-32 px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-green-400 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           ) : (
             <span className="font-mono text-green-400 text-sm">{formatCurrency(saldo?.saldo_usd ?? 0, 'USD')}</span>
@@ -394,14 +394,14 @@ function BulkSaldosGrid({
   const totalUsd = Array.from(values.values()).reduce((s, v) => s + (v.usd || 0), 0)
 
   return (
-    <div className="bg-slate-900 border border-green-500/30 rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-800 bg-green-500/5 flex items-center justify-between flex-wrap gap-2">
+    <div className="bg-white border border-green-500/30 rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#e8e4dc] bg-green-500/5 flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
             <Zap className="w-4 h-4 text-green-400" />
             Carga rápida de saldos — {formatMonth(mes)}
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-600 mt-0.5">
             Editá todos los saldos del mes en una sola pantalla y guardá con un solo click.
             {savedAt && <span className="ml-2 text-green-400">✓ Guardado a las {savedAt}</span>}
           </p>
@@ -421,12 +421,12 @@ function BulkSaldosGrid({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-800 bg-slate-800/40">
-              <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Titular</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Cuenta</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Banco</th>
-              <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Saldo ARS</th>
-              <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Saldo USD</th>
+            <tr className="border-b border-[#e8e4dc] bg-[#f5f0e6]/40">
+              <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Titular</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Cuenta</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Banco</th>
+              <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Saldo ARS</th>
+              <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Saldo USD</th>
             </tr>
           </thead>
           <tbody>
@@ -436,16 +436,16 @@ function BulkSaldosGrid({
               return cs.map((c, idx) => {
                 const v = values.get(c.id) ?? { ars: 0, usd: 0 }
                 return (
-                  <tr key={c.id} className="border-b border-slate-800/40 hover:bg-slate-800/30">
+                  <tr key={c.id} className="border-b border-[#e8e4dc]/40 hover:bg-[#f5f0e6]/30">
                     <td className="px-4 py-2">
                       {idx === 0 ? (
-                        <span className="text-xs text-slate-300 font-medium">{tit.nombre}</span>
+                        <span className="text-xs text-slate-700 font-medium">{tit.nombre}</span>
                       ) : (
                         <span className="text-xs text-slate-600">↳</span>
                       )}
                     </td>
-                    <td className="px-4 py-2 text-slate-200">{c.nombre}</td>
-                    <td className="px-4 py-2 text-slate-400 text-xs">{c.banco}</td>
+                    <td className="px-4 py-2 text-slate-800">{c.nombre}</td>
+                    <td className="px-4 py-2 text-slate-600 text-xs">{c.banco}</td>
                     <td className="px-4 py-2 text-right">
                       <input
                         type="number"
@@ -453,7 +453,7 @@ function BulkSaldosGrid({
                         value={v.ars || ''}
                         onChange={(e) => setVal(c.id, 'ars', Number(e.target.value))}
                         placeholder="0,00"
-                        className="w-32 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
+                        className="w-32 px-2 py-1 bg-[#f5f0e6] border border-[#d6d0c4] rounded text-slate-900 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
                       />
                     </td>
                     <td className="px-4 py-2 text-right">
@@ -464,7 +464,7 @@ function BulkSaldosGrid({
                           value={v.usd || ''}
                           onChange={(e) => setVal(c.id, 'usd', Number(e.target.value))}
                           placeholder="0,00"
-                          className="w-32 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-green-400 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
+                          className="w-32 px-2 py-1 bg-[#f5f0e6] border border-[#d6d0c4] rounded text-green-400 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
                         />
                       ) : (
                         <span className="text-xs text-slate-600">— sólo ARS —</span>
@@ -476,16 +476,16 @@ function BulkSaldosGrid({
             })}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-slate-700 bg-slate-800/60">
-              <td colSpan={3} className="px-4 py-2 text-sm font-semibold text-slate-300">TOTAL ({cuentas.length} cuentas)</td>
-              <td className="px-4 py-2 text-right font-mono font-bold text-indigo-400">{formatCurrency(totalArs)}</td>
+            <tr className="border-t-2 border-[#d6d0c4] bg-[#f5f0e6]/60">
+              <td colSpan={3} className="px-4 py-2 text-sm font-semibold text-slate-700">TOTAL ({cuentas.length} cuentas)</td>
+              <td className="px-4 py-2 text-right font-mono font-bold text-orange-500">{formatCurrency(totalArs)}</td>
               <td className="px-4 py-2 text-right font-mono font-bold text-green-400">{formatCurrency(totalUsd, 'USD')}</td>
             </tr>
           </tfoot>
         </table>
       </div>
 
-      <div className="px-4 py-3 border-t border-slate-800 bg-slate-800/20 flex justify-end">
+      <div className="px-4 py-3 border-t border-[#e8e4dc] bg-[#f5f0e6]/20 flex justify-end">
         <Button variant="success" onClick={guardarTodos} disabled={isPending} title="Guardar todos los saldos editados de una sola vez">
           {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Guardar todos los saldos
@@ -544,8 +544,8 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Tesorería</h1>
-          <p className="text-sm text-slate-400 mt-0.5">Saldos por cuenta — {formatMonth(mes)}</p>
+          <h1 className="text-2xl font-bold text-slate-900">Tesorería</h1>
+          <p className="text-sm text-slate-600 mt-0.5">Saldos por cuenta — {formatMonth(mes)}</p>
         </div>
         <div className="flex items-center gap-2">
           <Select
@@ -575,22 +575,22 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-slate-900 border border-indigo-500/20 rounded-xl p-5">
-          <p className="text-xs text-slate-400 mb-1 flex items-center gap-1.5">
+        <div className="bg-white border border-orange-500/20 rounded-xl p-5">
+          <p className="text-xs text-slate-600 mb-1 flex items-center gap-1.5">
             <Wallet className="w-3.5 h-3.5" />
             Total ARS
           </p>
-          <p className="text-2xl font-bold text-indigo-400">{formatCurrency(totalArs)}</p>
+          <p className="text-2xl font-bold text-orange-500">{formatCurrency(totalArs)}</p>
         </div>
-        <div className="bg-slate-900 border border-green-500/20 rounded-xl p-5">
-          <p className="text-xs text-slate-400 mb-1 flex items-center gap-1.5">
+        <div className="bg-white border border-green-500/20 rounded-xl p-5">
+          <p className="text-xs text-slate-600 mb-1 flex items-center gap-1.5">
             <DollarSign className="w-3.5 h-3.5" />
             Total USD
           </p>
           <p className="text-2xl font-bold text-green-400">{formatCurrency(totalUsd, 'USD')}</p>
         </div>
-        <div className="bg-slate-900 border border-amber-500/20 rounded-xl p-5">
-          <p className="text-xs text-slate-400 mb-1 flex items-center gap-1.5">
+        <div className="bg-white border border-amber-500/20 rounded-xl p-5">
+          <p className="text-xs text-slate-600 mb-1 flex items-center gap-1.5">
             <TrendingUp className="w-3.5 h-3.5" />
             Equivalente USD
           </p>
@@ -606,9 +606,9 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
       </div>
 
       {/* Tipo de cambio del mes */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 text-slate-300 text-sm">
+          <div className="flex items-center gap-2 text-slate-700 text-sm">
             <AlertCircle className="w-4 h-4 text-amber-400" />
             <span className="font-medium">Tipo de cambio del mes</span>
           </div>
@@ -619,7 +619,7 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
             value={tcInput || ''}
             onChange={(e) => setTcInput(Number(e.target.value))}
             placeholder="Ej: 1080"
-            className="w-32 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-32 px-3 py-1.5 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
           <Button size="sm" onClick={guardarTC} disabled={isPending}>
             {isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
@@ -643,8 +643,8 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
           const cuentasTit = cuentasPorTitular.get(titular.id) ?? []
           if (cuentasTit.length === 0 && titular.tipo === 'EMPRESA') {
             return (
-              <div key={titular.id} className="bg-slate-900 border border-slate-800 rounded-xl p-6 text-center">
-                <p className="text-sm text-slate-400 mb-3">{titular.nombre} — sin cuentas</p>
+              <div key={titular.id} className="bg-white border border-[#e8e4dc] rounded-xl p-6 text-center">
+                <p className="text-sm text-slate-600 mb-3">{titular.nombre} — sin cuentas</p>
                 <Button size="sm" variant="secondary" onClick={() => { setEditCuenta(undefined); setCuentaModal(true) }}>
                   <Plus className="w-3.5 h-3.5" />
                   Agregar primera cuenta
@@ -655,9 +655,9 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
           if (cuentasTit.length === 0) return null
 
           return (
-            <div key={titular.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-              <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+            <div key={titular.id} className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+              <div className="px-4 py-3 border-b border-[#e8e4dc] flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                   {titular.nombre}
                   <Badge variant={titular.tipo === 'EMPRESA' ? 'info' : 'default'}>{titular.tipo}</Badge>
                 </h2>
@@ -665,11 +665,11 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
               </div>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800">
-                    <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Cuenta</th>
-                    <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Tipo</th>
-                    <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">ARS</th>
-                    <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">USD</th>
+                  <tr className="border-b border-[#e8e4dc]">
+                    <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Cuenta</th>
+                    <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Tipo</th>
+                    <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">ARS</th>
+                    <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">USD</th>
                     <th />
                   </tr>
                 </thead>
@@ -691,10 +691,10 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
       )}
 
       {/* Otros activos manuales (no bancarios) */}
-      <div className="bg-slate-900 border border-purple-500/20 rounded-xl overflow-x-auto">
-        <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+      <div className="bg-white border border-purple-500/20 rounded-xl overflow-x-auto">
+        <div className="px-4 py-3 border-b border-[#e8e4dc] flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-purple-400" />
               Otros activos
             </h2>
@@ -710,24 +710,24 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800">
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Descripción</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Categoría</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Titular</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Monto</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Moneda</th>
+              <tr className="border-b border-[#e8e4dc]">
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Descripción</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Categoría</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Titular</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Monto</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Moneda</th>
                 <th />
               </tr>
             </thead>
             <tbody>
               {activosManuales.map((a) => (
-                <tr key={a.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
+                <tr key={a.id} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
                   <td className="px-4 py-2">
-                    <p className="text-slate-100">{a.descripcion}</p>
+                    <p className="text-slate-900">{a.descripcion}</p>
                     {a.notas && <p className="text-xs text-slate-500 truncate max-w-[260px]">{a.notas}</p>}
                   </td>
-                  <td className="px-4 py-2 text-xs text-slate-400">{a.categoria ?? '—'}</td>
-                  <td className="px-4 py-2 text-xs text-slate-400">{a.titular?.nombre ?? '—'}</td>
+                  <td className="px-4 py-2 text-xs text-slate-600">{a.categoria ?? '—'}</td>
+                  <td className="px-4 py-2 text-xs text-slate-600">{a.titular?.nombre ?? '—'}</td>
                   <td className="px-4 py-2 text-right font-mono text-purple-400 font-medium">{formatCurrency(Number(a.monto), a.moneda)}</td>
                   <td className="px-4 py-2"><Badge variant={a.moneda === 'USD' ? 'success' : 'info'}>{a.moneda}</Badge></td>
                   <td className="px-4 py-2 text-right">
@@ -753,8 +753,8 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
             </tbody>
             {(totalArsManuales > 0 || totalUsdManuales > 0) && (
               <tfoot>
-                <tr className="border-t border-slate-700 bg-slate-800/40">
-                  <td colSpan={3} className="px-4 py-2 text-xs font-semibold text-slate-300">Subtotal otros activos</td>
+                <tr className="border-t border-[#d6d0c4] bg-[#f5f0e6]/40">
+                  <td colSpan={3} className="px-4 py-2 text-xs font-semibold text-slate-700">Subtotal otros activos</td>
                   <td className="px-4 py-2 text-right font-mono text-purple-400 font-bold">
                     {totalArsManuales > 0 && formatCurrency(totalArsManuales)}
                     {totalArsManuales > 0 && totalUsdManuales > 0 && <br />}

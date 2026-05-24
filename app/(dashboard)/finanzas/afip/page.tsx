@@ -16,8 +16,8 @@ export default async function AfipPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">AFIP / Facturación</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{items?.length ?? 0} registros</p>
+          <h1 className="text-2xl font-bold text-slate-900">AFIP / Facturación</h1>
+          <p className="text-sm text-slate-600 mt-0.5">{items?.length ?? 0} registros</p>
         </div>
       </div>
 
@@ -25,16 +25,16 @@ export default async function AfipPage() {
         <p className="text-sm text-amber-300 font-medium">Pendiente total: {formatCurrency(totalPendiente)}</p>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-800">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Mes</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Motivo</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Responsable</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Monto</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Vencimiento</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Estado</th>
+            <tr className="border-b border-[#e8e4dc]">
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Mes</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Motivo</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Responsable</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Monto</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Vencimiento</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Estado</th>
             </tr>
           </thead>
           <tbody>
@@ -44,12 +44,12 @@ export default async function AfipPage() {
               </tr>
             ) : (
               items.map((i) => (
-                <tr key={i.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
-                  <td className="px-4 py-3 text-slate-300">{formatMonth(i.mes)}</td>
-                  <td className="px-4 py-3 text-slate-100">{i.motivo}</td>
-                  <td className="px-4 py-3 text-slate-400">{i.responsable}</td>
-                  <td className="px-4 py-3 text-right font-mono text-slate-100">{formatCurrency(i.monto)}</td>
-                  <td className="px-4 py-3 text-slate-400 text-xs">{i.fecha_vencimiento ? formatDate(i.fecha_vencimiento) : '—'}</td>
+                <tr key={i.id} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
+                  <td className="px-4 py-3 text-slate-700">{formatMonth(i.mes)}</td>
+                  <td className="px-4 py-3 text-slate-900">{i.motivo}</td>
+                  <td className="px-4 py-3 text-slate-600">{i.responsable}</td>
+                  <td className="px-4 py-3 text-right font-mono text-slate-900">{formatCurrency(i.monto)}</td>
+                  <td className="px-4 py-3 text-slate-600 text-xs">{i.fecha_vencimiento ? formatDate(i.fecha_vencimiento) : '—'}</td>
                   <td className="px-4 py-3"><EstadoBadge estado={i.estado} /></td>
                 </tr>
               ))

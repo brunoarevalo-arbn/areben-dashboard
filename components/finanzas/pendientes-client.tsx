@@ -197,7 +197,7 @@ function ChequeItem({
       'border-l-4 transition-colors',
       indicador === 'rojo' && 'border-red-500 bg-red-500/5',
       indicador === 'amarillo' && 'border-amber-500 bg-amber-500/5',
-      indicador === 'verde' && 'border-transparent hover:bg-slate-800/40',
+      indicador === 'verde' && 'border-transparent hover:bg-[#f5f0e6]/40',
     )}>
       <div className="flex items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -206,7 +206,7 @@ function ChequeItem({
             cheque.instrumento === 'ECHEQ' ? 'text-orange-400' : 'text-amber-400'
           )} />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-slate-100 truncate">
+            <p className="text-sm font-medium text-slate-900 truncate">
               {cheque.compra?.proveedor?.nombre
                 ?? cheque.compra?.descripcion
                 ?? cheque.gasto?.concepto
@@ -222,7 +222,7 @@ function ChequeItem({
               <span>Acredita {formatDate(fechaVenc)}</span>
               {/* Cheque pasado fecha pero no acreditado: aún disponible para cobrar (no es deadline rígido) */}
               {dias < 0 && Math.abs(dias) <= 30 && (
-                <span className="text-slate-400">(disponible — esperando depósito)</span>
+                <span className="text-slate-600">(disponible — esperando depósito)</span>
               )}
               {dias < 0 && Math.abs(dias) > 30 && (
                 <span className="text-red-400">({Math.abs(dias)} días sin cobrar — revisar)</span>
@@ -234,7 +234,7 @@ function ChequeItem({
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-right">
-            <p className="font-mono text-sm text-slate-100">{formatCurrency(cheque.monto, moneda)}</p>
+            <p className="font-mono text-sm text-slate-900">{formatCurrency(cheque.monto, moneda)}</p>
             <div className={cn(
               'inline-flex items-center gap-1 text-[10px] font-medium mt-0.5',
               indicador === 'rojo' && 'text-red-400',
@@ -289,11 +289,11 @@ function CuotaItem({ cuota, onPagar, onPagoParcial, onEditHistorica }: {
   const esHistorica = cuota.origen_tipo === 'MANUAL'
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-800/40 transition-colors">
+    <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#f5f0e6]/40 transition-colors">
       <div className="flex items-center gap-3 min-w-0 flex-1">
-        <CreditCard className="w-4 h-4 text-indigo-400 shrink-0" />
+        <CreditCard className="w-4 h-4 text-orange-500 shrink-0" />
         <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-100 truncate">
+          <p className="text-sm font-medium text-slate-900 truncate">
             {cuota.concepto}
             {esHistorica && <Badge variant="warning" className="text-[10px] ml-2">histórica</Badge>}
           </p>
@@ -306,7 +306,7 @@ function CuotaItem({ cuota, onPagar, onPagoParcial, onEditHistorica }: {
               <div className="h-1 w-full bg-slate-700 rounded-full overflow-hidden">
                 <div className="h-full bg-amber-400 transition-all" style={{ width: `${pagadoPct}%` }} />
               </div>
-              <p className="text-[10px] font-mono text-slate-400">
+              <p className="text-[10px] font-mono text-slate-600">
                 <span className="text-green-400">{formatCurrency(totalPagado)}</span> pagado · resta <span className="text-amber-400">{formatCurrency(saldo)}</span>
               </p>
             </div>
@@ -314,7 +314,7 @@ function CuotaItem({ cuota, onPagar, onPagoParcial, onEditHistorica }: {
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <p className="font-mono text-sm text-slate-100">{formatCurrency(cuota.monto_cuota)}</p>
+        <p className="font-mono text-sm text-slate-900">{formatCurrency(cuota.monto_cuota)}</p>
         {esHistorica && !hayParciales && (
           <Button size="sm" variant="ghost" onClick={() => onEditHistorica(cuota)} title="Editar cuota histórica">
             <Pencil className="w-3.5 h-3.5" />
@@ -362,15 +362,15 @@ function GastoPendItem({ gasto, hoy, cuentas, onPagoParcial }: { gasto: GastoPen
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-800/40 transition-colors">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#f5f0e6]/40 transition-colors">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {esSueldo ? (
             <CreditCard className="w-4 h-4 text-purple-400 shrink-0" />
           ) : (
-            <Receipt className="w-4 h-4 text-indigo-400 shrink-0" />
+            <Receipt className="w-4 h-4 text-orange-500 shrink-0" />
           )}
           <div className="min-w-0">
-            <p className="text-sm font-medium text-slate-100 truncate">{gasto.concepto}</p>
+            <p className="text-sm font-medium text-slate-900 truncate">{gasto.concepto}</p>
             <p className="text-xs text-slate-500 flex items-center gap-2">
               <span>{gasto.categoria}</span>
               {fecha && <><span>·</span><span>vence {formatDate(fecha)}</span></>}
@@ -382,7 +382,7 @@ function GastoPendItem({ gasto, hoy, cuentas, onPagoParcial }: { gasto: GastoPen
                 <div className="h-1 w-full bg-slate-700 rounded-full overflow-hidden">
                   <div className="h-full bg-amber-400 transition-all" style={{ width: `${pagadoPct}%` }} />
                 </div>
-                <p className="text-[10px] font-mono text-slate-400">
+                <p className="text-[10px] font-mono text-slate-600">
                   <span className="text-green-400">{formatCurrency(totalPagado, moneda)}</span> pagado · resta <span className="text-amber-400">{formatCurrency(saldo, moneda)}</span>
                 </p>
               </div>
@@ -390,7 +390,7 @@ function GastoPendItem({ gasto, hoy, cuentas, onPagoParcial }: { gasto: GastoPen
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <p className="font-mono text-sm text-slate-100">{formatCurrency(gasto.monto, moneda)}</p>
+          <p className="font-mono text-sm text-slate-900">{formatCurrency(gasto.monto, moneda)}</p>
           <Button
             size="sm"
             variant="ghost"
@@ -452,18 +452,18 @@ function PagarGastoInline({ gasto, cuentas, onClose }: { gasto: GastoPend; cuent
   }
 
   return (
-    <div className="px-4 py-3 bg-slate-800/60 border-t border-slate-700/40 space-y-2">
+    <div className="px-4 py-3 bg-[#f5f0e6]/60 border-t border-[#d6d0c4]/40 space-y-2">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <input
           type="date"
           value={fechaPago}
           onChange={(e) => setFechaPago(e.target.value)}
-          className="px-2 py-1.5 bg-slate-700 border border-slate-600 rounded text-slate-100 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="px-2 py-1.5 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
         />
         <select
           value={cuentaId}
           onChange={(e) => setCuentaId(e.target.value)}
-          className="px-2 py-1.5 bg-slate-700 border border-slate-600 rounded text-slate-100 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:col-span-2"
+          className="px-2 py-1.5 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 sm:col-span-2"
         >
           <option value="">— Cuenta de origen —</option>
           {cuentas.map((c) => <option key={c.id} value={c.id}>{c.banco} · {c.nombre}</option>)}
@@ -488,11 +488,11 @@ function PagoCtaCteItem({ pago, hoy, onAcreditar }: { pago: PagoCtaCte; hoy: str
   if (!fecha) return null
   const dias = diasHasta(fecha, hoy)
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-800/40 transition-colors">
+    <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#f5f0e6]/40 transition-colors">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <Receipt className="w-4 h-4 text-blue-400 shrink-0" />
         <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-100 truncate">
+          <p className="text-sm font-medium text-slate-900 truncate">
             {pago.compra?.proveedor?.nombre
               ?? pago.compra?.descripcion
               ?? pago.gasto?.concepto
@@ -512,7 +512,7 @@ function PagoCtaCteItem({ pago, hoy, onAcreditar }: { pago: PagoCtaCte; hoy: str
         </div>
       </div>
       <div className="flex items-center gap-3 shrink-0">
-        <p className="font-mono text-sm text-slate-100">{formatCurrency(pago.monto, moneda)}</p>
+        <p className="font-mono text-sm text-slate-900">{formatCurrency(pago.monto, moneda)}</p>
         <Button
           size="sm"
           variant="success"
@@ -531,11 +531,11 @@ function PagoCtaCteItem({ pago, hoy, onAcreditar }: { pago: PagoCtaCte; hoy: str
 function CompraSinPlanItem({ compra, onPagoParcial }: { compra: CompraSinPlanPago; onPagoParcial: (t: PagoTarget) => void }) {
   const moneda = (compra.moneda === 'USD' ? 'USD' : 'ARS') as 'USD' | 'ARS'
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-800/40 transition-colors">
+    <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#f5f0e6]/40 transition-colors">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
         <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-100 truncate">
+          <p className="text-sm font-medium text-slate-900 truncate">
             {compra.proveedor?.nombre ?? compra.descripcion}
           </p>
           <p className="text-xs text-slate-500">
@@ -577,11 +577,11 @@ function CompraSinPlanItem({ compra, onPagoParcial }: { compra: CompraSinPlanPag
 function InstrumentoItem({ inst, hoy }: { inst: InstrumentoProximo; hoy: string }) {
   const dias = inst.fecha_fin ? diasHasta(inst.fecha_fin, hoy) : 0
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-800/40 transition-colors">
+    <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#f5f0e6]/40 transition-colors">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <PiggyBank className="w-4 h-4 text-purple-400 shrink-0" />
         <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-100 truncate">
+          <p className="text-sm font-medium text-slate-900 truncate">
             {inst.inversor?.nombre ?? '—'}
             {inst.codigo && <span className="text-xs text-slate-500 ml-2 font-mono">{inst.codigo}</span>}
           </p>
@@ -592,7 +592,7 @@ function InstrumentoItem({ inst, hoy }: { inst: InstrumentoProximo; hoy: string 
         </div>
       </div>
       <div className="flex items-center gap-3 shrink-0">
-        <p className="font-mono text-sm text-slate-100">{formatCurrency(Number(inst.capital_inicial), inst.moneda)}</p>
+        <p className="font-mono text-sm text-slate-900">{formatCurrency(Number(inst.capital_inicial), inst.moneda)}</p>
         <Link href={`/inversiones/${inst.inversor_id}`}>
           <Button size="sm" variant="ghost" title="Ver detalle del inversor">
             <ChevronRight className="w-3.5 h-3.5" />
@@ -753,11 +753,11 @@ export function PendientesClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Clock className="w-6 h-6 text-amber-400" />
             Pendientes
           </h1>
-          <p className="text-sm text-slate-400 mt-0.5">
+          <p className="text-sm text-slate-600 mt-0.5">
             Todo lo que requiere acción financiera, ordenado por vencimiento
           </p>
         </div>
@@ -777,13 +777,13 @@ export function PendientesClient({
                 className="fixed inset-0 z-40"
                 onClick={() => setHistoricoMenuOpen(false)}
               />
-              <div className="absolute right-0 top-full mt-1 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden min-w-[260px]">
-                <div className="px-3 py-2 border-b border-slate-800 bg-slate-800/40">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tipo de pasivo</p>
+              <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-[#d6d0c4] rounded-xl shadow-2xl overflow-hidden min-w-[260px]">
+                <div className="px-3 py-2 border-b border-[#e8e4dc] bg-[#f5f0e6]/40">
+                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Tipo de pasivo</p>
                 </div>
                 {([
                   { tipo: 'CHEQUE' as const, label: 'Cheque', desc: 'Cheque ya emitido sin asignar', Icon: FileCheck, color: 'text-blue-400' },
-                  { tipo: 'CUOTA' as const, label: 'Cuotas tarjeta', desc: 'Cuotas que ya están girando', Icon: CreditCard, color: 'text-indigo-400' },
+                  { tipo: 'CUOTA' as const, label: 'Cuotas tarjeta', desc: 'Cuotas que ya están girando', Icon: CreditCard, color: 'text-orange-500' },
                   { tipo: 'CTA_CTE' as const, label: 'Cuenta corriente', desc: 'Saldo a plazo con proveedor', Icon: Receipt, color: 'text-amber-400' },
                   { tipo: 'GASTO' as const, label: 'Gasto pendiente', desc: 'Un gasto que ya quedaba pendiente', Icon: AlertCircle, color: 'text-purple-400' },
                 ]).map(({ tipo, label, desc, Icon, color }) => (
@@ -792,11 +792,11 @@ export function PendientesClient({
                     type="button"
                     onClick={() => abrirHistorico(tipo)}
                     title={desc}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800/60 transition-colors border-b border-slate-800/40 last:border-0 text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#f5f0e6]/60 transition-colors border-b border-[#e8e4dc]/40 last:border-0 text-left"
                   >
                     <Icon className={cn('w-4 h-4 shrink-0', color)} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-100">{label}</p>
+                      <p className="text-sm font-medium text-slate-900">{label}</p>
                       <p className="text-xs text-slate-500 truncate">{desc}</p>
                     </div>
                   </button>
@@ -809,28 +809,28 @@ export function PendientesClient({
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-amber-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Pagos pendientes ARS</p>
+        <div className="bg-white border border-amber-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Pagos pendientes ARS</p>
           <p className="text-xl font-bold text-amber-400">{formatCurrency(totalPagosARS)}</p>
         </div>
-        <div className="bg-slate-900 border border-amber-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Pagos pendientes USD</p>
+        <div className="bg-white border border-amber-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Pagos pendientes USD</p>
           <p className="text-xl font-bold text-amber-400">{formatCurrency(totalPagosUSD, 'USD')}</p>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Cheques por acreditar</p>
-          <p className="text-xl font-bold text-slate-100">{formatCurrency(totalCheques)}</p>
+        <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Cheques por acreditar</p>
+          <p className="text-xl font-bold text-slate-900">{formatCurrency(totalCheques)}</p>
           <p className="text-xs text-slate-500 mt-0.5">{cheques.length} cheque(s)</p>
         </div>
         <div className={cn(
-          'bg-slate-900 border rounded-xl p-4',
-          chequesInsuficientes.length > 0 ? 'border-red-500/40 bg-red-500/5' : 'border-slate-800'
+          'bg-white border rounded-xl p-4',
+          chequesInsuficientes.length > 0 ? 'border-red-500/40 bg-red-500/5' : 'border-[#e8e4dc]'
         )}>
-          <p className="text-xs text-slate-400 mb-1 flex items-center gap-1">
+          <p className="text-xs text-slate-600 mb-1 flex items-center gap-1">
             {chequesInsuficientes.length > 0 && <AlertCircle className="w-3 h-3 text-red-400" />}
             Cheques con saldo insuficiente
           </p>
-          <p className={cn('text-xl font-bold', chequesInsuficientes.length > 0 ? 'text-red-400' : 'text-slate-100')}>
+          <p className={cn('text-xl font-bold', chequesInsuficientes.length > 0 ? 'text-red-400' : 'text-slate-900')}>
             {chequesInsuficientes.length}
           </p>
         </div>
@@ -838,10 +838,10 @@ export function PendientesClient({
 
       {/* Empty state */}
       {totalVisibles === 0 && totalInstrumentos === 0 && (
-        <div className="bg-slate-900 border border-green-500/20 rounded-xl p-12 text-center">
+        <div className="bg-white border border-green-500/20 rounded-xl p-12 text-center">
           <Sparkles className="w-10 h-10 mx-auto mb-3 text-green-400" />
-          <p className="text-lg font-medium text-slate-100 mb-1">¡Todo al día!</p>
-          <p className="text-sm text-slate-400">No hay pendientes financieros que requieran acción</p>
+          <p className="text-lg font-medium text-slate-900 mb-1">¡Todo al día!</p>
+          <p className="text-sm text-slate-600">No hay pendientes financieros que requieran acción</p>
         </div>
       )}
 
@@ -852,12 +852,12 @@ export function PendientesClient({
         const config = {
           VENCIDO: { label: 'Vencidos', color: 'border-red-500/40', textColor: 'text-red-400', icon: AlertCircle },
           ESTA_SEMANA: { label: 'Esta semana', color: 'border-amber-500/40', textColor: 'text-amber-400', icon: AlertTriangle },
-          ESTE_MES: { label: 'Este mes', color: 'border-slate-700', textColor: 'text-slate-300', icon: Clock },
-          FUTURO: { label: 'Próximos meses', color: 'border-slate-700/60', textColor: 'text-slate-400', icon: Clock },
+          ESTE_MES: { label: 'Este mes', color: 'border-[#d6d0c4]', textColor: 'text-slate-700', icon: Clock },
+          FUTURO: { label: 'Próximos meses', color: 'border-[#d6d0c4]/60', textColor: 'text-slate-600', icon: Clock },
         }[grupo]
         const Icon = config.icon
         return (
-          <div key={grupo} className={cn('bg-slate-900 border rounded-xl overflow-x-auto', config.color)}>
+          <div key={grupo} className={cn('bg-white border rounded-xl overflow-x-auto', config.color)}>
             <div className={cn('px-4 py-2.5 border-b flex items-center justify-between', config.color)}>
               <h2 className={cn('text-sm font-semibold flex items-center gap-2', config.textColor)}>
                 <Icon className="w-4 h-4" />
@@ -874,7 +874,7 @@ export function PendientesClient({
 
       {/* Instrumentos próximos a vencer (siempre al final) */}
       {instrumentosProximos.length > 0 && (
-        <div className="bg-slate-900 border border-purple-500/20 rounded-xl overflow-x-auto">
+        <div className="bg-white border border-purple-500/20 rounded-xl overflow-x-auto">
           <div className="px-4 py-2.5 border-b border-purple-500/20 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-purple-400 flex items-center gap-2">
               <PiggyBank className="w-4 h-4" />
@@ -954,14 +954,14 @@ function EditCuotaHistoricaModal({ cuota, onClose }: { cuota: CuotaPendiente; on
         <Input label="Concepto" value={concepto} onChange={(e) => setConcepto(e.target.value)} required />
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">Monto de la cuota</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">Monto de la cuota</label>
             <input type="number" step="0.01" min="0.01" value={monto || ''} onChange={(e) => setMonto(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">Mes de vencimiento</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">Mes de vencimiento</label>
             <input type="month" value={mes} onChange={(e) => setMes(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
         </div>
         {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}

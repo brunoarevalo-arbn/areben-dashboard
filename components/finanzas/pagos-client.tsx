@@ -46,8 +46,8 @@ const TIPO_LABELS: Record<TipoOrigenPago, { label: string; color: string; icon: 
   COMPRA: { label: 'Compra', color: 'text-blue-400 border-blue-500/30 bg-blue-500/10', icon: ShoppingCart },
   GASTO: { label: 'Gasto', color: 'text-amber-400 border-amber-500/30 bg-amber-500/10', icon: Receipt },
   NOMINA: { label: 'Nómina', color: 'text-purple-400 border-purple-500/30 bg-purple-500/10', icon: Users },
-  CUOTA: { label: 'Cuota tarjeta', color: 'text-indigo-400 border-indigo-500/30 bg-indigo-500/10', icon: CreditCard },
-  LIBRE: { label: 'Libre', color: 'text-slate-400 border-slate-500/30 bg-slate-500/10', icon: AlertCircle },
+  CUOTA: { label: 'Cuota tarjeta', color: 'text-orange-500 border-orange-500/30 bg-orange-500/10', icon: CreditCard },
+  LIBRE: { label: 'Libre', color: 'text-slate-600 border-slate-500/30 bg-slate-500/10', icon: AlertCircle },
 }
 
 const INSTRUMENTO_LABELS: Record<string, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
@@ -138,11 +138,11 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Wallet className="w-6 h-6 text-green-400" />
             Pagos del mes
           </h1>
-          <p className="text-sm text-slate-400 mt-0.5">
+          <p className="text-sm text-slate-600 mt-0.5">
             {pagos.length} movimiento(s) · {formatMonth(mes)} · ledger único
           </p>
         </div>
@@ -150,25 +150,25 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-slate-900 border border-green-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Total ARS</p>
+        <div className="bg-white border border-green-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Total ARS</p>
           <p className="text-xl font-bold text-green-400">{formatCurrency(totalARS)}</p>
         </div>
-        <div className="bg-slate-900 border border-green-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Total USD</p>
+        <div className="bg-white border border-green-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Total USD</p>
           <p className="text-xl font-bold text-green-400">{formatCurrency(totalUSD, 'USD')}</p>
         </div>
         {(['COMPRA', 'GASTO', 'NOMINA'] as const).map((t) => (
-          <div key={t} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-            <p className="text-xs text-slate-400 mb-1">{TIPO_LABELS[t].label}</p>
-            <p className="text-xl font-bold text-slate-100">{formatCurrency(porTipo[t] ?? 0)}</p>
+          <div key={t} className="bg-white border border-[#e8e4dc] rounded-xl p-4">
+            <p className="text-xs text-slate-600 mb-1">{TIPO_LABELS[t].label}</p>
+            <p className="text-xl font-bold text-slate-900">{formatCurrency(porTipo[t] ?? 0)}</p>
           </div>
         ))}
       </div>
 
       {/* Filtros */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-wrap gap-3 items-center">
-        <div className="flex items-center gap-2 text-sm text-slate-400">
+      <div className="bg-white border border-[#e8e4dc] rounded-xl p-3 flex flex-wrap gap-3 items-center">
+        <div className="flex items-center gap-2 text-sm text-slate-600">
           <Filter className="w-3.5 h-3.5" />
           Filtros:
         </div>
@@ -217,16 +217,16 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
       </div>
 
       {/* Tabla */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-800">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Fecha</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Tipo</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Concepto</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Instrumento</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Cuenta</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Monto</th>
+            <tr className="border-b border-[#e8e4dc]">
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Fecha</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Tipo</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Concepto</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Instrumento</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Cuenta</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Monto</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -248,8 +248,8 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
                 const desc = descripcionOrigen(p)
                 const esLibre = p.tipo_origen === 'LIBRE'
                 return (
-                  <tr key={p.id} className={cn('border-b border-slate-800/60 hover:bg-slate-800/30', esLibre && 'bg-amber-500/5')}>
-                    <td className="px-4 py-3 text-slate-300 text-xs whitespace-nowrap font-mono">{formatDate(p.fecha_emision)}</td>
+                  <tr key={p.id} className={cn('border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30', esLibre && 'bg-amber-500/5')}>
+                    <td className="px-4 py-3 text-slate-700 text-xs whitespace-nowrap font-mono">{formatDate(p.fecha_emision)}</td>
                     <td className="px-4 py-3">
                       <span className={cn('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-xs', tipo.color)}>
                         <Icon className="w-3 h-3" />
@@ -257,12 +257,12 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
                       </span>
                     </td>
                     <td className="px-4 py-3 min-w-[200px]">
-                      <p className="text-slate-100 truncate font-medium">{desc.titulo}</p>
+                      <p className="text-slate-900 truncate font-medium">{desc.titulo}</p>
                       {desc.subtitulo && <p className="text-xs text-slate-500 truncate">{desc.subtitulo}</p>}
                       {p.notas && !esLibre && <p className="text-xs text-slate-600 truncate">· {p.notas}</p>}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 text-xs text-slate-300">
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-700">
                         <InstrIcon className="w-3 h-3" />
                         {instr.label}
                       </span>
@@ -273,11 +273,11 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
                         <p className="text-[10px] text-slate-500">vto. {formatDate(p.fecha_vencimiento)}</p>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-400">
+                    <td className="px-4 py-3 text-xs text-slate-600">
                       {cuenta ? `${cuenta.banco} · ${cuenta.nombre}` : '—'}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <p className="font-mono font-semibold text-slate-100">{formatCurrency(p.monto, p.moneda)}</p>
+                      <p className="font-mono font-semibold text-slate-900">{formatCurrency(p.monto, p.moneda)}</p>
                       {!p.acreditado && (
                         <Badge variant="warning" className="text-[10px] mt-0.5">Sin acreditar</Badge>
                       )}
@@ -381,13 +381,13 @@ function EditPagoModal({
   return (
     <Modal open={!!pago} onOpenChange={onOpenChange} title="Editar pago" className="max-w-md">
       <div className="space-y-4">
-        <div className="bg-slate-800/40 border border-slate-700/40 rounded-lg p-3 space-y-1">
-          <p className="text-xs text-slate-400">
+        <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg p-3 space-y-1">
+          <p className="text-xs text-slate-600">
             {pago.tipo_origen === 'LIBRE' ? 'Pago LIBRE (sin asignar)' : `Pago contra ${pago.tipo_origen}`}
             {' · '}
             <span className="text-slate-500">{pago.instrumento.replace('_', ' ').toLowerCase()}</span>
           </p>
-          <p className="font-mono text-sm text-slate-100">
+          <p className="font-mono text-sm text-slate-900">
             {new Intl.NumberFormat('es-AR', { style: 'currency', currency: pago.moneda }).format(Number(pago.monto))}
           </p>
           <p className="text-[11px] text-slate-500">
@@ -533,9 +533,9 @@ function AsignarPagoLibreModal({
   return (
     <Modal open={!!pago} onOpenChange={onOpenChange} title="Asignar pago a deuda" className="max-w-md">
       <div className="space-y-4">
-        <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700/40">
-          <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Pago a asignar</p>
-          <p className="text-sm font-medium text-slate-100">
+        <div className="bg-[#f5f0e6]/60 rounded-lg p-3 border border-[#d6d0c4]/40">
+          <p className="text-xs text-slate-600 uppercase tracking-wider mb-1">Pago a asignar</p>
+          <p className="text-sm font-medium text-slate-900">
             {formatCurrency(pago.monto, pago.moneda)} · {formatDate(pago.fecha_emision)}
           </p>
           <p className="text-xs text-slate-500 mt-0.5">{pago.instrumento.replace('_', ' ').toLowerCase()}{pago.numero_cheque ? ` · N° ${pago.numero_cheque}` : ''}{pago.notas ? ` · ${pago.notas}` : ''}</p>

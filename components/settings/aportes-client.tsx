@@ -58,22 +58,22 @@ function AporteForm({ aporte, onClose }: { aporte?: ConfiguracionAporte; onClose
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-slate-300">Patronal</label>
+          <label className="block text-sm font-medium text-slate-700">Patronal</label>
           <select
             name="es_patronal"
             defaultValue={aporte?.es_patronal ? 'true' : 'false'}
-            className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            className="w-full px-3.5 py-2.5 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
           >
             <option value="false">No (empleado)</option>
             <option value="true">Sí (empresa)</option>
           </select>
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-slate-300">Estado</label>
+          <label className="block text-sm font-medium text-slate-700">Estado</label>
           <select
             name="activo"
             defaultValue={aporte?.activo !== false ? 'true' : 'false'}
-            className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            className="w-full px-3.5 py-2.5 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
           >
             <option value="true">Activo</option>
             <option value="false">Inactivo</option>
@@ -107,8 +107,8 @@ export function AportesClient({ aportes }: { aportes: ConfiguracionAporte[] }) {
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Configuración de Aportes</h1>
-          <p className="text-sm text-slate-400 mt-0.5">Se aplican automáticamente al calcular la nómina</p>
+          <h1 className="text-2xl font-bold text-slate-900">Configuración de Aportes</h1>
+          <p className="text-sm text-slate-600 mt-0.5">Se aplican automáticamente al calcular la nómina</p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="w-4 h-4" />
@@ -116,24 +116,24 @@ export function AportesClient({ aportes }: { aportes: ConfiguracionAporte[] }) {
         </Button>
       </div>
 
-      <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 flex gap-3">
-        <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-        <p className="text-sm text-indigo-300">
+      <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 flex gap-3">
+        <Info className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+        <p className="text-sm text-orange-600">
           Los aportes se calculan sobre el <strong>subtotal bruto</strong> (básico + horas + extras + comida + aguinaldo).
           Los cambios aplican a nóminas futuras, no a las ya generadas.
         </p>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-800">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Nombre</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Tipo</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Valor</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Aplica a</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Paga</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Estado</th>
+            <tr className="border-b border-[#e8e4dc]">
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Nombre</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Tipo</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Valor</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Aplica a</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Paga</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Estado</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -147,10 +147,10 @@ export function AportesClient({ aportes }: { aportes: ConfiguracionAporte[] }) {
               </tr>
             ) : (
               aportes.map((a) => (
-                <tr key={a.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
-                  <td className="px-4 py-3 font-medium text-slate-100">{a.nombre}</td>
-                  <td className="px-4 py-3 text-slate-400">{a.tipo === 'PORCENTAJE' ? '%' : 'Fijo'}</td>
-                  <td className="px-4 py-3 text-right font-mono text-slate-100">
+                <tr key={a.id} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
+                  <td className="px-4 py-3 font-medium text-slate-900">{a.nombre}</td>
+                  <td className="px-4 py-3 text-slate-600">{a.tipo === 'PORCENTAJE' ? '%' : 'Fijo'}</td>
+                  <td className="px-4 py-3 text-right font-mono text-slate-900">
                     {a.tipo === 'PORCENTAJE' ? `${a.valor}%` : `$${a.valor.toLocaleString('es-AR')}`}
                   </td>
                   <td className="px-4 py-3">
@@ -158,7 +158,7 @@ export function AportesClient({ aportes }: { aportes: ConfiguracionAporte[] }) {
                       {a.aplicable_a}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-slate-400">{a.es_patronal ? 'Empresa' : 'Empleado'}</td>
+                  <td className="px-4 py-3 text-slate-600">{a.es_patronal ? 'Empresa' : 'Empleado'}</td>
                   <td className="px-4 py-3">
                     <Badge variant={a.activo ? 'success' : 'danger'}>{a.activo ? 'Activo' : 'Inactivo'}</Badge>
                   </td>

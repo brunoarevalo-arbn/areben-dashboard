@@ -273,14 +273,14 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Nómina</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{nominas.length} empleados · {formatMonth(mes)}</p>
+          <h1 className="text-2xl font-bold text-slate-900">Nómina</h1>
+          <p className="text-sm text-slate-600 mt-0.5">{nominas.length} empleados · {formatMonth(mes)}</p>
         </div>
         <div className="flex items-center gap-3">
           <select
             value={searchParams.get('mes') ?? mes}
             onChange={(e) => router.push(`?mes=${e.target.value}`)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
           >
             {getMonthOptions().map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -303,13 +303,13 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
-          { label: 'Total neto', value: totalNeto, color: 'text-slate-100' },
+          { label: 'Total neto', value: totalNeto, color: 'text-slate-900' },
           { label: 'Pagado a cuenta', value: totalPagadoParcial, color: 'text-green-400' },
           { label: 'Pendiente real', value: totalPendiente, color: 'text-amber-400' },
-          { label: 'Costo empresa', value: totalCosto, color: 'text-indigo-400' },
+          { label: 'Costo empresa', value: totalCosto, color: 'text-orange-500' },
         ].map((item) => (
-          <div key={item.label} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-            <p className="text-xs text-slate-400 mb-1">{item.label}</p>
+          <div key={item.label} className="bg-white border border-[#e8e4dc] rounded-xl p-4">
+            <p className="text-xs text-slate-600 mb-1">{item.label}</p>
             <p className={`text-xl font-bold ${item.color}`}>{formatCurrency(item.value)}</p>
           </div>
         ))}
@@ -317,9 +317,9 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
 
       {/* Caja Aguinaldos por empleado */}
       {totalCaja > 0 && (
-        <div className="bg-slate-900 border border-amber-500/20 rounded-xl p-4">
+        <div className="bg-white border border-amber-500/20 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
               <PiggyBank className="w-4 h-4 text-amber-400" />
               Caja de Aguinaldos (acumulado disponible)
             </h2>
@@ -330,8 +330,8 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
               const emp = empleados.find((e) => e.id === eid)
               if (!emp) return null
               return (
-                <div key={eid} className="bg-slate-800/40 rounded-lg p-2 flex items-center justify-between">
-                  <span className="text-xs text-slate-300">{emp.apellido}, {emp.nombre}</span>
+                <div key={eid} className="bg-[#f5f0e6]/40 rounded-lg p-2 flex items-center justify-between">
+                  <span className="text-xs text-slate-700">{emp.apellido}, {emp.nombre}</span>
                   <span className="text-xs font-mono text-amber-400 font-semibold">{formatCurrency(v)}</span>
                 </div>
               )
@@ -340,21 +340,21 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
         </div>
       )}
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-        <div className="px-4 py-3 border-b border-slate-800">
-          <h2 className="text-sm font-semibold text-slate-100">{formatMonth(mes)}</h2>
+      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+        <div className="px-4 py-3 border-b border-[#e8e4dc]">
+          <h2 className="text-sm font-semibold text-slate-900">{formatMonth(mes)}</h2>
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-800">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Empleado</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Básico</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Subtotal</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Patronales</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Neto</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Provisión SAC</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-400 uppercase">Costo emp.</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase">Estado</th>
+            <tr className="border-b border-[#e8e4dc]">
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Empleado</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Básico</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Subtotal</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Patronales</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Neto</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Provisión SAC</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Costo emp.</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Estado</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -375,17 +375,17 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
                 const hayParciales = pagado > 0
                 const pagadoPct = n.neto > 0 ? Math.min(100, (pagado / n.neto) * 100) : 0
                 return (
-                  <tr key={n.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
+                  <tr key={n.id} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-slate-100">{n.empleado?.apellido}, {n.empleado?.nombre}</p>
+                      <p className="font-medium text-slate-900">{n.empleado?.apellido}, {n.empleado?.nombre}</p>
                       <p className="text-xs text-slate-500 flex items-center gap-2">
                         {n.empleado?.tipo_empleado}
                         {n.asistencia_completa && <span className="text-green-400 flex items-center gap-0.5"><BadgeCheck className="w-3 h-3" />presentismo</span>}
                         {tieneAdicional && esBlanco && <span className="text-amber-400">+ adicional</span>}
                       </p>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-300">{formatCurrency(n.sueldo_basico)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-300">{formatCurrency(n.subtotal)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-700">{formatCurrency(n.sueldo_basico)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-700">{formatCurrency(n.subtotal)}</td>
                     <td className="px-4 py-3 text-right font-mono text-amber-400">{formatCurrency(n.aportes_patronales)}</td>
                     <td className="px-4 py-3 text-right">
                       <p className="font-mono font-semibold text-green-400">{formatCurrency(n.neto)}</p>
@@ -394,7 +394,7 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
                           <div className="h-1 w-full bg-slate-700 rounded-full overflow-hidden">
                             <div className="h-full bg-amber-400 transition-all" style={{ width: `${pagadoPct}%` }} />
                           </div>
-                          <p className="text-[10px] font-mono text-slate-400">
+                          <p className="text-[10px] font-mono text-slate-600">
                             <span className="text-green-400">{formatCurrency(pagado)}</span>
                             {' / '}
                             <span className="text-amber-400">{formatCurrency(saldo)}</span> resta
@@ -405,7 +405,7 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
                     <td className="px-4 py-3 text-right font-mono text-amber-300 text-xs">
                       {n.aguinaldo_provisionado > 0 ? formatCurrency(n.aguinaldo_provisionado) : '—'}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-indigo-400">{formatCurrency(n.costo_empresa)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-orange-500">{formatCurrency(n.costo_empresa)}</td>
                     <td className="px-4 py-3"><EstadoBadge estado={n.estado} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
@@ -454,14 +454,14 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
           </tbody>
           {nominas.length > 0 && (
             <tfoot>
-              <tr className="border-t border-slate-700 bg-slate-800/50">
-                <td className="px-4 py-3 text-sm font-semibold text-slate-300">TOTAL</td>
+              <tr className="border-t border-[#d6d0c4] bg-[#f5f0e6]/50">
+                <td className="px-4 py-3 text-sm font-semibold text-slate-700">TOTAL</td>
                 <td />
-                <td className="px-4 py-3 text-right font-mono font-semibold text-slate-200">{formatCurrency(nominas.reduce((s, n) => s + n.subtotal, 0))}</td>
+                <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">{formatCurrency(nominas.reduce((s, n) => s + n.subtotal, 0))}</td>
                 <td className="px-4 py-3 text-right font-mono font-semibold text-amber-400">{formatCurrency(nominas.reduce((s, n) => s + n.aportes_patronales, 0))}</td>
                 <td className="px-4 py-3 text-right font-mono font-bold text-green-400">{formatCurrency(totalNeto)}</td>
                 <td className="px-4 py-3 text-right font-mono font-bold text-amber-300">{formatCurrency(totalProvisionAg)}</td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-indigo-400">{formatCurrency(totalCosto)}</td>
+                <td className="px-4 py-3 text-right font-mono font-bold text-orange-500">{formatCurrency(totalCosto)}</td>
                 <td colSpan={2} />
               </tr>
             </tfoot>

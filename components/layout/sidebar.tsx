@@ -149,12 +149,12 @@ function NavGroup({ item, level = 0 }: { item: NavItem; level?: number }) {
       : 'flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-colors'
 
     const activeLeaf = level === 0
-      ? 'bg-indigo-600/20 text-indigo-400'
-      : 'bg-indigo-600/20 text-indigo-400'
+      ? 'bg-orange-500/15 text-orange-400'
+      : 'bg-orange-500/15 text-orange-400'
 
     const inactiveLeaf = level === 0
-      ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
-      : 'text-slate-500 hover:text-slate-100 hover:bg-slate-800'
+      ? 'text-slate-600 hover:text-slate-900 hover:bg-[#f5f0e6]'
+      : 'text-slate-500 hover:text-slate-900 hover:bg-[#f5f0e6]'
 
     return (
       <Link
@@ -173,10 +173,10 @@ function NavGroup({ item, level = 0 }: { item: NavItem; level?: number }) {
     : 'w-full flex items-center justify-between gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-colors'
 
   const groupColor = childActive
-    ? 'text-indigo-400'
+    ? 'text-orange-400'
     : level === 0
-      ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
-      : 'text-slate-500 hover:text-slate-100 hover:bg-slate-800'
+      ? 'text-slate-600 hover:text-slate-900 hover:bg-[#f5f0e6]'
+      : 'text-slate-500 hover:text-slate-900 hover:bg-[#f5f0e6]'
 
   return (
     <div>
@@ -193,7 +193,7 @@ function NavGroup({ item, level = 0 }: { item: NavItem; level?: number }) {
         />
       </button>
       {open && (
-        <div className="mt-1 ml-4 pl-3 border-l border-slate-800 space-y-0.5">
+        <div className="mt-1 ml-4 pl-3 border-l border-[#e8e4dc] space-y-0.5">
           {item.children!.map((child) => (
             <NavGroup key={child.label} item={child} level={level + 1} />
           ))}
@@ -205,14 +205,14 @@ function NavGroup({ item, level = 0 }: { item: NavItem; level?: number }) {
 
 export function Sidebar() {
   return (
-    <aside className="w-64 md:w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0">
-      <div className="p-4 border-b border-slate-800">
+    <aside className="w-64 md:w-60 shrink-0 bg-white border-r border-[#e8e4dc] flex flex-col h-screen sticky top-0">
+      <div className="p-4 border-b border-[#e8e4dc]">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center shrink-0">
             <Building2 className="w-4 h-4 text-white" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-100 truncate">Areben</p>
+            <p className="text-sm font-semibold text-slate-900 truncate">Areben</p>
             <p className="text-xs text-slate-500 truncate">Comercial SRL</p>
           </div>
         </div>
@@ -224,7 +224,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="p-3 border-t border-slate-800">
+      <div className="p-3 border-t border-[#e8e4dc]">
         <div className="flex gap-1">
           {(['BDI', 'ZATTIA', 'STUNNED'] as const).map((marca) => (
             <span

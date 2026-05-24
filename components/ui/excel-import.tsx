@@ -89,8 +89,8 @@ export function ExcelImport({
     <Modal open={open} onOpenChange={onOpenChange} title={title} description={description} className="max-w-lg">
       <div className="space-y-4">
         {/* Paso 1: descargar template */}
-        <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 space-y-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+        <div className="bg-[#f5f0e6]/60 border border-[#d6d0c4]/60 rounded-xl p-4 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
             <FileSpreadsheet className="w-4 h-4" />
             1. Descargá la plantilla
           </div>
@@ -102,7 +102,7 @@ export function ExcelImport({
             Descargar plantilla.xlsx
           </Button>
           <div className="text-xs text-slate-500 mt-2">
-            <p className="font-medium text-slate-400 mb-1">Columnas:</p>
+            <p className="font-medium text-slate-600 mb-1">Columnas:</p>
             <ul className="space-y-0.5 list-disc list-inside">
               {templateColumns.map((c) => (
                 <li key={c.key}>
@@ -115,8 +115,8 @@ export function ExcelImport({
         </div>
 
         {/* Paso 2: subir */}
-        <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 space-y-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+        <div className="bg-[#f5f0e6]/60 border border-[#d6d0c4]/60 rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
             <Upload className="w-4 h-4" />
             2. Subí el archivo
           </div>
@@ -124,10 +124,10 @@ export function ExcelImport({
             type="file"
             accept=".xlsx,.xls"
             onChange={handleFile}
-            className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer"
+            className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-500 file:text-white hover:file:bg-orange-500 file:cursor-pointer"
           />
           {rows !== null && (
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-600">
               <CheckCircle2 className="w-3.5 h-3.5 inline mr-1 text-green-400" />
               {rows.length} filas leídas
             </p>

@@ -93,11 +93,11 @@ export function GastosFinancierosClient({ mes, periodos }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-indigo-400" />
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <TrendingUp className="w-6 h-6 text-orange-500" />
             Gastos financieros
           </h1>
-          <p className="text-sm text-slate-400 mt-0.5">Costo de las inversiones de terceros mes a mes</p>
+          <p className="text-sm text-slate-600 mt-0.5">Costo de las inversiones de terceros mes a mes</p>
         </div>
         <div className="flex items-center gap-2">
           <Select options={getMonthOptions(24)} value={mes} onChange={(e) => setMes(e.target.value)} className="w-44" />
@@ -110,28 +110,28 @@ export function GastosFinancierosClient({ mes, periodos }: Props) {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-green-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Total invertido USD</p>
+        <div className="bg-white border border-green-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Total invertido USD</p>
           <p className="text-xl font-bold text-green-400">{formatMoneda(totalInvertidoUsd, 'USD')}</p>
         </div>
-        <div className="bg-slate-900 border border-indigo-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Total invertido ARS</p>
-          <p className="text-xl font-bold text-indigo-400">{formatMoneda(totalInvertidoArs, 'ARS')}</p>
+        <div className="bg-white border border-orange-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Total invertido ARS</p>
+          <p className="text-xl font-bold text-orange-500">{formatMoneda(totalInvertidoArs, 'ARS')}</p>
         </div>
-        <div className="bg-slate-900 border border-amber-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Gasto financiero USD</p>
+        <div className="bg-white border border-amber-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Gasto financiero USD</p>
           <p className="text-xl font-bold text-amber-400">{formatMoneda(gastoUsd, 'USD')}</p>
         </div>
-        <div className="bg-slate-900 border border-amber-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-400 mb-1">Gasto financiero ARS</p>
+        <div className="bg-white border border-amber-500/20 rounded-xl p-4">
+          <p className="text-xs text-slate-600 mb-1">Gasto financiero ARS</p>
           <p className="text-xl font-bold text-amber-400">{formatMoneda(gastoArs, 'ARS')}</p>
         </div>
       </div>
 
       {/* Gráfico evolución */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-        <div className="flex items-center gap-2 mb-4 text-sm font-medium text-slate-200">
-          <DollarSign className="w-4 h-4 text-indigo-400" />
+      <div className="bg-white border border-[#e8e4dc] rounded-xl p-5">
+        <div className="flex items-center gap-2 mb-4 text-sm font-medium text-slate-800">
+          <DollarSign className="w-4 h-4 text-orange-500" />
           Evolución últimos 12 meses
         </div>
         <div className="h-72">
@@ -156,23 +156,23 @@ export function GastosFinancierosClient({ mes, periodos }: Props) {
       </div>
 
       {/* Tabla detallada */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-        <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-100">Detalle por inversor / instrumento (todos los meses)</h2>
+      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+        <div className="px-4 py-3 border-b border-[#e8e4dc] flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-900">Detalle por inversor / instrumento (todos los meses)</h2>
           <span className="text-xs text-slate-500">{periodos.length} registros</span>
         </div>
         <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-slate-900 z-10">
-              <tr className="border-b border-slate-800">
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Mes</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Inversor</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Instr.</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Mon.</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-slate-400 uppercase">Cap.</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Saldo inicio</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Interés</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-slate-400 uppercase">Saldo cierre</th>
+            <thead className="sticky top-0 bg-white z-10">
+              <tr className="border-b border-[#e8e4dc]">
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Mes</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Inversor</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Instr.</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Mon.</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Cap.</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Saldo inicio</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Interés</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Saldo cierre</th>
               </tr>
             </thead>
             <tbody>
@@ -183,19 +183,19 @@ export function GastosFinancierosClient({ mes, periodos }: Props) {
                   const i = p.instrumento
                   if (!i) return null
                   return (
-                    <tr key={p.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
-                      <td className="px-4 py-2 text-xs text-slate-300">{formatMonth(p.mes)}</td>
-                      <td className="px-4 py-2 text-slate-200">{i.inversor?.nombre ?? '—'}</td>
-                      <td className="px-4 py-2 text-xs font-mono text-slate-400">{i.codigo ?? i.id.substring(0, 8)}</td>
+                    <tr key={p.id} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
+                      <td className="px-4 py-2 text-xs text-slate-700">{formatMonth(p.mes)}</td>
+                      <td className="px-4 py-2 text-slate-800">{i.inversor?.nombre ?? '—'}</td>
+                      <td className="px-4 py-2 text-xs font-mono text-slate-600">{i.codigo ?? i.id.substring(0, 8)}</td>
                       <td className="px-4 py-2"><Badge variant={i.moneda === 'USD' ? 'success' : 'info'}>{i.moneda}</Badge></td>
                       <td className="px-4 py-2">
-                        <span className={i.capitalizable ? 'text-purple-400' : 'text-slate-400'}>
+                        <span className={i.capitalizable ? 'text-purple-400' : 'text-slate-600'}>
                           {i.capitalizable ? <Lock className="w-3 h-3 inline" /> : <Unlock className="w-3 h-3 inline" />}
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-right font-mono text-slate-300 text-xs">{formatMoneda(Number(p.saldo_inicio), i.moneda)}</td>
+                      <td className="px-4 py-2 text-right font-mono text-slate-700 text-xs">{formatMoneda(Number(p.saldo_inicio), i.moneda)}</td>
                       <td className="px-4 py-2 text-right font-mono text-amber-400 text-xs">{formatMoneda(Number(p.interes_devengado), i.moneda)}</td>
-                      <td className="px-4 py-2 text-right font-mono text-slate-100 font-medium text-xs">{formatMoneda(Number(p.saldo_cierre), i.moneda)}</td>
+                      <td className="px-4 py-2 text-right font-mono text-slate-900 font-medium text-xs">{formatMoneda(Number(p.saldo_cierre), i.moneda)}</td>
                     </tr>
                   )
                 })
