@@ -255,15 +255,15 @@ export default async function DashboardPage() {
         <h2 className="text-sm font-semibold text-slate-900 mb-4">Accesos rápidos</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Cargar gasto', href: '/finanzas/gastos', color: 'text-red-400' },
-            { label: 'Nueva nómina', href: '/rrhh/nomina', color: 'text-amber-400' },
-            { label: 'Registrar retiro', href: '/finanzas/retiros', color: 'text-orange-500' },
-            { label: 'Ver análisis', href: '/analisis/pl-marca', color: 'text-green-400' },
+            { label: 'Cargar gasto', href: '/finanzas/gastos', color: 'text-red-300' },
+            { label: 'Nueva nómina', href: '/rrhh/nomina', color: 'text-amber-300' },
+            { label: 'Registrar retiro', href: '/finanzas/retiros', color: 'text-orange-300' },
+            { label: 'Ver análisis', href: '/analisis/pl-marca', color: 'text-green-300' },
           ].map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="bg-[#f5f0e6] hover:bg-[#e8e0d0] rounded-lg p-3 text-center transition-colors"
+              className="bg-slate-900 hover:bg-slate-800 rounded-lg p-3 text-center transition-colors"
             >
               <p className={`text-sm font-medium ${item.color}`}>{item.label}</p>
             </Link>
