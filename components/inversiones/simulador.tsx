@@ -23,9 +23,9 @@ interface Props {
 }
 
 const TIPOS: { v: TipoMovimiento; label: string; icon: React.ElementType; color: string }[] = [
-  { v: 'RETIRO_PARCIAL', label: 'Retiro parcial', icon: ArrowDown, color: 'text-amber-400' },
-  { v: 'RETIRO_TOTAL', label: 'Retiro total', icon: Lock, color: 'text-red-400' },
-  { v: 'INGRESO', label: 'Ingreso', icon: ArrowUp, color: 'text-green-400' },
+  { v: 'RETIRO_PARCIAL', label: 'Retiro parcial', icon: ArrowDown, color: 'text-amber-700' },
+  { v: 'RETIRO_TOTAL', label: 'Retiro total', icon: Lock, color: 'text-red-700' },
+  { v: 'INGRESO', label: 'Ingreso', icon: ArrowUp, color: 'text-green-700' },
 ]
 
 function primerDiaMes(mes: string): string {
@@ -227,7 +227,7 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
             </div>
 
             {tieneError ? (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 flex items-center gap-2 text-sm text-red-400">
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 flex items-center gap-2 text-sm text-red-700">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 {result.error}
               </div>
@@ -252,7 +252,7 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-slate-600">Interés</span>
-                      <span className="font-mono text-amber-400 font-semibold">{formatMoneda(seg.interes, moneda)}</span>
+                      <span className="font-mono text-amber-700 font-semibold">{formatMoneda(seg.interes, moneda)}</span>
                     </div>
                   </div>
                 ))}
@@ -268,7 +268,7 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
                       </div>
                       <div className="row flex justify-between">
                         <span className="text-slate-700">Intereses devengados</span>
-                        <span className="font-mono text-amber-400">{formatMoneda(result.totalIntereses, moneda)}</span>
+                        <span className="font-mono text-amber-700">{formatMoneda(result.totalIntereses, moneda)}</span>
                       </div>
                       <div className="total bg-[#faf6ee] border border-orange-500/40 rounded-lg px-3 py-2 flex justify-between text-base font-bold mt-2">
                         <span className="text-slate-900">TOTAL A PAGAR</span>
@@ -283,13 +283,13 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
                       <p className="text-xs text-slate-500 mb-1 uppercase tracking-wide">── Resultado del mes ──</p>
                       <div className="row flex justify-between">
                         <span className="text-slate-700">Total intereses devengados</span>
-                        <span className="font-mono text-amber-400">{formatMoneda(result.totalIntereses, moneda)}</span>
+                        <span className="font-mono text-amber-700">{formatMoneda(result.totalIntereses, moneda)}</span>
                       </div>
                       <div className="row flex justify-between">
                         <span className="text-slate-700">{tipo === 'INGRESO' ? 'Ingreso' : 'Retiro'}</span>
                         <span className={cn(
                           'font-mono',
-                          tipo === 'INGRESO' ? 'text-green-400' : 'text-red-400'
+                          tipo === 'INGRESO' ? 'text-green-700' : 'text-red-700'
                         )}>
                           {tipo === 'INGRESO' ? '+' : '-'}{formatMoneda(monto, moneda)}
                         </span>
@@ -298,12 +298,12 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
                         <span className="text-slate-900">Saldo al cierre del mes</span>
                         <span className="font-mono text-slate-900 flex items-center gap-1.5">
                           {formatMoneda(result.saldoCierre, moneda)}
-                          <CheckCircle2 className="w-4 h-4 text-green-400" />
+                          <CheckCircle2 className="w-4 h-4 text-green-700" />
                         </span>
                       </div>
                       <div className="row flex justify-between text-xs pt-2 mt-2 border-t border-[#d6d0c4]/40">
                         <span className="text-slate-600">Gasto financiero del mes</span>
-                        <span className="font-mono text-amber-400">{formatMoneda(result.totalIntereses, moneda)}</span>
+                        <span className="font-mono text-amber-700">{formatMoneda(result.totalIntereses, moneda)}</span>
                       </div>
                     </>
                   )}
@@ -318,7 +318,7 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
           </div>
 
           {exitoMsg && (
-            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-sm text-green-400 flex items-center gap-2">
+            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-sm text-green-700 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               {exitoMsg}
             </div>

@@ -188,7 +188,7 @@ function GastoForm({
         {ivaIncluido && monto > 0 && (
           <div className="bg-slate-700/40 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
             <span className="text-slate-600">Neto sin IVA ({porcentajeIva}%)</span>
-            <span className="font-mono text-green-400 font-semibold">
+            <span className="font-mono text-green-700 font-semibold">
               {formatCurrency(montoNetoCalc, moneda)}
             </span>
           </div>
@@ -261,7 +261,7 @@ function GastoForm({
             </div>
             {cuotasTotal > 1 && monto > 0 && !tieneIntereses && (
               <p className="text-xs text-slate-500">
-                {cuotasTotal} cuotas de <span className="font-mono text-amber-400">{formatCurrency(monto / cuotasTotal, moneda)}</span> · pasivos generados al pagar
+                {cuotasTotal} cuotas de <span className="font-mono text-amber-700">{formatCurrency(monto / cuotasTotal, moneda)}</span> · pasivos generados al pagar
               </p>
             )}
           </div>
@@ -293,7 +293,7 @@ function GastoForm({
                         className={cn(
                           'px-3 py-2 rounded-lg border text-xs font-medium transition-colors',
                           interesTipo === t
-                            ? 'bg-amber-600/20 border-amber-500/50 text-amber-300'
+                            ? 'bg-amber-600/20 border-amber-500/50 text-amber-800'
                             : 'bg-slate-700 border-[#c8c0b0] text-slate-600 hover:text-slate-800'
                         )}
                       >
@@ -335,7 +335,7 @@ function GastoForm({
                   </div>
                   <div>
                     <p className="text-slate-500">+ Intereses</p>
-                    <p className="font-mono text-amber-400">+{formatCurrency(interes, moneda)}</p>
+                    <p className="font-mono text-amber-700">+{formatCurrency(interes, moneda)}</p>
                   </div>
                   <div>
                     <p className="text-slate-500">Cuota mensual</p>
@@ -370,7 +370,7 @@ function GastoForm({
 
       <Textarea label="Notas (opcional)" name="notas" defaultValue={gasto?.notas ?? ''} placeholder="Información adicional..." />
 
-      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -399,11 +399,11 @@ function DetalleGastoModal({ gasto, onClose }: { gasto: Gasto; onClose: () => vo
           <>
             <div className="flex justify-between">
               <span className="text-slate-600">Monto neto (sin IVA {gasto.porcentaje_iva}%)</span>
-              <span className="font-mono text-green-400">{formatCurrency(gasto.monto_neto)}</span>
+              <span className="font-mono text-green-700">{formatCurrency(gasto.monto_neto)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-600">IVA</span>
-              <span className="font-mono text-amber-400">{formatCurrency(gasto.monto - gasto.monto_neto)}</span>
+              <span className="font-mono text-amber-700">{formatCurrency(gasto.monto - gasto.monto_neto)}</span>
             </div>
           </>
         )}
@@ -507,7 +507,7 @@ function PagarModal({
       </div>
 
       {esTarjeta ? (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-xs text-amber-300 flex items-start gap-2">
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-xs text-amber-800 flex items-start gap-2">
           <CreditCard className="w-4 h-4 shrink-0 mt-0.5" />
           <div>
             Pago con tarjeta. Se generarán automáticamente {gasto.cuotas_total ?? 1} cuota(s) en la proyección de pasivos.
@@ -518,7 +518,7 @@ function PagarModal({
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-slate-700 flex items-center gap-1.5">
             <Wallet className="w-4 h-4" />
-            Cuenta de origen <span className="text-red-400">*</span>
+            Cuenta de origen <span className="text-red-700">*</span>
           </label>
           <select
             value={cuentaId}
@@ -535,7 +535,7 @@ function PagarModal({
         </div>
       )}
 
-      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -616,16 +616,16 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
           { label: 'Total bruto', ars: totalGastosARS, usd: totalGastosUSD, color: 'text-slate-900' },
-          { label: 'Total neto (sin IVA)', ars: totalNetoARS, usd: totalNetoUSD, color: 'text-green-400' },
+          { label: 'Total neto (sin IVA)', ars: totalNetoARS, usd: totalNetoUSD, color: 'text-green-700' },
           { label: 'Pagado', ars: totalPagadoARS, usd: totalPagadoUSD, color: 'text-orange-500' },
-          { label: 'Pendiente', ars: totalPendienteARS, usd: totalPendienteUSD, color: 'text-amber-400' },
+          { label: 'Pendiente', ars: totalPendienteARS, usd: totalPendienteUSD, color: 'text-amber-700' },
         ].map((item) => (
           <div key={item.label} className="bg-white border border-[#e8e4dc] rounded-xl p-4 space-y-1">
             <p className="text-xs text-slate-600">{item.label}</p>
             <p className={`text-lg font-bold ${item.color} font-mono`}>
               {item.ars > 0 ? formatCurrency(item.ars, 'ARS') : <span className="text-slate-600">—</span>}
             </p>
-            <p className="text-xs font-mono text-green-400/80">
+            <p className="text-xs font-mono text-green-700/80">
               {item.usd > 0 ? formatCurrency(item.usd, 'USD') : <span className="text-slate-600">U$S —</span>}
             </p>
           </div>
@@ -711,10 +711,10 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
                     <td className="px-4 py-3 text-right">
                       <p className="font-mono font-medium text-slate-900">{formatCurrency(g.monto, g.moneda || 'ARS')}</p>
                       {g.iva_incluido && (
-                        <p className="text-xs text-green-400 font-mono">neto: {formatCurrency(g.monto_neto, g.moneda || 'ARS')}</p>
+                        <p className="text-xs text-green-700 font-mono">neto: {formatCurrency(g.monto_neto, g.moneda || 'ARS')}</p>
                       )}
                       {g.cuotas_total && g.cuotas_total > 1 && (
-                        <p className="text-xs text-amber-400">{g.cuotas_total} cuotas</p>
+                        <p className="text-xs text-amber-700">{g.cuotas_total} cuotas</p>
                       )}
                     </td>
                     <td className="px-4 py-3"><EstadoBadge estado={g.estado} /></td>

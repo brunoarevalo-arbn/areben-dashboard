@@ -203,7 +203,7 @@ function ChequeItem({
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <FileCheck className={cn(
             'w-4 h-4 shrink-0',
-            cheque.instrumento === 'ECHEQ' ? 'text-orange-400' : 'text-amber-400'
+            cheque.instrumento === 'ECHEQ' ? 'text-orange-400' : 'text-amber-700'
           )} />
           <div className="min-w-0">
             <p className="text-sm font-medium text-slate-900 truncate">
@@ -225,10 +225,10 @@ function ChequeItem({
                 <span className="text-slate-600">(disponible — esperando depósito)</span>
               )}
               {dias < 0 && Math.abs(dias) > 30 && (
-                <span className="text-red-400">({Math.abs(dias)} días sin cobrar — revisar)</span>
+                <span className="text-red-700">({Math.abs(dias)} días sin cobrar — revisar)</span>
               )}
-              {dias === 0 && <span className="text-amber-400">(disponible hoy)</span>}
-              {dias > 0 && dias <= 7 && <span className="text-amber-400">(en {dias} días)</span>}
+              {dias === 0 && <span className="text-amber-700">(disponible hoy)</span>}
+              {dias > 0 && dias <= 7 && <span className="text-amber-700">(en {dias} días)</span>}
             </p>
           </div>
         </div>
@@ -237,9 +237,9 @@ function ChequeItem({
             <p className="font-mono text-sm text-slate-900">{formatCurrency(cheque.monto, moneda)}</p>
             <div className={cn(
               'inline-flex items-center gap-1 text-[10px] font-medium mt-0.5',
-              indicador === 'rojo' && 'text-red-400',
-              indicador === 'amarillo' && 'text-amber-400',
-              indicador === 'verde' && 'text-green-400',
+              indicador === 'rojo' && 'text-red-700',
+              indicador === 'amarillo' && 'text-amber-700',
+              indicador === 'verde' && 'text-green-700',
             )}>
               {indicador === 'verde' && <><CheckCircle2 className="w-3 h-3" />Saldo OK</>}
               {indicador === 'amarillo' && <><AlertTriangle className="w-3 h-3" />Margen ajustado</>}
@@ -261,7 +261,7 @@ function ChequeItem({
       {(indicador === 'rojo' || indicador === 'amarillo') && (
         <div className={cn(
           'px-4 pb-2 -mt-1 text-xs flex items-center gap-3',
-          indicador === 'rojo' ? 'text-red-300' : 'text-amber-300'
+          indicador === 'rojo' ? 'text-red-300' : 'text-amber-800'
         )}>
           <span>Saldo proyectado al {formatDate(fechaVenc)}: <span className="font-mono">{formatCurrency(saldoProyectado, moneda)}</span></span>
           <span>·</span>
@@ -307,7 +307,7 @@ function CuotaItem({ cuota, onPagar, onPagoParcial, onEditHistorica }: {
                 <div className="h-full bg-amber-400 transition-all" style={{ width: `${pagadoPct}%` }} />
               </div>
               <p className="text-[10px] font-mono text-slate-600">
-                <span className="text-green-400">{formatCurrency(totalPagado)}</span> pagado · resta <span className="text-amber-400">{formatCurrency(saldo)}</span>
+                <span className="text-green-700">{formatCurrency(totalPagado)}</span> pagado · resta <span className="text-amber-700">{formatCurrency(saldo)}</span>
               </p>
             </div>
           )}
@@ -365,7 +365,7 @@ function GastoPendItem({ gasto, hoy, cuentas, onPagoParcial }: { gasto: GastoPen
       <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#f5f0e6]/40 transition-colors">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {esSueldo ? (
-            <CreditCard className="w-4 h-4 text-purple-400 shrink-0" />
+            <CreditCard className="w-4 h-4 text-purple-700 shrink-0" />
           ) : (
             <Receipt className="w-4 h-4 text-orange-500 shrink-0" />
           )}
@@ -374,8 +374,8 @@ function GastoPendItem({ gasto, hoy, cuentas, onPagoParcial }: { gasto: GastoPen
             <p className="text-xs text-slate-500 flex items-center gap-2">
               <span>{gasto.categoria}</span>
               {fecha && <><span>·</span><span>vence {formatDate(fecha)}</span></>}
-              {dias !== null && dias < 0 && <span className="text-red-400">({Math.abs(dias)} días vencido)</span>}
-              {dias !== null && dias >= 0 && dias <= 7 && <span className="text-amber-400">(en {dias} días)</span>}
+              {dias !== null && dias < 0 && <span className="text-red-700">({Math.abs(dias)} días vencido)</span>}
+              {dias !== null && dias >= 0 && dias <= 7 && <span className="text-amber-700">(en {dias} días)</span>}
             </p>
             {hayParciales && (
               <div className="mt-1 space-y-0.5 max-w-[180px]">
@@ -383,7 +383,7 @@ function GastoPendItem({ gasto, hoy, cuentas, onPagoParcial }: { gasto: GastoPen
                   <div className="h-full bg-amber-400 transition-all" style={{ width: `${pagadoPct}%` }} />
                 </div>
                 <p className="text-[10px] font-mono text-slate-600">
-                  <span className="text-green-400">{formatCurrency(totalPagado, moneda)}</span> pagado · resta <span className="text-amber-400">{formatCurrency(saldo, moneda)}</span>
+                  <span className="text-green-700">{formatCurrency(totalPagado, moneda)}</span> pagado · resta <span className="text-amber-700">{formatCurrency(saldo, moneda)}</span>
                 </p>
               </div>
             )}
@@ -469,7 +469,7 @@ function PagarGastoInline({ gasto, cuentas, onClose }: { gasto: GastoPend; cuent
           {cuentas.map((c) => <option key={c.id} value={c.id}>{c.banco} · {c.nombre}</option>)}
         </select>
       </div>
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-red-700">{error}</p>}
       <div className="flex justify-end gap-2">
         <Button size="sm" variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button size="sm" variant="success" onClick={confirmar} disabled={isPending}>
@@ -490,7 +490,7 @@ function PagoCtaCteItem({ pago, hoy, onAcreditar }: { pago: PagoCtaCte; hoy: str
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#f5f0e6]/40 transition-colors">
       <div className="flex items-center gap-3 min-w-0 flex-1">
-        <Receipt className="w-4 h-4 text-blue-400 shrink-0" />
+        <Receipt className="w-4 h-4 text-blue-700 shrink-0" />
         <div className="min-w-0">
           <p className="text-sm font-medium text-slate-900 truncate">
             {pago.compra?.proveedor?.nombre
@@ -506,8 +506,8 @@ function PagoCtaCteItem({ pago, hoy, onAcreditar }: { pago: PagoCtaCte; hoy: str
           </p>
           <p className="text-xs text-slate-500 flex items-center gap-2">
             <span>Cta. corriente · vence {formatDate(fecha)}</span>
-            {dias < 0 && <span className="text-red-400">({Math.abs(dias)} días vencido)</span>}
-            {dias > 0 && dias <= 7 && <span className="text-amber-400">(en {dias} días)</span>}
+            {dias < 0 && <span className="text-red-700">({Math.abs(dias)} días vencido)</span>}
+            {dias > 0 && dias <= 7 && <span className="text-amber-700">(en {dias} días)</span>}
           </p>
         </div>
       </div>
@@ -533,7 +533,7 @@ function CompraSinPlanItem({ compra, onPagoParcial }: { compra: CompraSinPlanPag
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#f5f0e6]/40 transition-colors">
       <div className="flex items-center gap-3 min-w-0 flex-1">
-        <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+        <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
         <div className="min-w-0">
           <p className="text-sm font-medium text-slate-900 truncate">
             {compra.proveedor?.nombre ?? compra.descripcion}
@@ -545,7 +545,7 @@ function CompraSinPlanItem({ compra, onPagoParcial }: { compra: CompraSinPlanPag
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <div className="text-right">
-          <p className="font-mono text-sm text-amber-400 font-semibold">{formatCurrency(compra.saldo_pendiente, moneda)}</p>
+          <p className="font-mono text-sm text-amber-700 font-semibold">{formatCurrency(compra.saldo_pendiente, moneda)}</p>
           <p className="text-[10px] text-slate-500">de {formatCurrency(compra.monto_total, moneda)}</p>
         </div>
         <Button
@@ -579,7 +579,7 @@ function InstrumentoItem({ inst, hoy }: { inst: InstrumentoProximo; hoy: string 
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#f5f0e6]/40 transition-colors">
       <div className="flex items-center gap-3 min-w-0 flex-1">
-        <PiggyBank className="w-4 h-4 text-purple-400 shrink-0" />
+        <PiggyBank className="w-4 h-4 text-purple-700 shrink-0" />
         <div className="min-w-0">
           <p className="text-sm font-medium text-slate-900 truncate">
             {inst.inversor?.nombre ?? '—'}
@@ -754,7 +754,7 @@ export function PendientesClient({
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Clock className="w-6 h-6 text-amber-400" />
+            <Clock className="w-6 h-6 text-amber-700" />
             Pendientes
           </h1>
           <p className="text-sm text-slate-600 mt-0.5">
@@ -782,10 +782,10 @@ export function PendientesClient({
                   <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Tipo de pasivo</p>
                 </div>
                 {([
-                  { tipo: 'CHEQUE' as const, label: 'Cheque', desc: 'Cheque ya emitido sin asignar', Icon: FileCheck, color: 'text-blue-400' },
+                  { tipo: 'CHEQUE' as const, label: 'Cheque', desc: 'Cheque ya emitido sin asignar', Icon: FileCheck, color: 'text-blue-700' },
                   { tipo: 'CUOTA' as const, label: 'Cuotas tarjeta', desc: 'Cuotas que ya están girando', Icon: CreditCard, color: 'text-orange-500' },
-                  { tipo: 'CTA_CTE' as const, label: 'Cuenta corriente', desc: 'Saldo a plazo con proveedor', Icon: Receipt, color: 'text-amber-400' },
-                  { tipo: 'GASTO' as const, label: 'Gasto pendiente', desc: 'Un gasto que ya quedaba pendiente', Icon: AlertCircle, color: 'text-purple-400' },
+                  { tipo: 'CTA_CTE' as const, label: 'Cuenta corriente', desc: 'Saldo a plazo con proveedor', Icon: Receipt, color: 'text-amber-700' },
+                  { tipo: 'GASTO' as const, label: 'Gasto pendiente', desc: 'Un gasto que ya quedaba pendiente', Icon: AlertCircle, color: 'text-purple-700' },
                 ]).map(({ tipo, label, desc, Icon, color }) => (
                   <button
                     key={tipo}
@@ -811,11 +811,11 @@ export function PendientesClient({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white border border-amber-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Pagos pendientes ARS</p>
-          <p className="text-xl font-bold text-amber-400">{formatCurrency(totalPagosARS)}</p>
+          <p className="text-xl font-bold text-amber-700">{formatCurrency(totalPagosARS)}</p>
         </div>
         <div className="bg-white border border-amber-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Pagos pendientes USD</p>
-          <p className="text-xl font-bold text-amber-400">{formatCurrency(totalPagosUSD, 'USD')}</p>
+          <p className="text-xl font-bold text-amber-700">{formatCurrency(totalPagosUSD, 'USD')}</p>
         </div>
         <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Cheques por acreditar</p>
@@ -827,10 +827,10 @@ export function PendientesClient({
           chequesInsuficientes.length > 0 ? 'border-red-500/40 bg-red-500/5' : 'border-[#e8e4dc]'
         )}>
           <p className="text-xs text-slate-600 mb-1 flex items-center gap-1">
-            {chequesInsuficientes.length > 0 && <AlertCircle className="w-3 h-3 text-red-400" />}
+            {chequesInsuficientes.length > 0 && <AlertCircle className="w-3 h-3 text-red-700" />}
             Cheques con saldo insuficiente
           </p>
-          <p className={cn('text-xl font-bold', chequesInsuficientes.length > 0 ? 'text-red-400' : 'text-slate-900')}>
+          <p className={cn('text-xl font-bold', chequesInsuficientes.length > 0 ? 'text-red-700' : 'text-slate-900')}>
             {chequesInsuficientes.length}
           </p>
         </div>
@@ -839,7 +839,7 @@ export function PendientesClient({
       {/* Empty state */}
       {totalVisibles === 0 && totalInstrumentos === 0 && (
         <div className="bg-white border border-green-500/20 rounded-xl p-12 text-center">
-          <Sparkles className="w-10 h-10 mx-auto mb-3 text-green-400" />
+          <Sparkles className="w-10 h-10 mx-auto mb-3 text-green-700" />
           <p className="text-lg font-medium text-slate-900 mb-1">¡Todo al día!</p>
           <p className="text-sm text-slate-600">No hay pendientes financieros que requieran acción</p>
         </div>
@@ -850,8 +850,8 @@ export function PendientesClient({
         const its = porGrupo[grupo]
         if (its.length === 0) return null
         const config = {
-          VENCIDO: { label: 'Vencidos', color: 'border-red-500/40', textColor: 'text-red-400', icon: AlertCircle },
-          ESTA_SEMANA: { label: 'Esta semana', color: 'border-amber-500/40', textColor: 'text-amber-400', icon: AlertTriangle },
+          VENCIDO: { label: 'Vencidos', color: 'border-red-500/40', textColor: 'text-red-700', icon: AlertCircle },
+          ESTA_SEMANA: { label: 'Esta semana', color: 'border-amber-500/40', textColor: 'text-amber-700', icon: AlertTriangle },
           ESTE_MES: { label: 'Este mes', color: 'border-[#d6d0c4]', textColor: 'text-slate-700', icon: Clock },
           FUTURO: { label: 'Próximos meses', color: 'border-[#d6d0c4]/60', textColor: 'text-slate-600', icon: Clock },
         }[grupo]
@@ -876,7 +876,7 @@ export function PendientesClient({
       {instrumentosProximos.length > 0 && (
         <div className="bg-white border border-purple-500/20 rounded-xl overflow-x-auto">
           <div className="px-4 py-2.5 border-b border-purple-500/20 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-purple-400 flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-purple-700 flex items-center gap-2">
               <PiggyBank className="w-4 h-4" />
               Inversiones próximas a vencer (≤ 30 días)
             </h2>
@@ -964,7 +964,7 @@ function EditCuotaHistoricaModal({ cuota, onClose }: { cuota: CuotaPendiente; on
               className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
         </div>
-        {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+        {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="button" onClick={submit} disabled={isPending}>

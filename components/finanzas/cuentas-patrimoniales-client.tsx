@@ -33,11 +33,11 @@ const TIPOS: { v: TipoCuentaPatrim; label: string; icon: React.ElementType; colo
 const COLORES: Record<string, string> = {
   teal: 'border-teal-500/30 text-teal-400',
   indigo: 'border-orange-500/30 text-orange-500',
-  red: 'border-red-500/30 text-red-400',
-  purple: 'border-purple-500/30 text-purple-400',
-  amber: 'border-amber-500/30 text-amber-400',
+  red: 'border-red-500/30 text-red-700',
+  purple: 'border-purple-500/30 text-purple-700',
+  amber: 'border-amber-500/30 text-amber-700',
   cyan: 'border-cyan-500/30 text-cyan-400',
-  green: 'border-green-500/30 text-green-400',
+  green: 'border-green-500/30 text-green-700',
   rose: 'border-rose-500/30 text-rose-400',
 }
 
@@ -107,8 +107,8 @@ function CuentaForm({ cuenta, onClose }: { cuenta?: CuentaPatrimonial; onClose: 
                   'px-2 py-2 rounded-lg border text-xs font-medium transition-colors',
                   signo === s.v
                     ? s.color === 'green'
-                      ? 'bg-green-500/15 border-green-500/40 text-green-400'
-                      : 'bg-red-500/15 border-red-500/40 text-red-400'
+                      ? 'bg-green-500/15 border-green-500/40 text-green-700'
+                      : 'bg-red-500/15 border-red-500/40 text-red-700'
                     : 'bg-[#f5f0e6] border-[#d6d0c4] text-slate-600 hover:text-slate-800'
                 )}
               >
@@ -162,7 +162,7 @@ function CuentaForm({ cuenta, onClose }: { cuenta?: CuentaPatrimonial; onClose: 
 
       <Textarea label="Notas" name="notas" defaultValue={cuenta?.notas ?? ''} rows={2} />
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -283,7 +283,7 @@ function SaldoRow({
         {formatCurrency(saldoCierre, cuenta.moneda)}
       </td>
       <td className="px-3 py-2 text-right text-xs">
-        <span className={cn('font-mono', aporta >= 0 ? 'text-orange-500' : 'text-amber-400')}>
+        <span className={cn('font-mono', aporta >= 0 ? 'text-orange-500' : 'text-amber-700')}>
           {esInventario ? (
             <>
               {aporta >= 0 ? '+' : '−'} {formatCurrency(Math.abs(saldoCierre), cuenta.moneda)}
@@ -303,7 +303,7 @@ function SaldoRow({
               <button
                 onClick={guardar}
                 disabled={isPending}
-                className="p-1 rounded bg-green-600/20 text-green-400 hover:bg-green-600/30"
+                className="p-1 rounded bg-green-600/20 text-green-700 hover:bg-green-600/30"
                 title="Guardar"
               >
                 {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
@@ -338,9 +338,9 @@ function SaldoRow({
                 <Building2 className="w-3 h-3" />
               </button>
               <button onClick={onToggle} title={cuenta.activo ? 'Desactivar' : 'Activar'} className="p-1 rounded hover:bg-[#e8e0d0]">
-                <Power className={cn('w-3 h-3', cuenta.activo ? 'text-red-400' : 'text-green-400')} />
+                <Power className={cn('w-3 h-3', cuenta.activo ? 'text-red-700' : 'text-green-700')} />
               </button>
-              <button onClick={onDelete} title="Eliminar cuenta" className="p-1 rounded hover:bg-[#e8e0d0] text-red-400">
+              <button onClick={onDelete} title="Eliminar cuenta" className="p-1 rounded hover:bg-[#e8e0d0] text-red-700">
                 <Trash2 className="w-3 h-3" />
               </button>
             </>
@@ -439,13 +439,13 @@ export function CuentasPatrimonialesClient({ mes, cuentas, saldos }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="bg-white border border-orange-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Aporte neto al PN — ARS</p>
-          <p className={cn('text-xl font-bold', totalArsAporte >= 0 ? 'text-orange-500' : 'text-amber-400')}>
+          <p className={cn('text-xl font-bold', totalArsAporte >= 0 ? 'text-orange-500' : 'text-amber-700')}>
             {totalArsAporte >= 0 ? '+' : ''}{formatCurrency(totalArsAporte)}
           </p>
         </div>
         <div className="bg-white border border-green-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Aporte neto al PN — USD</p>
-          <p className={cn('text-xl font-bold', totalUsdAporte >= 0 ? 'text-green-400' : 'text-amber-400')}>
+          <p className={cn('text-xl font-bold', totalUsdAporte >= 0 ? 'text-green-700' : 'text-amber-700')}>
             {totalUsdAporte >= 0 ? '+' : ''}{formatCurrency(totalUsdAporte, 'USD')}
           </p>
         </div>
@@ -475,7 +475,7 @@ export function CuentasPatrimonialesClient({ mes, cuentas, saldos }: Props) {
               <div className="flex items-center gap-3 text-xs">
                 {total.aportaArs !== 0 && (
                   <span className="font-mono">
-                    Neto al PN: <span className={total.aportaArs >= 0 ? 'text-orange-500' : 'text-amber-400'}>
+                    Neto al PN: <span className={total.aportaArs >= 0 ? 'text-orange-500' : 'text-amber-700'}>
                       {total.aportaArs >= 0 ? '+' : ''}{formatCurrency(total.aportaArs)}
                     </span>
                   </span>

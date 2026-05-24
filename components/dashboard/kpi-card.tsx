@@ -37,7 +37,7 @@ export function KpiCard({ title, value, subtitle, trend, icon: Icon, iconColor, 
           <div className={cn(
             'flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full',
             trendNeutral ? 'bg-slate-700 text-slate-600' :
-            trendPositive ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
+            trendPositive ? 'bg-green-500/15 text-green-700' : 'bg-red-500/15 text-red-700'
           )}>
             {trendNeutral ? <Minus className="w-3 h-3" /> :
              trendPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}

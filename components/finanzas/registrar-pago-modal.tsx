@@ -203,7 +203,7 @@ export function RegistrarPagoModal({
             </div>
             <div>
               <p className="text-slate-600">Saldo pendiente</p>
-              <p className="font-mono font-semibold text-amber-400">{formatCurrency(saldo, moneda)}</p>
+              <p className="font-mono font-semibold text-amber-700">{formatCurrency(saldo, moneda)}</p>
             </div>
           </div>
           {historial && historial.length > 0 && (
@@ -226,7 +226,7 @@ export function RegistrarPagoModal({
                     <div className="px-3 py-2 flex items-center justify-between">
                       <div className="text-xs">
                         <p className="text-slate-800">
-                          <span className="font-mono text-green-400 font-semibold">{formatCurrency(p.monto, p.moneda)}</span>
+                          <span className="font-mono text-green-700 font-semibold">{formatCurrency(p.monto, p.moneda)}</span>
                           <span className="text-slate-500 ml-2">·</span>
                           <span className="text-slate-700 ml-2">{formatDate(p.fecha_emision)}</span>
                         </p>
@@ -251,7 +251,7 @@ export function RegistrarPagoModal({
                           onClick={() => borrarPago(p.id)}
                           disabled={isPending}
                           title="Eliminar este pago"
-                          className="text-red-400 hover:text-red-300 disabled:opacity-40"
+                          className="text-red-700 hover:text-red-300 disabled:opacity-40"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -296,7 +296,7 @@ export function RegistrarPagoModal({
             className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
           {excede && (
-            <p className="text-xs text-amber-400">El monto excede el saldo pendiente</p>
+            <p className="text-xs text-amber-700">El monto excede el saldo pendiente</p>
           )}
         </div>
 
@@ -354,7 +354,7 @@ export function RegistrarPagoModal({
               onChange={(e) => setTieneInteres(e.target.checked)}
               className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700"
             />
-            <AlertCircle className={cn('w-4 h-4', tieneInteres ? 'text-amber-400' : 'text-slate-500')} />
+            <AlertCircle className={cn('w-4 h-4', tieneInteres ? 'text-amber-700' : 'text-slate-500')} />
             <span className="text-sm text-slate-700">Cobro interés / punitorio (pago vencido)</span>
           </label>
           {tieneInteres && (
@@ -406,7 +406,7 @@ export function RegistrarPagoModal({
                 return (
                   <div className="pl-6 bg-white/40 rounded-lg px-3 py-2 text-xs text-slate-600 flex items-center justify-between">
                     <span>Se creará un gasto en <strong>"Gasto Financiero"</strong> por:</span>
-                    <span className="font-mono text-amber-400 font-semibold">{formatCurrency(calc, target.moneda ?? 'ARS')}</span>
+                    <span className="font-mono text-amber-700 font-semibold">{formatCurrency(calc, target.moneda ?? 'ARS')}</span>
                   </div>
                 )
               })()}
@@ -414,7 +414,7 @@ export function RegistrarPagoModal({
           )}
         </div>
 
-        {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+        {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={close}>Cancelar</Button>
@@ -509,7 +509,7 @@ function EditarPagoInline({
         <input type="text" value={notas} onChange={(e) => setNotas(e.target.value)}
           className="w-full px-2 py-1 bg-[#f5f0e6] border border-[#d6d0c4] rounded text-xs text-slate-900" />
       </div>
-      {error && <p className="text-[11px] text-red-400">{error}</p>}
+      {error && <p className="text-[11px] text-red-700">{error}</p>}
       <div className="flex justify-end gap-2 pt-1">
         <Button size="sm" variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button size="sm" onClick={submit} disabled={isPending}>

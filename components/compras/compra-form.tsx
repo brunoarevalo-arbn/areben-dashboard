@@ -270,7 +270,7 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
                     setMontoNeto(n)
                     setIva(Math.round((montoTotal * porcentajeFact / 100 - n) * 100) / 100)
                   }}
-                  className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-green-400 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                  className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-green-700 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
                   placeholder="0.00"
                 />
               </div>
@@ -287,7 +287,7 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
                     setIva(iv)
                     setMontoNeto(Math.round((montoTotal * porcentajeFact / 100 - iv) * 100) / 100)
                   }}
-                  className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-amber-400 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                  className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-amber-700 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
                   placeholder="0.00"
                 />
               </div>
@@ -297,8 +297,8 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
               <span className={cn(
                 'font-mono font-medium',
                 Math.abs(montoNeto + iva - montoTotal * porcentajeFact / 100) < 0.02
-                  ? 'text-green-400'
-                  : 'text-red-400'
+                  ? 'text-green-700'
+                  : 'text-red-700'
               )}>
                 {formatCurrency(montoNeto)} + {formatCurrency(iva)} = {formatCurrency(montoNeto + iva)}
               </span>
@@ -383,7 +383,7 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
                 <div className="space-y-1.5">
                   <label className="block text-xs font-medium text-slate-600">
                     Fecha de cobro / vencimiento
-                    {esCheque && <span className="text-red-400 ml-1">*</span>}
+                    {esCheque && <span className="text-red-700 ml-1">*</span>}
                   </label>
                   <input
                     type="date"
@@ -484,7 +484,7 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
                   <span className="text-slate-500">Total cuotas:</span>
                   <span className={cn(
                     'font-mono font-medium',
-                    Math.abs(totalCuotas - montoTotal) < 0.02 ? 'text-green-400' : 'text-amber-400'
+                    Math.abs(totalCuotas - montoTotal) < 0.02 ? 'text-green-700' : 'text-amber-700'
                   )}>
                     {formatCurrency(totalCuotas)}
                     {Math.abs(totalCuotas - montoTotal) >= 0.02 && (
@@ -503,7 +503,7 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
       <Textarea label="Notas (opcional)" name="notas" defaultValue={compra?.notas ?? ''} placeholder="Número de factura, condiciones..." />
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
           {error}
         </p>
       )}

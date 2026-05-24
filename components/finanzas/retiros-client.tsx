@@ -14,14 +14,14 @@ import { cn } from '@/lib/utils'
 const SOCIOS_PREDEFINIDOS = ['Darío Arévalo', 'Bruno Arévalo']
 
 const COLORES_CATEGORIA: Record<string, string> = {
-  amber: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  amber: 'bg-amber-500/15 text-amber-700 border-amber-500/30',
   orange: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
-  blue: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  red: 'bg-red-500/15 text-red-400 border-red-500/30',
-  green: 'bg-green-500/15 text-green-400 border-green-500/30',
+  blue: 'bg-blue-500/15 text-blue-700 border-blue-500/30',
+  red: 'bg-red-500/15 text-red-700 border-red-500/30',
+  green: 'bg-green-500/15 text-green-700 border-green-500/30',
   indigo: 'bg-orange-500/15 text-orange-500 border-orange-500/30',
-  purple: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
-  pink: 'bg-pink-500/15 text-pink-400 border-pink-500/30',
+  purple: 'bg-purple-500/15 text-purple-700 border-purple-500/30',
+  pink: 'bg-pink-500/15 text-pink-700 border-pink-500/30',
   slate: 'bg-slate-500/15 text-slate-600 border-slate-500/30',
 }
 
@@ -189,7 +189,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
                   <DollarSign className="w-3 h-3" />
                   Total USD
                 </span>
-                <span className="text-xl font-mono font-bold text-green-400">
+                <span className="text-xl font-mono font-bold text-green-700">
                   {formatCurrency(usd, 'USD')}
                 </span>
               </div>
@@ -286,7 +286,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
                   <td className="px-4 py-3"><CategoriaTag categoria={r.categoria} /></td>
                   <td className="px-4 py-3 text-slate-600 text-xs">{formatDate(r.fecha)}</td>
                   <td className="px-4 py-3 text-right font-mono text-slate-700">{formatCurrency(r.monto_pesos)}</td>
-                  <td className="px-4 py-3 text-right font-mono text-green-400 font-medium">
+                  <td className="px-4 py-3 text-right font-mono text-green-700 font-medium">
                     {formatCurrency(r.monto_usd_calculado ?? r.monto_usd, 'USD')}
                   </td>
                   <td className="px-4 py-3 text-right text-slate-600 text-xs">{r.tipo_cambio.toFixed(0)}</td>
@@ -406,7 +406,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
 
           <Input label="Notas" name="notas" />
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-700">{error}</p>}
 
           <div className="flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
@@ -518,13 +518,13 @@ function CierreConversionModal({
           </div>
           <div>
             <p className="text-slate-600">USD c/TC nuevo</p>
-            <p className="text-base font-mono text-green-400">{formatCurrency(totalUsdNuevo, 'USD')}</p>
+            <p className="text-base font-mono text-green-700">{formatCurrency(totalUsdNuevo, 'USD')}</p>
           </div>
         </div>
 
-        {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+        {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
         {done !== null && (
-          <p className="text-sm text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
+          <p className="text-sm text-green-700 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
             ✓ {done} retiro(s) convertidos. El TC quedó registrado en cada fila.
           </p>
         )}

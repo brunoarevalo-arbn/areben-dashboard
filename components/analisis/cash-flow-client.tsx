@@ -40,7 +40,7 @@ export function CashFlowClient({ gastos, saldoInicial, mesPivot }: CashFlowClien
       </div>
 
       {!saldoInicial && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-sm text-amber-300">
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-sm text-amber-800">
           Sin saldo cargado para este mes. La proyección puede ser imprecisa.
         </div>
       )}
@@ -64,7 +64,7 @@ export function CashFlowClient({ gastos, saldoInicial, mesPivot }: CashFlowClien
         {chartData.map((d) => (
           <div key={d.mes} className="bg-white border border-[#e8e4dc] rounded-xl p-4">
             <p className="text-xs text-slate-600 mb-2">{d.mes}</p>
-            <p className={`text-xl font-bold ${d.saldo >= 0 ? 'text-orange-500' : 'text-red-400'}`}>{formatCurrency(d.saldo)}</p>
+            <p className={`text-xl font-bold ${d.saldo >= 0 ? 'text-orange-500' : 'text-red-700'}`}>{formatCurrency(d.saldo)}</p>
             <p className="text-xs text-slate-500 mt-1">Gastos: {formatCurrency(d.gastos)}</p>
           </div>
         ))}

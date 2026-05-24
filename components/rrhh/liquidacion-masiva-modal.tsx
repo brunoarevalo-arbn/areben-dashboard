@@ -77,10 +77,10 @@ export function LiquidacionMasivaModal({
   if (resultado) {
     return (
       <div className="space-y-3 text-sm">
-        <p className="text-green-400 font-semibold">{resultado.ok} nómina(s) generada(s).</p>
+        <p className="text-green-700 font-semibold">{resultado.ok} nómina(s) generada(s).</p>
         {resultado.errors.length > 0 && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 max-h-40 overflow-y-auto">
-            <p className="text-red-400 text-xs font-medium mb-1">{resultado.errors.length} aviso(s):</p>
+            <p className="text-red-700 text-xs font-medium mb-1">{resultado.errors.length} aviso(s):</p>
             <ul className="text-xs text-red-300 space-y-0.5">
               {resultado.errors.map((e, i) => <li key={i}>· {e}</li>)}
             </ul>

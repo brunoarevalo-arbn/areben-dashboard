@@ -39,7 +39,7 @@ function InversorForm({ inv, onClose }: { inv?: Inversor; onClose: () => void })
         { value: 'empresa', label: 'Empresa' },
       ]} />
       <Textarea label="Notas" name="notas" defaultValue={inv?.notas ?? ''} placeholder="Datos del acuerdo, observaciones..." rows={3} />
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button type="submit" disabled={isPending}>
@@ -127,7 +127,7 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="bg-white border border-green-500/20 rounded-xl p-5">
           <p className="text-xs text-slate-600 mb-1">Total invertido USD (saldos actuales)</p>
-          <p className="text-2xl font-bold text-green-400">{formatMoneda(totalUsd, 'USD')}</p>
+          <p className="text-2xl font-bold text-green-700">{formatMoneda(totalUsd, 'USD')}</p>
         </div>
         <div className="bg-white border border-orange-500/20 rounded-xl p-5">
           <p className="text-xs text-slate-600 mb-1">Total invertido ARS (saldos actuales)</p>
@@ -225,7 +225,7 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
                       onClick={() => toggleInversorActivo(inv.id, !inv.activo)}
                       title={inv.activo ? 'Desactivar' : 'Activar'}
                     >
-                      <Power className={cn('w-3.5 h-3.5', inv.activo ? 'text-red-400' : 'text-green-400')} />
+                      <Power className={cn('w-3.5 h-3.5', inv.activo ? 'text-red-700' : 'text-green-700')} />
                     </Button>
                     <Link href={`/inversiones/${inv.id}`}>
                       <Button size="sm" variant="ghost" title="Ver detalle">
@@ -241,7 +241,7 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
                       {totalUsdInv > 0 && (
                         <div className="bg-[#f5f0e6]/40 rounded-lg p-3">
                           <p className="text-xs text-slate-500">Total USD</p>
-                          <p className="text-base font-mono font-bold text-green-400">{formatMoneda(totalUsdInv, 'USD')}</p>
+                          <p className="text-base font-mono font-bold text-green-700">{formatMoneda(totalUsdInv, 'USD')}</p>
                         </div>
                       )}
                       {totalArsInv > 0 && (

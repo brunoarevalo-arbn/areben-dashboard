@@ -57,7 +57,7 @@ function ProveedorForm({ prov, onClose }: { prov?: Proveedor; onClose: () => voi
       <Input label="Condiciones de pago" name="condiciones_pago" defaultValue={prov?.condiciones_pago ?? ''} placeholder="Ej: 30 días, 50% adelanto" />
       <Textarea label="Notas" name="notas" defaultValue={prov?.notas ?? ''} />
 
-      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>

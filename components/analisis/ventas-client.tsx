@@ -49,7 +49,7 @@ function VentaForm({ mes, onClose }: { mes: string; onClose: () => void }) {
         <Input label="Comisiones" name="comisiones" type="number" step="0.01" defaultValue="0" />
       </div>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -110,10 +110,10 @@ export function VentasClient({ ventas, mes }: { ventas: DatosVentasGN[]; mes: st
                 <tr key={marca} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
                   <td className="px-4 py-3"><MarcaBadge marca={marca} /></td>
                   <td className="px-4 py-3 text-right font-mono text-slate-700">{v ? formatCurrency(v.ventas_brutas) : '—'}</td>
-                  <td className="px-4 py-3 text-right font-mono text-red-400">{v ? formatCurrency(v.devoluciones) : '—'}</td>
+                  <td className="px-4 py-3 text-right font-mono text-red-700">{v ? formatCurrency(v.devoluciones) : '—'}</td>
                   <td className="px-4 py-3 text-right font-mono text-slate-900">{v ? formatCurrency(v.ventas_netas) : '—'}</td>
-                  <td className="px-4 py-3 text-right font-mono text-red-400">{v ? formatCurrency(v.cmv) : '—'}</td>
-                  <td className={`px-4 py-3 text-right font-mono font-medium ${v ? (v.margen_pesos >= 0 ? 'text-green-400' : 'text-red-400') : 'text-slate-500'}`}>
+                  <td className="px-4 py-3 text-right font-mono text-red-700">{v ? formatCurrency(v.cmv) : '—'}</td>
+                  <td className={`px-4 py-3 text-right font-mono font-medium ${v ? (v.margen_pesos >= 0 ? 'text-green-700' : 'text-red-700') : 'text-slate-500'}`}>
                     {v ? formatCurrency(v.margen_pesos) : '—'}
                   </td>
                   <td className="px-4 py-3 text-right text-slate-700">
@@ -128,10 +128,10 @@ export function VentasClient({ ventas, mes }: { ventas: DatosVentasGN[]; mes: st
             <tr className="border-t border-[#d6d0c4] bg-[#f5f0e6]/50">
               <td className="px-4 py-3 font-semibold text-slate-800">TOTAL</td>
               <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">{formatCurrency(ventas.reduce((s, v) => s + v.ventas_brutas, 0))}</td>
-              <td className="px-4 py-3 text-right font-mono text-red-400">{formatCurrency(ventas.reduce((s, v) => s + v.devoluciones, 0))}</td>
+              <td className="px-4 py-3 text-right font-mono text-red-700">{formatCurrency(ventas.reduce((s, v) => s + v.devoluciones, 0))}</td>
               <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">{formatCurrency(ventas.reduce((s, v) => s + v.ventas_netas, 0))}</td>
-              <td className="px-4 py-3 text-right font-mono text-red-400">{formatCurrency(ventas.reduce((s, v) => s + v.cmv, 0))}</td>
-              <td className="px-4 py-3 text-right font-mono font-semibold text-green-400">{formatCurrency(ventas.reduce((s, v) => s + v.margen_pesos, 0))}</td>
+              <td className="px-4 py-3 text-right font-mono text-red-700">{formatCurrency(ventas.reduce((s, v) => s + v.cmv, 0))}</td>
+              <td className="px-4 py-3 text-right font-mono font-semibold text-green-700">{formatCurrency(ventas.reduce((s, v) => s + v.margen_pesos, 0))}</td>
               <td colSpan={2} />
             </tr>
           </tfoot>

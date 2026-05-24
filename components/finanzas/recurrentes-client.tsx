@@ -222,7 +222,7 @@ function RecurrenteForm({
         {ivaIncluido && montoEstimado > 0 && (
           <div className="bg-slate-700/40 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
             <span className="text-slate-600">Neto sin IVA ({porcentajeIva}%)</span>
-            <span className="font-mono text-green-400 font-semibold">
+            <span className="font-mono text-green-700 font-semibold">
               {formatCurrency(montoNeto, moneda)}
             </span>
           </div>
@@ -288,7 +288,7 @@ function RecurrenteForm({
         placeholder='{"poliza": "12345", "cobertura": "Total"}'
         defaultValue={recurrente?.detalles ? JSON.stringify(recurrente.detalles) : ''} rows={2} />
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button type="submit" disabled={isPending}>
@@ -412,7 +412,7 @@ function ConfirmacionModal({
         />
         {recurrente.iva_incluido && (
           <p className="text-xs text-slate-500">
-            Neto sin IVA: <span className="font-mono text-green-400">{formatCurrency(montoP / (1 + recurrente.porcentaje_iva / 100), monedaPrincipal)}</span>
+            Neto sin IVA: <span className="font-mono text-green-700">{formatCurrency(montoP / (1 + recurrente.porcentaje_iva / 100), monedaPrincipal)}</span>
           </p>
         )}
       </div>
@@ -456,7 +456,7 @@ function ConfirmacionModal({
               </div>
               <div className="flex justify-between border-t border-[#d6d0c4] pt-1">
                 <span className="text-slate-700 font-medium">Total en {monedaPrincipal}:</span>
-                <span className="font-mono text-green-400 font-semibold">{formatCurrency(totalConvertido, monedaPrincipal)}</span>
+                <span className="font-mono text-green-700 font-semibold">{formatCurrency(totalConvertido, monedaPrincipal)}</span>
               </div>
             </div>
           )}
@@ -473,7 +473,7 @@ function ConfirmacionModal({
             : `1 gasto pendiente de ${formatCurrency(totalConvertido, monedaPrincipal)} (suma convertida con TC)`}
       </div>
 
-      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -623,17 +623,17 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
           <p className="text-lg font-bold text-slate-900 font-mono">
             {totalARS > 0 ? formatCurrency(totalARS, 'ARS') : <span className="text-slate-600">—</span>}
           </p>
-          <p className="text-xs font-mono text-green-400/80">
+          <p className="text-xs font-mono text-green-700/80">
             {totalUSD > 0 ? formatCurrency(totalUSD, 'USD') : <span className="text-slate-600">U$S —</span>}
           </p>
         </div>
         <div className="bg-white border border-green-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Confirmados</p>
-          <p className="text-xl font-bold text-green-400">{confirmadosCount} / {recurrentes.length}</p>
+          <p className="text-xl font-bold text-green-700">{confirmadosCount} / {recurrentes.length}</p>
         </div>
         <div className="bg-white border border-amber-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Pendientes de confirmar</p>
-          <p className="text-xl font-bold text-amber-400">{recurrentes.length - confirmadosCount}</p>
+          <p className="text-xl font-bold text-amber-700">{recurrentes.length - confirmadosCount}</p>
         </div>
       </div>
 
@@ -723,12 +723,12 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
                     <td className="px-4 py-2.5 text-right font-mono text-slate-900">
                       {formatCurrency(r.monto_estimado, r.moneda)}
                       {r.monto_secundario && r.monto_secundario > 0 && r.moneda_secundaria && (
-                        <p className="text-xs text-blue-400 font-mono">
+                        <p className="text-xs text-blue-700 font-mono">
                           + {formatCurrency(r.monto_secundario, r.moneda_secundaria)}
                         </p>
                       )}
                       {r.iva_incluido && (
-                        <p className="text-xs text-green-400 font-mono">
+                        <p className="text-xs text-green-700 font-mono">
                           neto: {formatCurrency(r.monto_estimado / (1 + r.porcentaje_iva / 100), r.moneda)}
                         </p>
                       )}

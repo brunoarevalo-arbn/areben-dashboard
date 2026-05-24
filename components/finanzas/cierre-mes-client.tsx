@@ -446,7 +446,7 @@ export function CierreMesClient(props: Props) {
       {/* TC */}
       <div className="bg-white border border-amber-500/30 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2 text-sm text-slate-700">
-          <DollarSign className="w-4 h-4 text-amber-400" />
+          <DollarSign className="w-4 h-4 text-amber-700" />
           <span className="font-medium">Tipo de cambio de referencia para el cierre</span>
           <span className="text-xs text-slate-500">(USD → ARS para cálculo de PN consolidado)</span>
         </div>
@@ -490,7 +490,7 @@ export function CierreMesClient(props: Props) {
                 </h3>
                 <div className="flex items-center gap-3 text-xs">
                   <span className="text-orange-500 font-mono">{formatCurrency(totalArsTitular)}</span>
-                  {totalUsdTitular > 0 && <span className="text-green-400 font-mono">{formatCurrency(totalUsdTitular, 'USD')}</span>}
+                  {totalUsdTitular > 0 && <span className="text-green-700 font-mono">{formatCurrency(totalUsdTitular, 'USD')}</span>}
                 </div>
               </div>
               <table className="w-full text-sm">
@@ -540,12 +540,12 @@ export function CierreMesClient(props: Props) {
                   <h3 className="text-sm font-medium text-slate-800">{tipoLabels[tipo] ?? tipo}</h3>
                   <div className="flex items-center gap-3 text-xs">
                     {totales.ars !== 0 && (
-                      <span className={cn('font-mono', totales.ars >= 0 ? 'text-orange-500' : 'text-amber-400')}>
+                      <span className={cn('font-mono', totales.ars >= 0 ? 'text-orange-500' : 'text-amber-700')}>
                         {totales.ars >= 0 ? '+' : ''}{formatCurrency(totales.ars)}
                       </span>
                     )}
                     {totales.usd !== 0 && (
-                      <span className={cn('font-mono', totales.usd >= 0 ? 'text-green-400' : 'text-amber-400')}>
+                      <span className={cn('font-mono', totales.usd >= 0 ? 'text-green-700' : 'text-amber-700')}>
                         {totales.usd >= 0 ? '+' : ''}{formatCurrency(totales.usd, 'USD')}
                       </span>
                     )}
@@ -566,7 +566,7 @@ export function CierreMesClient(props: Props) {
                         </div>
                         <div className="text-right">
                           <p className="font-mono text-slate-800">{formatCurrency(saldo, c.moneda)}</p>
-                          <p className={cn('text-[10px] font-mono', aporte >= 0 ? 'text-orange-500' : 'text-amber-400')}>
+                          <p className={cn('text-[10px] font-mono', aporte >= 0 ? 'text-orange-500' : 'text-amber-700')}>
                             {aporte >= 0 ? '+' : ''}{formatCurrency(aporte, c.moneda)}
                           </p>
                         </div>
@@ -584,12 +584,12 @@ export function CierreMesClient(props: Props) {
           <div className="bg-[#f5f0e6]/40 rounded-lg overflow-hidden">
             <div className="px-4 py-2 border-b border-[#d6d0c4]/50 flex items-center justify-between">
               <h3 className="text-sm font-medium text-slate-800 flex items-center gap-2">
-                <TrendingUp className="w-3.5 h-3.5 text-purple-400" />
+                <TrendingUp className="w-3.5 h-3.5 text-purple-700" />
                 Otros activos
               </h3>
               <div className="flex items-center gap-3 text-xs">
-                {totalActivosManualesArs > 0 && <span className="font-mono text-purple-400">{formatCurrency(totalActivosManualesArs)}</span>}
-                {totalActivosManualesUsd > 0 && <span className="font-mono text-green-400">{formatCurrency(totalActivosManualesUsd, 'USD')}</span>}
+                {totalActivosManualesArs > 0 && <span className="font-mono text-purple-700">{formatCurrency(totalActivosManualesArs)}</span>}
+                {totalActivosManualesUsd > 0 && <span className="font-mono text-green-700">{formatCurrency(totalActivosManualesUsd, 'USD')}</span>}
               </div>
             </div>
             <div className="divide-y divide-slate-700/30">
@@ -613,7 +613,7 @@ export function CierreMesClient(props: Props) {
           <span className="text-sm font-medium text-slate-800">TOTAL ACTIVOS</span>
           <div className="flex items-center gap-4">
             <span className="font-mono text-orange-500 font-bold text-lg">{formatCurrency(totalActivosArs)}</span>
-            {totalActivosUsd > 0 && <span className="font-mono text-green-400 font-bold text-lg">{formatCurrency(totalActivosUsd, 'USD')}</span>}
+            {totalActivosUsd > 0 && <span className="font-mono text-green-700 font-bold text-lg">{formatCurrency(totalActivosUsd, 'USD')}</span>}
           </div>
         </div>
       </Section>
@@ -703,7 +703,7 @@ export function CierreMesClient(props: Props) {
         <div className="bg-[#f5f0e6]/40 rounded-lg overflow-hidden">
           <div className="px-4 py-2 border-b border-[#d6d0c4]/50 flex items-center justify-between">
             <h3 className="text-sm font-medium text-slate-800 flex items-center gap-2">
-              <Plus className="w-3.5 h-3.5 text-amber-400" />
+              <Plus className="w-3.5 h-3.5 text-amber-700" />
               Pasivos manuales (préstamos, deudas no registradas)
             </h3>
             {!cerrado && (
@@ -757,7 +757,7 @@ export function CierreMesClient(props: Props) {
                         onChange={(e) => actualizarPasivo(p.id, { monto: Number(e.target.value) })}
                         disabled={cerrado}
                         placeholder="0.00"
-                        className="w-full px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-amber-400 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-60"
+                        className="w-full px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-amber-700 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-60"
                       />
                     </td>
                     <td className="px-4 py-1.5 w-24">
@@ -776,7 +776,7 @@ export function CierreMesClient(props: Props) {
                         <button
                           type="button"
                           onClick={() => eliminarPasivo(p.id)}
-                          className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-[#e8e0d0]"
+                          className="p-1 rounded text-slate-500 hover:text-red-700 hover:bg-[#e8e0d0]"
                           title="Eliminar pasivo"
                         >
                           <Trash2 className="w-3 h-3" />
@@ -793,8 +793,8 @@ export function CierreMesClient(props: Props) {
         <div className="bg-white border border-amber-500/30 rounded-lg p-3 flex items-center justify-between">
           <span className="text-sm font-medium text-slate-800">TOTAL PASIVOS</span>
           <div className="flex items-center gap-4">
-            <span className="font-mono text-amber-400 font-bold text-lg">{formatCurrency(totalPasivosArs)}</span>
-            {totalPasivosUsd > 0 && <span className="font-mono text-amber-300 font-bold text-lg">{formatCurrency(totalPasivosUsd, 'USD')}</span>}
+            <span className="font-mono text-amber-700 font-bold text-lg">{formatCurrency(totalPasivosArs)}</span>
+            {totalPasivosUsd > 0 && <span className="font-mono text-amber-800 font-bold text-lg">{formatCurrency(totalPasivosUsd, 'USD')}</span>}
           </div>
         </div>
       </Section>
@@ -809,8 +809,8 @@ export function CierreMesClient(props: Props) {
               <div className="px-4 py-2 border-b border-[#d6d0c4]/50 flex items-center justify-between">
                 <h3 className="text-sm font-medium text-slate-800">{socio}</h3>
                 <div className="flex items-center gap-3 text-xs">
-                  {data.ars > 0 && <span className="font-mono text-purple-400">{formatCurrency(data.ars)}</span>}
-                  {data.usd > 0 && <span className="font-mono text-green-400">{formatCurrency(data.usd, 'USD')}</span>}
+                  {data.ars > 0 && <span className="font-mono text-purple-700">{formatCurrency(data.ars)}</span>}
+                  {data.usd > 0 && <span className="font-mono text-green-700">{formatCurrency(data.usd, 'USD')}</span>}
                 </div>
               </div>
               <div className="p-3 grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -834,8 +834,8 @@ export function CierreMesClient(props: Props) {
         <div className="bg-white border border-purple-500/30 rounded-lg p-3 flex items-center justify-between">
           <span className="text-sm font-medium text-slate-800">TOTAL RETIROS</span>
           <div className="flex items-center gap-4">
-            <span className="font-mono text-purple-400 font-bold text-lg">{formatCurrency(totalRetirosArs)}</span>
-            {totalRetirosUsd > 0 && <span className="font-mono text-green-400 font-bold text-lg">{formatCurrency(totalRetirosUsd, 'USD')}</span>}
+            <span className="font-mono text-purple-700 font-bold text-lg">{formatCurrency(totalRetirosArs)}</span>
+            {totalRetirosUsd > 0 && <span className="font-mono text-green-700 font-bold text-lg">{formatCurrency(totalRetirosUsd, 'USD')}</span>}
           </div>
         </div>
       </Section>
@@ -858,7 +858,7 @@ export function CierreMesClient(props: Props) {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-600">Pasivos totales (ARS + USD@TC)</span>
-              <span className="font-mono text-amber-400">- {formatCurrency(totalPasivosArs + totalPasivosUsd * tipoCambio)}</span>
+              <span className="font-mono text-amber-700">- {formatCurrency(totalPasivosArs + totalPasivosUsd * tipoCambio)}</span>
             </div>
             <div className="flex justify-between border-t border-[#d6d0c4] pt-3 font-medium">
               <span className="text-slate-800">PN al cierre actual</span>
@@ -874,7 +874,7 @@ export function CierreMesClient(props: Props) {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-600">+ Retiros del mes</span>
-              <span className="font-mono text-purple-400">{formatCurrency(totalRetirosArsConvertido)}</span>
+              <span className="font-mono text-purple-700">{formatCurrency(totalRetirosArsConvertido)}</span>
             </div>
             <div className="flex justify-between border-t border-[#d6d0c4] pt-3 font-bold">
               <span className="text-slate-900">RESULTADO DEL MES</span>
@@ -933,8 +933,8 @@ function Section({ title, subtitle, icon: Icon, color, children }: {
   }
   const iconColor = {
     indigo: 'text-orange-500',
-    amber: 'text-amber-400',
-    purple: 'text-purple-400',
+    amber: 'text-amber-700',
+    purple: 'text-purple-700',
   }
   return (
     <div className={cn('bg-white border rounded-xl overflow-x-auto', colorMap[color])}>
@@ -965,8 +965,8 @@ function PasivoBlock({ title, icon: Icon, items }: {
           {title}
         </h3>
         <div className="flex items-center gap-3 text-xs">
-          {totalArs > 0 && <span className="font-mono text-amber-400">{formatCurrency(totalArs)}</span>}
-          {totalUsd > 0 && <span className="font-mono text-amber-300">{formatCurrency(totalUsd, 'USD')}</span>}
+          {totalArs > 0 && <span className="font-mono text-amber-700">{formatCurrency(totalArs)}</span>}
+          {totalUsd > 0 && <span className="font-mono text-amber-800">{formatCurrency(totalUsd, 'USD')}</span>}
         </div>
       </div>
       <div className="divide-y divide-slate-700/30">

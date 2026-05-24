@@ -85,7 +85,7 @@ export function PrestamosClient({ instrumentos, periodos }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white border border-green-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Capital activo USD</p>
-          <p className="text-xl font-bold text-green-400">{formatMoneda(totalUsd, 'USD')}</p>
+          <p className="text-xl font-bold text-green-700">{formatMoneda(totalUsd, 'USD')}</p>
         </div>
         <div className="bg-white border border-orange-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Capital activo ARS</p>
@@ -93,11 +93,11 @@ export function PrestamosClient({ instrumentos, periodos }: Props) {
         </div>
         <div className="bg-white border border-amber-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Interés mensual USD</p>
-          <p className="text-xl font-bold text-amber-400">{formatMoneda(interesUsdMensual, 'USD')}</p>
+          <p className="text-xl font-bold text-amber-700">{formatMoneda(interesUsdMensual, 'USD')}</p>
         </div>
         <div className="bg-white border border-amber-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Interés mensual ARS</p>
-          <p className="text-xl font-bold text-amber-400">{formatMoneda(interesArsMensual, 'ARS')}</p>
+          <p className="text-xl font-bold text-amber-700">{formatMoneda(interesArsMensual, 'ARS')}</p>
         </div>
       </div>
 
@@ -184,7 +184,7 @@ export function PrestamosClient({ instrumentos, periodos }: Props) {
                     <td className="px-4 py-3 text-right font-mono text-slate-700">{formatMoneda(Number(i.capital_inicial), i.moneda)}</td>
                     <td className="px-4 py-3 text-right font-mono text-slate-800">{(Number(i.tasa_mensual) * 100).toFixed(2)}%</td>
                     <td className="px-4 py-3">
-                      <span className={cn('inline-flex items-center gap-1 text-xs', i.capitalizable ? 'text-purple-400' : 'text-slate-600')}>
+                      <span className={cn('inline-flex items-center gap-1 text-xs', i.capitalizable ? 'text-purple-700' : 'text-slate-600')}>
                         {i.capitalizable ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
                         {i.capitalizable ? 'Capitalizable' : 'No cap.'}
                       </span>

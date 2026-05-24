@@ -64,7 +64,7 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
                 'px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors',
                 moneda === m
                   ? m === 'USD'
-                    ? 'bg-green-500/15 border-green-500/40 text-green-400'
+                    ? 'bg-green-500/15 border-green-500/40 text-green-700'
                     : 'bg-orange-500/15 border-orange-500/40 text-orange-500'
                   : 'bg-[#f5f0e6] border-[#d6d0c4] text-slate-600 hover:text-slate-800'
               )}
@@ -115,7 +115,7 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
               <TrendingUp className="w-3.5 h-3.5" />
               Interés mes completo
             </span>
-            <span className="font-mono text-amber-400 font-semibold">
+            <span className="font-mono text-amber-700 font-semibold">
               {formatMoneda(interesEstimado, moneda)} <span className="text-slate-500">/ mes</span>
             </span>
           </div>
@@ -132,7 +132,7 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
             className={cn(
               'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors',
               capitalizable
-                ? 'bg-purple-500/15 border-purple-500/40 text-purple-400'
+                ? 'bg-purple-500/15 border-purple-500/40 text-purple-700'
                 : 'bg-slate-700 border-[#c8c0b0] text-slate-700'
             )}
           >
@@ -167,7 +167,7 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
 
       <Textarea label="Notas del acuerdo" name="notas" defaultValue={instrumento?.notas ?? ''} placeholder="Condiciones, particularidades..." rows={3} />
 
-      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>

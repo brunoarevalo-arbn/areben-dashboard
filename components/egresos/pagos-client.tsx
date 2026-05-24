@@ -40,10 +40,10 @@ const INSTRUMENTO_LABEL: Record<string, string> = {
 }
 
 const INSTRUMENTO_COLOR: Record<string, string> = {
-  EFECTIVO: 'text-green-400 bg-green-500/10 border-green-500/20',
-  TRANSFERENCIA: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+  EFECTIVO: 'text-green-700 bg-green-500/10 border-green-500/20',
+  TRANSFERENCIA: 'text-blue-700 bg-blue-500/10 border-blue-500/20',
   CUENTA_CORRIENTE: 'text-orange-500 bg-orange-500/10 border-orange-500/20',
-  CHEQUE_FISICO: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+  CHEQUE_FISICO: 'text-amber-700 bg-amber-500/10 border-amber-500/20',
   ECHEQ: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
 }
 
@@ -221,7 +221,7 @@ export function PagosClient({ pagos }: { pagos: Pago[] }) {
                   </td>
                   <td className="px-4 py-3 text-xs">
                     {p.fecha_vencimiento ? (
-                      <span className="flex items-center gap-1 text-amber-400">
+                      <span className="flex items-center gap-1 text-amber-700">
                         <Calendar className="w-3 h-3" />
                         {formatDate(p.fecha_vencimiento)}
                       </span>

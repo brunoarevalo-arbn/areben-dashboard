@@ -142,7 +142,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Capitalización</span>
-                    <span className={cn('flex items-center gap-1 font-medium', i.capitalizable ? 'text-purple-400' : 'text-slate-700')}>
+                    <span className={cn('flex items-center gap-1 font-medium', i.capitalizable ? 'text-purple-700' : 'text-slate-700')}>
                       {i.capitalizable ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
                       {i.capitalizable ? 'Capitalizable' : 'No capitalizable'}
                     </span>
@@ -218,7 +218,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
         <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
           <div className="px-4 py-3 border-b border-[#e8e4dc] flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-              <Percent className="w-4 h-4 text-purple-400" />
+              <Percent className="w-4 h-4 text-purple-700" />
               Historial de tasas · {selectedInstr.codigo ?? selectedInstr.id.substring(0, 8)}
             </h2>
             <Button size="sm" variant="ghost" onClick={() => setTasaModal(selectedInstr)} title="Cambiar tasa">
@@ -243,7 +243,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                         {idx > 0 && variacion !== 0 && (
                           <span className={cn(
                             'text-[10px] ml-2 font-sans',
-                            variacion > 0 ? 'text-green-400' : 'text-red-400'
+                            variacion > 0 ? 'text-green-700' : 'text-red-700'
                           )}>
                             {variacion > 0 ? '+' : ''}{variacion.toFixed(2)}%
                           </span>
@@ -252,7 +252,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                       <p className="text-xs text-slate-500">
                         Desde {formatDate(t.fecha_desde)}
                         {siguiente && <> <ArrowRight className="w-3 h-3 inline mx-1" /> hasta {formatDate(siguiente.fecha_desde)}</>}
-                        {!siguiente && <span className="text-purple-400 ml-1">· vigente</span>}
+                        {!siguiente && <span className="text-purple-700 ml-1">· vigente</span>}
                       </p>
                       {t.notas && <p className="text-xs text-slate-600 mt-0.5">{t.notas}</p>}
                     </div>
@@ -265,7 +265,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                         startTransition(() => deleteTramoTasa(t.id))
                       }}
                       disabled={isPending}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-500 hover:text-red-400 hover:bg-[#f5f0e6] transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-500 hover:text-red-700 hover:bg-[#f5f0e6] transition-all"
                       title="Eliminar tramo"
                     >
                       <Trash2 className="w-3 h-3" />
@@ -331,13 +331,13 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                   )}>
                     <td className="px-4 py-2 text-slate-800">{formatMonth(p.mes)}</td>
                     <td className="px-4 py-2 text-right font-mono text-slate-700">{formatMoneda(Number(p.saldo_inicio), selectedInstr.moneda)}</td>
-                    <td className="px-4 py-2 text-right font-mono text-purple-400 text-xs">
+                    <td className="px-4 py-2 text-right font-mono text-purple-700 text-xs">
                       {(Number(p.tasa_aplicada) * 100).toFixed(4)}%
                       {cambiosEnMes.length > 0 && (
-                        <span className="block text-[10px] text-amber-400">cambio intra-mes</span>
+                        <span className="block text-[10px] text-amber-700">cambio intra-mes</span>
                       )}
                     </td>
-                    <td className="px-4 py-2 text-right font-mono text-amber-400">
+                    <td className="px-4 py-2 text-right font-mono text-amber-700">
                       {formatMoneda(Number(p.interes_devengado), selectedInstr.moneda)}
                       {(Number(p.int_inicio_prorrateado) > 0 || Number(p.int_fin_prorrateado) > 0) && (
                         <p className="text-[10px] text-slate-500">prorrateado</p>

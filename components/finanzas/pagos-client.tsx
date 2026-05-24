@@ -43,9 +43,9 @@ interface Props {
 }
 
 const TIPO_LABELS: Record<TipoOrigenPago, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
-  COMPRA: { label: 'Compra', color: 'text-blue-400 border-blue-500/30 bg-blue-500/10', icon: ShoppingCart },
-  GASTO: { label: 'Gasto', color: 'text-amber-400 border-amber-500/30 bg-amber-500/10', icon: Receipt },
-  NOMINA: { label: 'Nómina', color: 'text-purple-400 border-purple-500/30 bg-purple-500/10', icon: Users },
+  COMPRA: { label: 'Compra', color: 'text-blue-700 border-blue-500/30 bg-blue-500/10', icon: ShoppingCart },
+  GASTO: { label: 'Gasto', color: 'text-amber-700 border-amber-500/30 bg-amber-500/10', icon: Receipt },
+  NOMINA: { label: 'Nómina', color: 'text-purple-700 border-purple-500/30 bg-purple-500/10', icon: Users },
   CUOTA: { label: 'Cuota tarjeta', color: 'text-orange-500 border-orange-500/30 bg-orange-500/10', icon: CreditCard },
   LIBRE: { label: 'Libre', color: 'text-slate-600 border-slate-500/30 bg-slate-500/10', icon: AlertCircle },
 }
@@ -139,7 +139,7 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Wallet className="w-6 h-6 text-green-400" />
+            <Wallet className="w-6 h-6 text-green-700" />
             Pagos del mes
           </h1>
           <p className="text-sm text-slate-600 mt-0.5">
@@ -152,11 +152,11 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-white border border-green-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Total ARS</p>
-          <p className="text-xl font-bold text-green-400">{formatCurrency(totalARS)}</p>
+          <p className="text-xl font-bold text-green-700">{formatCurrency(totalARS)}</p>
         </div>
         <div className="bg-white border border-green-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Total USD</p>
-          <p className="text-xl font-bold text-green-400">{formatCurrency(totalUSD, 'USD')}</p>
+          <p className="text-xl font-bold text-green-700">{formatCurrency(totalUSD, 'USD')}</p>
         </div>
         {(['COMPRA', 'GASTO', 'NOMINA'] as const).map((t) => (
           <div key={t} className="bg-white border border-[#e8e4dc] rounded-xl p-4">
@@ -409,7 +409,7 @@ function EditPagoModal({
 
         <Input label="Notas" value={notas} onChange={(e) => setNotas(e.target.value)} />
 
-        {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+        {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>Cancelar</Button>
@@ -564,7 +564,7 @@ function AsignarPagoLibreModal({
           disabled={loading}
         />
 
-        {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+        {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>Cancelar</Button>

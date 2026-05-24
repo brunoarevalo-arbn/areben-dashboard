@@ -112,7 +112,7 @@ export function GastosFinancierosClient({ mes, periodos }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white border border-green-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Total invertido USD</p>
-          <p className="text-xl font-bold text-green-400">{formatMoneda(totalInvertidoUsd, 'USD')}</p>
+          <p className="text-xl font-bold text-green-700">{formatMoneda(totalInvertidoUsd, 'USD')}</p>
         </div>
         <div className="bg-white border border-orange-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Total invertido ARS</p>
@@ -120,11 +120,11 @@ export function GastosFinancierosClient({ mes, periodos }: Props) {
         </div>
         <div className="bg-white border border-amber-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Gasto financiero USD</p>
-          <p className="text-xl font-bold text-amber-400">{formatMoneda(gastoUsd, 'USD')}</p>
+          <p className="text-xl font-bold text-amber-700">{formatMoneda(gastoUsd, 'USD')}</p>
         </div>
         <div className="bg-white border border-amber-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Gasto financiero ARS</p>
-          <p className="text-xl font-bold text-amber-400">{formatMoneda(gastoArs, 'ARS')}</p>
+          <p className="text-xl font-bold text-amber-700">{formatMoneda(gastoArs, 'ARS')}</p>
         </div>
       </div>
 
@@ -189,12 +189,12 @@ export function GastosFinancierosClient({ mes, periodos }: Props) {
                       <td className="px-4 py-2 text-xs font-mono text-slate-600">{i.codigo ?? i.id.substring(0, 8)}</td>
                       <td className="px-4 py-2"><Badge variant={i.moneda === 'USD' ? 'success' : 'info'}>{i.moneda}</Badge></td>
                       <td className="px-4 py-2">
-                        <span className={i.capitalizable ? 'text-purple-400' : 'text-slate-600'}>
+                        <span className={i.capitalizable ? 'text-purple-700' : 'text-slate-600'}>
                           {i.capitalizable ? <Lock className="w-3 h-3 inline" /> : <Unlock className="w-3 h-3 inline" />}
                         </span>
                       </td>
                       <td className="px-4 py-2 text-right font-mono text-slate-700 text-xs">{formatMoneda(Number(p.saldo_inicio), i.moneda)}</td>
-                      <td className="px-4 py-2 text-right font-mono text-amber-400 text-xs">{formatMoneda(Number(p.interes_devengado), i.moneda)}</td>
+                      <td className="px-4 py-2 text-right font-mono text-amber-700 text-xs">{formatMoneda(Number(p.interes_devengado), i.moneda)}</td>
                       <td className="px-4 py-2 text-right font-mono text-slate-900 font-medium text-xs">{formatMoneda(Number(p.saldo_cierre), i.moneda)}</td>
                     </tr>
                   )

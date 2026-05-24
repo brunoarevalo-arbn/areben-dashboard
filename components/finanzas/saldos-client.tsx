@@ -58,7 +58,7 @@ function TitularForm({ onClose }: { onClose: () => void }) {
     <form action={action} className="space-y-4">
       <Input label="Nombre" name="nombre" placeholder="Ej: Areben SRL, Darío Arévalo" required />
       <Select label="Tipo" name="tipo" options={TIPOS_TITULAR} defaultValue="EMPRESA" />
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button type="submit" disabled={isPending}>
@@ -116,7 +116,7 @@ function CuentaForm({
         <span className="text-sm text-slate-700">Permite saldo dual (ARS + USD)</span>
       </label>
       <Input label="Notas" name="notas" defaultValue={cuenta?.notas ?? ''} />
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button type="submit" disabled={isPending}>
@@ -202,10 +202,10 @@ function CuentaRow({
               step="0.01"
               value={usd || ''}
               onChange={(e) => setUsd(Number(e.target.value))}
-              className="w-32 px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-green-400 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="w-32 px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-green-700 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           ) : (
-            <span className="font-mono text-green-400 text-sm">{formatCurrency(saldo?.saldo_usd ?? 0, 'USD')}</span>
+            <span className="font-mono text-green-700 text-sm">{formatCurrency(saldo?.saldo_usd ?? 0, 'USD')}</span>
           )
         )}
       </td>
@@ -239,7 +239,7 @@ function CuentaRow({
                 onClick={() => startTransition(() => toggleCuentaActiva(cuenta.id, !cuenta.activo))}
                 title={cuenta.activo ? 'Desactivar' : 'Activar'}
               >
-                <Power className={cn('w-3.5 h-3.5', cuenta.activo ? 'text-red-400' : 'text-green-400')} />
+                <Power className={cn('w-3.5 h-3.5', cuenta.activo ? 'text-red-700' : 'text-green-700')} />
               </Button>
             </>
           )}
@@ -317,7 +317,7 @@ function ActivoManualForm({
         />
       </div>
       <Textarea label="Notas" name="notas" defaultValue={activo?.notas ?? ''} placeholder="Detalle, ubicación, condiciones..." rows={2} />
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button type="submit" disabled={isPending}>
@@ -398,12 +398,12 @@ function BulkSaldosGrid({
       <div className="px-4 py-3 border-b border-[#e8e4dc] bg-green-500/5 flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <Zap className="w-4 h-4 text-green-400" />
+            <Zap className="w-4 h-4 text-green-700" />
             Carga rápida de saldos — {formatMonth(mes)}
           </h2>
           <p className="text-xs text-slate-600 mt-0.5">
             Editá todos los saldos del mes en una sola pantalla y guardá con un solo click.
-            {savedAt && <span className="ml-2 text-green-400">✓ Guardado a las {savedAt}</span>}
+            {savedAt && <span className="ml-2 text-green-700">✓ Guardado a las {savedAt}</span>}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -464,7 +464,7 @@ function BulkSaldosGrid({
                           value={v.usd || ''}
                           onChange={(e) => setVal(c.id, 'usd', Number(e.target.value))}
                           placeholder="0,00"
-                          className="w-32 px-2 py-1 bg-[#f5f0e6] border border-[#d6d0c4] rounded text-green-400 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
+                          className="w-32 px-2 py-1 bg-[#f5f0e6] border border-[#d6d0c4] rounded text-green-700 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
                         />
                       ) : (
                         <span className="text-xs text-slate-600">— sólo ARS —</span>
@@ -479,7 +479,7 @@ function BulkSaldosGrid({
             <tr className="border-t-2 border-[#d6d0c4] bg-[#f5f0e6]/60">
               <td colSpan={3} className="px-4 py-2 text-sm font-semibold text-slate-700">TOTAL ({cuentas.length} cuentas)</td>
               <td className="px-4 py-2 text-right font-mono font-bold text-orange-500">{formatCurrency(totalArs)}</td>
-              <td className="px-4 py-2 text-right font-mono font-bold text-green-400">{formatCurrency(totalUsd, 'USD')}</td>
+              <td className="px-4 py-2 text-right font-mono font-bold text-green-700">{formatCurrency(totalUsd, 'USD')}</td>
             </tr>
           </tfoot>
         </table>
@@ -587,7 +587,7 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
             <DollarSign className="w-3.5 h-3.5" />
             Total USD
           </p>
-          <p className="text-2xl font-bold text-green-400">{formatCurrency(totalUsd, 'USD')}</p>
+          <p className="text-2xl font-bold text-green-700">{formatCurrency(totalUsd, 'USD')}</p>
         </div>
         <div className="bg-white border border-amber-500/20 rounded-xl p-5">
           <p className="text-xs text-slate-600 mb-1 flex items-center gap-1.5">
@@ -596,7 +596,7 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
           </p>
           {tc > 0 ? (
             <>
-              <p className="text-2xl font-bold text-amber-400">{formatCurrency(totalUsdEquivalente, 'USD')}</p>
+              <p className="text-2xl font-bold text-amber-700">{formatCurrency(totalUsdEquivalente, 'USD')}</p>
               <p className="text-xs text-slate-500 mt-1">TC: ${tc.toFixed(2)}</p>
             </>
           ) : (
@@ -609,7 +609,7 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
       <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-slate-700 text-sm">
-            <AlertCircle className="w-4 h-4 text-amber-400" />
+            <AlertCircle className="w-4 h-4 text-amber-700" />
             <span className="font-medium">Tipo de cambio del mes</span>
           </div>
           <input
@@ -695,7 +695,7 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
         <div className="px-4 py-3 border-b border-[#e8e4dc] flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-purple-400" />
+              <Sparkles className="w-4 h-4 text-purple-700" />
               Otros activos
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">Crypto, préstamos otorgados, mercadería, etc. — items no bancarios</p>
@@ -728,7 +728,7 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
                   </td>
                   <td className="px-4 py-2 text-xs text-slate-600">{a.categoria ?? '—'}</td>
                   <td className="px-4 py-2 text-xs text-slate-600">{a.titular?.nombre ?? '—'}</td>
-                  <td className="px-4 py-2 text-right font-mono text-purple-400 font-medium">{formatCurrency(Number(a.monto), a.moneda)}</td>
+                  <td className="px-4 py-2 text-right font-mono text-purple-700 font-medium">{formatCurrency(Number(a.monto), a.moneda)}</td>
                   <td className="px-4 py-2"><Badge variant={a.moneda === 'USD' ? 'success' : 'info'}>{a.moneda}</Badge></td>
                   <td className="px-4 py-2 text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -755,7 +755,7 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
               <tfoot>
                 <tr className="border-t border-[#d6d0c4] bg-[#f5f0e6]/40">
                   <td colSpan={3} className="px-4 py-2 text-xs font-semibold text-slate-700">Subtotal otros activos</td>
-                  <td className="px-4 py-2 text-right font-mono text-purple-400 font-bold">
+                  <td className="px-4 py-2 text-right font-mono text-purple-700 font-bold">
                     {totalArsManuales > 0 && formatCurrency(totalArsManuales)}
                     {totalArsManuales > 0 && totalUsdManuales > 0 && <br />}
                     {totalUsdManuales > 0 && formatCurrency(totalUsdManuales, 'USD')}

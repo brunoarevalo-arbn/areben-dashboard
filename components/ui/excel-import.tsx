@@ -106,8 +106,8 @@ export function ExcelImport({
             <ul className="space-y-0.5 list-disc list-inside">
               {templateColumns.map((c) => (
                 <li key={c.key}>
-                  <span className={c.required ? 'text-amber-400' : ''}>{c.label}</span>
-                  {c.required && <span className="text-amber-400 ml-1">*</span>}
+                  <span className={c.required ? 'text-amber-700' : ''}>{c.label}</span>
+                  {c.required && <span className="text-amber-700 ml-1">*</span>}
                 </li>
               ))}
             </ul>
@@ -128,14 +128,14 @@ export function ExcelImport({
           />
           {rows !== null && (
             <p className="text-xs text-slate-600">
-              <CheckCircle2 className="w-3.5 h-3.5 inline mr-1 text-green-400" />
+              <CheckCircle2 className="w-3.5 h-3.5 inline mr-1 text-green-700" />
               {rows.length} filas leídas
             </p>
           )}
         </div>
 
         {error && (
-          <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 flex items-center gap-2">
+          <div className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             {error}
           </div>
@@ -143,17 +143,17 @@ export function ExcelImport({
 
         {result && (
           <div className="space-y-2">
-            <div className={`text-sm rounded-lg px-3 py-2 border ${result.errors.length === 0 ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
+            <div className={`text-sm rounded-lg px-3 py-2 border ${result.errors.length === 0 ? 'bg-green-500/10 border-green-500/20 text-green-700' : 'bg-amber-500/10 border-amber-500/20 text-amber-700'}`}>
               <CheckCircle2 className="w-4 h-4 inline mr-1" />
               {result.ok} fila(s) importadas correctamente
             </div>
             {result.errors.length > 0 && (
               <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 space-y-1">
-                <p className="text-xs font-medium text-red-400">Errores:</p>
+                <p className="text-xs font-medium text-red-700">Errores:</p>
                 {result.errors.slice(0, 10).map((e, i) => (
                   <p key={i} className="text-xs text-red-300">• {e}</p>
                 ))}
-                {result.errors.length > 10 && <p className="text-xs text-red-400">...y {result.errors.length - 10} más</p>}
+                {result.errors.length > 10 && <p className="text-xs text-red-700">...y {result.errors.length - 10} más</p>}
               </div>
             )}
           </div>

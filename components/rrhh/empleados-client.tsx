@@ -33,11 +33,11 @@ const TIPO_EVENTO_LABEL: Record<TipoEvento, string> = {
 }
 
 const TIPO_EVENTO_COLOR: Record<TipoEvento, string> = {
-  INCIDENCIA: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  AJUSTE_SALARIAL: 'bg-green-500/15 text-green-400 border-green-500/30',
-  LICENCIA: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  INCIDENCIA: 'bg-amber-500/15 text-amber-700 border-amber-500/30',
+  AJUSTE_SALARIAL: 'bg-green-500/15 text-green-700 border-green-500/30',
+  LICENCIA: 'bg-blue-500/15 text-blue-700 border-blue-500/30',
   PREMIO: 'bg-orange-500/15 text-orange-500 border-orange-500/30',
-  AMONESTACION: 'bg-red-500/15 text-red-400 border-red-500/30',
+  AMONESTACION: 'bg-red-500/15 text-red-700 border-red-500/30',
   OTRO: 'bg-slate-500/15 text-slate-600 border-slate-500/30',
 }
 
@@ -153,7 +153,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
           <span className="text-xs text-slate-600">
             Valor hora <span className="text-slate-500">(auto)</span>
           </span>
-          <span className="font-mono text-base text-green-400 font-semibold">
+          <span className="font-mono text-base text-green-700 font-semibold">
             {formatCurrency(valorHora)}
             <span className="text-xs text-slate-500 ml-2">
               {sueldoBasico > 0 ? `${formatCurrency(sueldoBasico)} ÷ ${horasMensuales}` : ''}
@@ -193,7 +193,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
             </div>
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex flex-col justify-center">
               <span className="text-xs text-slate-600">Provisión mensual</span>
-              <span className="font-mono text-sm text-amber-400 font-semibold">
+              <span className="font-mono text-sm text-amber-700 font-semibold">
                 {formatCurrency(sueldoBasico * porcentajeAguinaldo / 100)}
               </span>
               <span className="text-[10px] text-slate-500">→ Caja Aguinaldos</span>
@@ -204,7 +204,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
 
       {/* Acuerdo en negro (horas fijas mensuales) */}
       <div className="bg-[#f5f0e6]/60 border border-amber-500/20 rounded-xl p-4 space-y-3">
-        <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+        <div className="flex items-center gap-2 text-amber-700 text-sm font-medium">
           <BadgeCheck className="w-4 h-4" />
           Acuerdo fijo en negro <span className="text-xs text-slate-500 font-normal">(horas extras del acuerdo, no son extras reales)</span>
         </div>
@@ -226,7 +226,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
           </div>
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex flex-col justify-center">
             <span className="text-xs text-slate-600">Monto fijo mensual en negro</span>
-            <span className="font-mono text-sm text-amber-400 font-semibold">
+            <span className="font-mono text-sm text-amber-700 font-semibold">
               {formatCurrency(montoAcuerdoNegro)}
             </span>
             <span className="text-[10px] text-slate-500">{horasAcuerdoNegro} hs × {formatCurrency(valorHora)}</span>
@@ -234,14 +234,14 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
         </div>
         {horasAcuerdoNegro > 0 && correspondeAguinaldo && (
           <div className="bg-slate-700/40 rounded-lg px-3 py-2 text-xs text-slate-600">
-            Este monto suma a la base del aguinaldo: <span className="font-mono text-amber-300">+{formatCurrency(montoAcuerdoNegro * porcentajeAguinaldo / 100)} mensual</span>
+            Este monto suma a la base del aguinaldo: <span className="font-mono text-amber-800">+{formatCurrency(montoAcuerdoNegro * porcentajeAguinaldo / 100)} mensual</span>
           </div>
         )}
       </div>
 
       {/* Plus salarial fijo en negro */}
       <div className="bg-[#f5f0e6]/60 border border-amber-500/20 rounded-xl p-4 space-y-3">
-        <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+        <div className="flex items-center gap-2 text-amber-700 text-sm font-medium">
           <TrendingUp className="w-4 h-4" />
           Plus salarial fijo en negro
           <span className="text-xs text-slate-500 font-normal">(monto o % adicional al recibo oficial)</span>
@@ -261,7 +261,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
                 className={cn(
                   'px-3 py-2 rounded-lg border text-xs font-medium transition-colors',
                   plusNegroTipo === v
-                    ? 'bg-amber-600/20 border-amber-500/50 text-amber-300'
+                    ? 'bg-amber-600/20 border-amber-500/50 text-amber-800'
                     : 'bg-[#f5f0e6] border-[#d6d0c4] text-slate-600 hover:text-slate-800'
                 )}
               >
@@ -296,7 +296,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
             </div>
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex flex-col justify-center">
               <span className="text-xs text-slate-600">Plus mensual estimado</span>
-              <span className="font-mono text-sm text-amber-400 font-semibold">
+              <span className="font-mono text-sm text-amber-700 font-semibold">
                 {formatCurrency(montoPlusNegro)}
               </span>
               <span className="text-[10px] text-slate-500">
@@ -307,7 +307,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
         )}
         {plusNegroTipo !== 'NONE' && montoPlusNegro > 0 && correspondeAguinaldo && (
           <div className="bg-slate-700/40 rounded-lg px-3 py-2 text-xs text-slate-600">
-            Suma a la base del aguinaldo: <span className="font-mono text-amber-300">+{formatCurrency(montoPlusNegro * porcentajeAguinaldo / 100)} mensual</span>
+            Suma a la base del aguinaldo: <span className="font-mono text-amber-800">+{formatCurrency(montoPlusNegro * porcentajeAguinaldo / 100)} mensual</span>
           </div>
         )}
       </div>
@@ -315,7 +315,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
       {/* Comidas + Presentismo (solo NEGRO) */}
       {tipo === 'NEGRO' && (
         <div className="bg-[#f5f0e6]/60 border border-amber-500/20 rounded-xl p-4 space-y-3">
-          <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+          <div className="flex items-center gap-2 text-amber-700 text-sm font-medium">
             <BadgeCheck className="w-4 h-4" />
             Acuerdos adicionales (Negro)
           </div>
@@ -354,7 +354,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
               </div>
               {presentismoPct > 0 && sueldoBasico > 0 && (
                 <p className="text-xs text-slate-500">
-                  Si asistencia 100%: <span className="text-amber-400 font-mono">{formatCurrency(sueldoBasico * presentismoPct / 100)}</span>
+                  Si asistencia 100%: <span className="text-amber-700 font-mono">{formatCurrency(sueldoBasico * presentismoPct / 100)}</span>
                 </p>
               )}
             </div>
@@ -379,7 +379,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
         />
       )}
 
-      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -432,7 +432,7 @@ function EventoForm({ empleado, onClose }: { empleado: Empleado; onClose: () => 
 
       <Textarea label="Descripción" name="descripcion" placeholder="Detalles del evento..." rows={4} />
 
-      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -488,7 +488,7 @@ function AjusteSalarialForm({ empleado, onClose }: { empleado: Empleado; onClose
             min="0"
             value={sueldoNuevo || ''}
             onChange={(e) => setSueldoNuevo(Number(e.target.value))}
-            className="w-full px-2 py-1 bg-[#f5f0e6] border border-[#d6d0c4] rounded text-green-400 font-mono focus:outline-none focus:ring-1 focus:ring-orange-500 text-base"
+            className="w-full px-2 py-1 bg-[#f5f0e6] border border-[#d6d0c4] rounded text-green-700 font-mono focus:outline-none focus:ring-1 focus:ring-orange-500 text-base"
             required
           />
           <p className="text-xs text-slate-500 mt-1">{formatCurrency(valorHoraNuevo)} / hora</p>
@@ -498,7 +498,7 @@ function AjusteSalarialForm({ empleado, onClose }: { empleado: Empleado; onClose
       {sueldoNuevo > 0 && empleado.sueldo_basico > 0 && (
         <div className={cn(
           'rounded-lg p-3 flex items-center justify-between text-sm',
-          incremento > 0 ? 'bg-green-500/10 text-green-400' : incremento < 0 ? 'bg-red-500/10 text-red-400' : 'bg-[#f5f0e6] text-slate-600'
+          incremento > 0 ? 'bg-green-500/10 text-green-700' : incremento < 0 ? 'bg-red-500/10 text-red-700' : 'bg-[#f5f0e6] text-slate-600'
         )}>
           <span className="flex items-center gap-1.5">
             <TrendingUp className="w-4 h-4" />
@@ -515,9 +515,9 @@ function AjusteSalarialForm({ empleado, onClose }: { empleado: Empleado; onClose
 
       <Textarea label="Motivo / observaciones" name="descripcion" placeholder="Ej: Aumento de paritarias, ascenso..." rows={3} />
 
-      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 
-      <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 text-xs text-amber-400 flex items-start gap-2">
+      <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 text-xs text-amber-700 flex items-start gap-2">
         <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
         Este ajuste actualizará el sueldo y valor hora del empleado, y quedará registrado en el historial.
       </div>
@@ -542,7 +542,7 @@ function HoraExtraRow({ he, valorHora }: { he: HoraExtraRegistro; valorHora: num
     <div className="bg-[#f5f0e6]/40 rounded-lg px-3 py-1.5 flex items-center justify-between text-xs group">
       <span className="text-slate-600">{formatDate(he.fecha)}</span>
       <span className="font-mono text-slate-800">{he.cantidad}h al {he.porcentaje}%</span>
-      <span className="font-mono text-amber-400">{formatCurrency(monto)}</span>
+      <span className="font-mono text-amber-700">{formatCurrency(monto)}</span>
       <button
         type="button"
         disabled={isPending}
@@ -550,7 +550,7 @@ function HoraExtraRow({ he, valorHora }: { he: HoraExtraRegistro; valorHora: num
           if (!confirm('¿Eliminar este registro?')) return
           startTransition(() => deleteHoraExtra(he.id))
         }}
-        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#e8e0d0] text-slate-500 hover:text-red-400 transition-all"
+        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#e8e0d0] text-slate-500 hover:text-red-700 transition-all"
       >
         <Trash2 className="w-3 h-3" />
       </button>
@@ -610,7 +610,7 @@ function HoraExtraForm({ empleado, onClose }: { empleado: Empleado; onClose: () 
 
       <Textarea label="Notas (opcional)" name="notas" placeholder="Detalle del trabajo realizado" rows={2} />
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -655,7 +655,7 @@ function AusenciaRow({ a }: { a: AusenciaRegistro }) {
             }
           })
         }}
-        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#e8e0d0] text-slate-500 hover:text-red-400 transition-all"
+        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#e8e0d0] text-slate-500 hover:text-red-700 transition-all"
         title="Eliminar ausencia"
       >
         <Trash2 className="w-3 h-3" />
@@ -745,7 +745,7 @@ function AusenciaForm({ empleado, onClose }: { empleado: Empleado; onClose: () =
 
       <Textarea label="Notas (opcional)" name="notas" placeholder="Motivo, contexto..." rows={2} />
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -795,7 +795,7 @@ function HistorialPanel({ eventos }: { eventos: EventoEmpleado[] }) {
                 if (!confirm('¿Eliminar este evento del historial?')) return
                 startTransition(() => deleteEvento(ev.id))
               }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[#e8e0d0] text-slate-500 hover:text-red-400 transition-all"
+              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[#e8e0d0] text-slate-500 hover:text-red-700 transition-all"
             >
               <Trash2 className="w-3 h-3" />
             </button>
@@ -808,7 +808,7 @@ function HistorialPanel({ eventos }: { eventos: EventoEmpleado[] }) {
             <div className="mt-2 flex items-center gap-2 text-xs font-mono">
               <span className="text-slate-500">{formatCurrency(ev.sueldo_anterior)}</span>
               <span className="text-slate-600">→</span>
-              <span className="text-green-400">{formatCurrency(ev.sueldo_nuevo)}</span>
+              <span className="text-green-700">{formatCurrency(ev.sueldo_nuevo)}</span>
             </div>
           )}
         </div>
@@ -883,20 +883,20 @@ function EmpleadoCard({
         </div>
         {(emp.horas_acuerdo_negro ?? 0) > 0 && (
           <div className="flex justify-between text-sm bg-amber-500/5 border border-amber-500/20 rounded px-2 py-1">
-            <span className="text-amber-400 text-xs flex items-center gap-1">
+            <span className="text-amber-700 text-xs flex items-center gap-1">
               <BadgeCheck className="w-3 h-3" />
               Acuerdo negro: {emp.horas_acuerdo_negro} hs/mes
             </span>
-            <span className="font-mono text-amber-400 text-xs">+{formatCurrency((emp.horas_acuerdo_negro ?? 0) * emp.valor_hora)}</span>
+            <span className="font-mono text-amber-700 text-xs">+{formatCurrency((emp.horas_acuerdo_negro ?? 0) * emp.valor_hora)}</span>
           </div>
         )}
         {emp.plus_negro_tipo && (emp.plus_negro_valor ?? 0) > 0 && (
           <div className="flex justify-between text-sm bg-amber-500/5 border border-amber-500/20 rounded px-2 py-1">
-            <span className="text-amber-400 text-xs flex items-center gap-1">
+            <span className="text-amber-700 text-xs flex items-center gap-1">
               <TrendingUp className="w-3 h-3" />
               Plus negro: {emp.plus_negro_tipo === 'PORCENTAJE' ? `${emp.plus_negro_valor}% s/oficial` : 'monto fijo'}
             </span>
-            <span className="font-mono text-amber-400 text-xs">
+            <span className="font-mono text-amber-700 text-xs">
               {emp.plus_negro_tipo === 'MONTO'
                 ? `+${formatCurrency(emp.plus_negro_valor ?? 0)}`
                 : `≈ +${formatCurrency((emp.sueldo_basico * (emp.plus_negro_valor ?? 0)) / 100)}`}

@@ -36,21 +36,21 @@ function EstadoCheque({ dias }: { dias: number | null }) {
   if (dias === null) return <span className="text-slate-600 text-xs">Sin fecha</span>
   if (dias < 0)
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/15 text-red-400 border border-red-500/20">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/15 text-red-700 border border-red-500/20">
         <AlertTriangle className="w-3 h-3" />
         Vencido hace {Math.abs(dias)}d
       </span>
     )
   if (dias === 0)
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/15 text-red-400 border border-red-500/20">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/15 text-red-700 border border-red-500/20">
         <AlertTriangle className="w-3 h-3" />
         Vence hoy
       </span>
     )
   if (dias <= 7)
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/15 text-amber-400 border border-amber-500/20">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/15 text-amber-700 border border-amber-500/20">
         <Clock className="w-3 h-3" />
         En {dias}d
       </span>
@@ -118,7 +118,7 @@ export function ChequesClient({ cheques }: { cheques: Cheque[] }) {
           stats.vencidos.cant > 0 ? 'border-red-500/30' : 'border-[#e8e4dc]'
         )}>
           <p className="text-xs text-slate-600 mb-1">Vencidos</p>
-          <p className={cn('text-xl font-bold', stats.vencidos.cant > 0 ? 'text-red-400' : 'text-slate-900')}>
+          <p className={cn('text-xl font-bold', stats.vencidos.cant > 0 ? 'text-red-700' : 'text-slate-900')}>
             {formatCurrency(stats.vencidos.monto)}
           </p>
           <p className="text-xs text-slate-500 mt-0.5">{stats.vencidos.cant} cheques</p>
@@ -128,7 +128,7 @@ export function ChequesClient({ cheques }: { cheques: Cheque[] }) {
           stats.proximos7.cant > 0 ? 'border-amber-500/30' : 'border-[#e8e4dc]'
         )}>
           <p className="text-xs text-slate-600 mb-1">Vencen en 7 días</p>
-          <p className={cn('text-xl font-bold', stats.proximos7.cant > 0 ? 'text-amber-400' : 'text-slate-900')}>
+          <p className={cn('text-xl font-bold', stats.proximos7.cant > 0 ? 'text-amber-700' : 'text-slate-900')}>
             {formatCurrency(stats.proximos7.monto)}
           </p>
           <p className="text-xs text-slate-500 mt-0.5">{stats.proximos7.cant} cheques</p>
@@ -180,7 +180,7 @@ export function ChequesClient({ cheques }: { cheques: Cheque[] }) {
                         'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-xs font-medium',
                         c.instrumento === 'ECHEQ'
                           ? 'text-orange-400 bg-orange-500/10 border-orange-500/20'
-                          : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                          : 'text-amber-700 bg-amber-500/10 border-amber-500/20'
                       )}>
                         <FileCheck className="w-3 h-3" />
                         {c.instrumento === 'ECHEQ' ? 'E-Cheq' : 'Físico'}

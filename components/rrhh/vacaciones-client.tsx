@@ -173,11 +173,11 @@ function VacacionesForm({
           </div>
           <div>
             <p className="text-slate-600 text-xs mb-1">Tomados/agendados</p>
-            <p className="font-bold text-amber-400">{diasTomados}d</p>
+            <p className="font-bold text-amber-700">{diasTomados}d</p>
           </div>
           <div>
             <p className="text-slate-600 text-xs mb-1">Restantes</p>
-            <p className={`font-bold ${diasRestantes < 0 ? 'text-red-400' : 'text-green-400'}`}>
+            <p className={`font-bold ${diasRestantes < 0 ? 'text-red-700' : 'text-green-700'}`}>
               {diasRestantes}d
             </p>
           </div>
@@ -185,7 +185,7 @@ function VacacionesForm({
       )}
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
           {error}
         </p>
       )}
@@ -272,11 +272,11 @@ export function VacacionesClient({
                 </div>
                 <div className="bg-[#f5f0e6] rounded-lg p-2.5">
                   <p className="text-xs text-slate-600 mb-1">Tomados</p>
-                  <p className="font-bold text-amber-400">{v.dias_tomados}d</p>
+                  <p className="font-bold text-amber-700">{v.dias_tomados}d</p>
                 </div>
                 <div className="bg-[#f5f0e6] rounded-lg p-2.5">
                   <p className="text-xs text-slate-600 mb-1">Restantes</p>
-                  <p className={`font-bold ${v.dias_restantes < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                  <p className={`font-bold ${v.dias_restantes < 0 ? 'text-red-700' : 'text-green-700'}`}>
                     {v.dias_restantes}d
                   </p>
                 </div>

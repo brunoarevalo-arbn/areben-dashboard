@@ -294,7 +294,7 @@ function FormCheque({ cuentas, onSuccess, onClose }: { cuentas: Props['cuentas']
       <Select label="Cuenta del cheque (opcional)" value={cuentaId} onChange={(e) => setCuentaId(e.target.value)}
         options={[{ value: '', label: '— Sin asignar —' }, ...cuentas.map((c) => ({ value: c.id, label: `${c.banco} · ${c.nombre}` }))]} />
       <Textarea label="Notas" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="A quién se le firmó, motivo, etc." />
-      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button type="button" onClick={submit} disabled={isPending} title="Guardar el cheque histórico como pago LIBRE">
@@ -379,17 +379,17 @@ function FormCuota({ tarjetas, onSuccess, onClose }: { tarjetas: NonNullable<Pro
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1.5">Restantes a cargar</label>
           <input type="number" min="1" max="60" value={cuotasRestantes} onChange={(e) => setCuotasRestantes(Math.max(1, Number(e.target.value)))}
-            className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-amber-400 font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-amber-700 font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500" />
         </div>
       </div>
       <p className="text-xs text-slate-500 bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg px-3 py-2">
-        Total a cargar: <span className="font-mono text-amber-400 font-semibold">{formatCurrency(totalRestante)}</span> en {cuotasRestantes} cuota(s)
+        Total a cargar: <span className="font-mono text-amber-700 font-semibold">{formatCurrency(totalRestante)}</span> en {cuotasRestantes} cuota(s)
         desde <span className="text-slate-700">{primerMesVencimiento}</span> en adelante.
         {cuotasTotalOriginal > cuotasRestantes && (
           <span className="block mt-1 text-slate-500">Las {cuotasTotalOriginal - cuotasRestantes} cuota(s) anteriores ({cuotaActual > 1 ? `1-${cuotaActual - 1}` : '—'}) se asumen pagadas.</span>
         )}
       </p>
-      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button type="button" onClick={submit} disabled={isPending} title="Generar las cuotas restantes en el sistema">
@@ -456,7 +456,7 @@ function FormCtaCte({ proveedores, onSuccess, onClose }: { proveedores: NonNulla
       <p className="text-xs text-slate-500 bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg px-3 py-2">
         Crea una <strong>compra histórica</strong> + un pago a plazo pendiente. Cuando lo pagues por la pantalla normal, el saldo se cierra solo.
       </p>
-      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button type="button" onClick={submit} disabled={isPending} title="Crear la compra histórica + pago cta cte pendiente">
@@ -539,7 +539,7 @@ function FormGasto({ onSuccess, onClose }: { onSuccess?: () => void; onClose: ()
         <Input label="Vencimiento de pago" type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} required />
       </div>
       <Textarea label="Notas" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Detalle del gasto histórico" />
-      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button type="button" onClick={submit} disabled={isPending} title="Crear gasto pendiente histórico">

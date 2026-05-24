@@ -22,7 +22,7 @@ export default async function AfipPage() {
       </div>
 
       <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-        <p className="text-sm text-amber-300 font-medium">Pendiente total: {formatCurrency(totalPendiente)}</p>
+        <p className="text-sm text-amber-800 font-medium">Pendiente total: {formatCurrency(totalPendiente)}</p>
       </div>
 
       <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">

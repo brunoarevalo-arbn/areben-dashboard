@@ -81,7 +81,7 @@ function TarjetaForm({
 
       <Input label="Notas" name="notas" defaultValue={tarjeta?.notas ?? ''} />
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button type="submit" disabled={isPending}>
@@ -156,7 +156,7 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
           deudaVencida > 0 ? 'border-red-500/30' : 'border-[#e8e4dc]'
         )}>
           <p className="text-xs text-slate-600 mb-1">Deuda vencida</p>
-          <p className={cn('text-xl font-bold', deudaVencida > 0 ? 'text-red-400' : 'text-slate-900')}>
+          <p className={cn('text-xl font-bold', deudaVencida > 0 ? 'text-red-700' : 'text-slate-900')}>
             {formatCurrency(deudaVencida)}
           </p>
         </div>
@@ -164,7 +164,7 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
           <p className="text-xs text-slate-600 mb-1">Próximo vencimiento</p>
           {proyeccion[0] ? (
             <>
-              <p className="text-xl font-bold text-amber-400">{formatCurrency(proyeccion[0].total)}</p>
+              <p className="text-xl font-bold text-amber-700">{formatCurrency(proyeccion[0].total)}</p>
               <p className="text-xs text-slate-500 mt-0.5">{formatMonth(proyeccion[0].mes)}</p>
             </>
           ) : (
@@ -226,7 +226,7 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
                 <div className="flex items-center justify-between pt-3 border-t border-[#e8e4dc]">
                   <div>
                     <p className="text-xs text-slate-600">Pasivo pendiente</p>
-                    <p className="text-base font-mono font-bold text-amber-400">{formatCurrency(totalT)}</p>
+                    <p className="text-base font-mono font-bold text-amber-700">{formatCurrency(totalT)}</p>
                   </div>
                   <div className="flex gap-1">
                     {cuotasT.length > 0 && (
@@ -248,7 +248,7 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
                       variant="ghost"
                       onClick={() => startTransition(() => toggleTarjetaActiva(t.id, !t.activo))}
                     >
-                      <Power className={cn('w-3.5 h-3.5', t.activo ? 'text-red-400' : 'text-green-400')} />
+                      <Power className={cn('w-3.5 h-3.5', t.activo ? 'text-red-700' : 'text-green-700')} />
                     </Button>
                   </div>
                 </div>
@@ -285,19 +285,19 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
                   )}>
                     <td className="px-4 py-2 text-slate-800 font-medium">{formatMonth(p.mes)}</td>
                     <td className="px-4 py-2 text-right text-slate-600 text-xs">{p.cantidad}</td>
-                    <td className="px-4 py-2 text-right font-mono text-amber-400 font-medium">
+                    <td className="px-4 py-2 text-right font-mono text-amber-700 font-medium">
                       {formatCurrency(p.total)}
                     </td>
-                    <td className="px-4 py-2 text-right font-mono text-green-400 text-xs">
+                    <td className="px-4 py-2 text-right font-mono text-green-700 text-xs">
                       {p.pagado > 0 ? formatCurrency(p.pagado) : '—'}
                     </td>
                     <td className="px-4 py-2">
                       {vencido ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-red-400">
+                        <span className="inline-flex items-center gap-1 text-xs text-red-700">
                           <AlertTriangle className="w-3 h-3" /> Vencido
                         </span>
                       ) : p.total === 0 ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-green-400">
+                        <span className="inline-flex items-center gap-1 text-xs text-green-700">
                           <CheckCircle2 className="w-3 h-3" /> Pagado
                         </span>
                       ) : (
@@ -464,7 +464,7 @@ function PagarResumenForm({
           <p className="text-xs font-semibold text-slate-700">
             Cuotas incluidas ({cuotasIncluidas.length})
           </p>
-          <p className="font-mono text-sm font-bold text-amber-400">{formatCurrency(totalAPagar)}</p>
+          <p className="font-mono text-sm font-bold text-amber-700">{formatCurrency(totalAPagar)}</p>
         </div>
         <div className="max-h-48 overflow-y-auto divide-y divide-slate-700/40">
           {cuotasIncluidas.length === 0 ? (
@@ -489,11 +489,11 @@ function PagarResumenForm({
       </div>
 
       {resultado && (
-        <p className="text-sm text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-green-700 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
           ✓ {resultado.ok} cuota(s) pagada(s) por {formatCurrency(resultado.total)}
         </p>
       )}
-      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>

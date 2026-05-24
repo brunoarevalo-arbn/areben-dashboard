@@ -118,11 +118,11 @@ export default async function DashboardPage() {
       )}
 
       {!saldoActual && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0" />
           <div>
-            <p className="text-sm font-medium text-amber-300">Sin saldo cargado para este mes</p>
-            <p className="text-xs text-amber-400/70 mt-0.5">
+            <p className="text-sm font-medium text-amber-900">Sin saldo cargado para este mes</p>
+            <p className="text-xs text-amber-800 mt-0.5">
               <Link href="/finanzas/saldos" className="underline">Cargá el saldo actual</Link> para ver los KPIs completos.
             </p>
           </div>
@@ -134,7 +134,7 @@ export default async function DashboardPage() {
           <div className="bg-white border border-red-500/20 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-400" />
+                <AlertTriangle className="w-4 h-4 text-red-700" />
                 Gastos Vencidos
               </h2>
               <Link href="/finanzas/gastos?estado=VENCIDO" className="text-xs text-orange-500 hover:text-orange-600">
@@ -148,7 +148,7 @@ export default async function DashboardPage() {
                     <p className="text-sm text-slate-800">{g.concepto}</p>
                     <p className="text-xs text-slate-500">{formatMonth(g.mes)}</p>
                   </div>
-                  <span className="text-sm font-medium text-red-400">{formatCurrency(g.monto)}</span>
+                  <span className="text-sm font-medium text-red-700">{formatCurrency(g.monto)}</span>
                 </div>
               ))}
             </div>
@@ -159,7 +159,7 @@ export default async function DashboardPage() {
           <div className="bg-white border border-amber-500/20 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-amber-400" />
+                <CreditCard className="w-4 h-4 text-amber-700" />
                 Nómina Pendiente — {formatMonth(mes)}
               </h2>
               <Link href="/rrhh/nomina" className="text-xs text-orange-500 hover:text-orange-600">
@@ -172,7 +172,7 @@ export default async function DashboardPage() {
                   <p className="text-sm text-slate-800">
                     {n.empleado_nombre} {n.empleado_apellido}
                   </p>
-                  <span className="text-sm font-medium text-amber-400">{formatCurrency(n.neto)}</span>
+                  <span className="text-sm font-medium text-amber-700">{formatCurrency(n.neto)}</span>
                 </div>
               ))}
             </div>
@@ -184,9 +184,9 @@ export default async function DashboardPage() {
         )}
 
         {(!gastosVencidos || gastosVencidos.length === 0) && (!nominaPendiente || nominaPendiente.length === 0) && (
-          <div className="col-span-2 bg-green-500/10 border border-green-500/20 rounded-xl p-6 text-center">
-            <p className="text-green-400 font-medium">Todo al día</p>
-            <p className="text-xs text-green-400/70 mt-1">No hay gastos vencidos ni nóminas pendientes.</p>
+          <div className="col-span-2 bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+            <p className="text-green-800 font-medium">Todo al día</p>
+            <p className="text-xs text-green-700 mt-1">No hay gastos vencidos ni nóminas pendientes.</p>
           </div>
         )}
       </div>
@@ -226,7 +226,7 @@ export default async function DashboardPage() {
                       <span className={cn(
                         'text-[10px] font-medium px-1.5 py-0.5 rounded',
                         positivo && 'bg-teal-500/15 text-teal-300',
-                        negativo && 'bg-amber-500/15 text-amber-300',
+                        negativo && 'bg-amber-500/15 text-amber-800',
                         !positivo && !negativo && 'bg-slate-700 text-slate-600',
                       )}>
                         {positivo ? 'Activo · Stock' : negativo ? 'Pasivo · Reposición' : 'Equilibrado'}
@@ -235,7 +235,7 @@ export default async function DashboardPage() {
                     <p className={cn(
                       'text-lg font-mono font-bold',
                       positivo && 'text-teal-400',
-                      negativo && 'text-amber-400',
+                      negativo && 'text-amber-700',
                       !positivo && !negativo && 'text-slate-700',
                     )}>
                       {positivo ? '+' : negativo ? '−' : ''}{formatCurrency(Math.abs(saldo))}
@@ -256,7 +256,7 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: 'Cargar gasto', href: '/finanzas/gastos', color: 'text-red-300' },
-            { label: 'Nueva nómina', href: '/rrhh/nomina', color: 'text-amber-300' },
+            { label: 'Nueva nómina', href: '/rrhh/nomina', color: 'text-amber-800' },
             { label: 'Registrar retiro', href: '/finanzas/retiros', color: 'text-orange-300' },
             { label: 'Ver análisis', href: '/analisis/pl-marca', color: 'text-green-300' },
           ].map((item) => (

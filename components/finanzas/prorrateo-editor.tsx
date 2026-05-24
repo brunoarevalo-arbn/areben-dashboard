@@ -7,9 +7,9 @@ import { cn } from '@/lib/utils'
 const MARCAS: (keyof ProrrateoMarcas)[] = ['BDI', 'ZATTIA', 'STUNNED']
 
 const COLORES: Record<string, string> = {
-  BDI: 'text-purple-400',
-  ZATTIA: 'text-pink-400',
-  STUNNED: 'text-amber-400',
+  BDI: 'text-purple-700',
+  ZATTIA: 'text-pink-700',
+  STUNNED: 'text-amber-700',
   GENERAL: 'text-slate-600',
 }
 
@@ -84,7 +84,7 @@ export function ProrrateoEditor({ value, onChange, defaults }: Props) {
         </div>
         <span className={cn(
           'text-xs font-mono font-medium',
-          valido ? 'text-green-400' : 'text-red-400'
+          valido ? 'text-green-700' : 'text-red-700'
         )}>
           Total: {total.toFixed(2)}% {valido ? '✓' : '⚠ debe sumar 100%'}
         </span>

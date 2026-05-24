@@ -74,7 +74,7 @@ function MovimientoEditor({ p, onSaved }: { p: PeriodoConRel; onSaved: () => voi
             onSaved()
           })
         }}
-        className="p-1 rounded bg-green-600/20 text-green-400 hover:bg-green-600/30"
+        className="p-1 rounded bg-green-600/20 text-green-700 hover:bg-green-600/30"
         title="Guardar"
       >
         {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
@@ -160,9 +160,9 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
       {/* Alerta meses anteriores sin cerrar */}
       {mesesAbiertosAnteriores.length > 0 && (
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
           <div className="text-sm">
-            <p className="text-amber-300 font-medium">Hay períodos anteriores sin cerrar</p>
+            <p className="text-amber-800 font-medium">Hay períodos anteriores sin cerrar</p>
             <p className="text-amber-200/70 text-xs mt-1">
               Meses pendientes: {mesesAbiertosAnteriores.map((m) => formatMonth(m)).join(', ')}
             </p>
@@ -174,11 +174,11 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="bg-white border border-amber-500/20 rounded-xl p-5">
           <p className="text-xs text-slate-600 mb-1">Gasto financiero USD</p>
-          <p className="text-2xl font-bold text-amber-400">{formatMoneda(totalUsd, 'USD')}</p>
+          <p className="text-2xl font-bold text-amber-700">{formatMoneda(totalUsd, 'USD')}</p>
         </div>
         <div className="bg-white border border-amber-500/20 rounded-xl p-5">
           <p className="text-xs text-slate-600 mb-1">Gasto financiero ARS</p>
-          <p className="text-2xl font-bold text-amber-400">{formatMoneda(totalArs, 'ARS')}</p>
+          <p className="text-2xl font-bold text-amber-700">{formatMoneda(totalArs, 'ARS')}</p>
         </div>
       </div>
 
@@ -227,15 +227,15 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                       </Badge>
                     </td>
                     <td className="px-4 py-2 text-right font-mono text-slate-700">{formatMoneda(Number(p.saldo_inicio), i.moneda)}</td>
-                    <td className="px-4 py-2 text-right font-mono text-amber-400 font-medium">{formatMoneda(Number(p.interes_devengado), i.moneda)}</td>
+                    <td className="px-4 py-2 text-right font-mono text-amber-700 font-medium">{formatMoneda(Number(p.interes_devengado), i.moneda)}</td>
                     <td className="px-4 py-2 text-right">
                       <MovimientoEditor p={p} onSaved={() => router.refresh()} />
                     </td>
                     <td className="px-4 py-2 text-right font-mono text-slate-900 font-bold">{formatMoneda(Number(p.saldo_cierre), i.moneda)}</td>
                     <td className="px-4 py-2">
                       {p.cerrado
-                        ? <span className="inline-flex items-center gap-1 text-xs text-green-400"><CheckCircle2 className="w-3 h-3" />Cerrado</span>
-                        : <span className="inline-flex items-center gap-1 text-xs text-amber-400"><Unlock className="w-3 h-3" />Abierto</span>
+                        ? <span className="inline-flex items-center gap-1 text-xs text-green-700"><CheckCircle2 className="w-3 h-3" />Cerrado</span>
+                        : <span className="inline-flex items-center gap-1 text-xs text-amber-700"><Unlock className="w-3 h-3" />Abierto</span>
                       }
                     </td>
                   </tr>
@@ -249,8 +249,8 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                 <td colSpan={4} className="px-4 py-3 text-sm font-semibold text-slate-700">TOTAL INTERESES (gasto financiero)</td>
                 <td colSpan={4} className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-3">
-                    {totalUsd > 0 && <span className="font-mono font-bold text-amber-400">{formatMoneda(totalUsd, 'USD')}</span>}
-                    {totalArs > 0 && <span className="font-mono font-bold text-amber-400">{formatMoneda(totalArs, 'ARS')}</span>}
+                    {totalUsd > 0 && <span className="font-mono font-bold text-amber-700">{formatMoneda(totalUsd, 'USD')}</span>}
+                    {totalArs > 0 && <span className="font-mono font-bold text-amber-700">{formatMoneda(totalArs, 'ARS')}</span>}
                   </div>
                 </td>
               </tr>

@@ -245,7 +245,7 @@ export function ReporteClient({ mes, inversores, inversorSelected, instrumentos,
                 <p className="text-xs text-slate-600">
                   Capital {formatMoneda(Number(i.capital_inicial), i.moneda)} · Tasa {(Number(i.tasa_mensual) * 100).toFixed(2)}%
                 </p>
-                <p className={cn('text-xs flex items-center gap-1 mt-1', i.capitalizable ? 'text-purple-400' : 'text-slate-600')}>
+                <p className={cn('text-xs flex items-center gap-1 mt-1', i.capitalizable ? 'text-purple-700' : 'text-slate-600')}>
                   {i.capitalizable ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
                   {i.capitalizable ? 'Capitalizable' : 'No capitalizable'}
                 </p>

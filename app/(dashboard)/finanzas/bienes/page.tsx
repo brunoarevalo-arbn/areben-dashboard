@@ -46,7 +46,7 @@ export default async function BienesPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Dep. anual</span>
-                    <span className="font-mono text-red-400">{formatCurrency(depAnual)}</span>
+                    <span className="font-mono text-red-700">{formatCurrency(depAnual)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Vida útil</span>

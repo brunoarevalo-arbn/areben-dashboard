@@ -114,14 +114,14 @@ export function PLMarcaClient({ ventas, gastos, mes }: PLMarcaClientProps) {
                   <span className="font-semibold" style={{ color: COLORES[d.marca] }}>{d.marca}</span>
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-slate-900">{formatCurrency(d.ingresos)}</td>
-                <td className="px-4 py-3 text-right font-mono text-red-400">{formatCurrency(d.cmv)}</td>
+                <td className="px-4 py-3 text-right font-mono text-red-700">{formatCurrency(d.cmv)}</td>
                 <td className="px-4 py-3 text-right font-mono text-slate-900">{formatCurrency(d.ganancia_bruta)}</td>
-                <td className="px-4 py-3 text-right font-mono text-amber-400">{formatCurrency(d.gastos_operativos)}</td>
-                <td className={`px-4 py-3 text-right font-mono font-semibold ${d.ganancia_neta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <td className="px-4 py-3 text-right font-mono text-amber-700">{formatCurrency(d.gastos_operativos)}</td>
+                <td className={`px-4 py-3 text-right font-mono font-semibold ${d.ganancia_neta >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                   {formatCurrency(d.ganancia_neta)}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <span className={`flex items-center justify-end gap-1 text-sm font-medium ${d.margen > 0 ? 'text-green-400' : d.margen < 0 ? 'text-red-400' : 'text-slate-600'}`}>
+                  <span className={`flex items-center justify-end gap-1 text-sm font-medium ${d.margen > 0 ? 'text-green-700' : d.margen < 0 ? 'text-red-700' : 'text-slate-600'}`}>
                     {d.margen > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : d.margen < 0 ? <TrendingDown className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />}
                     {d.margen.toFixed(1)}%
                   </span>
@@ -133,10 +133,10 @@ export function PLMarcaClient({ ventas, gastos, mes }: PLMarcaClientProps) {
             <tr className="border-t border-[#d6d0c4] bg-[#f5f0e6]/50">
               <td className="px-4 py-3 font-semibold text-slate-800">TOTAL</td>
               <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">{formatCurrency(totales.ingresos)}</td>
-              <td className="px-4 py-3 text-right font-mono font-semibold text-red-400">{formatCurrency(totales.cmv)}</td>
+              <td className="px-4 py-3 text-right font-mono font-semibold text-red-700">{formatCurrency(totales.cmv)}</td>
               <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">{formatCurrency(totales.ingresos - totales.cmv)}</td>
-              <td className="px-4 py-3 text-right font-mono font-semibold text-amber-400">{formatCurrency(totales.gastos_operativos)}</td>
-              <td className={`px-4 py-3 text-right font-mono font-bold ${totales.ganancia_neta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <td className="px-4 py-3 text-right font-mono font-semibold text-amber-700">{formatCurrency(totales.gastos_operativos)}</td>
+              <td className={`px-4 py-3 text-right font-mono font-bold ${totales.ganancia_neta >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                 {formatCurrency(totales.ganancia_neta)}
               </td>
               <td className="px-4 py-3 text-right text-slate-600">
@@ -148,7 +148,7 @@ export function PLMarcaClient({ ventas, gastos, mes }: PLMarcaClientProps) {
       </div>
 
       {ventas.length === 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-sm text-amber-300">
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-sm text-amber-800">
           No hay datos de ventas para este mes. Cargalos en <a href="/analisis/ventas" className="underline font-medium">Panel de Ventas</a>.
         </div>
       )}

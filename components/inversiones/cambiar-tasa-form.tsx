@@ -90,11 +90,11 @@ export function CambiarTasaForm({
             Sobre capital actual ({formatMoneda(Number(instrumento.capital_inicial), instrumento.moneda)})
           </span>
           <div className="text-right">
-            <p className="font-mono text-sm text-amber-400 font-semibold">
+            <p className="font-mono text-sm text-amber-700 font-semibold">
               {formatMoneda(interesEstimado, instrumento.moneda)} <span className="text-xs text-slate-500">/ mes</span>
             </p>
             {variacion !== 0 && (
-              <p className={`text-[10px] font-mono ${variacion > 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <p className={`text-[10px] font-mono ${variacion > 0 ? 'text-green-700' : 'text-red-700'}`}>
                 {variacion > 0 ? '+' : ''}{variacion.toFixed(2)}% vs. tasa actual
               </p>
             )}
@@ -110,14 +110,14 @@ export function CambiarTasaForm({
       />
 
       <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg p-3 text-xs text-slate-600 flex items-start gap-2">
-        <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-400" />
+        <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-700" />
         <div>
           Al guardar, se recalcularán los <strong className="text-slate-800">períodos abiertos</strong> aplicando esta tasa desde la fecha indicada.
           Los períodos ya cerrados <strong className="text-slate-800">no se modifican</strong>.
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>

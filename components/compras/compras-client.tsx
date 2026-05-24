@@ -185,7 +185,7 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
         </div>
         <div className="text-right">
           <p className="text-xs text-slate-600">Saldo pendiente</p>
-          <p className="text-lg font-bold text-amber-400">{formatCurrency(compra.saldo_pendiente)}</p>
+          <p className="text-lg font-bold text-amber-700">{formatCurrency(compra.saldo_pendiente)}</p>
         </div>
       </div>
 
@@ -291,7 +291,7 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
       {/* Fecha de vencimiento/cobro para cheques */}
       {condicion !== 'EN_CUOTAS' && esCheque && (
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-3">
-          <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
+          <div className="flex items-center gap-2 text-amber-700 text-sm font-medium">
             <AlertCircle className="w-4 h-4" />
             Datos del cheque (obligatorio)
           </div>
@@ -357,7 +357,7 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
           </div>
 
           {esCheque && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 text-xs text-amber-300 flex items-center gap-2">
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 text-xs text-amber-800 flex items-center gap-2">
               <FileCheck className="w-3.5 h-3.5 shrink-0" />
               Cada cuota es un cheque distinto. Cargá número y banco por cuota.
             </div>
@@ -433,8 +433,8 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
                     <span className={cn(
                       'font-mono font-bold text-xs',
                       Math.abs(totalCuotas - compra.saldo_pendiente) < 0.02
-                        ? 'text-green-400'
-                        : 'text-amber-400'
+                        ? 'text-green-700'
+                        : 'text-amber-700'
                     )}>
                       {formatCurrency(totalCuotas)}
                     </span>
@@ -452,7 +452,7 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
       )}
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 flex items-center gap-2">
+        <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
         </p>
@@ -534,15 +534,15 @@ export function ComprasClient({
         </div>
         <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Neto (sin IVA)</p>
-          <p className="text-xl font-bold text-green-400">{formatCurrency(totalNeto)}</p>
+          <p className="text-xl font-bold text-green-700">{formatCurrency(totalNeto)}</p>
         </div>
         <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">IVA total</p>
-          <p className="text-xl font-bold text-amber-400">{formatCurrency(totalIVA)}</p>
+          <p className="text-xl font-bold text-amber-700">{formatCurrency(totalIVA)}</p>
         </div>
         <div className="bg-white border border-amber-500/20 rounded-xl p-4">
           <p className="text-xs text-slate-600 mb-1">Saldo pendiente</p>
-          <p className="text-xl font-bold text-red-400">{formatCurrency(totalSaldo)}</p>
+          <p className="text-xl font-bold text-red-700">{formatCurrency(totalSaldo)}</p>
         </div>
       </div>
 
@@ -599,15 +599,15 @@ export function ComprasClient({
                     </td>
                     <td className="px-4 py-3 text-right font-mono">
                       {pagada ? (
-                        <span className="text-green-400 text-xs font-medium">Saldado</span>
+                        <span className="text-green-700 text-xs font-medium">Saldado</span>
                       ) : (
-                        <span className="text-red-400 font-medium">{formatCurrency(saldo)}</span>
+                        <span className="text-red-700 font-medium">{formatCurrency(saldo)}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-green-400">
+                    <td className="px-4 py-3 text-right font-mono text-green-700">
                       {c.monto_neto > 0 ? formatCurrency(c.monto_neto) : '—'}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-amber-400">
+                    <td className="px-4 py-3 text-right font-mono text-amber-700">
                       {c.iva > 0 ? formatCurrency(c.iva) : '—'}
                     </td>
                     <td className="px-4 py-3 text-slate-600 text-xs">{formatDate(c.fecha)}</td>
@@ -654,9 +654,9 @@ export function ComprasClient({
               <tr className="border-t border-[#d6d0c4] bg-[#f5f0e6]/50">
                 <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-slate-700">TOTAL</td>
                 <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">{formatCurrency(totalMonto)}</td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-red-400">{formatCurrency(totalSaldo)}</td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-green-400">{formatCurrency(totalNeto)}</td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-amber-400">{formatCurrency(totalIVA)}</td>
+                <td className="px-4 py-3 text-right font-mono font-bold text-red-700">{formatCurrency(totalSaldo)}</td>
+                <td className="px-4 py-3 text-right font-mono font-bold text-green-700">{formatCurrency(totalNeto)}</td>
+                <td className="px-4 py-3 text-right font-mono font-bold text-amber-700">{formatCurrency(totalIVA)}</td>
                 <td colSpan={3} />
               </tr>
             </tfoot>
