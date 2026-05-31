@@ -406,3 +406,199 @@ export async function reabrirPeriodos(mes: string) {
   if (error) throw new Error(error.message)
   revalidatePath('/inversiones/cierre')
 }
+
+// ============================================================
+// Cierre individual de período con generación automática de gasto
+// ============================================================
+
+export interface CerrarPeriodoResult {
+  ok: boolean
+  gastoId?: string
+  montoArs?: number
+  montoOrigen?: number
+  monedaOrigen?: 'ARS' | 'USD'
+  tipoCambio?: number
+  error?: string
+}
+
+/**
+ * Cierra un período individual y crea automáticamente un gasto financiero asociado.
+ *
+ * Reglas:
+ * - El interés del período se convierte a ARS al TC del mes (tipos_cambio_mes) si el instrumento es USD.
+ * - El gasto hereda el prorrateo entre marcas desde configuracion_prorrateo.
+ * - Subcategoría: 'inversores_privados' o 'creditos_bancarios' según instrumento.tipo.
+ * - El gasto queda PENDIENTE; el medio de pago se elige al pagarlo.
+ * - El partial UNIQUE index en gastos.periodo_instrumento_id garantiza idempotencia a nivel DB.
+ */
+export async function cerrarPeriodoYCrearGasto(periodoId: string): Promise<CerrarPeriodoResult> {
+  await requireUser()
+  const supabase = await createClient()
+
+  // 1. Cargar período + instrumento + inversor
+  const { data: periodo, error: errPeriodo } = await supabase
+    .from('periodos_instrumento')
+    .select(`
+      id, mes, interes_devengado, cerrado, instrumento_id,
+      instrumento:instrumentos_inversion(
+        id, codigo, moneda, tipo, acreedor_nombre, inversor:inversores(id, nombre)
+      )
+    `)
+    .eq('id', periodoId)
+    .single()
+
+  if (errPeriodo || !periodo) {
+    return { ok: false, error: 'No se encontró el período' }
+  }
+
+  const inst = Array.isArray(periodo.instrumento) ? periodo.instrumento[0] : periodo.instrumento
+  if (!inst) {
+    return { ok: false, error: 'El período no tiene instrumento asociado' }
+  }
+
+  // 2. Validaciones de estado
+  if (periodo.cerrado) {
+    return { ok: false, error: 'El período ya está cerrado' }
+  }
+  if (periodo.interes_devengado === null || periodo.interes_devengado === undefined) {
+    return { ok: false, error: 'El período no tiene interés calculado' }
+  }
+
+  const interes = Number(periodo.interes_devengado)
+  const moneda = inst.moneda as 'ARS' | 'USD'
+  const tipoInstrumento = (inst.tipo ?? 'INVERSION_PRIVADA') as 'INVERSION_PRIVADA' | 'CREDITO_BANCARIO'
+
+  // 3. Validar que no exista ya un gasto para este período (idempotencia)
+  const { data: gastoExistente } = await supabase
+    .from('gastos')
+    .select('id')
+    .eq('periodo_instrumento_id', periodoId)
+    .maybeSingle()
+  if (gastoExistente) {
+    return { ok: false, error: `Este período ya tiene gasto registrado (ref: ${gastoExistente.id.substring(0, 8)})` }
+  }
+
+  // 4. Calcular monto en ARS (convertir si moneda=USD)
+  let montoArs = interes
+  let tcAplicado: number | null = null
+
+  if (moneda === 'USD') {
+    const { data: tc } = await supabase
+      .from('tipos_cambio_mes')
+      .select('tipo_cambio')
+      .eq('mes', periodo.mes)
+      .maybeSingle()
+
+    if (!tc) {
+      return {
+        ok: false,
+        error: `Falta cargar el tipo de cambio del mes ${periodo.mes}. Cargalo en /finanzas/saldos y volvé a intentar.`,
+      }
+    }
+    tcAplicado = Number(tc.tipo_cambio)
+    montoArs = Math.round(interes * tcAplicado * 100) / 100
+  }
+
+  // 5. Resolver subcategoría
+  const slugSubcategoria = tipoInstrumento === 'CREDITO_BANCARIO' ? 'creditos_bancarios' : 'inversores_privados'
+  const { data: subcategoria } = await supabase
+    .from('gastos_subcategorias')
+    .select('id')
+    .eq('slug', slugSubcategoria)
+    .maybeSingle()
+
+  if (!subcategoria) {
+    return { ok: false, error: `No se encontró la subcategoría "${slugSubcategoria}". Aplicá la migración 033.` }
+  }
+
+  // 6. Leer configuración de prorrateo activa → construir JSON
+  const { data: prorrateoConfig } = await supabase
+    .from('configuracion_prorrateo')
+    .select('marca, porcentaje')
+    .eq('activo', true)
+
+  const prorrateo = prorrateoConfig && prorrateoConfig.length > 0
+    ? Object.fromEntries(prorrateoConfig.map((p) => [p.marca, Number(p.porcentaje)]))
+    : null
+
+  // 7. Calcular fecha (último día del mes del período)
+  const [yearStr, monthStr] = periodo.mes.split('-')
+  const year = Number(yearStr)
+  const month = Number(monthStr)
+  const ultimoDia = new Date(year, month, 0).getDate()
+  const fechaGasto = `${periodo.mes}-${String(ultimoDia).padStart(2, '0')}`
+
+  // 8. Concepto descriptivo
+  const inversor = Array.isArray(inst.inversor) ? inst.inversor[0] : inst.inversor
+  const nombreAcreedor = tipoInstrumento === 'CREDITO_BANCARIO'
+    ? (inst.acreedor_nombre || inversor?.nombre || 'Banco s/d')
+    : (inversor?.nombre || 'Inversor s/d')
+  const concepto = `Interés ${nombreAcreedor} — ${periodo.mes}`
+
+  // 9. Crear el gasto auto-generado
+  const insertData: Record<string, unknown> = {
+    categoria: 'Gastos Financieros',
+    subcategoria_id: subcategoria.id,
+    concepto,
+    monto: montoArs,
+    monto_neto: montoArs,
+    moneda: 'ARS',
+    iva_incluido: false,
+    porcentaje_iva: 0,
+    negocio: 'GENERAL',
+    mes: periodo.mes,
+    fecha: fechaGasto,
+    estado: 'PENDIENTE',
+    confirmado: true,
+    prorrateo,
+    instrumento_id: inst.id,
+    periodo_instrumento_id: periodo.id,
+    auto_generado: true,
+    generado_desde: 'INVERSION_CIERRE',
+    cuotas_total: 1,
+    notas: `Auto-generado al cerrar período de inversión (${inst.codigo ?? inst.id.substring(0, 8)})`,
+  }
+
+  if (moneda === 'USD' && tcAplicado) {
+    insertData.monto_origen = interes
+    insertData.moneda_origen = 'USD'
+    insertData.tipo_cambio_aplicado = tcAplicado
+  }
+
+  const { data: nuevoGasto, error: errInsert } = await supabase
+    .from('gastos')
+    .insert(insertData)
+    .select('id')
+    .single()
+
+  if (errInsert || !nuevoGasto) {
+    return { ok: false, error: `Error al crear el gasto: ${errInsert?.message ?? 'desconocido'}` }
+  }
+
+  // 10. Cerrar el período
+  const { error: errCerrar } = await supabase
+    .from('periodos_instrumento')
+    .update({ cerrado: true, fecha_cierre: new Date().toISOString() })
+    .eq('id', periodo.id)
+
+  if (errCerrar) {
+    // Compensación: borrar el gasto recién creado para no dejar inconsistencia
+    await supabase.from('gastos').delete().eq('id', nuevoGasto.id)
+    return { ok: false, error: `Error al cerrar el período (gasto revertido): ${errCerrar.message}` }
+  }
+
+  revalidatePath('/inversiones/cierre')
+  revalidatePath('/inversiones')
+  revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/cierre-mes')
+
+  return {
+    ok: true,
+    gastoId: nuevoGasto.id,
+    montoArs,
+    montoOrigen: interes,
+    monedaOrigen: moneda,
+    tipoCambio: tcAplicado ?? undefined,
+  }
+}

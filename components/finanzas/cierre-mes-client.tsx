@@ -106,6 +106,11 @@ interface Props {
   pagosCtaCtePendientes: PagoCtaCtePend[]
   instrumentosActivos: InstrumentoActivo[]
   saldosInversiones: { instrumento_id: string; saldo_cierre: number }[]
+  resumenGastosFinancieros?: {
+    porSubcategoria: { slug: string; nombre: string; total: number; count: number }[]
+    total: number
+    capitalPendienteCreditos: number
+  }
 }
 
 export function CierreMesClient(props: Props) {
@@ -839,6 +844,38 @@ export function CierreMesClient(props: Props) {
           </div>
         </div>
       </Section>
+
+      {/* GASTOS FINANCIEROS DEL MES (mig 033 + 034) */}
+      {props.resumenGastosFinancieros && (props.resumenGastosFinancieros.total > 0 || props.resumenGastosFinancieros.capitalPendienteCreditos > 0) && (
+        <div className="bg-white border border-amber-500/30 rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-[#e8e4dc] flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-amber-700" />
+            <h2 className="text-base font-semibold text-slate-900">Gastos financieros del mes</h2>
+            <span className="text-xs text-slate-500 ml-2">(auto-generados desde cierres de inversiones)</span>
+          </div>
+          <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+            {props.resumenGastosFinancieros.porSubcategoria.map((sub) => (
+              <div key={sub.slug} className="border border-amber-500/20 rounded-lg p-4">
+                <p className="text-xs text-slate-600 mb-1">{sub.nombre}</p>
+                <p className="text-2xl font-bold text-amber-700 font-mono">{formatCurrency(sub.total)}</p>
+                <p className="text-xs text-slate-500 mt-1">{sub.count} gasto{sub.count !== 1 ? 's' : ''}</p>
+              </div>
+            ))}
+            <div className="border border-amber-500/40 bg-amber-500/5 rounded-lg p-4">
+              <p className="text-xs text-slate-700 mb-1 font-semibold">TOTAL GASTOS FINANCIEROS</p>
+              <p className="text-2xl font-bold text-amber-800 font-mono">{formatCurrency(props.resumenGastosFinancieros.total)}</p>
+              <p className="text-xs text-slate-500 mt-1">suma del mes</p>
+            </div>
+            {props.resumenGastosFinancieros.capitalPendienteCreditos > 0 && (
+              <div className="border border-rose-500/30 bg-rose-500/5 rounded-lg p-4 md:col-span-3">
+                <p className="text-xs text-rose-700 mb-1 font-semibold">CAPITAL PENDIENTE — CRÉDITOS BANCARIOS</p>
+                <p className="text-2xl font-bold text-rose-700 font-mono">{formatCurrency(props.resumenGastosFinancieros.capitalPendienteCreditos)}</p>
+                <p className="text-xs text-slate-500 mt-1">Deuda por capital (no interés) al cierre del mes</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* RESUMEN PATRIMONIAL */}
       <div className="bg-gradient-to-br from-slate-900 to-slate-900/40 border border-orange-500/30 rounded-xl overflow-x-auto">

@@ -41,8 +41,48 @@ export interface Gasto {
   gasto_intereses_id?: string | null
   /** FK al gasto padre (en el gasto-intereses auto-generado) */
   gasto_padre_id?: string | null
+  /** FK opcional al catálogo de subcategorías (mig 033). */
+  subcategoria_id?: string | null
+  /** FK al instrumento de inversión cuando el gasto proviene de un cierre de período. */
+  instrumento_id?: string | null
+  /** FK al período del instrumento (UNIQUE: un período = un gasto). */
+  periodo_instrumento_id?: string | null
+  /** TRUE si el sistema creó este gasto automáticamente. */
+  auto_generado?: boolean
+  /** Origen lógico del auto-generado: INVERSION_CIERRE, APORTES_PATRONALES, GASTO_INTERESES, etc. */
+  generado_desde?: string | null
+  /** Monto en la moneda original (antes de convertir a ARS si aplicó). */
+  monto_origen?: number | null
+  /** Moneda original del cálculo (USD/ARS). */
+  moneda_origen?: 'ARS' | 'USD' | null
+  /** TC aplicado para convertir monto_origen → monto final. */
+  tipo_cambio_aplicado?: number | null
+  subcategoria?: GastoSubcategoria | null
   created_at: string
   updated_at: string
+}
+
+// ============ Catálogo de categorías y subcategorías (mig 033) ============
+
+export interface GastoCategoria {
+  id: string
+  nombre: string
+  slug: string
+  orden: number
+  activa: boolean
+  created_at: string
+}
+
+export interface GastoSubcategoria {
+  id: string
+  categoria_id: string
+  nombre: string
+  slug: string
+  descripcion?: string | null
+  orden: number
+  activa: boolean
+  created_at: string
+  categoria?: GastoCategoria
 }
 
 export interface SaldoMensual {
@@ -341,6 +381,7 @@ export interface CierreMensual {
 
 export type TipoInversor = 'persona_fisica' | 'empresa'
 export type EstadoInstrumento = 'activo' | 'cerrado' | 'renovado'
+export type TipoInstrumento = 'INVERSION_PRIVADA' | 'CREDITO_BANCARIO'
 
 export interface Inversor {
   id: string
@@ -364,6 +405,12 @@ export interface Instrumento {
   fecha_fin?: string | null
   estado: EstadoInstrumento
   notas?: string | null
+  /** Distingue inversión privada vs crédito bancario (mig 034). Default INVERSION_PRIVADA. */
+  tipo?: TipoInstrumento
+  /** Nombre del banco/acreedor si tipo=CREDITO_BANCARIO. */
+  acreedor_nombre?: string | null
+  /** Datos de contacto del acreedor. */
+  acreedor_contacto?: string | null
   created_at: string
   updated_at: string
   inversor?: Inversor
