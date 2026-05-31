@@ -317,14 +317,22 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                         : <span className="inline-flex items-center gap-1 text-xs text-amber-700"><Unlock className="w-3 h-3" />Abierto</span>
                       }
                     </td>
-                    <td className="px-4 py-2 text-right">
-                      {p.cerrado ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                          <FileText className="w-3 h-3" />Gasto creado
-                        </span>
-                      ) : (
-                        <CerrarPeriodoButton p={p} onDone={setToast} />
-                      )}
+                    <td className="px-4 py-2">
+                      <div className="flex items-center justify-end gap-2">
+                        {!p.cerrado && (
+                          <CerrarPeriodoButton p={p} onDone={setToast} />
+                        )}
+                        <a
+                          href={`/api/reportes/periodo/${p.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-[#d6d0c4] text-xs text-slate-700 hover:bg-[#e8e0d0] hover:text-slate-900 transition-colors"
+                          title="Generar reporte PDF del período"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          PDF
+                        </a>
+                      </div>
                     </td>
                   </tr>
                 )
