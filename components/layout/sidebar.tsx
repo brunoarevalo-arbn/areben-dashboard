@@ -115,6 +115,7 @@ const navItems: NavItem[] = [
     label: 'Configuración',
     icon: Settings,
     children: [
+      { label: 'Empresa', href: '/settings/empresa', icon: Building2 },
       { label: 'Prorrateo', href: '/settings/prorrateo', icon: Sliders },
       { label: 'Aportes', href: '/settings/aportes', icon: Sliders },
       { label: 'Depreciación', href: '/settings/depreciacion', icon: Calculator },

@@ -11,7 +11,22 @@ const inversorSchema = z.object({
   nombre: z.string().min(1),
   tipo: z.enum(['persona_fisica', 'empresa']),
   notas: z.string().optional().nullable(),
+  // Datos formales (mig 036) — todos opcionales
+  dni: z.string().optional().nullable(),
+  cuit: z.string().optional().nullable(),
+  domicilio_calle: z.string().optional().nullable(),
+  domicilio_ciudad: z.string().optional().nullable(),
+  domicilio_provincia: z.string().optional().nullable(),
+  domicilio_cp: z.string().optional().nullable(),
+  email: z.string().email('Email inválido').optional().or(z.literal('')).nullable(),
+  telefono: z.string().optional().nullable(),
 })
+
+function blank(v: unknown): string | null {
+  if (v === null || v === undefined) return null
+  const s = String(v).trim()
+  return s === '' ? null : s
+}
 
 export async function createInversor(prevState: string | null, formData: FormData) {
   await requireUser()
@@ -19,8 +34,17 @@ export async function createInversor(prevState: string | null, formData: FormDat
   if (!result.success) return result.error.issues[0].message
   const supabase = await createClient()
   const { error } = await supabase.from('inversores').insert({
-    ...result.data,
-    notas: result.data.notas || null,
+    nombre: result.data.nombre,
+    tipo: result.data.tipo,
+    notas: blank(result.data.notas),
+    dni: blank(result.data.dni),
+    cuit: blank(result.data.cuit),
+    domicilio_calle: blank(result.data.domicilio_calle),
+    domicilio_ciudad: blank(result.data.domicilio_ciudad),
+    domicilio_provincia: blank(result.data.domicilio_provincia),
+    domicilio_cp: blank(result.data.domicilio_cp),
+    email: blank(result.data.email),
+    telefono: blank(result.data.telefono),
     activo: true,
   })
   if (error) return error.message
@@ -34,8 +58,17 @@ export async function updateInversor(id: string, prevState: string | null, formD
   if (!result.success) return result.error.issues[0].message
   const supabase = await createClient()
   const { error } = await supabase.from('inversores').update({
-    ...result.data,
-    notas: result.data.notas || null,
+    nombre: result.data.nombre,
+    tipo: result.data.tipo,
+    notas: blank(result.data.notas),
+    dni: blank(result.data.dni),
+    cuit: blank(result.data.cuit),
+    domicilio_calle: blank(result.data.domicilio_calle),
+    domicilio_ciudad: blank(result.data.domicilio_ciudad),
+    domicilio_provincia: blank(result.data.domicilio_provincia),
+    domicilio_cp: blank(result.data.domicilio_cp),
+    email: blank(result.data.email),
+    telefono: blank(result.data.telefono),
   }).eq('id', id)
   if (error) return error.message
   revalidatePath('/inversiones')

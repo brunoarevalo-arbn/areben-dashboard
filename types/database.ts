@@ -389,6 +389,35 @@ export interface Inversor {
   tipo: TipoInversor
   notas?: string | null
   activo: boolean
+  /** Datos formales (mig 036) — opcionales, requeridos para comprobantes formales. */
+  dni?: string | null
+  cuit?: string | null
+  domicilio_calle?: string | null
+  domicilio_ciudad?: string | null
+  domicilio_provincia?: string | null
+  domicilio_cp?: string | null
+  email?: string | null
+  telefono?: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ============ Configuración de empresa (mig 035) ============
+
+export interface ConfiguracionEmpresa {
+  id: 1
+  razon_social: string
+  nombre_fantasia?: string | null
+  cuit?: string | null
+  condicion_iva?: string | null
+  domicilio_calle?: string | null
+  domicilio_ciudad?: string | null
+  domicilio_provincia?: string | null
+  domicilio_cp?: string | null
+  domicilio_pais?: string | null
+  email?: string | null
+  telefono?: string | null
+  sitio_web?: string | null
   created_at: string
   updated_at: string
 }

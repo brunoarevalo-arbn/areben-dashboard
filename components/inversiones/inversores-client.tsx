@@ -32,15 +32,49 @@ function InversorForm({ inv, onClose }: { inv?: Inversor; onClose: () => void })
     null
   )
   return (
-    <form action={formAction} className="space-y-4">
-      <Input label="Nombre" name="nombre" defaultValue={inv?.nombre} required />
-      <Select label="Tipo" name="tipo" defaultValue={inv?.tipo ?? 'persona_fisica'} options={[
-        { value: 'persona_fisica', label: 'Persona física' },
-        { value: 'empresa', label: 'Empresa' },
-      ]} />
-      <Textarea label="Notas" name="notas" defaultValue={inv?.notas ?? ''} placeholder="Datos del acuerdo, observaciones..." rows={3} />
+    <form action={formAction} className="space-y-5">
+      <section className="space-y-3">
+        <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Datos básicos</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Input label="Nombre" name="nombre" defaultValue={inv?.nombre} required />
+          <Select label="Tipo" name="tipo" defaultValue={inv?.tipo ?? 'persona_fisica'} options={[
+            { value: 'persona_fisica', label: 'Persona física' },
+            { value: 'empresa', label: 'Empresa' },
+          ]} />
+        </div>
+        <Textarea label="Notas internas" name="notas" defaultValue={inv?.notas ?? ''} placeholder="Datos del acuerdo, observaciones..." rows={2} />
+      </section>
+
+      <section className="space-y-3 pt-3 border-t border-[#e8e4dc]">
+        <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
+          Identificación formal <span className="text-slate-500 normal-case font-normal">(para comprobantes al inversor)</span>
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Input label="DNI" name="dni" defaultValue={inv?.dni ?? ''} placeholder="12.345.678" />
+          <Input label="CUIT" name="cuit" defaultValue={inv?.cuit ?? ''} placeholder="XX-XXXXXXXX-X" />
+        </div>
+      </section>
+
+      <section className="space-y-3 pt-3 border-t border-[#e8e4dc]">
+        <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Domicilio</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Input label="Calle y número" name="domicilio_calle" defaultValue={inv?.domicilio_calle ?? ''} placeholder="Ej: Av. Santa Fe 1234" />
+          <Input label="Ciudad" name="domicilio_ciudad" defaultValue={inv?.domicilio_ciudad ?? ''} />
+          <Input label="Provincia" name="domicilio_provincia" defaultValue={inv?.domicilio_provincia ?? ''} />
+          <Input label="Código postal" name="domicilio_cp" defaultValue={inv?.domicilio_cp ?? ''} />
+        </div>
+      </section>
+
+      <section className="space-y-3 pt-3 border-t border-[#e8e4dc]">
+        <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Contacto</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Input label="Email" name="email" type="email" defaultValue={inv?.email ?? ''} placeholder="inversor@email.com" />
+          <Input label="Teléfono" name="telefono" defaultValue={inv?.telefono ?? ''} placeholder="+54 11 1234-5678" />
+        </div>
+      </section>
+
       {error && <p className="text-sm text-red-700">{error}</p>}
-      <div className="flex justify-end gap-3">
+      <div className="flex justify-end gap-3 pt-3 border-t border-[#e8e4dc]">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button type="submit" disabled={isPending}>
           {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -279,7 +313,7 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
         )}
       </div>
 
-      <Modal open={modal} onOpenChange={setModal} title={editInv ? 'Editar inversor' : 'Nuevo inversor'} className="max-w-md">
+      <Modal open={modal} onOpenChange={setModal} title={editInv ? 'Editar inversor' : 'Nuevo inversor'} className="max-w-2xl">
         <InversorForm inv={editInv} onClose={() => setModal(false)} />
       </Modal>
     </div>

@@ -327,10 +327,20 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-[#d6d0c4] text-xs text-slate-700 hover:bg-[#e8e0d0] hover:text-slate-900 transition-colors"
-                          title="Generar reporte PDF del período"
+                          title="Reporte PDF interno (uso contable)"
                         >
                           <FileText className="w-3.5 h-3.5" />
                           PDF
+                        </a>
+                        <a
+                          href={`/api/reportes/periodo/${p.id}/inversor`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-orange-500/40 bg-orange-500/10 text-xs text-orange-700 hover:bg-orange-500/20 transition-colors"
+                          title="Comprobante formal para enviar al inversor"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          PDF Inversor
                         </a>
                       </div>
                     </td>
