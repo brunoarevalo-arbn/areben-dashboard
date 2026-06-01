@@ -392,10 +392,14 @@ export async function aplicarMovimientoSimulado(args: {
   // Validar monto si es retiro
   if (args.tipoMovimiento !== 'INGRESO') {
     if (args.tipoMovimiento === 'RETIRO_TOTAL') {
-      args.monto = Number(periodo.saldo_inicio)
+      // El RETIRO_TOTAL debe vaciar el período: retirar saldo_inicio + interes_devengado
+      // para que saldo_cierre quede en 0. Antes solo retiraba saldo_inicio y dejaba el
+      // interés como residual.
+      args.monto = Number(periodo.saldo_inicio) + Number(periodo.interes_devengado)
     }
-    if (args.monto > Number(periodo.saldo_inicio)) {
-      throw new Error('El monto supera el saldo disponible')
+    const tope = Number(periodo.saldo_inicio) + Number(periodo.interes_devengado)
+    if (args.monto > tope) {
+      throw new Error('El monto supera el saldo disponible (capital + interés del período)')
     }
   }
 
