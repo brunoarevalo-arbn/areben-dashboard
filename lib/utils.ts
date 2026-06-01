@@ -14,11 +14,21 @@ export function formatCurrency(amount: number, currency: 'ARS' | 'USD' = 'ARS') 
 }
 
 export function formatDate(date: string | Date) {
+  // Strings tipo "YYYY-MM-DD" (DATE de Postgres) se deben parsear como hora
+  // local, no UTC: si no, `new Date("2026-06-01")` da UTC midnight, que en
+  // Argentina (UTC-3) se ve como 21:00 del día anterior.
+  let d: Date
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [y, m, day] = date.split('-').map(Number)
+    d = new Date(y, m - 1, day)
+  } else {
+    d = new Date(date)
+  }
   return new Intl.DateTimeFormat('es-AR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-  }).format(new Date(date))
+  }).format(d)
 }
 
 export function formatMonth(yyyyMM: string) {
