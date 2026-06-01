@@ -242,8 +242,14 @@ const styles = StyleSheet.create({
     color: COLOR_MUTED,
   },
   firmaNombre: {
-    fontSize: 9,
+    fontSize: 11,
     color: COLOR_TEXT,
+    marginTop: 4,
+    fontWeight: 700,
+  },
+  firmaCargo: {
+    fontSize: 9,
+    color: COLOR_MUTED,
     marginTop: 1,
   },
   // ── Aviso de datos incompletos ──
@@ -441,9 +447,9 @@ export function ReporteInversorPDF({ data }: { data: ReporteInversorData }) {
         {/* Firma */}
         <View style={styles.firmaContainer}>
           <View style={styles.firmaBox}>
-            <View style={styles.firmaLinea} />
-            <Text style={styles.firmaLabel}>Firma y aclaración</Text>
-            <Text style={styles.firmaNombre}>{empresa.razon_social}</Text>
+            <Text style={styles.firmaLabel}>Por {empresa.razon_social}</Text>
+            <Text style={styles.firmaNombre}>Darío Arévalo</Text>
+            <Text style={styles.firmaCargo}>Socio Gerente y CFO</Text>
           </View>
         </View>
 

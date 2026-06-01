@@ -117,7 +117,8 @@ const styles = StyleSheet.create({
   firmaBox: { width: 220, alignItems: 'center' },
   firmaLinea: { borderTopWidth: 0.5, borderTopColor: COLOR_TEXT, width: '100%', marginBottom: 4, marginTop: 50 },
   firmaLabel: { fontSize: 9, color: COLOR_MUTED },
-  firmaNombre: { fontSize: 9, color: COLOR_TEXT, marginTop: 1 },
+  firmaNombre: { fontSize: 11, color: COLOR_TEXT, marginTop: 4, fontWeight: 700 },
+  firmaCargo: { fontSize: 9, color: COLOR_MUTED, marginTop: 1 },
   // Footer
   footer: { position: 'absolute', bottom: 28, left: 40, right: 40, borderTopWidth: 0.5, borderTopColor: COLOR_BORDER, paddingTop: 8, flexDirection: 'row', justifyContent: 'space-between', fontSize: 7, color: COLOR_MUTED },
 })
@@ -278,9 +279,9 @@ export function ReporteProyeccionPDF({ data }: { data: ReporteProyeccionData }) 
         {/* Firma */}
         <View style={styles.firmaContainer}>
           <View style={styles.firmaBox}>
-            <View style={styles.firmaLinea} />
-            <Text style={styles.firmaLabel}>Firma y aclaración</Text>
-            <Text style={styles.firmaNombre}>{empresa.razon_social}</Text>
+            <Text style={styles.firmaLabel}>Por {empresa.razon_social}</Text>
+            <Text style={styles.firmaNombre}>Darío Arévalo</Text>
+            <Text style={styles.firmaCargo}>Socio Gerente y CFO</Text>
           </View>
         </View>
 
