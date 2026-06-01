@@ -72,13 +72,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const meses = Math.round(inst.plazo_dias / 30)
 
   const proyeccion: ProyeccionMes[] = []
-  let saldoActual = capital
+  let saldoCapital = capital  // capital "vivo": en cap. crece, en no cap. queda fijo
+  let interesesAcumulados = 0  // sólo se usa visualmente para no cap. — total adeudado al inversor
+
   for (let i = 0; i < meses; i++) {
-    const saldoInicio = saldoActual
-    // Interés siempre se calcula sobre el saldo inicio del período
+    const saldoInicio = saldoCapital
     const interes = Math.round(saldoInicio * tasa * 100) / 100
-    // Capitalizable: el interés se suma al capital. No cap: el saldo no cambia.
-    const saldoCierre = inst.capitalizable ? Math.round((saldoInicio + interes) * 100) / 100 : saldoInicio
+    interesesAcumulados = Math.round((interesesAcumulados + interes) * 100) / 100
+
+    // saldo_cierre del PDF = monto TOTAL adeudado al inversor al cierre de este mes.
+    // - Capitalizable: capital reinvertido = saldoInicio + interés (el capital crece).
+    // - No capitalizable: capital fijo + suma de intereses devengados hasta esta fecha
+    //   (esos intereses se cobran al final del plazo, así que mes a mes muestran cuánto
+    //    se le adeuda al inversor a esa fecha).
+    const saldoCierre = inst.capitalizable
+      ? Math.round((saldoInicio + interes) * 100) / 100
+      : Math.round((capital + interesesAcumulados) * 100) / 100
 
     const inicio = addMonths(inst.fecha_inicio, i)
     const finProx = addMonths(inst.fecha_inicio, i + 1)
@@ -93,12 +102,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       saldo_cierre: saldoCierre,
     })
 
-    saldoActual = saldoCierre
+    // Sólo en capitalizable el capital crece para el próximo mes.
+    if (inst.capitalizable) saldoCapital = saldoCierre
   }
 
-  const totalIntereses = Math.round(proyeccion.reduce((s, p) => s + p.interes_devengado, 0) * 100) / 100
-  const capitalFinal = proyeccion.length > 0 ? proyeccion[proyeccion.length - 1].saldo_cierre : capital
-  const totalACobrar = inst.capitalizable ? capitalFinal : Math.round((capital + totalIntereses) * 100) / 100
+  const totalIntereses = interesesAcumulados
+  // Capital al cierre técnico: capitalizable → último saldo de capital. No cap → capital fijo.
+  const capitalFinal = inst.capitalizable
+    ? (proyeccion.length > 0 ? proyeccion[proyeccion.length - 1].saldo_cierre : capital)
+    : capital
+  // Total que efectivamente cobra el inversor al vencimiento.
+  const totalACobrar = inst.capitalizable
+    ? capitalFinal
+    : Math.round((capital + totalIntereses) * 100) / 100
   const fechaVenc = dateToYMD(addMonths(inst.fecha_inicio, meses))
 
   // 4. Armar data
