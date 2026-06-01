@@ -117,8 +117,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const buffer = await renderToBuffer(<ReporteInversorPDF data={data} />)
 
-  const slug = inversor.nombre.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
-  const filename = `Comprobante_${slug}_${periodo.mes}.pdf`
+  // Filename: Comprobante_<Nombre>_<Codigo>_<fechaInicio>_<fechaFin>.pdf
+  const cleanForFilename = (s: string) =>
+    s.normalize('NFD').replace(/[̀-ͯ]/g, '') // sacar acentos
+      .replace(/[^a-zA-Z0-9_-]+/g, '_')
+      .replace(/^_|_$/g, '')
+  const partes = [
+    'Comprobante',
+    cleanForFilename(inversor.nombre),
+    inst.codigo ? cleanForFilename(inst.codigo) : null,
+    `${periodo.mes}-01`,
+    fechaCorte,
+  ].filter(Boolean)
+  const filename = `${partes.join('_')}.pdf`
 
   return new Response(buffer as unknown as BodyInit, {
     status: 200,
