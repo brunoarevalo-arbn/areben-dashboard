@@ -440,6 +440,8 @@ export interface Instrumento {
   acreedor_nombre?: string | null
   /** Datos de contacto del acreedor. */
   acreedor_contacto?: string | null
+  /** Plazo del instrumento en días (típicamente 30/60/90/180/270/365). NULL = plazo indeterminado. (mig 037) */
+  plazo_dias?: number | null
   created_at: string
   updated_at: string
   inversor?: Inversor

@@ -97,6 +97,11 @@ const instrumentoSchema = z.object({
   fecha_fin: z.string().optional().nullable(),
   estado: z.enum(['activo', 'cerrado', 'renovado']).default('activo'),
   notas: z.string().optional().nullable(),
+  // Acepta vacío "" desde el form y lo trata como sin plazo (null)
+  plazo_dias: z.preprocess(
+    (v) => (v === '' || v === null ? undefined : v),
+    z.coerce.number().int().positive().optional()
+  ),
 })
 
 async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createClient>>, instrumentoId: string) {

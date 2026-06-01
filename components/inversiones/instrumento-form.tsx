@@ -160,9 +160,24 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Input label="Fecha de inicio" name="fecha_inicio" type="date" defaultValue={instrumento?.fecha_inicio ?? ''} required />
         <Input label="Fecha de fin (opcional)" name="fecha_fin" type="date" defaultValue={instrumento?.fecha_fin ?? ''} />
+        <Select
+          label="Plazo"
+          name="plazo_dias"
+          defaultValue={instrumento?.plazo_dias ? String(instrumento.plazo_dias) : ''}
+          options={[
+            { value: '', label: 'Sin plazo definido' },
+            { value: '30', label: '30 días (1 mes)' },
+            { value: '60', label: '60 días (2 meses)' },
+            { value: '90', label: '90 días (3 meses)' },
+            { value: '120', label: '120 días (4 meses)' },
+            { value: '180', label: '180 días (6 meses)' },
+            { value: '270', label: '270 días (9 meses)' },
+            { value: '365', label: '365 días (1 año)' },
+          ]}
+        />
       </div>
 
       <Textarea label="Notas del acuerdo" name="notas" defaultValue={instrumento?.notas ?? ''} placeholder="Condiciones, particularidades..." rows={3} />

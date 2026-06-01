@@ -391,6 +391,18 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                           <FileText className="w-3.5 h-3.5" />
                           PDF Inversor
                         </a>
+                        {i.plazo_dias ? (
+                          <a
+                            href={`/api/reportes/instrumento/${i.id}/proyeccion`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-primary/40 bg-primary/10 text-xs text-primary hover:bg-primary/20 transition-colors"
+                            title={`Proyección del rendimiento del instrumento a ${i.plazo_dias} días`}
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            PDF Proyección
+                          </a>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
