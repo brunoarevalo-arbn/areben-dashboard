@@ -165,17 +165,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const buffer = await renderToBuffer(<ReporteProyeccionPDF data={data} />)
 
-  // Filename: Proyeccion_<Nombre>_<Codigo>_<fechaInicio>_<fechaFin>.pdf
+  // Filename: Proyeccion_<Nombre>_<Codigo>_<fechaInicio_DD-MM-YYYY>_<fechaFin_DD-MM-YYYY>.pdf
   const cleanForFilename = (s: string) =>
     s.normalize('NFD').replace(/[̀-ͯ]/g, '') // sacar acentos
       .replace(/[^a-zA-Z0-9_-]+/g, '_')
       .replace(/^_|_$/g, '')
+  const ymdToDmy = (s: string) => {
+    const [y, m, d] = s.split('-')
+    return `${d}-${m}-${y}`
+  }
   const partes = [
     'Proyeccion',
     cleanForFilename(inversor.nombre),
     inst.codigo ? cleanForFilename(inst.codigo) : null,
-    inst.fecha_inicio,
-    fechaVenc,
+    ymdToDmy(inst.fecha_inicio),
+    ymdToDmy(fechaVenc),
   ].filter(Boolean)
   const filename = `${partes.join('_')}.pdf`
 
