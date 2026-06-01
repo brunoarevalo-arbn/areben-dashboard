@@ -16,7 +16,7 @@ import { formatMoneda } from '@/lib/inversiones-calc'
 import { formatMonth, getMonthOptions, formatCurrency } from '@/lib/utils'
 import {
   Lock, Unlock, AlertTriangle, Loader2, CheckCircle2, PiggyBank, Pencil, Save, X,
-  FileText, XCircle,
+  FileText, XCircle, ArrowRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -68,7 +68,7 @@ function MovimientoEditor({ p, onSaved }: { p: PeriodoConRel; onSaved: () => voi
         value={val}
         onChange={(e) => setVal(Number(e.target.value))}
         autoFocus
-        className="w-28 px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+        className="w-28 px-2 py-1 bg-white border border-[#d6d0c4] rounded text-slate-900 font-mono text-xs text-right focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25"
       />
       <button
         type="button"
@@ -88,7 +88,7 @@ function MovimientoEditor({ p, onSaved }: { p: PeriodoConRel; onSaved: () => voi
       <button
         type="button"
         onClick={() => { setVal(Number(p.movimiento ?? 0)); setEditing(false) }}
-        className="p-1 rounded bg-slate-700 text-slate-600"
+        className="p-1 rounded bg-[#efeae0] text-slate-500 hover:bg-[#e3ddd0]"
       >
         <X className="w-3 h-3" />
       </button>
@@ -167,6 +167,8 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
 
   const todosCerrados = periodos.length > 0 && periodos.every((p) => p.cerrado)
   const abiertos = periodos.filter((p) => !p.cerrado).length
+  const cerrados = periodos.length - abiertos
+  const pctCerrado = periodos.length ? Math.round((cerrados / periodos.length) * 100) : 0
 
   function setMes(nuevo: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -237,26 +239,73 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
 
       {/* Alerta meses anteriores sin cerrar */}
       {mesesAbiertosAnteriores.length > 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="text-amber-800 font-medium">Hay períodos anteriores sin cerrar</p>
-            <p className="text-amber-200/70 text-xs mt-1">
-              Meses pendientes: {mesesAbiertosAnteriores.map((m) => formatMonth(m)).join(', ')}
-            </p>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3.5">
+          <div className="w-9 h-9 rounded-lg bg-amber-500/15 text-amber-700 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-5 h-5" />
           </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-amber-900 font-semibold text-sm">
+              {mesesAbiertosAnteriores.length} {mesesAbiertosAnteriores.length === 1 ? 'mes anterior' : 'meses anteriores'} sin cerrar
+            </p>
+            <p className="text-amber-800/80 text-xs mt-0.5">
+              El más antiguo es <span className="font-semibold text-amber-900">{formatMonth(mesesAbiertosAnteriores[0])}</span>. Conviene cerrarlos en orden para no acumular gasto financiero sin imputar.
+            </p>
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {mesesAbiertosAnteriores.map((m, idx) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMes(m)}
+                  title={`Ir a ${formatMonth(m)}`}
+                  className={cn(
+                    'text-xs font-medium rounded-md px-2.5 py-1 border transition-colors',
+                    idx === 0
+                      ? 'bg-amber-700 text-white border-amber-700 hover:bg-amber-800'
+                      : 'bg-white text-amber-900 border-amber-200 hover:bg-amber-100',
+                  )}
+                >
+                  {formatMonth(m)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMes(mesesAbiertosAnteriores[0])}
+            className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-700 text-white text-sm font-semibold hover:bg-amber-800 transition-colors"
+          >
+            Ir a {formatMonth(mesesAbiertosAnteriores[0])}
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
       )}
 
-      {/* KPIs gasto financiero */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <div className="bg-white border border-amber-500/20 rounded-xl p-5">
+      {/* KPIs gasto financiero + progreso de cierre */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white border border-[#e8e4dc] rounded-xl p-5">
           <p className="text-xs text-slate-600 mb-1">Gasto financiero USD</p>
           <p className="text-2xl font-bold text-amber-700">{formatMoneda(totalUsd, 'USD')}</p>
+          <p className="text-xs text-slate-400 mt-1">Interés devengado del mes</p>
         </div>
-        <div className="bg-white border border-amber-500/20 rounded-xl p-5">
+        <div className="bg-white border border-[#e8e4dc] rounded-xl p-5">
           <p className="text-xs text-slate-600 mb-1">Gasto financiero ARS</p>
           <p className="text-2xl font-bold text-amber-700">{formatMoneda(totalArs, 'ARS')}</p>
+          <p className="text-xs text-slate-400 mt-1">Interés devengado del mes</p>
+        </div>
+        <div className="bg-white border border-[#e8e4dc] rounded-xl p-5 flex flex-col justify-center gap-2.5">
+          <div className="flex items-baseline justify-between">
+            <p className="text-2xl font-bold text-slate-900">
+              {cerrados}<span className="text-sm font-medium text-slate-500"> / {periodos.length} cerrados</span>
+            </p>
+            <p className="text-sm font-semibold text-slate-500">{pctCerrado}%</p>
+          </div>
+          <div className="h-2 rounded-full bg-[#efe9dd] overflow-hidden">
+            <div className="h-full rounded-full bg-green-600 transition-all" style={{ width: `${pctCerrado}%` }} />
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-green-700 font-medium inline-flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" />{cerrados} cerrados</span>
+            <span className="text-amber-700 font-medium inline-flex items-center gap-1.5"><Unlock className="w-3.5 h-3.5" />{abiertos} pendientes</span>
+          </div>
         </div>
       </div>
 
