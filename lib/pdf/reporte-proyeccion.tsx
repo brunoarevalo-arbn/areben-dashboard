@@ -270,8 +270,8 @@ export function ReporteProyeccionPDF({ data }: { data: ReporteProyeccionData }) 
 
         <View style={styles.noticeBox}>
           <Text>
-            Proyección estimada al plazo acordado. Los importes reales pueden diferir si se producen movimientos
-            o cambios de tasa antes del vencimiento.
+            Detalle del rendimiento conforme a las condiciones pactadas. {empresa.razon_social} ratifica
+            el cumplimiento al vencimiento.
           </Text>
         </View>
 
