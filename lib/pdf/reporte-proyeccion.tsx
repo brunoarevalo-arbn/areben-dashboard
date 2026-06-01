@@ -153,10 +153,6 @@ export function ReporteProyeccionPDF({ data }: { data: ReporteProyeccionData }) 
   const domInv = buildInversorDomicilio(inversor)
   const docInv = inversor.cuit ? `CUIT: ${inversor.cuit}` : inversor.dni ? `DNI: ${inversor.dni}` : null
 
-  const datosIncompletos =
-    !empresa.cuit || !empresa.domicilio_calle ||
-    (!inversor.cuit && !inversor.dni) || !inversor.domicilio_calle
-
   return (
     <Document title={`Proyección ${inversor.nombre} ${instrumento.plazo_dias}d`} author={empresa.razon_social}>
       <Page size="A4" style={styles.page}>
@@ -181,19 +177,9 @@ export function ReporteProyeccionPDF({ data }: { data: ReporteProyeccionData }) 
           </View>
         </View>
 
-        {datosIncompletos && (
-          <View style={styles.warningBox}>
-            <Text>
-              Aviso: faltan datos formales (CUIT, domicilio) que deberían figurar en este documento.
-              Cargalos desde el sistema antes de entregarlo.
-            </Text>
-          </View>
-        )}
-
         <Text style={styles.title}>Proyección de rendimiento</Text>
         <Text style={styles.subtitle}>
-          Instrumento {instrumento.codigo ? `(${instrumento.codigo}) ` : ''}
-          a {instrumento.plazo_dias} días — {instrumento.capitalizable ? 'Capitalizable' : 'No capitalizable'}
+          Instrumento {instrumento.codigo ? `(${instrumento.codigo}) ` : ''}a {instrumento.plazo_dias} días
         </Text>
 
         {/* Destinatario */}
@@ -230,10 +216,7 @@ export function ReporteProyeccionPDF({ data }: { data: ReporteProyeccionData }) 
         {/* Introducción */}
         <Text style={styles.paragraph}>
           Por el presente, {empresa.razon_social} presenta la proyección de rendimiento del instrumento
-          referenciado, calculada bajo la modalidad <Text style={{ fontWeight: 700 }}>{instrumento.capitalizable ? 'capitalizable' : 'no capitalizable'}</Text>
-          {instrumento.capitalizable
-            ? ', donde los intereses devengados se reinvierten al capital al cierre de cada período mensual.'
-            : ', donde los intereses devengados se abonan al inversor mes a mes sin reinvertirse al capital.'}
+          arriba referenciado al plazo acordado.
         </Text>
 
         {/* Tabla */}
@@ -287,9 +270,8 @@ export function ReporteProyeccionPDF({ data }: { data: ReporteProyeccionData }) 
 
         <View style={styles.noticeBox}>
           <Text>
-            La proyección asume períodos mensuales completos con tasa fija del {formatPercent(instrumento.tasa_mensual)} mensual,
-            sin movimientos intermedios de capital. Si se producen retiros, ingresos o cambios de tasa antes del vencimiento,
-            los importes reales pueden diferir de esta proyección.
+            Proyección estimada al plazo acordado. Los importes reales pueden diferir si se producen movimientos
+            o cambios de tasa antes del vencimiento.
           </Text>
         </View>
 

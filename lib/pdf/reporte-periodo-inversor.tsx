@@ -329,10 +329,6 @@ export function ReporteInversorPDF({ data }: { data: ReporteInversorData }) {
   const domicilioInversor = buildInversorDomicilio(inversor)
   const docInversor = inversor.cuit ? `CUIT: ${inversor.cuit}` : inversor.dni ? `DNI: ${inversor.dni}` : null
 
-  const datosIncompletos =
-    !empresa.cuit || !empresa.domicilio_calle ||
-    (!inversor.cuit && !inversor.dni) || !inversor.domicilio_calle
-
   return (
     <Document title={`Comprobante ${inversor.nombre} ${periodo.mes}`} author={empresa.razon_social}>
       <Page size="A4" style={styles.page}>
@@ -357,16 +353,6 @@ export function ReporteInversorPDF({ data }: { data: ReporteInversorData }) {
           </View>
         </View>
 
-        {/* Aviso si faltan datos formales */}
-        {datosIncompletos && (
-          <View style={styles.warningBox}>
-            <Text>
-              Aviso: faltan datos formales (CUIT, domicilio) que deberían figurar en este comprobante.
-              Cargalos desde el sistema antes de entregar el documento al inversor.
-            </Text>
-          </View>
-        )}
-
         {/* Título */}
         <Text style={styles.title}>Comprobante de devengamiento de intereses</Text>
         <Text style={styles.subtitle}>Período {formatMonthLong(periodo.mes)}</Text>
@@ -384,11 +370,9 @@ export function ReporteInversorPDF({ data }: { data: ReporteInversorData }) {
 
         {/* Texto introductorio */}
         <Text style={styles.paragraph}>
-          Por el presente comprobante, {empresa.razon_social} deja constancia de los intereses devengados a
-          favor del/de la inversor/a arriba identificado/a, correspondientes al período comprendido entre el
-          <Text style={{ fontWeight: 700 }}> {fechaInicioMes(periodo.mes)}</Text> y el
-          <Text style={{ fontWeight: 700 }}> {fechaFinMes(periodo.mes)}</Text>, sobre el capital invertido bajo
-          el instrumento vigente {instrumento.codigo ? `(código ${instrumento.codigo})` : ''} en moneda {instrumento.moneda}.
+          Por el presente, {empresa.razon_social} deja constancia de los intereses devengados a favor del/de
+          la inversor/a, correspondientes al período del <Text style={{ fontWeight: 700 }}>{fechaInicioMes(periodo.mes)}</Text> al
+          <Text style={{ fontWeight: 700 }}> {fechaFinMes(periodo.mes)}</Text>{instrumento.codigo ? ` (instrumento ${instrumento.codigo})` : ''}.
         </Text>
 
         {/* Detalle del cálculo */}
@@ -409,10 +393,6 @@ export function ReporteInversorPDF({ data }: { data: ReporteInversorData }) {
         <View style={styles.tableRow}>
           <Text style={styles.tableLabel}>Tasa mensual aplicada</Text>
           <Text style={styles.tableValue}>{formatPercent(tasa_aplicada)}</Text>
-        </View>
-        <View style={styles.tableRow}>
-          <Text style={styles.tableLabel}>Modalidad</Text>
-          <Text style={styles.tableValue}>{instrumento.capitalizable ? 'Capitalizable' : 'No capitalizable'}</Text>
         </View>
 
         <Text style={[styles.tableTitle, { marginTop: 14 }]}>Cálculo financiero</Text>
@@ -445,28 +425,17 @@ export function ReporteInversorPDF({ data }: { data: ReporteInversorData }) {
 
         {/* Para NO capitalizable, mostrar aparte el interés a pagar */}
         {!instrumento.capitalizable && (
-          <>
-            <View style={[styles.tableRow, { marginTop: 8 }]}>
-              <Text style={[styles.tableLabel, { color: COLOR_TEXT, fontWeight: 700 }]}>Interés a pagar al inversor</Text>
-              <Text style={[styles.tableValueStrong, { color: COLOR_ACCENT }]}>
-                {formatMoney(periodo.interes_devengado, instrumento.moneda)}
-              </Text>
-            </View>
-            <Text style={[styles.paragraph, { fontSize: 9, color: COLOR_MUTED, marginTop: 4 }]}>
-              Modalidad no capitalizable: el interés del período se abona al inversor y no se reinvierte al capital.
+          <View style={[styles.tableRow, { marginTop: 8 }]}>
+            <Text style={[styles.tableLabel, { color: COLOR_TEXT, fontWeight: 700 }]}>Interés a pagar al inversor</Text>
+            <Text style={[styles.tableValueStrong, { color: COLOR_ACCENT }]}>
+              {formatMoney(periodo.interes_devengado, instrumento.moneda)}
             </Text>
-          </>
+          </View>
         )}
 
         {/* Texto de cierre */}
         <Text style={[styles.paragraph, { marginTop: 14 }]}>
-          {instrumento.capitalizable
-            ? 'En virtud de la modalidad capitalizable acordada, el interés devengado se reinvierte sumándose al capital del próximo período.'
-            : 'En virtud de la modalidad no capitalizable acordada, el interés devengado queda disponible para su retiro.'}
-        </Text>
-
-        <Text style={styles.paragraph}>
-          Sin otro particular y a los efectos que pudieran corresponder, saludamos a Ud. atentamente.
+          Saludamos a Ud. atentamente.
         </Text>
 
         {/* Firma */}
