@@ -155,7 +155,7 @@ function NavGroup({ item, level = 0 }: { item: NavItem; level?: number }) {
 
     const inactiveLeaf = level === 0
       ? 'text-slate-300 hover:text-white hover:bg-slate-800'
-      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+      : 'text-fg-soft hover:text-white hover:bg-slate-800'
 
     return (
       <Link
@@ -177,7 +177,7 @@ function NavGroup({ item, level = 0 }: { item: NavItem; level?: number }) {
     ? 'text-orange-400'
     : level === 0
       ? 'text-slate-300 hover:text-white hover:bg-slate-800'
-      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+      : 'text-fg-soft hover:text-white hover:bg-slate-800'
 
   return (
     <div>
@@ -214,7 +214,7 @@ export function Sidebar() {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-white truncate">Areben</p>
-            <p className="text-xs text-slate-400 truncate">Comercial SRL</p>
+            <p className="text-xs text-fg-soft truncate">Comercial SRL</p>
           </div>
         </div>
       </div>

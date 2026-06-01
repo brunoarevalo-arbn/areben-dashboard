@@ -58,22 +58,22 @@ function AporteForm({ aporte, onClose }: { aporte?: ConfiguracionAporte; onClose
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-slate-700">Patronal</label>
+          <label className="block text-sm font-medium text-fg-muted">Patronal</label>
           <select
             name="es_patronal"
             defaultValue={aporte?.es_patronal ? 'true' : 'false'}
-            className="w-full px-3.5 py-2.5 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+            className="w-full px-3.5 py-2.5 bg-surface-2 border border-border-strong rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           >
             <option value="false">No (empleado)</option>
             <option value="true">Sí (empresa)</option>
           </select>
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-slate-700">Estado</label>
+          <label className="block text-sm font-medium text-fg-muted">Estado</label>
           <select
             name="activo"
             defaultValue={aporte?.activo !== false ? 'true' : 'false'}
-            className="w-full px-3.5 py-2.5 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+            className="w-full px-3.5 py-2.5 bg-surface-2 border border-border-strong rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           >
             <option value="true">Activo</option>
             <option value="false">Inactivo</option>
@@ -107,8 +107,8 @@ export function AportesClient({ aportes }: { aportes: ConfiguracionAporte[] }) {
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Configuración de Aportes</h1>
-          <p className="text-sm text-slate-600 mt-0.5">Se aplican automáticamente al calcular la nómina</p>
+          <h1 className="text-2xl font-bold text-fg">Configuración de Aportes</h1>
+          <p className="text-sm text-fg-muted mt-0.5">Se aplican automáticamente al calcular la nómina</p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="w-4 h-4" />
@@ -117,40 +117,40 @@ export function AportesClient({ aportes }: { aportes: ConfiguracionAporte[] }) {
       </div>
 
       <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 flex gap-3">
-        <Info className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+        <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
         <p className="text-sm text-orange-600">
           Los aportes se calculan sobre el <strong>subtotal bruto</strong> (básico + horas + extras + comida + aguinaldo).
           Los cambios aplican a nóminas futuras, no a las ya generadas.
         </p>
       </div>
 
-      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+      <div className="bg-surface border border-border rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#e8e4dc]">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Nombre</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Tipo</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Valor</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Aplica a</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Paga</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Estado</th>
+            <tr className="border-b border-border">
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Nombre</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Tipo</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Valor</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Aplica a</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Paga</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Estado</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
             {aportes.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                <td colSpan={7} className="px-4 py-12 text-center text-fg-soft">
                   <Sliders className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   No hay aportes configurados
                 </td>
               </tr>
             ) : (
               aportes.map((a) => (
-                <tr key={a.id} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
-                  <td className="px-4 py-3 font-medium text-slate-900">{a.nombre}</td>
-                  <td className="px-4 py-3 text-slate-600">{a.tipo === 'PORCENTAJE' ? '%' : 'Fijo'}</td>
-                  <td className="px-4 py-3 text-right font-mono text-slate-900">
+                <tr key={a.id} className="border-b border-border/60 hover:bg-surface-2/30">
+                  <td className="px-4 py-3 font-medium text-fg">{a.nombre}</td>
+                  <td className="px-4 py-3 text-fg-muted">{a.tipo === 'PORCENTAJE' ? '%' : 'Fijo'}</td>
+                  <td className="px-4 py-3 text-right font-mono text-fg">
                     {a.tipo === 'PORCENTAJE' ? `${a.valor}%` : `$${a.valor.toLocaleString('es-AR')}`}
                   </td>
                   <td className="px-4 py-3">
@@ -158,7 +158,7 @@ export function AportesClient({ aportes }: { aportes: ConfiguracionAporte[] }) {
                       {a.aplicable_a}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{a.es_patronal ? 'Empresa' : 'Empleado'}</td>
+                  <td className="px-4 py-3 text-fg-muted">{a.es_patronal ? 'Empresa' : 'Empleado'}</td>
                   <td className="px-4 py-3">
                     <Badge variant={a.activo ? 'success' : 'danger'}>{a.activo ? 'Activo' : 'Inactivo'}</Badge>
                   </td>

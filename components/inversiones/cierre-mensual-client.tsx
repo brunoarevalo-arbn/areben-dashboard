@@ -39,19 +39,19 @@ function MovimientoEditor({ p, onSaved }: { p: PeriodoConRel; onSaved: () => voi
   const moneda = p.instrumento?.moneda ?? 'ARS'
 
   if (p.cerrado) {
-    return <span className="font-mono text-slate-600">{Number(p.movimiento) !== 0 ? formatMoneda(Number(p.movimiento), moneda) : '—'}</span>
+    return <span className="font-mono text-fg-muted">{Number(p.movimiento) !== 0 ? formatMoneda(Number(p.movimiento), moneda) : '—'}</span>
   }
 
   if (!editing) {
     return (
       <div className="flex items-center justify-end gap-1.5 group">
-        <span className="font-mono text-slate-700">
+        <span className="font-mono text-fg-muted">
           {Number(p.movimiento) !== 0 ? formatMoneda(Number(p.movimiento), moneda) : '—'}
         </span>
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-[#e8e0d0] text-slate-500 hover:text-slate-700 transition-all"
+          className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-surface-2 text-fg-soft hover:text-fg-muted transition-all"
           title="Editar movimiento"
         >
           <Pencil className="w-3 h-3" />
@@ -68,7 +68,7 @@ function MovimientoEditor({ p, onSaved }: { p: PeriodoConRel; onSaved: () => voi
         value={val}
         onChange={(e) => setVal(Number(e.target.value))}
         autoFocus
-        className="w-28 px-2 py-1 bg-white border border-[#d6d0c4] rounded text-slate-900 font-mono text-xs text-right focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25"
+        className="w-28 px-2 py-1 bg-surface border border-border-strong rounded text-fg font-mono text-xs text-right focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-primary/25"
       />
       <button
         type="button"
@@ -88,7 +88,7 @@ function MovimientoEditor({ p, onSaved }: { p: PeriodoConRel; onSaved: () => voi
       <button
         type="button"
         onClick={() => { setVal(Number(p.movimiento ?? 0)); setEditing(false) }}
-        className="p-1 rounded bg-[#efeae0] text-slate-500 hover:bg-[#e3ddd0]"
+        className="p-1 rounded bg-[#efeae0] text-fg-soft hover:bg-[#e3ddd0]"
       >
         <X className="w-3 h-3" />
       </button>
@@ -180,11 +180,11 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <PiggyBank className="w-6 h-6 text-orange-500" />
+          <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
+            <PiggyBank className="w-6 h-6 text-primary" />
             Cierre mensual de inversiones
           </h1>
-          <p className="text-sm text-slate-600 mt-0.5">
+          <p className="text-sm text-fg-muted mt-0.5">
             {periodos.length} instrumento(s) activos en {formatMonth(mes)} · {abiertos} sin cerrar
           </p>
         </div>
@@ -229,7 +229,7 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
           <button
             type="button"
             onClick={() => setToast(null)}
-            className="p-1 rounded hover:bg-black/5 text-slate-500"
+            className="p-1 rounded hover:bg-black/5 text-fg-soft"
             title="Cerrar"
           >
             <X className="w-4 h-4" />
@@ -261,7 +261,7 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                     'text-xs font-medium rounded-md px-2.5 py-1 border transition-colors',
                     idx === 0
                       ? 'bg-amber-700 text-white border-amber-700 hover:bg-amber-800'
-                      : 'bg-white text-amber-900 border-amber-200 hover:bg-amber-100',
+                      : 'bg-surface text-amber-900 border-amber-200 hover:bg-amber-100',
                   )}
                 >
                   {formatMonth(m)}
@@ -282,22 +282,22 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
 
       {/* KPIs gasto financiero + progreso de cierre */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-white border border-[#e8e4dc] rounded-xl p-5">
-          <p className="text-xs text-slate-600 mb-1">Gasto financiero USD</p>
+        <div className="bg-surface border border-border rounded-xl p-5">
+          <p className="text-xs text-fg-muted mb-1">Gasto financiero USD</p>
           <p className="text-2xl font-bold text-amber-700">{formatMoneda(totalUsd, 'USD')}</p>
-          <p className="text-xs text-slate-400 mt-1">Interés devengado del mes</p>
+          <p className="text-xs text-fg-soft mt-1">Interés devengado del mes</p>
         </div>
-        <div className="bg-white border border-[#e8e4dc] rounded-xl p-5">
-          <p className="text-xs text-slate-600 mb-1">Gasto financiero ARS</p>
+        <div className="bg-surface border border-border rounded-xl p-5">
+          <p className="text-xs text-fg-muted mb-1">Gasto financiero ARS</p>
           <p className="text-2xl font-bold text-amber-700">{formatMoneda(totalArs, 'ARS')}</p>
-          <p className="text-xs text-slate-400 mt-1">Interés devengado del mes</p>
+          <p className="text-xs text-fg-soft mt-1">Interés devengado del mes</p>
         </div>
-        <div className="bg-white border border-[#e8e4dc] rounded-xl p-5 flex flex-col justify-center gap-2.5">
+        <div className="bg-surface border border-border rounded-xl p-5 flex flex-col justify-center gap-2.5">
           <div className="flex items-baseline justify-between">
-            <p className="text-2xl font-bold text-slate-900">
-              {cerrados}<span className="text-sm font-medium text-slate-500"> / {periodos.length} cerrados</span>
+            <p className="text-2xl font-bold text-fg">
+              {cerrados}<span className="text-sm font-medium text-fg-soft"> / {periodos.length} cerrados</span>
             </p>
-            <p className="text-sm font-semibold text-slate-500">{pctCerrado}%</p>
+            <p className="text-sm font-semibold text-fg-soft">{pctCerrado}%</p>
           </div>
           <div className="h-2 rounded-full bg-[#efe9dd] overflow-hidden">
             <div className="h-full rounded-full bg-green-600 transition-all" style={{ width: `${pctCerrado}%` }} />
@@ -310,28 +310,28 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
       </div>
 
       {/* Tabla detallada */}
-      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
-        <div className="px-4 py-3 border-b border-[#e8e4dc]">
-          <h2 className="text-sm font-semibold text-slate-900">Detalle del mes — {formatMonth(mes)}</h2>
+      <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+        <div className="px-4 py-3 border-b border-border">
+          <h2 className="text-sm font-semibold text-fg">Detalle del mes — {formatMonth(mes)}</h2>
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#e8e4dc]">
-              <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Inversor / Cód.</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Moneda</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Tipo</th>
-              <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Saldo inicio</th>
-              <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Interés</th>
-              <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Movimiento</th>
-              <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Saldo cierre</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-slate-600 uppercase">Estado</th>
-              <th className="text-right px-4 py-2 text-xs font-medium text-slate-600 uppercase">Acción</th>
+            <tr className="border-b border-border">
+              <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Inversor / Cód.</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Moneda</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Tipo</th>
+              <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Saldo inicio</th>
+              <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Interés</th>
+              <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Movimiento</th>
+              <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Saldo cierre</th>
+              <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Estado</th>
+              <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Acción</th>
             </tr>
           </thead>
           <tbody>
             {periodos.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-12 text-center text-slate-500">
+                <td colSpan={9} className="px-4 py-12 text-center text-fg-soft">
                   No hay instrumentos activos para {formatMonth(mes)}
                 </td>
               </tr>
@@ -341,12 +341,12 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                 if (!i) return null
                 return (
                   <tr key={p.id} className={cn(
-                    'border-b border-[#e8e4dc]/60',
+                    'border-b border-border/60',
                     p.cerrado && 'bg-green-500/5'
                   )}>
                     <td className="px-4 py-2">
-                      <p className="text-slate-900 font-medium">{i.inversor?.nombre ?? '—'}</p>
-                      <p className="text-xs text-slate-500 font-mono">{i.codigo ?? i.id.substring(0, 8)}</p>
+                      <p className="text-fg font-medium">{i.inversor?.nombre ?? '—'}</p>
+                      <p className="text-xs text-fg-soft font-mono">{i.codigo ?? i.id.substring(0, 8)}</p>
                     </td>
                     <td className="px-4 py-2"><Badge variant={i.moneda === 'USD' ? 'success' : 'info'}>{i.moneda}</Badge></td>
                     <td className="px-4 py-2">
@@ -354,12 +354,12 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                         {i.capitalizable ? 'Capitalizable' : 'No cap.'}
                       </Badge>
                     </td>
-                    <td className="px-4 py-2 text-right font-mono text-slate-700">{formatMoneda(Number(p.saldo_inicio), i.moneda)}</td>
+                    <td className="px-4 py-2 text-right font-mono text-fg-muted">{formatMoneda(Number(p.saldo_inicio), i.moneda)}</td>
                     <td className="px-4 py-2 text-right font-mono text-amber-700 font-medium">{formatMoneda(Number(p.interes_devengado), i.moneda)}</td>
                     <td className="px-4 py-2 text-right">
                       <MovimientoEditor p={p} onSaved={() => router.refresh()} />
                     </td>
-                    <td className="px-4 py-2 text-right font-mono text-slate-900 font-bold">{formatMoneda(Number(p.saldo_cierre), i.moneda)}</td>
+                    <td className="px-4 py-2 text-right font-mono text-fg font-bold">{formatMoneda(Number(p.saldo_cierre), i.moneda)}</td>
                     <td className="px-4 py-2">
                       {p.cerrado
                         ? <span className="inline-flex items-center gap-1 text-xs text-green-700"><CheckCircle2 className="w-3 h-3" />Cerrado</span>
@@ -375,7 +375,7 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                           href={`/api/reportes/periodo/${p.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-[#d6d0c4] text-xs text-slate-700 hover:bg-[#e8e0d0] hover:text-slate-900 transition-colors"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-border-strong text-xs text-fg-muted hover:bg-surface-2 hover:text-fg transition-colors"
                           title="Reporte PDF interno (uso contable)"
                         >
                           <FileText className="w-3.5 h-3.5" />
@@ -400,8 +400,8 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
           </tbody>
           {periodos.length > 0 && (
             <tfoot>
-              <tr className="border-t border-[#d6d0c4] bg-[#f5f0e6]/50">
-                <td colSpan={4} className="px-4 py-3 text-sm font-semibold text-slate-700">TOTAL INTERESES (gasto financiero)</td>
+              <tr className="border-t border-border-strong bg-surface-2/50">
+                <td colSpan={4} className="px-4 py-3 text-sm font-semibold text-fg-muted">TOTAL INTERESES (gasto financiero)</td>
                 <td colSpan={5} className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-3">
                     {totalUsd > 0 && <span className="font-mono font-bold text-amber-700">{formatMoneda(totalUsd, 'USD')}</span>}

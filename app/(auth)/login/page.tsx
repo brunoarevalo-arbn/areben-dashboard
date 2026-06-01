@@ -9,18 +9,18 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-md">
-      <div className="bg-white border border-[#e8e4dc] rounded-2xl p-8 shadow-2xl">
+      <div className="bg-surface border border-border rounded-2xl p-8 shadow-2xl">
         <div className="flex flex-col items-center mb-8">
           <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center mb-4">
             <Building2 className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Areben Dashboard</h1>
-          <p className="text-sm text-slate-600 mt-1">Sistema de gestión financiera</p>
+          <h1 className="text-2xl font-bold text-fg">Areben Dashboard</h1>
+          <p className="text-sm text-fg-muted mt-1">Sistema de gestión financiera</p>
         </div>
 
         <form action={action} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label className="block text-sm font-medium text-fg-muted mb-1.5">
               Email
             </label>
             <input
@@ -28,13 +28,13 @@ export default function LoginPage() {
               type="email"
               required
               autoComplete="email"
-              className="w-full px-3.5 py-2.5 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+              className="w-full px-3.5 py-2.5 bg-surface-2 border border-border-strong rounded-lg text-fg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
               placeholder="hola@areben.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label className="block text-sm font-medium text-fg-muted mb-1.5">
               Contraseña
             </label>
             <input
@@ -42,7 +42,7 @@ export default function LoginPage() {
               type="password"
               required
               autoComplete="current-password"
-              className="w-full px-3.5 py-2.5 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+              className="w-full px-3.5 py-2.5 bg-surface-2 border border-border-strong rounded-lg text-fg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
               placeholder="••••••••"
             />
           </div>
@@ -69,7 +69,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-slate-500 mt-6">
+        <p className="text-center text-xs text-fg-soft mt-6">
           Zattia · Stunned · BDI Accesorios
         </p>
       </div>

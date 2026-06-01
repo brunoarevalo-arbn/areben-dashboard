@@ -89,20 +89,20 @@ export function ExcelImport({
     <Modal open={open} onOpenChange={onOpenChange} title={title} description={description} className="max-w-lg">
       <div className="space-y-4">
         {/* Paso 1: descargar template */}
-        <div className="bg-[#f5f0e6]/60 border border-[#d6d0c4]/60 rounded-xl p-4 space-y-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
+        <div className="bg-surface-2/60 border border-border-strong/60 rounded-xl p-4 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-fg-muted">
             <FileSpreadsheet className="w-4 h-4" />
             1. Descargá la plantilla
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-fg-soft">
             Plantilla con las columnas correctas y un ejemplo. Llenala y volvela a subir.
           </p>
           <Button variant="secondary" size="sm" onClick={descargarTemplate} title="Descargar plantilla Excel">
             <Download className="w-3.5 h-3.5" />
             Descargar plantilla.xlsx
           </Button>
-          <div className="text-xs text-slate-500 mt-2">
-            <p className="font-medium text-slate-600 mb-1">Columnas:</p>
+          <div className="text-xs text-fg-soft mt-2">
+            <p className="font-medium text-fg-muted mb-1">Columnas:</p>
             <ul className="space-y-0.5 list-disc list-inside">
               {templateColumns.map((c) => (
                 <li key={c.key}>
@@ -115,8 +115,8 @@ export function ExcelImport({
         </div>
 
         {/* Paso 2: subir */}
-        <div className="bg-[#f5f0e6]/60 border border-[#d6d0c4]/60 rounded-xl p-4 space-y-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
+        <div className="bg-surface-2/60 border border-border-strong/60 rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-fg-muted">
             <Upload className="w-4 h-4" />
             2. Subí el archivo
           </div>
@@ -124,10 +124,10 @@ export function ExcelImport({
             type="file"
             accept=".xlsx,.xls"
             onChange={handleFile}
-            className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-500 file:text-white hover:file:bg-orange-500 file:cursor-pointer"
+            className="block w-full text-sm text-fg-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-500 file:text-white hover:file:bg-orange-500 file:cursor-pointer"
           />
           {rows !== null && (
-            <p className="text-xs text-slate-600">
+            <p className="text-xs text-fg-muted">
               <CheckCircle2 className="w-3.5 h-3.5 inline mr-1 text-green-700" />
               {rows.length} filas leídas
             </p>
@@ -151,7 +151,7 @@ export function ExcelImport({
               <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 space-y-1">
                 <p className="text-xs font-medium text-red-700">Errores:</p>
                 {result.errors.slice(0, 10).map((e, i) => (
-                  <p key={i} className="text-xs text-red-300">• {e}</p>
+                  <p key={i} className="text-xs text-danger">• {e}</p>
                 ))}
                 {result.errors.length > 10 && <p className="text-xs text-red-700">...y {result.errors.length - 10} más</p>}
               </div>

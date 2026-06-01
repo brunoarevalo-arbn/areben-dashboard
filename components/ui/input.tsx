@@ -12,7 +12,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="space-y-1.5">
         {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium text-slate-700">
+          <label htmlFor={inputId} className="block text-sm font-medium text-fg">
             {label}
           </label>
         )}
@@ -20,13 +20,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           ref={ref}
           className={cn(
-            'w-full px-3.5 py-2.5 bg-[#f5f0e6] border rounded-lg text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all text-sm',
-            error ? 'border-red-500' : 'border-[#d6d0c4]',
+            'w-full px-3.5 py-2.5 bg-surface-2 border rounded-lg text-fg placeholder-fg-soft focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm',
+            error ? 'border-danger' : 'border-border-strong',
             className
           )}
           {...props}
         />
-        {error && <p className="text-xs text-red-700">{error}</p>}
+        {error && <p className="text-xs text-danger">{error}</p>}
       </div>
     )
   }
@@ -46,7 +46,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className="space-y-1.5">
         {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium text-slate-700">
+          <label htmlFor={inputId} className="block text-sm font-medium text-fg">
             {label}
           </label>
         )}
@@ -54,8 +54,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           id={inputId}
           ref={ref}
           className={cn(
-            'w-full px-3.5 py-2.5 bg-[#f5f0e6] border rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all text-sm appearance-none',
-            error ? 'border-red-500' : 'border-[#d6d0c4]',
+            'w-full px-3.5 py-2.5 bg-surface-2 border rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm appearance-none',
+            error ? 'border-danger' : 'border-border-strong',
             className
           )}
           {...props}
@@ -67,7 +67,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             </option>
           ))}
         </select>
-        {error && <p className="text-xs text-red-700">{error}</p>}
+        {error && <p className="text-xs text-danger">{error}</p>}
       </div>
     )
   }
@@ -85,7 +85,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <div className="space-y-1.5">
         {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium text-slate-700">
+          <label htmlFor={inputId} className="block text-sm font-medium text-fg">
             {label}
           </label>
         )}
@@ -94,13 +94,13 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           rows={3}
           className={cn(
-            'w-full px-3.5 py-2.5 bg-[#f5f0e6] border rounded-lg text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all text-sm resize-none',
-            error ? 'border-red-500' : 'border-[#d6d0c4]',
+            'w-full px-3.5 py-2.5 bg-surface-2 border rounded-lg text-fg placeholder-fg-soft focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm resize-none',
+            error ? 'border-danger' : 'border-border-strong',
             className
           )}
           {...props}
         />
-        {error && <p className="text-xs text-red-700">{error}</p>}
+        {error && <p className="text-xs text-danger">{error}</p>}
       </div>
     )
   }

@@ -118,26 +118,26 @@ function RecurrenteForm({
       </div>
 
       {/* Monto principal con moneda */}
-      <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-xl p-4 space-y-3">
+      <div className="bg-surface-2/40 border border-border-strong/40 rounded-xl p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="col-span-2 space-y-1.5">
-            <label className="block text-xs font-medium text-slate-600">Monto principal</label>
+            <label className="block text-xs font-medium text-fg-muted">Monto principal</label>
             <input
               type="number"
               step="0.01"
               value={montoEstimado || ''}
               onChange={(e) => setMontoEstimado(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+              className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               placeholder="0.00"
               required
             />
           </div>
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-600">Moneda</label>
+            <label className="block text-xs font-medium text-fg-muted">Moneda</label>
             <select
               value={moneda}
               onChange={(e) => setMoneda(e.target.value as 'ARS' | 'USD')}
-              className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+              className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             >
               <option value="ARS">ARS</option>
               <option value="USD">USD</option>
@@ -150,30 +150,30 @@ function RecurrenteForm({
             type="checkbox"
             checked={tieneSecundario}
             onChange={(e) => setTieneSecundario(e.target.checked)}
-            className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700"
+            className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2"
           />
-          <span className="text-slate-700">Componente en otra moneda (ej: alquiler con parte fija USD + ajuste ARS)</span>
+          <span className="text-fg-muted">Componente en otra moneda (ej: alquiler con parte fija USD + ajuste ARS)</span>
         </label>
 
         {tieneSecundario && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pl-6 pt-1">
             <div className="col-span-2 space-y-1.5">
-              <label className="block text-xs font-medium text-slate-600">Monto secundario</label>
+              <label className="block text-xs font-medium text-fg-muted">Monto secundario</label>
               <input
                 type="number"
                 step="0.01"
                 value={montoSecundario || ''}
                 onChange={(e) => setMontoSecundario(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                 placeholder="0.00"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-600">Moneda</label>
+              <label className="block text-xs font-medium text-fg-muted">Moneda</label>
               <select
                 value={monedaSecundaria}
                 onChange={(e) => setMonedaSecundaria(e.target.value as 'ARS' | 'USD')}
-                className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               >
                 <option value="USD">USD</option>
                 <option value="ARS">ARS</option>
@@ -184,14 +184,14 @@ function RecurrenteForm({
       </div>
 
       {/* IVA */}
-      <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-xl p-4 space-y-3">
+      <div className="bg-surface-2/40 border border-border-strong/40 rounded-xl p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-600">Tipo de IVA</label>
+            <label className="block text-xs font-medium text-fg-muted">Tipo de IVA</label>
             <select
               value={porcentajeIva}
               onChange={(e) => setPorcentajeIva(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+              className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             >
               {tiposIva.map((t) => (
                 <option key={t.id} value={t.porcentaje}>{t.nombre}</option>
@@ -199,13 +199,13 @@ function RecurrenteForm({
             </select>
           </div>
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-600">Día de vencimiento</label>
+            <label className="block text-xs font-medium text-fg-muted">Día de vencimiento</label>
             <input
               type="number"
               min="1" max="31"
               defaultValue={recurrente?.dia_vencimiento ?? ''}
               name="dia_vencimiento"
-              className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+              className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               placeholder="ej: 10"
             />
           </div>
@@ -215,13 +215,13 @@ function RecurrenteForm({
             type="checkbox"
             checked={ivaIncluido}
             onChange={(e) => setIvaIncluido(e.target.checked)}
-            className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700"
+            className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2"
           />
-          <span className="text-sm text-slate-700">El monto incluye IVA</span>
+          <span className="text-sm text-fg-muted">El monto incluye IVA</span>
         </label>
         {ivaIncluido && montoEstimado > 0 && (
-          <div className="bg-slate-700/40 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
-            <span className="text-slate-600">Neto sin IVA ({porcentajeIva}%)</span>
+          <div className="bg-surface-2/40 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
+            <span className="text-fg-muted">Neto sin IVA ({porcentajeIva}%)</span>
             <span className="font-mono text-green-700 font-semibold">
               {formatCurrency(montoNeto, moneda)}
             </span>
@@ -267,15 +267,15 @@ function RecurrenteForm({
       )}
 
       {/* Prorrateo */}
-      <div className="bg-[#f5f0e6]/60 border border-[#d6d0c4]/60 rounded-xl p-4 space-y-3">
+      <div className="bg-surface-2/60 border border-border-strong/60 rounded-xl p-4 space-y-3">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
             checked={esCompartido}
             onChange={(e) => setEsCompartido(e.target.checked)}
-            className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700"
+            className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2"
           />
-          <span className="text-sm font-medium text-slate-700">Gasto compartido (prorratear entre marcas)</span>
+          <span className="text-sm font-medium text-fg-muted">Gasto compartido (prorratear entre marcas)</span>
         </label>
         {esCompartido && (
           <div className="pl-6 space-y-2">
@@ -360,9 +360,9 @@ function ConfirmacionModal({
 
   return (
     <div className="space-y-4">
-      <div className="bg-[#f5f0e6]/60 rounded-lg px-4 py-3">
-        <p className="text-sm text-slate-700 font-medium">{recurrente.concepto}</p>
-        <p className="text-xs text-slate-500">
+      <div className="bg-surface-2/60 rounded-lg px-4 py-3">
+        <p className="text-sm text-fg-muted font-medium">{recurrente.concepto}</p>
+        <p className="text-xs text-fg-soft">
           {recurrente.categoria} · estimado: {formatCurrency(recurrente.monto_estimado, monedaPrincipal)}
           {tieneSecundario && monedaSecundaria && ` + ${formatCurrency(recurrente.monto_secundario!, monedaSecundaria)}`}
         </p>
@@ -371,7 +371,7 @@ function ConfirmacionModal({
       {/* Selector de modo (sólo si hay secundario) */}
       {tieneSecundario && monedaSecundaria && (
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">¿Cómo registrar este mes?</label>
+          <label className="text-sm font-medium text-fg-muted">¿Cómo registrar este mes?</label>
           <div className="grid grid-cols-1 gap-2">
             {([
               { v: 'DUAL' as const, label: '2 gastos separados', desc: `Crea uno en ${monedaPrincipal} y otro en ${monedaSecundaria}, cada uno con su propia moneda` },
@@ -386,11 +386,11 @@ function ConfirmacionModal({
                   'text-left px-3 py-2 rounded-lg border transition-colors',
                   modo === v
                     ? 'bg-orange-500/20 border-orange-500/50'
-                    : 'bg-[#f5f0e6] border-[#d6d0c4] hover:border-[#c8c0b0]'
+                    : 'bg-surface-2 border-border-strong hover:border-[#c8c0b0]'
                 )}
               >
-                <p className={cn('text-sm font-medium', modo === v ? 'text-orange-600' : 'text-slate-800')}>{label}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{desc}</p>
+                <p className={cn('text-sm font-medium', modo === v ? 'text-orange-600' : 'text-fg-muted')}>{label}</p>
+                <p className="text-xs text-fg-soft mt-0.5">{desc}</p>
               </button>
             ))}
           </div>
@@ -399,19 +399,19 @@ function ConfirmacionModal({
 
       {/* Monto principal — siempre editable */}
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-slate-700 flex items-center justify-between">
+        <label className="text-sm font-medium text-fg-muted flex items-center justify-between">
           <span>Monto componente {monedaPrincipal}</span>
-          <span className="text-xs text-slate-500 font-normal">moneda principal</span>
+          <span className="text-xs text-fg-soft font-normal">moneda principal</span>
         </label>
         <input
           type="number"
           step="0.01"
           value={montoP}
           onChange={(e) => setMontoP(Number(e.target.value))}
-          className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+          className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary"
         />
         {recurrente.iva_incluido && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-fg-soft">
             Neto sin IVA: <span className="font-mono text-green-700">{formatCurrency(montoP / (1 + recurrente.porcentaje_iva / 100), monedaPrincipal)}</span>
           </p>
         )}
@@ -420,16 +420,16 @@ function ConfirmacionModal({
       {/* Monto secundario — sólo si hay y modo no es PRINCIPAL_SOLO */}
       {tieneSecundario && monedaSecundaria && modo !== 'PRINCIPAL_SOLO' && (
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-slate-700 flex items-center justify-between">
+          <label className="text-sm font-medium text-fg-muted flex items-center justify-between">
             <span>Monto componente {monedaSecundaria}</span>
-            <span className="text-xs text-slate-500 font-normal">moneda secundaria</span>
+            <span className="text-xs text-fg-soft font-normal">moneda secundaria</span>
           </label>
           <input
             type="number"
             step="0.01"
             value={montoS}
             onChange={(e) => setMontoS(Number(e.target.value))}
-            className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
       )}
@@ -437,7 +437,7 @@ function ConfirmacionModal({
       {/* TC para conversión */}
       {modo === 'CONVERTIR' && monedaSecundaria && (
         <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-3 space-y-2">
-          <label className="text-sm font-medium text-slate-700">
+          <label className="text-sm font-medium text-fg-muted">
             Tipo de cambio ({monedaSecundaria === 'USD' ? '1 USD = ? ARS' : '1 ARS = ? USD'})
           </label>
           <input
@@ -446,16 +446,16 @@ function ConfirmacionModal({
             value={tc || ''}
             onChange={(e) => setTc(Number(e.target.value))}
             placeholder="Ej: 1080"
-            className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary"
           />
           {tc > 0 && (
-            <div className="bg-white/40 rounded-lg px-3 py-2 text-xs space-y-1">
+            <div className="bg-surface/40 rounded-lg px-3 py-2 text-xs space-y-1">
               <div className="flex justify-between">
-                <span className="text-slate-600">{formatCurrency(montoP, monedaPrincipal)}</span>
-                <span className="text-slate-700 font-mono">+ {formatCurrency(montoS, monedaSecundaria)}</span>
+                <span className="text-fg-muted">{formatCurrency(montoP, monedaPrincipal)}</span>
+                <span className="text-fg-muted font-mono">+ {formatCurrency(montoS, monedaSecundaria)}</span>
               </div>
-              <div className="flex justify-between border-t border-[#d6d0c4] pt-1">
-                <span className="text-slate-700 font-medium">Total en {monedaPrincipal}:</span>
+              <div className="flex justify-between border-t border-border-strong pt-1">
+                <span className="text-fg-muted font-medium">Total en {monedaPrincipal}:</span>
                 <span className="font-mono text-green-700 font-semibold">{formatCurrency(totalConvertido, monedaPrincipal)}</span>
               </div>
             </div>
@@ -464,8 +464,8 @@ function ConfirmacionModal({
       )}
 
       {/* Resumen */}
-      <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg px-3 py-2 text-xs text-slate-600">
-        <span className="text-slate-700 font-medium">Se va a crear: </span>
+      <div className="bg-surface-2/40 border border-border-strong/40 rounded-lg px-3 py-2 text-xs text-fg-muted">
+        <span className="text-fg-muted font-medium">Se va a crear: </span>
         {modo === 'PRINCIPAL_SOLO' || !tieneSecundario
           ? `1 gasto pendiente de ${formatCurrency(montoP, monedaPrincipal)}`
           : modo === 'DUAL'
@@ -491,24 +491,24 @@ function ConfirmacionModal({
 function DetalleModal({ recurrente, onClose }: { recurrente: GastoRecurrente; onClose: () => void }) {
   return (
     <div className="space-y-3">
-      <div className="bg-[#f5f0e6]/60 rounded-lg p-4 space-y-2 text-sm">
-        <div className="flex justify-between"><span className="text-slate-600">Concepto</span><span className="text-slate-900">{recurrente.concepto}</span></div>
-        <div className="flex justify-between"><span className="text-slate-600">Categoría</span><span>{recurrente.categoria}</span></div>
-        <div className="flex justify-between"><span className="text-slate-600">Monto estimado</span><span className="font-mono">{formatCurrency(recurrente.monto_estimado)}</span></div>
-        <div className="flex justify-between"><span className="text-slate-600">IVA</span><span>{recurrente.iva_incluido ? `Incluido (${recurrente.porcentaje_iva}%)` : 'No incluido'}</span></div>
-        <div className="flex justify-between"><span className="text-slate-600">Medio pago</span><span>{recurrente.medio_pago}</span></div>
-        <div className="flex justify-between"><span className="text-slate-600">Tipo mes</span><span>{recurrente.tipo_mes}</span></div>
-        {recurrente.dia_vencimiento && <div className="flex justify-between"><span className="text-slate-600">Día venc.</span><span>{recurrente.dia_vencimiento}</span></div>}
+      <div className="bg-surface-2/60 rounded-lg p-4 space-y-2 text-sm">
+        <div className="flex justify-between"><span className="text-fg-muted">Concepto</span><span className="text-fg">{recurrente.concepto}</span></div>
+        <div className="flex justify-between"><span className="text-fg-muted">Categoría</span><span>{recurrente.categoria}</span></div>
+        <div className="flex justify-between"><span className="text-fg-muted">Monto estimado</span><span className="font-mono">{formatCurrency(recurrente.monto_estimado)}</span></div>
+        <div className="flex justify-between"><span className="text-fg-muted">IVA</span><span>{recurrente.iva_incluido ? `Incluido (${recurrente.porcentaje_iva}%)` : 'No incluido'}</span></div>
+        <div className="flex justify-between"><span className="text-fg-muted">Medio pago</span><span>{recurrente.medio_pago}</span></div>
+        <div className="flex justify-between"><span className="text-fg-muted">Tipo mes</span><span>{recurrente.tipo_mes}</span></div>
+        {recurrente.dia_vencimiento && <div className="flex justify-between"><span className="text-fg-muted">Día venc.</span><span>{recurrente.dia_vencimiento}</span></div>}
       </div>
 
       {recurrente.prorrateo && (
-        <div className="bg-[#f5f0e6]/60 rounded-lg p-4">
-          <p className="text-xs font-medium text-slate-600 mb-2">Prorrateo</p>
+        <div className="bg-surface-2/60 rounded-lg p-4">
+          <p className="text-xs font-medium text-fg-muted mb-2">Prorrateo</p>
           <div className="space-y-1">
             {Object.entries(recurrente.prorrateo).map(([marca, pct]) => (
               <div key={marca} className="flex justify-between text-sm">
-                <span className="text-slate-700">{marca}</span>
-                <span className="font-mono text-orange-500">{pct}%</span>
+                <span className="text-fg-muted">{marca}</span>
+                <span className="font-mono text-primary">{pct}%</span>
               </div>
             ))}
           </div>
@@ -516,9 +516,9 @@ function DetalleModal({ recurrente, onClose }: { recurrente: GastoRecurrente; on
       )}
 
       {recurrente.detalles && (
-        <div className="bg-[#f5f0e6]/60 rounded-lg p-4">
-          <p className="text-xs font-medium text-slate-600 mb-2">Detalles técnicos</p>
-          <pre className="text-xs text-slate-700 font-mono whitespace-pre-wrap">{JSON.stringify(recurrente.detalles, null, 2)}</pre>
+        <div className="bg-surface-2/60 rounded-lg p-4">
+          <p className="text-xs font-medium text-fg-muted mb-2">Detalles técnicos</p>
+          <pre className="text-xs text-fg-muted font-mono whitespace-pre-wrap">{JSON.stringify(recurrente.detalles, null, 2)}</pre>
         </div>
       )}
 
@@ -601,8 +601,8 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Gastos recurrentes</h1>
-          <p className="text-sm text-slate-600 mt-0.5">Plantillas de gastos mensuales — confirmar para {formatMonth(mes)}</p>
+          <h1 className="text-2xl font-bold text-fg">Gastos recurrentes</h1>
+          <p className="text-sm text-fg-muted mt-0.5">Plantillas de gastos mensuales — confirmar para {formatMonth(mes)}</p>
         </div>
         <div className="flex items-center gap-2">
           <Select options={getMonthOptions()} value={mes} onChange={(e) => setMes(e.target.value)} className="w-44" />
@@ -618,21 +618,21 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-white border border-[#e8e4dc] rounded-xl p-4 space-y-1">
-          <p className="text-xs text-slate-600">Total estimado mes</p>
-          <p className="text-lg font-bold text-slate-900 font-mono">
-            {totalARS > 0 ? formatCurrency(totalARS, 'ARS') : <span className="text-slate-600">—</span>}
+        <div className="bg-surface border border-border rounded-xl p-4 space-y-1">
+          <p className="text-xs text-fg-muted">Total estimado mes</p>
+          <p className="text-lg font-bold text-fg font-mono">
+            {totalARS > 0 ? formatCurrency(totalARS, 'ARS') : <span className="text-fg-muted">—</span>}
           </p>
           <p className="text-xs font-mono text-green-700/80">
-            {totalUSD > 0 ? formatCurrency(totalUSD, 'USD') : <span className="text-slate-600">U$S —</span>}
+            {totalUSD > 0 ? formatCurrency(totalUSD, 'USD') : <span className="text-fg-muted">U$S —</span>}
           </p>
         </div>
-        <div className="bg-white border border-green-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-600 mb-1">Confirmados</p>
+        <div className="bg-surface border border-green-500/20 rounded-xl p-4">
+          <p className="text-xs text-fg-muted mb-1">Confirmados</p>
           <p className="text-xl font-bold text-green-700">{confirmadosCount} / {recurrentes.length}</p>
         </div>
-        <div className="bg-white border border-amber-500/20 rounded-xl p-4">
-          <p className="text-xs text-slate-600 mb-1">Pendientes de confirmar</p>
+        <div className="bg-surface border border-amber-500/20 rounded-xl p-4">
+          <p className="text-xs text-fg-muted mb-1">Pendientes de confirmar</p>
           <p className="text-xl font-bold text-amber-700">{recurrentes.length - confirmadosCount}</p>
         </div>
       </div>
@@ -641,7 +641,7 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
       {seleccionados.size > 0 && (
         <div className="bg-orange-500/10 border border-orange-500/40 rounded-xl px-4 py-3 flex items-center justify-between sticky top-0 z-10 backdrop-blur">
           <div className="flex items-center gap-2 text-sm">
-            <ListChecks className="w-4 h-4 text-orange-500" />
+            <ListChecks className="w-4 h-4 text-primary" />
             <span className="text-orange-600 font-medium">{seleccionados.size} recurrente(s) seleccionado(s)</span>
           </div>
           <div className="flex items-center gap-2">
@@ -662,10 +662,10 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
         </div>
       )}
 
-      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+      <div className="bg-surface border border-border rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#e8e4dc]">
+            <tr className="border-b border-border">
               <th className="px-3 py-3 w-10">
                 <input
                   type="checkbox"
@@ -673,22 +673,22 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
                   onChange={toggleAll}
                   disabled={recurrentesPendientes.length === 0}
                   title="Seleccionar todos los pendientes del mes"
-                  className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700 text-orange-600 focus:ring-orange-500"
+                  className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2 text-orange-600 focus:ring-primary"
                 />
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Concepto</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Categoría</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Estimado</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Medio</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Compartido</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Estado mes</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Concepto</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Categoría</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Estimado</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Medio</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Compartido</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Estado mes</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
             {recurrentes.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
+                <td colSpan={8} className="px-4 py-12 text-center text-fg-soft">
                   <Repeat className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   Sin gastos recurrentes configurados
                 </td>
@@ -699,7 +699,7 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
                 const checked = seleccionados.has(r.id)
                 return (
                   <tr key={r.id} className={cn(
-                    'border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30',
+                    'border-b border-border/60 hover:bg-surface-2/30',
                     checked && 'bg-orange-500/5',
                   )}>
                     <td className="px-3 py-2.5">
@@ -709,18 +709,18 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
                         onChange={() => toggleSel(r.id)}
                         disabled={confirmado}
                         title={confirmado ? 'Ya confirmado este mes' : 'Seleccionar para confirmación masiva'}
-                        className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700 text-orange-600 focus:ring-orange-500 disabled:opacity-30"
+                        className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2 text-orange-600 focus:ring-primary disabled:opacity-30"
                       />
                     </td>
                     <td className="px-4 py-2.5">
-                      <p className="font-medium text-slate-900">{r.concepto}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="font-medium text-fg">{r.concepto}</p>
+                      <p className="text-xs text-fg-soft">
                         {r.iva_incluido && <span>IVA {r.porcentaje_iva}% incluido · </span>}
                         {r.tipo_mes === 'VENCIDO' ? 'mes vencido' : 'mes corriente'}
                       </p>
                     </td>
-                    <td className="px-4 py-2.5 text-slate-700">{r.categoria}</td>
-                    <td className="px-4 py-2.5 text-right font-mono text-slate-900">
+                    <td className="px-4 py-2.5 text-fg-muted">{r.categoria}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-fg">
                       {formatCurrency(r.monto_estimado, r.moneda)}
                       {r.monto_secundario && r.monto_secundario > 0 && r.moneda_secundaria && (
                         <p className="text-xs text-blue-700 font-mono">
@@ -734,7 +734,7 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
                       )}
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className="inline-flex items-center gap-1 text-xs text-slate-700">
+                      <span className="inline-flex items-center gap-1 text-xs text-fg-muted">
                         {r.medio_pago === 'TARJETA' ? <CreditCard className="w-3 h-3" /> : <Receipt className="w-3 h-3" />}
                         {r.medio_pago}
                       </span>
@@ -743,7 +743,7 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
                       {r.prorrateo ? (
                         <Badge variant="info">Sí</Badge>
                       ) : (
-                        <span className="text-xs text-slate-500">—</span>
+                        <span className="text-xs text-fg-soft">—</span>
                       )}
                     </td>
                     <td className="px-4 py-2.5">

@@ -19,10 +19,10 @@ const COLORES_CATEGORIA: Record<string, string> = {
   blue: 'bg-blue-500/15 text-blue-700 border-blue-500/30',
   red: 'bg-red-500/15 text-red-700 border-red-500/30',
   green: 'bg-green-500/15 text-green-700 border-green-500/30',
-  indigo: 'bg-orange-500/15 text-orange-500 border-orange-500/30',
+  indigo: 'bg-orange-500/15 text-primary border-orange-500/30',
   purple: 'bg-purple-500/15 text-purple-700 border-purple-500/30',
   pink: 'bg-pink-500/15 text-pink-700 border-pink-500/30',
-  slate: 'bg-slate-500/15 text-slate-600 border-slate-500/30',
+  slate: 'bg-slate-500/15 text-fg-muted border-slate-500/30',
 }
 
 interface Props {
@@ -34,7 +34,7 @@ interface Props {
 }
 
 function CategoriaTag({ categoria }: { categoria?: CategoriaRetiro | null }) {
-  if (!categoria) return <span className="text-slate-600 text-xs">—</span>
+  if (!categoria) return <span className="text-fg-muted text-xs">—</span>
   const cls = COLORES_CATEGORIA[categoria.color] ?? COLORES_CATEGORIA.slate
   return (
     <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium', cls)}>
@@ -139,8 +139,8 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Retiros de Socios</h1>
-          <p className="text-sm text-slate-600 mt-0.5">
+          <h1 className="text-2xl font-bold text-fg">Retiros de Socios</h1>
+          <p className="text-sm text-fg-muted mt-0.5">
             {retiros.length} registros · USD como moneda maestra
           </p>
         </div>
@@ -178,14 +178,14 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
       {/* Resumen por socio */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {resumenSocios.map(({ socio, usd, ars, count }) => (
-          <div key={socio} className="bg-white border border-[#e8e4dc] rounded-xl p-5">
+          <div key={socio} className="bg-surface border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-medium text-slate-700">{socio}</p>
-              <span className="text-xs text-slate-500">{count} retiro{count !== 1 ? 's' : ''}</span>
+              <p className="text-sm font-medium text-fg-muted">{socio}</p>
+              <span className="text-xs text-fg-soft">{count} retiro{count !== 1 ? 's' : ''}</span>
             </div>
             <div className="space-y-1.5">
               <div className="flex justify-between items-baseline">
-                <span className="text-xs text-slate-600 flex items-center gap-1">
+                <span className="text-xs text-fg-muted flex items-center gap-1">
                   <DollarSign className="w-3 h-3" />
                   Total USD
                 </span>
@@ -194,8 +194,8 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
                 </span>
               </div>
               <div className="flex justify-between items-baseline">
-                <span className="text-xs text-slate-600">Equivalente ARS (histórico)</span>
-                <span className="text-sm font-mono text-slate-700">{formatCurrency(ars)}</span>
+                <span className="text-xs text-fg-muted">Equivalente ARS (histórico)</span>
+                <span className="text-sm font-mono text-fg-muted">{formatCurrency(ars)}</span>
               </div>
             </div>
           </div>
@@ -207,7 +207,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
         <select
           value={filtroSocio}
           onChange={(e) => setFiltroSocio(e.target.value)}
-          className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="">Todos los socios</option>
           {todosLosSocios.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -215,7 +215,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
         <select
           value={filtroMes}
           onChange={(e) => setFiltroMes(e.target.value)}
-          className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="">Todos los meses</option>
           {mesesDisponibles.map((m) => <option key={m} value={m}>{formatMonth(m)}</option>)}
@@ -224,7 +224,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
           <button
             type="button"
             onClick={() => { setFiltroSocio(''); setFiltroMes('') }}
-            className="text-xs text-slate-600 hover:text-slate-800"
+            className="text-xs text-fg-muted hover:text-fg-muted"
           >
             Limpiar filtros
           </button>
@@ -233,10 +233,10 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
 
       {/* Resumen por categoría (del filtrado) */}
       {resumenCategorias.length > 0 && (
-        <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
-          <div className="px-4 py-3 border-b border-[#e8e4dc] flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-orange-500" />
-            <h2 className="text-sm font-semibold text-slate-900">Análisis por categoría (USD)</h2>
+        <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+          <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-semibold text-fg">Análisis por categoría (USD)</h2>
           </div>
           <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
             {resumenCategorias.map(({ categoria, usd, count }) => (
@@ -258,38 +258,38 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
       )}
 
       {/* Tabla */}
-      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+      <div className="bg-surface border border-border rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#e8e4dc]">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Socio</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Categoría</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Fecha</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">ARS</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">USD</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">TC</th>
+            <tr className="border-b border-border">
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Socio</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Categoría</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Fecha</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">ARS</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">USD</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">TC</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
             {retirosFiltrados.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                <td colSpan={7} className="px-4 py-12 text-center text-fg-soft">
                   <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   No hay retiros con esos filtros
                 </td>
               </tr>
             ) : (
               retirosFiltrados.map((r) => (
-                <tr key={r.id} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
-                  <td className="px-4 py-3 text-slate-900 font-medium">{r.socio}</td>
+                <tr key={r.id} className="border-b border-border/60 hover:bg-surface-2/30">
+                  <td className="px-4 py-3 text-fg font-medium">{r.socio}</td>
                   <td className="px-4 py-3"><CategoriaTag categoria={r.categoria} /></td>
-                  <td className="px-4 py-3 text-slate-600 text-xs">{formatDate(r.fecha)}</td>
-                  <td className="px-4 py-3 text-right font-mono text-slate-700">{formatCurrency(r.monto_pesos)}</td>
+                  <td className="px-4 py-3 text-fg-muted text-xs">{formatDate(r.fecha)}</td>
+                  <td className="px-4 py-3 text-right font-mono text-fg-muted">{formatCurrency(r.monto_pesos)}</td>
                   <td className="px-4 py-3 text-right font-mono text-green-700 font-medium">
                     {formatCurrency(r.monto_usd_calculado ?? r.monto_usd, 'USD')}
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-600 text-xs">{r.tipo_cambio.toFixed(0)}</td>
+                  <td className="px-4 py-3 text-right text-fg-muted text-xs">{r.tipo_cambio.toFixed(0)}</td>
                   <td className="px-4 py-3">
                     <Button size="sm" variant="danger" onClick={() => handleDelete(r.id)} disabled={isPending}>
                       <Trash2 className="w-3.5 h-3.5" />
@@ -335,7 +335,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
           />
 
           {/* Medio de pago */}
-          <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-xl p-3 space-y-3">
+          <div className="bg-surface-2/40 border border-border-strong/40 rounded-xl p-3 space-y-3">
             <Select
               label="Medio de pago"
               name="medio_pago"
@@ -358,7 +358,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
                   required
                 />
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1.5">
+                  <label className="block text-xs font-medium text-fg-muted mb-1.5 flex items-center gap-1.5">
                     <CreditCard className="w-3.5 h-3.5" />
                     Cantidad de cuotas
                   </label>
@@ -372,7 +372,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
                           'px-3 py-1 rounded-lg border text-sm font-mono font-medium transition-colors',
                           cuotasTotal === n
                             ? 'bg-orange-500/20 border-orange-500/50 text-orange-600'
-                            : 'bg-slate-700 border-[#c8c0b0] text-slate-600 hover:text-slate-800'
+                            : 'bg-surface-2 border-[#c8c0b0] text-fg-muted hover:text-fg-muted'
                         )}
                       >
                         {n}
@@ -383,11 +383,11 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
                       min="1"
                       value={cuotasTotal}
                       onChange={(e) => setCuotasTotal(Math.max(1, Number(e.target.value)))}
-                      className="w-20 px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      className="w-20 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
                   <input type="hidden" name="cuotas_total" value={cuotasTotal} />
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-fg-soft mt-1">
                     Las cuotas se generan como pasivo financiero en /finanzas/tarjetas.
                   </p>
                 </div>
@@ -400,7 +400,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
             <Input label="Monto USD" name="monto_usd" type="number" step="0.01" defaultValue="0" />
           </div>
           <input type="hidden" name="tipo_cambio" value="0" />
-          <p className="text-xs text-slate-500 bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg px-3 py-2">
+          <p className="text-xs text-fg-soft bg-surface-2/40 border border-border-strong/40 rounded-lg px-3 py-2">
             La conversión a USD se aplica a fin de mes con <strong>Cerrar y convertir</strong> usando un único TC.
           </p>
 
@@ -481,9 +481,9 @@ function CierreConversionModal({
   return (
     <Modal open={open} onOpenChange={onOpenChange} title="Cerrar y convertir retiros del mes" className="max-w-md">
       <div className="space-y-4">
-        <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg p-3 text-xs text-slate-700 space-y-1">
+        <div className="bg-surface-2/40 border border-border-strong/40 rounded-lg p-3 text-xs text-fg-muted space-y-1">
           <p>Convierte todos los retiros ARS del mes a USD usando un único tipo de cambio.</p>
-          <p className="text-slate-600">Los retiros que ya estaban cargados directamente en USD se respetan.</p>
+          <p className="text-fg-muted">Los retiros que ya estaban cargados directamente en USD se respetan.</p>
         </div>
 
         <Select
@@ -503,21 +503,21 @@ function CierreConversionModal({
           onChange={(e) => setTc(Number(e.target.value))}
         />
 
-        <div className="bg-white/60 border border-[#d6d0c4]/40 rounded-lg p-3 grid grid-cols-2 gap-3 text-xs">
+        <div className="bg-surface/60 border border-border-strong/40 rounded-lg p-3 grid grid-cols-2 gap-3 text-xs">
           <div>
-            <p className="text-slate-600">Retiros del mes</p>
-            <p className="text-base font-semibold text-slate-900">{retirosDelMes.length}</p>
+            <p className="text-fg-muted">Retiros del mes</p>
+            <p className="text-base font-semibold text-fg">{retirosDelMes.length}</p>
           </div>
           <div>
-            <p className="text-slate-600">Total ARS</p>
-            <p className="text-base font-mono text-orange-500">{formatCurrency(totalArs)}</p>
+            <p className="text-fg-muted">Total ARS</p>
+            <p className="text-base font-mono text-primary">{formatCurrency(totalArs)}</p>
           </div>
           <div>
-            <p className="text-slate-600">USD actual</p>
-            <p className="text-base font-mono text-slate-700">{formatCurrency(totalUsdActual, 'USD')}</p>
+            <p className="text-fg-muted">USD actual</p>
+            <p className="text-base font-mono text-fg-muted">{formatCurrency(totalUsdActual, 'USD')}</p>
           </div>
           <div>
-            <p className="text-slate-600">USD c/TC nuevo</p>
+            <p className="text-fg-muted">USD c/TC nuevo</p>
             <p className="text-base font-mono text-green-700">{formatCurrency(totalUsdNuevo, 'USD')}</p>
           </div>
         </div>

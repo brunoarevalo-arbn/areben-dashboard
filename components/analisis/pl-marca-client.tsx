@@ -63,20 +63,20 @@ export function PLMarcaClient({ ventas, gastos, mes }: PLMarcaClientProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">P&L por Marca</h1>
-          <p className="text-sm text-slate-600 mt-0.5">{formatMonth(mes)}</p>
+          <h1 className="text-2xl font-bold text-fg">P&L por Marca</h1>
+          <p className="text-sm text-fg-muted mt-0.5">{formatMonth(mes)}</p>
         </div>
         <select
           value={searchParams.get('mes') ?? mes}
           onChange={(e) => router.push(`?mes=${e.target.value}`)}
-          className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          className="bg-surface-2 border border-border-strong rounded-lg px-3 py-2 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
         >
           {getMonthOptions().map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </div>
 
-      <div className="bg-white border border-[#e8e4dc] rounded-xl p-5">
-        <h2 className="text-sm font-semibold text-slate-700 mb-4">Ingresos vs Ganancia Neta</h2>
+      <div className="bg-surface border border-border rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-fg-muted mb-4">Ingresos vs Ganancia Neta</h2>
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={chartData} barGap={4}>
             <XAxis dataKey="name" stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 12 }} />
@@ -94,34 +94,34 @@ export function PLMarcaClient({ ventas, gastos, mes }: PLMarcaClientProps) {
         </ResponsiveContainer>
       </div>
 
-      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+      <div className="bg-surface border border-border rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#e8e4dc]">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Marca</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Ingresos</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">CMV</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Ganancia bruta</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Gastos op.</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Ganancia neta</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Margen</th>
+            <tr className="border-b border-border">
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Marca</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Ingresos</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">CMV</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Ganancia bruta</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Gastos op.</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Ganancia neta</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Margen</th>
             </tr>
           </thead>
           <tbody>
             {data.map((d) => (
-              <tr key={d.marca} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
+              <tr key={d.marca} className="border-b border-border/60 hover:bg-surface-2/30">
                 <td className="px-4 py-3">
                   <span className="font-semibold" style={{ color: COLORES[d.marca] }}>{d.marca}</span>
                 </td>
-                <td className="px-4 py-3 text-right font-mono text-slate-900">{formatCurrency(d.ingresos)}</td>
+                <td className="px-4 py-3 text-right font-mono text-fg">{formatCurrency(d.ingresos)}</td>
                 <td className="px-4 py-3 text-right font-mono text-red-700">{formatCurrency(d.cmv)}</td>
-                <td className="px-4 py-3 text-right font-mono text-slate-900">{formatCurrency(d.ganancia_bruta)}</td>
+                <td className="px-4 py-3 text-right font-mono text-fg">{formatCurrency(d.ganancia_bruta)}</td>
                 <td className="px-4 py-3 text-right font-mono text-amber-700">{formatCurrency(d.gastos_operativos)}</td>
                 <td className={`px-4 py-3 text-right font-mono font-semibold ${d.ganancia_neta >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                   {formatCurrency(d.ganancia_neta)}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <span className={`flex items-center justify-end gap-1 text-sm font-medium ${d.margen > 0 ? 'text-green-700' : d.margen < 0 ? 'text-red-700' : 'text-slate-600'}`}>
+                  <span className={`flex items-center justify-end gap-1 text-sm font-medium ${d.margen > 0 ? 'text-green-700' : d.margen < 0 ? 'text-red-700' : 'text-fg-muted'}`}>
                     {d.margen > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : d.margen < 0 ? <TrendingDown className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />}
                     {d.margen.toFixed(1)}%
                   </span>
@@ -130,16 +130,16 @@ export function PLMarcaClient({ ventas, gastos, mes }: PLMarcaClientProps) {
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t border-[#d6d0c4] bg-[#f5f0e6]/50">
-              <td className="px-4 py-3 font-semibold text-slate-800">TOTAL</td>
-              <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">{formatCurrency(totales.ingresos)}</td>
+            <tr className="border-t border-border-strong bg-surface-2/50">
+              <td className="px-4 py-3 font-semibold text-fg-muted">TOTAL</td>
+              <td className="px-4 py-3 text-right font-mono font-semibold text-fg-muted">{formatCurrency(totales.ingresos)}</td>
               <td className="px-4 py-3 text-right font-mono font-semibold text-red-700">{formatCurrency(totales.cmv)}</td>
-              <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">{formatCurrency(totales.ingresos - totales.cmv)}</td>
+              <td className="px-4 py-3 text-right font-mono font-semibold text-fg-muted">{formatCurrency(totales.ingresos - totales.cmv)}</td>
               <td className="px-4 py-3 text-right font-mono font-semibold text-amber-700">{formatCurrency(totales.gastos_operativos)}</td>
               <td className={`px-4 py-3 text-right font-mono font-bold ${totales.ganancia_neta >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                 {formatCurrency(totales.ganancia_neta)}
               </td>
-              <td className="px-4 py-3 text-right text-slate-600">
+              <td className="px-4 py-3 text-right text-fg-muted">
                 {totales.ingresos > 0 ? ((totales.ganancia_neta / totales.ingresos) * 100).toFixed(1) : 0}%
               </td>
             </tr>

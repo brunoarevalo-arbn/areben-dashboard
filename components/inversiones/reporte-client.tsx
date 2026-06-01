@@ -74,16 +74,16 @@ export function ReporteClient({ mes, inversores, inversorSelected, instrumentos,
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <FileText className="w-6 h-6 text-orange-500" />
+          <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
+            <FileText className="w-6 h-6 text-primary" />
             Reporte por inversor
           </h1>
-          <p className="text-sm text-slate-600 mt-0.5">Vista previa imprimible para enviar al inversor</p>
+          <p className="text-sm text-fg-muted mt-0.5">Vista previa imprimible para enviar al inversor</p>
         </div>
       </div>
 
       {/* Selectores */}
-      <div className="bg-white border border-[#e8e4dc] rounded-xl p-4 flex flex-wrap items-center gap-3">
+      <div className="bg-surface border border-border rounded-xl p-4 flex flex-wrap items-center gap-3">
         <Select
           options={[{ value: '', label: '— Seleccionar inversor —' }, ...inversores.map((i) => ({ value: i.id, label: i.nombre }))]}
           value={inversorSelected?.id ?? ''}
@@ -101,34 +101,34 @@ export function ReporteClient({ mes, inversores, inversorSelected, instrumentos,
 
       {/* Vista previa */}
       {!inversorSelected ? (
-        <div className="bg-white border border-[#e8e4dc] rounded-xl p-12 text-center">
-          <User className="w-8 h-8 mx-auto mb-2 text-slate-600" />
-          <p className="text-slate-500">Seleccioná un inversor para generar el reporte</p>
+        <div className="bg-surface border border-border rounded-xl p-12 text-center">
+          <User className="w-8 h-8 mx-auto mb-2 text-fg-muted" />
+          <p className="text-fg-soft">Seleccioná un inversor para generar el reporte</p>
         </div>
       ) : periodos.length === 0 ? (
-        <div className="bg-white border border-[#e8e4dc] rounded-xl p-12 text-center">
-          <p className="text-slate-500">No hay períodos para {inversorSelected.nombre} en {formatMonth(mes)}</p>
+        <div className="bg-surface border border-border rounded-xl p-12 text-center">
+          <p className="text-fg-soft">No hay períodos para {inversorSelected.nombre} en {formatMonth(mes)}</p>
         </div>
       ) : (
-        <div className="bg-white text-black rounded-xl overflow-x-auto">
+        <div className="bg-surface text-black rounded-xl overflow-x-auto">
           <div ref={ref}>
             <div className="reporte p-8">
               <div className="header border-b-2 border-black pb-4 mb-5">
                 <h1 className="text-2xl font-bold mb-1">Reporte de inversiones</h1>
-                <h2 className="text-sm text-slate-600">Período: {formatMonth(mes)}</h2>
+                <h2 className="text-sm text-fg-muted">Período: {formatMonth(mes)}</h2>
               </div>
 
               <div className="info bg-slate-100 rounded-lg p-3 mb-5 text-sm">
                 <div className="row flex justify-between py-1">
-                  <span className="lbl text-slate-600">Inversor</span>
+                  <span className="lbl text-fg-muted">Inversor</span>
                   <span className="font-medium">{inversorSelected.nombre}</span>
                 </div>
                 <div className="row flex justify-between py-1">
-                  <span className="lbl text-slate-600">Tipo</span>
+                  <span className="lbl text-fg-muted">Tipo</span>
                   <span>{inversorSelected.tipo === 'empresa' ? 'Empresa' : 'Persona física'}</span>
                 </div>
                 <div className="row flex justify-between py-1">
-                  <span className="lbl text-slate-600">Fecha de emisión</span>
+                  <span className="lbl text-fg-muted">Fecha de emisión</span>
                   <span>{new Date().toLocaleDateString('es-AR')}</span>
                 </div>
               </div>
@@ -163,7 +163,7 @@ export function ReporteClient({ mes, inversores, inversorSelected, instrumentos,
                         <tr key={p.id} className="border-b border-slate-200">
                           <td className="p-2">
                             <div className="font-medium">{i.codigo ?? i.id.substring(0, 8)}</div>
-                            <div className="text-[10px] text-slate-500">{i.moneda} · inicio {formatDate(i.fecha_inicio)}</div>
+                            <div className="text-[10px] text-fg-soft">{i.moneda} · inicio {formatDate(i.fecha_inicio)}</div>
                           </td>
                           <td className="p-2">
                             {i.capitalizable ? 'Capitalizable' : 'No capitalizable'}
@@ -217,7 +217,7 @@ export function ReporteClient({ mes, inversores, inversorSelected, instrumentos,
                 </div>
               )}
 
-              <div className="footer mt-6 pt-3 border-t border-slate-300 text-xs text-slate-600">
+              <div className="footer mt-6 pt-3 border-t border-slate-300 text-xs text-fg-muted">
                 <p>Interés generado en el período: {interesUsd > 0 && formatMoneda(interesUsd, 'USD')} {interesArs > 0 && formatMoneda(interesArs, 'ARS')}</p>
                 <p className="mt-2">
                   Las condiciones particulares de cada instrumento (capitalizable / no capitalizable) están detalladas en la columna "Tipo".
@@ -231,21 +231,21 @@ export function ReporteClient({ mes, inversores, inversorSelected, instrumentos,
 
       {/* Info detallada en oscuro debajo */}
       {inversorSelected && instrumentos.length > 0 && (
-        <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
-          <div className="px-4 py-3 border-b border-[#e8e4dc]">
-            <h2 className="text-sm font-semibold text-slate-900">Instrumentos del inversor</h2>
+        <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+          <div className="px-4 py-3 border-b border-border">
+            <h2 className="text-sm font-semibold text-fg">Instrumentos del inversor</h2>
           </div>
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             {instrumentos.map((i) => (
-              <div key={i.id} className="bg-[#f5f0e6]/40 rounded-lg p-3">
+              <div key={i.id} className="bg-surface-2/40 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-slate-900">{i.codigo ?? i.id.substring(0, 8)}</span>
+                  <span className="text-sm font-medium text-fg">{i.codigo ?? i.id.substring(0, 8)}</span>
                   <Badge variant={i.moneda === 'USD' ? 'success' : 'info'}>{i.moneda}</Badge>
                 </div>
-                <p className="text-xs text-slate-600">
+                <p className="text-xs text-fg-muted">
                   Capital {formatMoneda(Number(i.capital_inicial), i.moneda)} · Tasa {(Number(i.tasa_mensual) * 100).toFixed(2)}%
                 </p>
-                <p className={cn('text-xs flex items-center gap-1 mt-1', i.capitalizable ? 'text-purple-700' : 'text-slate-600')}>
+                <p className={cn('text-xs flex items-center gap-1 mt-1', i.capitalizable ? 'text-purple-700' : 'text-fg-muted')}>
                   {i.capitalizable ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
                   {i.capitalizable ? 'Capitalizable' : 'No capitalizable'}
                 </p>

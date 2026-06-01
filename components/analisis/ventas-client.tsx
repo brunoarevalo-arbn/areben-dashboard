@@ -71,14 +71,14 @@ export function VentasClient({ ventas, mes }: { ventas: DatosVentasGN[]; mes: st
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Panel de Ventas</h1>
-          <p className="text-sm text-slate-600 mt-0.5">Datos de Gestión Nube — {formatMonth(mes)}</p>
+          <h1 className="text-2xl font-bold text-fg">Panel de Ventas</h1>
+          <p className="text-sm text-fg-muted mt-0.5">Datos de Gestión Nube — {formatMonth(mes)}</p>
         </div>
         <div className="flex items-center gap-3">
           <select
             value={searchParams.get('mes') ?? mes}
             onChange={(e) => router.push(`?mes=${e.target.value}`)}
-            className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            className="bg-surface-2 border border-border-strong rounded-lg px-3 py-2 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
           >
             {getMonthOptions().map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
@@ -89,47 +89,47 @@ export function VentasClient({ ventas, mes }: { ventas: DatosVentasGN[]; mes: st
         </div>
       </div>
 
-      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+      <div className="bg-surface border border-border rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#e8e4dc]">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Marca</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Ventas brutas</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Dev.</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Ventas netas</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">CMV</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Margen</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Margen %</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Unidades</th>
+            <tr className="border-b border-border">
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Marca</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Ventas brutas</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Dev.</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Ventas netas</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">CMV</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Margen</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Margen %</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Unidades</th>
             </tr>
           </thead>
           <tbody>
             {MARCAS.map((marca) => {
               const v = ventas.find((x) => x.marca === marca)
               return (
-                <tr key={marca} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
+                <tr key={marca} className="border-b border-border/60 hover:bg-surface-2/30">
                   <td className="px-4 py-3"><MarcaBadge marca={marca} /></td>
-                  <td className="px-4 py-3 text-right font-mono text-slate-700">{v ? formatCurrency(v.ventas_brutas) : '—'}</td>
+                  <td className="px-4 py-3 text-right font-mono text-fg-muted">{v ? formatCurrency(v.ventas_brutas) : '—'}</td>
                   <td className="px-4 py-3 text-right font-mono text-red-700">{v ? formatCurrency(v.devoluciones) : '—'}</td>
-                  <td className="px-4 py-3 text-right font-mono text-slate-900">{v ? formatCurrency(v.ventas_netas) : '—'}</td>
+                  <td className="px-4 py-3 text-right font-mono text-fg">{v ? formatCurrency(v.ventas_netas) : '—'}</td>
                   <td className="px-4 py-3 text-right font-mono text-red-700">{v ? formatCurrency(v.cmv) : '—'}</td>
-                  <td className={`px-4 py-3 text-right font-mono font-medium ${v ? (v.margen_pesos >= 0 ? 'text-green-700' : 'text-red-700') : 'text-slate-500'}`}>
+                  <td className={`px-4 py-3 text-right font-mono font-medium ${v ? (v.margen_pesos >= 0 ? 'text-green-700' : 'text-red-700') : 'text-fg-soft'}`}>
                     {v ? formatCurrency(v.margen_pesos) : '—'}
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-700">
+                  <td className="px-4 py-3 text-right text-fg-muted">
                     {v ? `${Number(v.margen_porcentaje).toFixed(1)}%` : '—'}
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-700">{v ? v.cantidad_vendida : '—'}</td>
+                  <td className="px-4 py-3 text-right text-fg-muted">{v ? v.cantidad_vendida : '—'}</td>
                 </tr>
               )
             })}
           </tbody>
           <tfoot>
-            <tr className="border-t border-[#d6d0c4] bg-[#f5f0e6]/50">
-              <td className="px-4 py-3 font-semibold text-slate-800">TOTAL</td>
-              <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">{formatCurrency(ventas.reduce((s, v) => s + v.ventas_brutas, 0))}</td>
+            <tr className="border-t border-border-strong bg-surface-2/50">
+              <td className="px-4 py-3 font-semibold text-fg-muted">TOTAL</td>
+              <td className="px-4 py-3 text-right font-mono font-semibold text-fg-muted">{formatCurrency(ventas.reduce((s, v) => s + v.ventas_brutas, 0))}</td>
               <td className="px-4 py-3 text-right font-mono text-red-700">{formatCurrency(ventas.reduce((s, v) => s + v.devoluciones, 0))}</td>
-              <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">{formatCurrency(ventas.reduce((s, v) => s + v.ventas_netas, 0))}</td>
+              <td className="px-4 py-3 text-right font-mono font-semibold text-fg-muted">{formatCurrency(ventas.reduce((s, v) => s + v.ventas_netas, 0))}</td>
               <td className="px-4 py-3 text-right font-mono text-red-700">{formatCurrency(ventas.reduce((s, v) => s + v.cmv, 0))}</td>
               <td className="px-4 py-3 text-right font-mono font-semibold text-green-700">{formatCurrency(ventas.reduce((s, v) => s + v.margen_pesos, 0))}</td>
               <td colSpan={2} />

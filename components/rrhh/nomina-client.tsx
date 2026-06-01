@@ -85,7 +85,7 @@ function ReciboModal({ data, onClose }: { data: ReciboData; onClose: () => void 
   return (
     <div className="space-y-4">
       <div ref={ref}>
-        <div className="recibo bg-white text-black p-6 rounded">
+        <div className="recibo bg-surface text-black p-6 rounded">
           {data.esRecboNegroDeBlanco && (
             <div className="interno bg-amber-50 border-l-4 border-amber-500 px-3 py-2 text-xs text-amber-900 mb-3">
               <strong>RECIBO INTERNO</strong> — Este documento NO reemplaza al recibo de sueldo oficial.
@@ -96,27 +96,27 @@ function ReciboModal({ data, onClose }: { data: ReciboData; onClose: () => void 
 
           <div className="header border-b-2 border-black pb-3 mb-4">
             <h1 className="text-lg font-bold mb-1">{esNegroPuro ? 'Detalle de pago' : 'Recibo de pago'}</h1>
-            <h2 className="text-sm font-normal text-slate-600">Período: {formatMonth(data.mes)}</h2>
+            <h2 className="text-sm font-normal text-fg-muted">Período: {formatMonth(data.mes)}</h2>
           </div>
           <div className="space-y-1 mb-4 text-sm">
             <div className="row flex justify-between py-1.5 border-b border-dashed border-slate-300">
-              <span className="label uppercase text-xs text-slate-500">{labelEmpleado}</span>
+              <span className="label uppercase text-xs text-fg-soft">{labelEmpleado}</span>
               <span>{data.empleado.apellido}, {data.empleado.nombre}</span>
             </div>
             {data.empleado.dni && (
               <div className="row flex justify-between py-1.5 border-b border-dashed border-slate-300">
-                <span className="label uppercase text-xs text-slate-500">DNI</span>
+                <span className="label uppercase text-xs text-fg-soft">DNI</span>
                 <span>{data.empleado.dni}</span>
               </div>
             )}
             <div className="row flex justify-between py-1.5 border-b border-dashed border-slate-300">
-              <span className="label uppercase text-xs text-slate-500">Fecha</span>
+              <span className="label uppercase text-xs text-fg-soft">Fecha</span>
               <span>{new Date().toLocaleDateString('es-AR')}</span>
             </div>
           </div>
 
           <div className="space-y-1 mb-4 text-sm">
-            <div className="font-semibold text-xs uppercase text-slate-600 mb-1 mt-2">Conceptos</div>
+            <div className="font-semibold text-xs uppercase text-fg-muted mb-1 mt-2">Conceptos</div>
             {data.conceptos.filter((c) => c.monto > 0).map((c, i) => (
               <div key={i} className="row flex justify-between py-1.5 border-b border-dashed border-slate-300">
                 <span>{c.label}</span>
@@ -127,7 +127,7 @@ function ReciboModal({ data, onClose }: { data: ReciboData; onClose: () => void 
 
           {data.descuentos.length > 0 && data.descuentos.some((d) => d.monto > 0) && (
             <div className="space-y-1 mb-4 text-sm">
-              <div className="font-semibold text-xs uppercase text-slate-600 mb-1 mt-2">Descuentos</div>
+              <div className="font-semibold text-xs uppercase text-fg-muted mb-1 mt-2">Descuentos</div>
               {data.descuentos.filter((d) => d.monto > 0).map((d, i) => (
                 <div key={i} className="row flex justify-between py-1.5 border-b border-dashed border-slate-300">
                   <span>{d.label}</span>
@@ -273,14 +273,14 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Nómina</h1>
-          <p className="text-sm text-slate-600 mt-0.5">{nominas.length} empleados · {formatMonth(mes)}</p>
+          <h1 className="text-2xl font-bold text-fg">Nómina</h1>
+          <p className="text-sm text-fg-muted mt-0.5">{nominas.length} empleados · {formatMonth(mes)}</p>
         </div>
         <div className="flex items-center gap-3">
           <select
             value={searchParams.get('mes') ?? mes}
             onChange={(e) => router.push(`?mes=${e.target.value}`)}
-            className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            className="bg-surface-2 border border-border-strong rounded-lg px-3 py-2 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
           >
             {getMonthOptions().map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -303,13 +303,13 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
-          { label: 'Total neto', value: totalNeto, color: 'text-slate-900' },
+          { label: 'Total neto', value: totalNeto, color: 'text-fg' },
           { label: 'Pagado a cuenta', value: totalPagadoParcial, color: 'text-green-700' },
           { label: 'Pendiente real', value: totalPendiente, color: 'text-amber-700' },
-          { label: 'Costo empresa', value: totalCosto, color: 'text-orange-500' },
+          { label: 'Costo empresa', value: totalCosto, color: 'text-primary' },
         ].map((item) => (
-          <div key={item.label} className="bg-white border border-[#e8e4dc] rounded-xl p-4">
-            <p className="text-xs text-slate-600 mb-1">{item.label}</p>
+          <div key={item.label} className="bg-surface border border-border rounded-xl p-4">
+            <p className="text-xs text-fg-muted mb-1">{item.label}</p>
             <p className={`text-xl font-bold ${item.color}`}>{formatCurrency(item.value)}</p>
           </div>
         ))}
@@ -317,9 +317,9 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
 
       {/* Caja Aguinaldos por empleado */}
       {totalCaja > 0 && (
-        <div className="bg-white border border-amber-500/20 rounded-xl p-4">
+        <div className="bg-surface border border-amber-500/20 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
               <PiggyBank className="w-4 h-4 text-amber-700" />
               Caja de Aguinaldos (acumulado disponible)
             </h2>
@@ -330,8 +330,8 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
               const emp = empleados.find((e) => e.id === eid)
               if (!emp) return null
               return (
-                <div key={eid} className="bg-[#f5f0e6]/40 rounded-lg p-2 flex items-center justify-between">
-                  <span className="text-xs text-slate-700">{emp.apellido}, {emp.nombre}</span>
+                <div key={eid} className="bg-surface-2/40 rounded-lg p-2 flex items-center justify-between">
+                  <span className="text-xs text-fg-muted">{emp.apellido}, {emp.nombre}</span>
                   <span className="text-xs font-mono text-amber-700 font-semibold">{formatCurrency(v)}</span>
                 </div>
               )
@@ -340,28 +340,28 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
         </div>
       )}
 
-      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
-        <div className="px-4 py-3 border-b border-[#e8e4dc]">
-          <h2 className="text-sm font-semibold text-slate-900">{formatMonth(mes)}</h2>
+      <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+        <div className="px-4 py-3 border-b border-border">
+          <h2 className="text-sm font-semibold text-fg">{formatMonth(mes)}</h2>
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#e8e4dc]">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Empleado</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Básico</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Subtotal</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Patronales</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Neto</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Provisión SAC</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Costo emp.</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Estado</th>
+            <tr className="border-b border-border">
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Empleado</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Básico</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Subtotal</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Patronales</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Neto</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Provisión SAC</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Costo emp.</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Estado</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
             {nominas.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-12 text-center text-slate-500">
+                <td colSpan={9} className="px-4 py-12 text-center text-fg-soft">
                   <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   No hay nómina para {formatMonth(mes)}
                 </td>
@@ -375,26 +375,26 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
                 const hayParciales = pagado > 0
                 const pagadoPct = n.neto > 0 ? Math.min(100, (pagado / n.neto) * 100) : 0
                 return (
-                  <tr key={n.id} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
+                  <tr key={n.id} className="border-b border-border/60 hover:bg-surface-2/30">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-slate-900">{n.empleado?.apellido}, {n.empleado?.nombre}</p>
-                      <p className="text-xs text-slate-500 flex items-center gap-2">
+                      <p className="font-medium text-fg">{n.empleado?.apellido}, {n.empleado?.nombre}</p>
+                      <p className="text-xs text-fg-soft flex items-center gap-2">
                         {n.empleado?.tipo_empleado}
                         {n.asistencia_completa && <span className="text-green-700 flex items-center gap-0.5"><BadgeCheck className="w-3 h-3" />presentismo</span>}
                         {tieneAdicional && esBlanco && <span className="text-amber-700">+ adicional</span>}
                       </p>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-700">{formatCurrency(n.sueldo_basico)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-700">{formatCurrency(n.subtotal)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-fg-muted">{formatCurrency(n.sueldo_basico)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-fg-muted">{formatCurrency(n.subtotal)}</td>
                     <td className="px-4 py-3 text-right font-mono text-amber-700">{formatCurrency(n.aportes_patronales)}</td>
                     <td className="px-4 py-3 text-right">
                       <p className="font-mono font-semibold text-green-700">{formatCurrency(n.neto)}</p>
                       {hayParciales && n.estado !== 'PAGADO' && (
                         <div className="mt-1 space-y-0.5">
-                          <div className="h-1 w-full bg-slate-700 rounded-full overflow-hidden">
+                          <div className="h-1 w-full bg-surface-2 rounded-full overflow-hidden">
                             <div className="h-full bg-amber-400 transition-all" style={{ width: `${pagadoPct}%` }} />
                           </div>
-                          <p className="text-[10px] font-mono text-slate-600">
+                          <p className="text-[10px] font-mono text-fg-muted">
                             <span className="text-green-700">{formatCurrency(pagado)}</span>
                             {' / '}
                             <span className="text-amber-700">{formatCurrency(saldo)}</span> resta
@@ -405,7 +405,7 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
                     <td className="px-4 py-3 text-right font-mono text-amber-800 text-xs">
                       {n.aguinaldo_provisionado > 0 ? formatCurrency(n.aguinaldo_provisionado) : '—'}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-orange-500">{formatCurrency(n.costo_empresa)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-primary">{formatCurrency(n.costo_empresa)}</td>
                     <td className="px-4 py-3"><EstadoBadge estado={n.estado} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
@@ -454,14 +454,14 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
           </tbody>
           {nominas.length > 0 && (
             <tfoot>
-              <tr className="border-t border-[#d6d0c4] bg-[#f5f0e6]/50">
-                <td className="px-4 py-3 text-sm font-semibold text-slate-700">TOTAL</td>
+              <tr className="border-t border-border-strong bg-surface-2/50">
+                <td className="px-4 py-3 text-sm font-semibold text-fg-muted">TOTAL</td>
                 <td />
-                <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">{formatCurrency(nominas.reduce((s, n) => s + n.subtotal, 0))}</td>
+                <td className="px-4 py-3 text-right font-mono font-semibold text-fg-muted">{formatCurrency(nominas.reduce((s, n) => s + n.subtotal, 0))}</td>
                 <td className="px-4 py-3 text-right font-mono font-semibold text-amber-700">{formatCurrency(nominas.reduce((s, n) => s + n.aportes_patronales, 0))}</td>
                 <td className="px-4 py-3 text-right font-mono font-bold text-green-700">{formatCurrency(totalNeto)}</td>
                 <td className="px-4 py-3 text-right font-mono font-bold text-amber-800">{formatCurrency(totalProvisionAg)}</td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-orange-500">{formatCurrency(totalCosto)}</td>
+                <td className="px-4 py-3 text-right font-mono font-bold text-primary">{formatCurrency(totalCosto)}</td>
                 <td colSpan={2} />
               </tr>
             </tfoot>

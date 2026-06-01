@@ -251,7 +251,7 @@ export function NominaForm({
   if (disponibles.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-slate-600">Todos los empleados ya tienen nómina para este mes.</p>
+        <p className="text-fg-muted">Todos los empleados ya tienen nómina para este mes.</p>
         <Button className="mt-4" onClick={onClose} variant="secondary">Cerrar</Button>
       </div>
     )
@@ -284,15 +284,15 @@ export function NominaForm({
           required
         />
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-slate-700">Fecha programada de pago *</label>
+          <label className="block text-sm font-medium text-fg-muted">Fecha programada de pago *</label>
           <input
             type="date"
             value={fechaProgramada}
             onChange={(e) => setFechaProgramada(e.target.value)}
             required
-            className="w-full px-3.5 py-2.5 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+            className="w-full px-3.5 py-2.5 bg-surface-2 border border-border-strong rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           />
-          <p className="text-xs text-slate-500">Aparecerá en Pendientes hasta que se confirme el pago</p>
+          <p className="text-xs text-fg-soft">Aparecerá en Pendientes hasta que se confirme el pago</p>
         </div>
       </div>
 
@@ -305,7 +305,7 @@ export function NominaForm({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-600">Neto del recibo oficial</label>
+              <label className="block text-xs font-medium text-fg-muted">Neto del recibo oficial</label>
               <input
                 type="number"
                 step="0.01"
@@ -315,13 +315,13 @@ export function NominaForm({
                   const derived = recomputarDerivados({ oficial: nuevo })
                   setVals((v) => ({ ...v, monto_recibo_oficial: nuevo, ...derived }))
                 }}
-                className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-blue-700 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-blue-700 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 placeholder="0.00"
               />
-              <p className="text-xs text-slate-500">El neto del recibo. Recalcula valor hora y adicional automáticamente.</p>
+              <p className="text-xs text-fg-soft">El neto del recibo. Recalcula valor hora y adicional automáticamente.</p>
             </div>
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-600 flex items-center justify-between">
+              <label className="block text-xs font-medium text-fg-muted flex items-center justify-between">
                 <span>Adicional fijo en negro</span>
                 {empleado && (empleado.horas_acuerdo_negro ?? 0) > 0 && (
                   <span className="text-[10px] text-amber-700">acuerdo: {empleado.horas_acuerdo_negro} hs</span>
@@ -332,10 +332,10 @@ export function NominaForm({
                 step="0.01"
                 value={vals.adicional_no_registrado || ''}
                 onChange={(e) => setVals((v) => ({ ...v, adicional_no_registrado: Number(e.target.value) }))}
-                className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-amber-700 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+                className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-amber-700 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
                 placeholder="0.00"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-fg-soft">
                 {empleado && ((empleado.horas_acuerdo_negro ?? 0) > 0 || (empleado.plus_negro_tipo && (empleado.plus_negro_valor ?? 0) > 0))
                   ? 'Pre-llenado desde el acuerdo + plus del empleado. Suma al aguinaldo.'
                   : 'Si hay parte fija en negro este mes (suma al aguinaldo).'}
@@ -393,16 +393,16 @@ export function NominaForm({
             Caja Aguinaldos
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-[#f5f0e6]/40 rounded p-2">
-              <p className="text-slate-500">Provisión este mes ({empleado.porcentaje_aguinaldo}%)</p>
+            <div className="bg-surface-2/40 rounded p-2">
+              <p className="text-fg-soft">Provisión este mes ({empleado.porcentaje_aguinaldo}%)</p>
               <p className="font-mono text-amber-700">{formatCurrency(aguinaldoProvisionado)}</p>
             </div>
-            <div className="bg-[#f5f0e6]/40 rounded p-2">
-              <p className="text-slate-500">Acumulado disponible</p>
+            <div className="bg-surface-2/40 rounded p-2">
+              <p className="text-fg-soft">Acumulado disponible</p>
               <p className="font-mono text-green-700">{formatCurrency(cajaDisponible)}</p>
             </div>
             <div>
-              <label className="text-slate-500 block">Pagar de caja en este mes</label>
+              <label className="text-fg-soft block">Pagar de caja en este mes</label>
               <input
                 type="number"
                 step="0.01"
@@ -410,7 +410,7 @@ export function NominaForm({
                 max={cajaDisponible + aguinaldoProvisionado}
                 value={vals.aguinaldo_pagado_de_caja || ''}
                 onChange={(e) => setVals((v) => ({ ...v, aguinaldo_pagado_de_caja: Number(e.target.value) }))}
-                className="w-full mt-0.5 px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 font-mono focus:outline-none focus:ring-1 focus:ring-orange-500 text-xs"
+                className="w-full mt-0.5 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono focus:outline-none focus:ring-1 focus:ring-primary text-xs"
                 placeholder="0"
               />
             </div>
@@ -419,9 +419,9 @@ export function NominaForm({
       )}
 
       {/* Horas extras con porcentaje */}
-      <div className="bg-[#f5f0e6]/60 border border-[#d6d0c4]/60 rounded-xl p-4 space-y-3">
+      <div className="bg-surface-2/60 border border-border-strong/60 rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+          <label className="text-sm font-medium text-fg-muted flex items-center gap-2">
             <Clock className="w-4 h-4" />
             Horas extras
             {horasExtrasEmp.cantidad > 0 && (
@@ -440,7 +440,7 @@ export function NominaForm({
                   'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors',
                   vals.porcentaje_extras === p
                     ? 'bg-orange-500/20 text-orange-600 border border-orange-500/40'
-                    : 'bg-slate-700 text-slate-600 border border-[#c8c0b0] hover:text-slate-800'
+                    : 'bg-surface-2 text-fg-muted border border-[#c8c0b0] hover:text-fg-muted'
                 )}
               >
                 {p}%
@@ -456,8 +456,8 @@ export function NominaForm({
             value={vals.horas_extras}
             onChange={(e) => setVals((v) => ({ ...v, horas_extras: Number(e.target.value) }))}
           />
-          <div className="bg-slate-700/40 rounded-lg p-3 flex flex-col justify-between">
-            <span className="text-xs text-slate-600">
+          <div className="bg-surface-2/40 rounded-lg p-3 flex flex-col justify-between">
+            <span className="text-xs text-fg-muted">
               {vals.horas_extras} hs × {formatCurrency(vals.valor_hora)} × {1 + vals.porcentaje_extras / 100}
             </span>
             <span className="font-mono text-base text-amber-700 font-semibold">
@@ -471,12 +471,12 @@ export function NominaForm({
       {empleado && (
         <div className={cn(
           'border rounded-xl p-4 space-y-3',
-          vals.ausencias_horas > 0 ? 'bg-red-500/10 border-red-500/30' : 'bg-[#f5f0e6]/40 border-[#d6d0c4]/40'
+          vals.ausencias_horas > 0 ? 'bg-red-500/10 border-red-500/30' : 'bg-surface-2/40 border-border-strong/40'
         )}>
-          <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-            <CalendarX className={cn('w-4 h-4', vals.ausencias_horas > 0 ? 'text-red-700' : 'text-slate-500')} />
+          <label className="text-sm font-medium text-fg-muted flex items-center gap-2">
+            <CalendarX className={cn('w-4 h-4', vals.ausencias_horas > 0 ? 'text-red-700' : 'text-fg-soft')} />
             Faltas / ausencias del mes
-            <span className="text-xs text-slate-500 font-normal">(opcional)</span>
+            <span className="text-xs text-fg-soft font-normal">(opcional)</span>
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
@@ -498,17 +498,17 @@ export function NominaForm({
             />
           </div>
           {vals.ausencias_horas > 0 && (
-            <div className="bg-white/40 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
-              <span className="text-slate-600">
+            <div className="bg-surface/40 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
+              <span className="text-fg-muted">
                 {vals.ausencias_horas} hs × {formatCurrency(vals.valor_hora)}
-                <span className="text-slate-500 ml-2">≈ {(vals.ausencias_horas / 8).toFixed(2)} día(s)</span>
+                <span className="text-fg-soft ml-2">≈ {(vals.ausencias_horas / 8).toFixed(2)} día(s)</span>
               </span>
               <span className="font-mono text-red-700 font-semibold">
                 −{formatCurrency(vals.ausencias_horas * vals.valor_hora)}
               </span>
             </div>
           )}
-          <p className="text-[11px] text-slate-500 pt-1 border-t border-[#d6d0c4]/40">
+          <p className="text-[11px] text-fg-soft pt-1 border-t border-border-strong/40">
             En <strong>RR.HH. → Empleados</strong> podés llevar el historial de faltas por fecha (informativo).
             El descuento real se aplica acá, en la nómina del mes.
           </p>
@@ -519,12 +519,12 @@ export function NominaForm({
       {empleado && (
         <div className={cn(
           'border rounded-xl p-4 space-y-3',
-          vals.bono_monto > 0 ? 'bg-green-500/10 border-green-500/30' : 'bg-[#f5f0e6]/40 border-[#d6d0c4]/40'
+          vals.bono_monto > 0 ? 'bg-green-500/10 border-green-500/30' : 'bg-surface-2/40 border-border-strong/40'
         )}>
-          <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-            <PiggyBank className={cn('w-4 h-4', vals.bono_monto > 0 ? 'text-green-700' : 'text-slate-500')} />
+          <label className="text-sm font-medium text-fg-muted flex items-center gap-2">
+            <PiggyBank className={cn('w-4 h-4', vals.bono_monto > 0 ? 'text-green-700' : 'text-fg-soft')} />
             Bono / Premio / Comisión
-            <span className="text-xs text-slate-500 font-normal">(puntual — no afecta aguinaldo)</span>
+            <span className="text-xs text-fg-soft font-normal">(puntual — no afecta aguinaldo)</span>
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Select
@@ -556,7 +556,7 @@ export function NominaForm({
             />
           </div>
           {vals.bono_monto > 0 && (
-            <div className="bg-white/40 rounded-lg px-3 py-2 text-xs text-slate-600 flex items-center justify-between">
+            <div className="bg-surface/40 rounded-lg px-3 py-2 text-xs text-fg-muted flex items-center justify-between">
               <span>{vals.bono_concepto ? `${vals.bono_concepto.toLowerCase()}` : 'Bono'} este mes (no afecta aguinaldo)</span>
               <span className="font-mono text-green-700 font-semibold">+{formatCurrency(vals.bono_monto)}</span>
             </div>
@@ -568,12 +568,12 @@ export function NominaForm({
       {empleado && (
         <div className={cn(
           'border rounded-xl p-4 space-y-3',
-          vals.descuento_otro_monto > 0 ? 'bg-red-500/10 border-red-500/30' : 'bg-[#f5f0e6]/40 border-[#d6d0c4]/40'
+          vals.descuento_otro_monto > 0 ? 'bg-red-500/10 border-red-500/30' : 'bg-surface-2/40 border-border-strong/40'
         )}>
-          <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-            <CalendarX className={cn('w-4 h-4', vals.descuento_otro_monto > 0 ? 'text-red-700' : 'text-slate-500')} />
+          <label className="text-sm font-medium text-fg-muted flex items-center gap-2">
+            <CalendarX className={cn('w-4 h-4', vals.descuento_otro_monto > 0 ? 'text-red-700' : 'text-fg-soft')} />
             Otro descuento puntual
-            <span className="text-xs text-slate-500 font-normal">(multa, devolución de adelanto, etc.)</span>
+            <span className="text-xs text-fg-soft font-normal">(multa, devolución de adelanto, etc.)</span>
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Select
@@ -604,7 +604,7 @@ export function NominaForm({
             />
           </div>
           {vals.descuento_otro_monto > 0 && (
-            <div className="bg-white/40 rounded-lg px-3 py-2 text-xs text-slate-600 flex items-center justify-between">
+            <div className="bg-surface/40 rounded-lg px-3 py-2 text-xs text-fg-muted flex items-center justify-between">
               <span>{vals.descuento_otro_concepto ? vals.descuento_otro_concepto.replace('_', ' ').toLowerCase() : 'Descuento'} este mes</span>
               <span className="font-mono text-red-700 font-semibold">−{formatCurrency(vals.descuento_otro_monto)}</span>
             </div>
@@ -620,10 +620,10 @@ export function NominaForm({
               type="checkbox"
               checked={vals.asistencia_completa}
               onChange={(e) => setVals((v) => ({ ...v, asistencia_completa: e.target.checked }))}
-              className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700"
+              className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2"
             />
             <BadgeCheck className="w-4 h-4 text-green-700" />
-            <span className="text-sm text-slate-700">Asistencia 100% — sumar presentismo ({empleado.presentismo_pct}%)</span>
+            <span className="text-sm text-fg-muted">Asistencia 100% — sumar presentismo ({empleado.presentismo_pct}%)</span>
           </label>
           <span className="font-mono text-sm text-green-700 font-semibold">
             {vals.asistencia_completa ? '+' + formatCurrency(presentismoMonto) : '—'}
@@ -631,10 +631,10 @@ export function NominaForm({
         </div>
       )}
 
-      <div className="bg-[#f5f0e6] rounded-xl p-4 space-y-2 text-sm">
-        <div className="flex items-center gap-2 text-slate-600 mb-3">
+      <div className="bg-surface-2 rounded-xl p-4 space-y-2 text-sm">
+        <div className="flex items-center gap-2 text-fg-muted mb-3">
           <Calculator className="w-4 h-4" />
-          <span className="font-medium text-slate-700">Cálculo automático</span>
+          <span className="font-medium text-fg-muted">Cálculo automático</span>
         </div>
         {[
           ...(vals.ausencias_horas > 0 ? [{ label: `Faltas (${vals.ausencias_horas} hs)`, value: -(vals.ausencias_horas * vals.valor_hora), color: 'text-red-700' }] : []),
@@ -649,9 +649,9 @@ export function NominaForm({
                 color: 'text-amber-800',
               }]
             : []),
-          { label: 'Costo empresa total', value: calc.costo_empresa, color: 'text-orange-500 font-semibold' },
+          { label: 'Costo empresa total', value: calc.costo_empresa, color: 'text-primary font-semibold' },
         ].map(({ label, value, color }) => (
-          <div key={label} className={`flex justify-between ${color ?? 'text-slate-700'}`}>
+          <div key={label} className={`flex justify-between ${color ?? 'text-fg-muted'}`}>
             <span>{label}</span>
             <span className="font-mono">{formatCurrency(value)}</span>
           </div>

@@ -53,7 +53,7 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
 
       {/* Moneda toggle */}
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-slate-700">Moneda</label>
+        <label className="block text-sm font-medium text-fg-muted">Moneda</label>
         <div className="grid grid-cols-2 gap-2">
           {(['USD', 'ARS'] as const).map((m) => (
             <button
@@ -65,8 +65,8 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
                 moneda === m
                   ? m === 'USD'
                     ? 'bg-green-500/15 border-green-500/40 text-green-700'
-                    : 'bg-orange-500/15 border-orange-500/40 text-orange-500'
-                  : 'bg-[#f5f0e6] border-[#d6d0c4] text-slate-600 hover:text-slate-800'
+                    : 'bg-orange-500/15 border-orange-500/40 text-primary'
+                  : 'bg-surface-2 border-border-strong text-fg-muted hover:text-fg-muted'
               )}
             >
               {m}
@@ -76,10 +76,10 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
       </div>
 
       {/* Capital + tasa */}
-      <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-xl p-4 space-y-3">
+      <div className="bg-surface-2/40 border border-border-strong/40 rounded-xl p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-600">Capital inicial</label>
+            <label className="block text-xs font-medium text-fg-muted">Capital inicial</label>
             <input
               type="number"
               step="0.01"
@@ -87,12 +87,12 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
               value={capital || ''}
               onChange={(e) => setCapital(Number(e.target.value))}
               placeholder="0.00"
-              className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+              className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               required
             />
           </div>
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-600">Tasa mensual (%)</label>
+            <label className="block text-xs font-medium text-fg-muted">Tasa mensual (%)</label>
             <div className="relative">
               <input
                 type="number"
@@ -101,31 +101,31 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
                 value={tasaPct || ''}
                 onChange={(e) => setTasaPct(Number(e.target.value))}
                 placeholder="2.5"
-                className="w-full px-3 py-2 pr-7 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                className="w-full px-3 py-2 pr-7 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                 required
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">%</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-soft text-xs">%</span>
             </div>
           </div>
         </div>
 
         {capital > 0 && tasaPct > 0 && (
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
-            <span className="text-slate-600 flex items-center gap-1.5">
+            <span className="text-fg-muted flex items-center gap-1.5">
               <TrendingUp className="w-3.5 h-3.5" />
               Interés mes completo
             </span>
             <span className="font-mono text-amber-700 font-semibold">
-              {formatMoneda(interesEstimado, moneda)} <span className="text-slate-500">/ mes</span>
+              {formatMoneda(interesEstimado, moneda)} <span className="text-fg-soft">/ mes</span>
             </span>
           </div>
         )}
       </div>
 
       {/* Capitalizable toggle */}
-      <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-xl p-4 space-y-3">
+      <div className="bg-surface-2/40 border border-border-strong/40 rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-slate-700">Capitalización</span>
+          <span className="text-sm font-medium text-fg-muted">Capitalización</span>
           <button
             type="button"
             onClick={() => setCapitalizable(!capitalizable)}
@@ -133,7 +133,7 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
               'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors',
               capitalizable
                 ? 'bg-purple-500/15 border-purple-500/40 text-purple-700'
-                : 'bg-slate-700 border-[#c8c0b0] text-slate-700'
+                : 'bg-surface-2 border-[#c8c0b0] text-fg-muted'
             )}
           >
             {capitalizable ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
@@ -144,7 +144,7 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
           'rounded-lg p-3 text-xs',
           capitalizable
             ? 'bg-purple-500/5 border border-purple-500/20 text-purple-300'
-            : 'bg-slate-700/40 border border-[#c8c0b0]/40 text-slate-700'
+            : 'bg-surface-2/40 border border-[#c8c0b0]/40 text-fg-muted'
         )}>
           {capitalizable ? (
             <p>

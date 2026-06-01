@@ -1,107 +1,165 @@
 @import "tailwindcss";
 
+/* ============================================================
+   TOKENS — valores reales por modo
+   ============================================================ */
+:root, [data-theme="light"] {
+  /* superficie / estructura */
+  --bg:#faf6ee;
+  --surface:#ffffff;
+  --surface-2:#f5f0e6;
+  --elev:#ffffff;
+  --border:#ece7dd;
+  --border-strong:#d6d0c4;
+  /* texto */
+  --fg:#1f2430;
+  --fg-muted:#6f6a61;
+  --fg-soft:#928c81;
+  /* acento */
+  --primary:#e07840;
+  --primary-hover:#c8632d;
+  --on-primary:#ffffff;
+  /* sidebar (navy en ambos modos) */
+  --sidebar:#0f172a;
+  --sidebar-fg:#7c8595;
+  --sidebar-active-bg:rgba(224,120,64,.18);
+  --sidebar-active-fg:#f0935f;
+  --sidebar-border:#1c2536;
+  /* semánticos: color / bg / border */
+  --success:#15803d; --success-bg:#f0fdf4; --success-bd:#dcfce7;
+  --warning:#b45309; --warning-bg:#fffbeb; --warning-bd:#fde68a;
+  --danger:#b91c1c;  --danger-bg:#fef2f2;  --danger-bd:#fee2e2;
+  --info:#1d4ed8;    --info-bg:#eff6ff;    --info-bd:#dbeafe;
+  --purple:#7e22ce;  --purple-bg:#faf5ff;  --purple-bd:#f3e8ff;
+  --neutral-bg:#f1f5f9; --neutral-fg:#475569;
+  --interes:#b45309;
+  --closed-row:rgba(22,163,74,.05);
+  /* marca */
+  --bdi:#6366f1; --zattia:#ec4899; --stunned:#f59e0b;
+  --glow:none;
+}
+
+[data-theme="dark"] {
+  --bg:#0c0f16;
+  --surface:#141925;
+  --surface-2:#1a2030;
+  --elev:#171d2a;
+  --border:#222a3a;
+  --border-strong:#2c3548;
+  --fg:#e9ecf2;
+  --fg-muted:#8089a0;
+  --fg-soft:#646e85;
+  --primary:#f97316;
+  --primary-hover:#fb8c3f;
+  --on-primary:#0c0c0c;
+  --sidebar:#080a10;
+  --sidebar-fg:#646e85;
+  --sidebar-active-bg:rgba(249,115,22,.16);
+  --sidebar-active-fg:#ff8a4c;
+  --sidebar-border:#1a2030;
+  --success:#4ade80; --success-bg:rgba(34,197,94,.15); --success-bd:rgba(34,197,94,.26);
+  --warning:#fbbf24; --warning-bg:rgba(245,158,11,.15); --warning-bd:rgba(245,158,11,.30);
+  --danger:#f87171;  --danger-bg:rgba(239,68,68,.15);  --danger-bd:rgba(239,68,68,.30);
+  --info:#60a5fa;    --info-bg:rgba(59,130,246,.16);   --info-bd:rgba(59,130,246,.30);
+  --purple:#c084fc;  --purple-bg:rgba(168,85,247,.16); --purple-bd:rgba(168,85,247,.30);
+  --neutral-bg:rgba(255,255,255,.06); --neutral-fg:#9aa3b5;
+  --interes:#fbbf24;
+  --closed-row:rgba(34,197,94,.06);
+  --glow:0 0 0 1px rgba(249,115,22,.15), 0 0 16px rgba(249,115,22,.18);
+}
+
+/* ============================================================
+   THEME — mapea tokens a utilidades Tailwind (inline = dinámico)
+   ============================================================ */
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  --color-bg: #faf6ee;
-  --color-surface: #ffffff;
-  --color-surface-2: #f5f0e6;
-  --color-border: #e8e4dc;
-  --color-border-light: #d6d0c4;
-  --color-text: #1a1a1a;
-  --color-text-muted: #6b6b6b;
-  --color-primary: #e07840;
-  --color-primary-hover: #c8632d;
-  --color-success: #16a34a;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-bdi: #6366f1;
-  --color-zattia: #ec4899;
-  --color-stunned: #f59e0b;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-elev: var(--elev);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-soft: var(--fg-soft);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-fg: var(--sidebar-fg);
+  --color-sidebar-active-bg: var(--sidebar-active-bg);
+  --color-sidebar-active-fg: var(--sidebar-active-fg);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-bd: var(--success-bd);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-bd: var(--warning-bd);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-bd: var(--danger-bd);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-info-bd: var(--info-bd);
+  --color-purple: var(--purple);
+  --color-purple-bg: var(--purple-bg);
+  --color-purple-bd: var(--purple-bd);
+  --color-neutral-bg: var(--neutral-bg);
+  --color-neutral-fg: var(--neutral-fg);
+  --color-interes: var(--interes);
+
+  --color-bdi: var(--bdi);
+  --color-zattia: var(--zattia);
+  --color-stunned: var(--stunned);
 }
 
+/* ============================================================
+   BASE
+   ============================================================ */
 html {
-  background-color: #faf6ee;
-  color: #1a1a1a;
+  color-scheme: light;
+  background-color: var(--bg);
+  color: var(--fg);
 }
+[data-theme="dark"] html, html[data-theme="dark"] { color-scheme: dark; }
 
 body {
-  background-color: #faf6ee;
-  color: #1a1a1a;
+  background-color: var(--bg);
+  color: var(--fg);
   font-family: var(--font-geist-sans), Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background-color .25s ease, color .25s ease;
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #f5f0e6;
-}
-::-webkit-scrollbar-thumb {
-  background: #d6d0c4;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #b8b0a0;
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface-2); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--fg-soft); }
 
-/* Input styling */
+/* Inputs number */
 input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  opacity: 0.5;
-}
+input[type="number"]::-webkit-outer-spin-button { opacity: 0.5; }
 
-/* Touch targets en mobile: min 44px */
+/* Touch targets mobile */
 @media (hover: none) and (pointer: coarse) {
-  button:not(.no-touch-min),
-  a:not(.no-touch-min),
-  [role="button"] {
-    min-height: 40px;
-  }
+  button:not(.no-touch-min), a:not(.no-touch-min), [role="button"] { min-height: 40px; }
 }
 
-/* Tablas con scroll horizontal automático en mobile */
-.table-scroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-.table-scroll table {
-  min-width: 100%;
-}
+/* Tablas scroll horizontal mobile */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll table { min-width: 100%; }
+@media (max-width: 768px) { .overflow-x-auto > table { min-width: 600px; } }
+.overflow-x-auto { -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
 
-/* Mantener ancho mínimo de las tablas dentro de cards
-   para forzar scroll horizontal en mobile en lugar de cortar columnas */
-@media (max-width: 768px) {
-  .overflow-x-auto > table {
-    min-width: 600px;
-  }
-}
+.money, .font-mono { white-space: nowrap; }
 
-/* Smooth scrolling en mobile */
-.overflow-x-auto {
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-}
-
-/* Evitar que números muy grandes rompan layouts */
-.money,
-.font-mono {
-  white-space: nowrap;
-}
-
-/* Stack form columns on mobile by default */
-.form-grid-2 {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem;
-}
-@media (min-width: 640px) {
-  .form-grid-2 {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-  }
-}
+.form-grid-2 { display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
+@media (min-width: 640px) { .form-grid-2 { grid-template-columns: repeat(2, 1fr); gap: 1rem; } }

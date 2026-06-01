@@ -63,8 +63,8 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-sm text-slate-600 mt-0.5">{formatMonth(mes)}</p>
+        <h1 className="text-2xl font-bold text-fg">Dashboard</h1>
+        <p className="text-sm text-fg-muted mt-0.5">{formatMonth(mes)}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -102,17 +102,17 @@ export default async function DashboardPage() {
 
       {saldoActual && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
-            <p className="text-xs text-slate-600 mb-1">Cuenta Bancaria (ARS)</p>
-            <p className="text-xl font-bold text-slate-900">{formatCurrency(saldoActual.saldo_pesos)}</p>
+          <div className="bg-surface border border-border rounded-xl p-4">
+            <p className="text-xs text-fg-muted mb-1">Cuenta Bancaria (ARS)</p>
+            <p className="text-xl font-bold text-fg">{formatCurrency(saldoActual.saldo_pesos)}</p>
           </div>
-          <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
-            <p className="text-xs text-slate-600 mb-1">Caja (ARS)</p>
-            <p className="text-xl font-bold text-slate-900">{formatCurrency(saldoActual.caja_pesos)}</p>
+          <div className="bg-surface border border-border rounded-xl p-4">
+            <p className="text-xs text-fg-muted mb-1">Caja (ARS)</p>
+            <p className="text-xl font-bold text-fg">{formatCurrency(saldoActual.caja_pesos)}</p>
           </div>
-          <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
-            <p className="text-xs text-slate-600 mb-1">USD</p>
-            <p className="text-xl font-bold text-slate-900">{formatCurrency(saldoActual.saldo_usd + saldoActual.caja_usd, 'USD')}</p>
+          <div className="bg-surface border border-border rounded-xl p-4">
+            <p className="text-xs text-fg-muted mb-1">USD</p>
+            <p className="text-xl font-bold text-fg">{formatCurrency(saldoActual.saldo_usd + saldoActual.caja_usd, 'USD')}</p>
           </div>
         </div>
       )}
@@ -131,22 +131,22 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {gastosVencidos && gastosVencidos.length > 0 && (
-          <div className="bg-white border border-red-500/20 rounded-xl p-5">
+          <div className="bg-surface border border-red-500/20 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-700" />
                 Gastos Vencidos
               </h2>
-              <Link href="/finanzas/gastos?estado=VENCIDO" className="text-xs text-orange-500 hover:text-orange-600">
+              <Link href="/finanzas/gastos?estado=VENCIDO" className="text-xs text-primary hover:text-orange-600">
                 Ver todos
               </Link>
             </div>
             <div className="space-y-2">
               {gastosVencidos.map((g) => (
-                <div key={g.id} className="flex items-center justify-between py-2 border-b border-[#e8e4dc] last:border-0">
+                <div key={g.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                   <div>
-                    <p className="text-sm text-slate-800">{g.concepto}</p>
-                    <p className="text-xs text-slate-500">{formatMonth(g.mes)}</p>
+                    <p className="text-sm text-fg-muted">{g.concepto}</p>
+                    <p className="text-xs text-fg-soft">{formatMonth(g.mes)}</p>
                   </div>
                   <span className="text-sm font-medium text-red-700">{formatCurrency(g.monto)}</span>
                 </div>
@@ -156,29 +156,29 @@ export default async function DashboardPage() {
         )}
 
         {nominaPendiente && nominaPendiente.length > 0 && (
-          <div className="bg-white border border-amber-500/20 rounded-xl p-5">
+          <div className="bg-surface border border-amber-500/20 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-amber-700" />
                 Nómina Pendiente — {formatMonth(mes)}
               </h2>
-              <Link href="/rrhh/nomina" className="text-xs text-orange-500 hover:text-orange-600">
+              <Link href="/rrhh/nomina" className="text-xs text-primary hover:text-orange-600">
                 Ver nómina
               </Link>
             </div>
             <div className="space-y-2">
               {nominaPendiente.map((n, i) => (
-                <div key={i} className="flex items-center justify-between py-2 border-b border-[#e8e4dc] last:border-0">
-                  <p className="text-sm text-slate-800">
+                <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                  <p className="text-sm text-fg-muted">
                     {n.empleado_nombre} {n.empleado_apellido}
                   </p>
                   <span className="text-sm font-medium text-amber-700">{formatCurrency(n.neto)}</span>
                 </div>
               ))}
             </div>
-            <div className="mt-3 pt-3 border-t border-[#e8e4dc] flex justify-between">
-              <span className="text-sm text-slate-600">Total a pagar</span>
-              <span className="text-sm font-bold text-slate-900">{formatCurrency(nominaPendienteTotal)}</span>
+            <div className="mt-3 pt-3 border-t border-border flex justify-between">
+              <span className="text-sm text-fg-muted">Total a pagar</span>
+              <span className="text-sm font-bold text-fg">{formatCurrency(nominaPendienteTotal)}</span>
             </div>
           </div>
         )}
@@ -196,13 +196,13 @@ export default async function DashboardPage() {
         const saldosMap = new Map<string, number>()
         for (const s of saldosInventario ?? []) saldosMap.set(s.cuenta_id, Number(s.saldo_cierre))
         return (
-          <div className="bg-white border border-teal-500/20 rounded-xl p-5">
+          <div className="bg-surface border border-teal-500/20 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <Boxes className="w-4 h-4 text-teal-400" />
+              <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
+                <Boxes className="w-4 h-4 text-success" />
                 Inventario por marca — {formatMonth(mes)}
               </h2>
-              <Link href="/finanzas/cuentas-patrimoniales" className="text-xs text-orange-500 hover:text-orange-600">
+              <Link href="/finanzas/cuentas-patrimoniales" className="text-xs text-primary hover:text-orange-600">
                 Editar saldos
               </Link>
             </div>
@@ -218,25 +218,25 @@ export default async function DashboardPage() {
                       'rounded-lg border p-3',
                       positivo && 'bg-teal-500/5 border-teal-500/30',
                       negativo && 'bg-amber-500/5 border-amber-500/30',
-                      !positivo && !negativo && 'bg-[#f5f0e6]/40 border-[#d6d0c4]/40',
+                      !positivo && !negativo && 'bg-surface-2/40 border-border-strong/40',
                     )}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-slate-700">{c.marca}</span>
+                      <span className="text-xs font-medium text-fg-muted">{c.marca}</span>
                       <span className={cn(
                         'text-[10px] font-medium px-1.5 py-0.5 rounded',
-                        positivo && 'bg-teal-500/15 text-teal-300',
+                        positivo && 'bg-teal-500/15 text-success',
                         negativo && 'bg-amber-500/15 text-amber-800',
-                        !positivo && !negativo && 'bg-slate-700 text-slate-600',
+                        !positivo && !negativo && 'bg-surface-2 text-fg-muted',
                       )}>
                         {positivo ? 'Activo · Stock' : negativo ? 'Pasivo · Reposición' : 'Equilibrado'}
                       </span>
                     </div>
                     <p className={cn(
                       'text-lg font-mono font-bold',
-                      positivo && 'text-teal-400',
+                      positivo && 'text-success',
                       negativo && 'text-amber-700',
-                      !positivo && !negativo && 'text-slate-700',
+                      !positivo && !negativo && 'text-fg-muted',
                     )}>
                       {positivo ? '+' : negativo ? '−' : ''}{formatCurrency(Math.abs(saldo))}
                     </p>
@@ -244,21 +244,21 @@ export default async function DashboardPage() {
                 )
               })}
             </div>
-            <p className="text-[10px] text-slate-500 italic mt-3">
+            <p className="text-[10px] text-fg-soft italic mt-3">
               Saldo = Compras acumuladas − CMV. Positivo = stock disponible · Negativo = deuda de reposición.
             </p>
           </div>
         )
       })()}
 
-      <div className="bg-white border border-[#e8e4dc] rounded-xl p-5">
-        <h2 className="text-sm font-semibold text-slate-900 mb-4">Accesos rápidos</h2>
+      <div className="bg-surface border border-border rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-fg mb-4">Accesos rápidos</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Cargar gasto', href: '/finanzas/gastos', color: 'text-red-300' },
+            { label: 'Cargar gasto', href: '/finanzas/gastos', color: 'text-danger' },
             { label: 'Nueva nómina', href: '/rrhh/nomina', color: 'text-amber-800' },
-            { label: 'Registrar retiro', href: '/finanzas/retiros', color: 'text-orange-300' },
-            { label: 'Ver análisis', href: '/analisis/pl-marca', color: 'text-green-300' },
+            { label: 'Registrar retiro', href: '/finanzas/retiros', color: 'text-primary' },
+            { label: 'Ver análisis', href: '/analisis/pl-marca', color: 'text-success' },
           ].map((item) => (
             <Link
               key={item.href}

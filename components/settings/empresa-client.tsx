@@ -23,8 +23,8 @@ export function EmpresaClient({ empresa }: { empresa: ConfiguracionEmpresa | nul
   if (!empresa) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <Building2 className="w-6 h-6 text-orange-500" />
+        <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
+          <Building2 className="w-6 h-6 text-primary" />
           Datos de la empresa
         </h1>
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-sm text-amber-800">
@@ -37,18 +37,18 @@ export function EmpresaClient({ empresa }: { empresa: ConfiguracionEmpresa | nul
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <Building2 className="w-6 h-6 text-orange-500" />
+        <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
+          <Building2 className="w-6 h-6 text-primary" />
           Datos de la empresa
         </h1>
-        <p className="text-sm text-slate-600 mt-1">
+        <p className="text-sm text-fg-muted mt-1">
           Aparecen en el encabezado de los comprobantes formales (PDF para inversores y créditos).
         </p>
       </div>
 
-      <form action={formAction} className="space-y-5 bg-white border border-[#e8e4dc] rounded-xl p-6">
+      <form action={formAction} className="space-y-5 bg-surface border border-border rounded-xl p-6">
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Identificación</h2>
+          <h2 className="text-sm font-semibold text-fg uppercase tracking-wide">Identificación</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Razón social" name="razon_social" defaultValue={empresa.razon_social} required placeholder="Ej: Areben SRL" />
             <Input label="Nombre de fantasía" name="nombre_fantasia" defaultValue={empresa.nombre_fantasia ?? ''} placeholder="Ej: Areben" />
@@ -68,7 +68,7 @@ export function EmpresaClient({ empresa }: { empresa: ConfiguracionEmpresa | nul
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Domicilio</h2>
+          <h2 className="text-sm font-semibold text-fg uppercase tracking-wide">Domicilio</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Calle y número" name="domicilio_calle" defaultValue={empresa.domicilio_calle ?? ''} placeholder="Ej: Av. Corrientes 1234, piso 5" />
             <Input label="Ciudad" name="domicilio_ciudad" defaultValue={empresa.domicilio_ciudad ?? ''} placeholder="Ej: Ciudad Autónoma de Buenos Aires" />
@@ -79,7 +79,7 @@ export function EmpresaClient({ empresa }: { empresa: ConfiguracionEmpresa | nul
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Contacto</h2>
+          <h2 className="text-sm font-semibold text-fg uppercase tracking-wide">Contacto</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Email institucional" name="email" type="email" defaultValue={empresa.email ?? ''} placeholder="info@areben.com.ar" />
             <Input label="Teléfono" name="telefono" defaultValue={empresa.telefono ?? ''} placeholder="+54 11 1234-5678" />
@@ -97,7 +97,7 @@ export function EmpresaClient({ empresa }: { empresa: ConfiguracionEmpresa | nul
           </div>
         )}
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-[#e8e4dc]">
+        <div className="flex justify-end gap-2 pt-2 border-t border-border">
           <Button type="submit" variant="primary" disabled={isPending}>
             {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Guardar cambios

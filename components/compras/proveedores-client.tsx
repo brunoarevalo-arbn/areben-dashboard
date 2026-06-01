@@ -96,8 +96,8 @@ export function ProveedoresClient({ proveedores }: { proveedores: Proveedor[] })
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Proveedores</h1>
-          <p className="text-sm text-slate-600 mt-0.5">{proveedores.length} registros · {nacionales.length} nacionales · {importacion.length} importación</p>
+          <h1 className="text-2xl font-bold text-fg">Proveedores</h1>
+          <p className="text-sm text-fg-muted mt-0.5">{proveedores.length} registros · {nacionales.length} nacionales · {importacion.length} importación</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" onClick={() => setImportOpen(true)} title="Importar proveedores desde Excel">
@@ -115,30 +115,30 @@ export function ProveedoresClient({ proveedores }: { proveedores: Proveedor[] })
         const lista = tipo === 'NACIONAL' ? nacionales : importacion
         return (
           <div key={tipo}>
-            <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-fg-muted uppercase tracking-wider mb-3 flex items-center gap-2">
               {tipo === 'NACIONAL' ? <Truck className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
               {tipo === 'NACIONAL' ? 'Nacionales' : 'Importación'}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {lista.length === 0 ? (
-                <div className="col-span-3 bg-white border border-[#e8e4dc] rounded-xl p-6 text-center text-slate-500 text-sm">
+                <div className="col-span-3 bg-surface border border-border rounded-xl p-6 text-center text-fg-soft text-sm">
                   No hay proveedores de este tipo
                 </div>
               ) : (
                 lista.map((p) => (
-                  <div key={p.id} className="bg-white border border-[#e8e4dc] rounded-xl p-5">
+                  <div key={p.id} className="bg-surface border border-border rounded-xl p-5">
                     <div className="flex items-start justify-between mb-3">
-                      <p className="font-semibold text-slate-900">{p.nombre}</p>
+                      <p className="font-semibold text-fg">{p.nombre}</p>
                       <Badge variant={p.moneda === 'USD' ? 'success' : 'default'}>{p.moneda}</Badge>
                     </div>
                     <div className="space-y-1.5 text-sm mb-4">
-                      {p.pais !== 'Argentina' && <p className="text-slate-600">🌍 {p.pais}</p>}
-                      {p.contacto && <p className="text-slate-600">{p.contacto}</p>}
-                      {p.condiciones_pago && <p className="text-slate-600 text-xs">{p.condiciones_pago}</p>}
+                      {p.pais !== 'Argentina' && <p className="text-fg-muted">🌍 {p.pais}</p>}
+                      {p.contacto && <p className="text-fg-muted">{p.contacto}</p>}
+                      {p.condiciones_pago && <p className="text-fg-muted text-xs">{p.condiciones_pago}</p>}
                     </div>
                     <div className="flex items-center gap-2 mb-3">
-                      {p.email && <a href={`mailto:${p.email}`} className="p-1.5 rounded hover:bg-[#f5f0e6] text-slate-500 hover:text-slate-700 transition-colors"><Mail className="w-3.5 h-3.5" /></a>}
-                      {p.telefono && <a href={`tel:${p.telefono}`} className="p-1.5 rounded hover:bg-[#f5f0e6] text-slate-500 hover:text-slate-700 transition-colors"><Phone className="w-3.5 h-3.5" /></a>}
+                      {p.email && <a href={`mailto:${p.email}`} className="p-1.5 rounded hover:bg-surface-2 text-fg-soft hover:text-fg-muted transition-colors"><Mail className="w-3.5 h-3.5" /></a>}
+                      {p.telefono && <a href={`tel:${p.telefono}`} className="p-1.5 rounded hover:bg-surface-2 text-fg-soft hover:text-fg-muted transition-colors"><Phone className="w-3.5 h-3.5" /></a>}
                     </div>
                     <Button size="sm" variant="ghost" className="w-full" onClick={() => { setEditProv(p); setModalOpen(true) }}>
                       <Pencil className="w-3.5 h-3.5" />

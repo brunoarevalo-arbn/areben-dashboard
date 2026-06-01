@@ -415,11 +415,11 @@ export function CierreMesClient(props: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <FileText className="w-6 h-6 text-orange-500" />
+          <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
+            <FileText className="w-6 h-6 text-primary" />
             Cierre de mes
           </h1>
-          <p className="text-sm text-slate-600 mt-0.5">
+          <p className="text-sm text-fg-muted mt-0.5">
             Arqueo patrimonial de {formatMonth(props.mes)}
             {cerrado && <Badge variant="success" className="ml-2">Cerrado</Badge>}
           </p>
@@ -449,11 +449,11 @@ export function CierreMesClient(props: Props) {
       </div>
 
       {/* TC */}
-      <div className="bg-white border border-amber-500/30 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2 text-sm text-slate-700">
+      <div className="bg-surface border border-amber-500/30 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2 text-sm text-fg-muted">
           <DollarSign className="w-4 h-4 text-amber-700" />
           <span className="font-medium">Tipo de cambio de referencia para el cierre</span>
-          <span className="text-xs text-slate-500">(USD → ARS para cálculo de PN consolidado)</span>
+          <span className="text-xs text-fg-soft">(USD → ARS para cálculo de PN consolidado)</span>
         </div>
         <div className="w-44">
           <MoneyInput
@@ -469,8 +469,8 @@ export function CierreMesClient(props: Props) {
       {/* SECCIÓN ACTIVOS */}
       <Section title="Activos" subtitle="Lo que tengo (efectivo + saldos en cuentas)" icon={Wallet} color="indigo">
         {/* Cajas */}
-        <div className="bg-[#f5f0e6]/40 rounded-lg p-4 space-y-3">
-          <p className="text-xs font-medium text-slate-600 uppercase tracking-wide flex items-center gap-1.5">
+        <div className="bg-surface-2/40 rounded-lg p-4 space-y-3">
+          <p className="text-xs font-medium text-fg-muted uppercase tracking-wide flex items-center gap-1.5">
             <Banknote className="w-3.5 h-3.5" />
             Efectivo (cajas)
           </p>
@@ -487,35 +487,35 @@ export function CierreMesClient(props: Props) {
           const totalArsTitular = cs.reduce((s, c) => s + (saldosMap.get(c.id)?.ars ?? 0), 0)
           const totalUsdTitular = cs.reduce((s, c) => s + (saldosMap.get(c.id)?.usd ?? 0), 0)
           return (
-            <div key={titular.id} className="bg-[#f5f0e6]/40 rounded-lg overflow-hidden">
-              <div className="px-4 py-2 border-b border-[#d6d0c4]/50 flex items-center justify-between">
-                <h3 className="text-sm font-medium text-slate-800 flex items-center gap-2">
-                  <Building2 className="w-3.5 h-3.5 text-slate-600" />
+            <div key={titular.id} className="bg-surface-2/40 rounded-lg overflow-hidden">
+              <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
+                <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2">
+                  <Building2 className="w-3.5 h-3.5 text-fg-muted" />
                   {titular.nombre}
                 </h3>
                 <div className="flex items-center gap-3 text-xs">
-                  <span className="text-orange-500 font-mono">{formatCurrency(totalArsTitular)}</span>
+                  <span className="text-primary font-mono">{formatCurrency(totalArsTitular)}</span>
                   {totalUsdTitular > 0 && <span className="text-green-700 font-mono">{formatCurrency(totalUsdTitular, 'USD')}</span>}
                 </div>
               </div>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#d6d0c4]/40">
-                    <th className="text-left px-4 py-1.5 text-[10px] font-medium text-slate-500 uppercase">Banco · Cuenta</th>
-                    <th className="text-left px-4 py-1.5 text-[10px] font-medium text-slate-500 uppercase">Tipo</th>
-                    <th className="text-right px-4 py-1.5 text-[10px] font-medium text-slate-500 uppercase">ARS</th>
-                    <th className="text-right px-4 py-1.5 text-[10px] font-medium text-slate-500 uppercase">USD</th>
+                  <tr className="border-b border-border-strong/40">
+                    <th className="text-left px-4 py-1.5 text-[10px] font-medium text-fg-soft uppercase">Banco · Cuenta</th>
+                    <th className="text-left px-4 py-1.5 text-[10px] font-medium text-fg-soft uppercase">Tipo</th>
+                    <th className="text-right px-4 py-1.5 text-[10px] font-medium text-fg-soft uppercase">ARS</th>
+                    <th className="text-right px-4 py-1.5 text-[10px] font-medium text-fg-soft uppercase">USD</th>
                   </tr>
                 </thead>
                 <tbody>
                   {cs.map((c) => {
                     const s = saldosMap.get(c.id)
                     return (
-                      <tr key={c.id} className="border-b border-[#d6d0c4]/30 last:border-0">
-                        <td className="px-4 py-1.5 text-slate-700 text-xs">{c.banco} · <span className="text-slate-500">{c.nombre}</span></td>
+                      <tr key={c.id} className="border-b border-border-strong/30 last:border-0">
+                        <td className="px-4 py-1.5 text-fg-muted text-xs">{c.banco} · <span className="text-fg-soft">{c.nombre}</span></td>
                         <td className="px-4 py-1.5 text-xs"><Badge variant="default">{c.tipo}</Badge></td>
-                        <td className="px-4 py-1.5 text-right font-mono text-slate-800 text-xs">{formatCurrency(s?.ars ?? 0)}</td>
-                        <td className="px-4 py-1.5 text-right font-mono text-slate-800 text-xs">{c.permite_dual ? formatCurrency(s?.usd ?? 0, 'USD') : '—'}</td>
+                        <td className="px-4 py-1.5 text-right font-mono text-fg-muted text-xs">{formatCurrency(s?.ars ?? 0)}</td>
+                        <td className="px-4 py-1.5 text-right font-mono text-fg-muted text-xs">{c.permite_dual ? formatCurrency(s?.usd ?? 0, 'USD') : '—'}</td>
                       </tr>
                     )
                   })}
@@ -540,12 +540,12 @@ export function CierreMesClient(props: Props) {
           return Array.from(patrimAportes.porTipo.entries()).map(([tipo, totales]) => {
             const cs = props.cuentasPatrim.filter((c) => c.tipo === tipo)
             return (
-              <div key={tipo} className="bg-[#f5f0e6]/40 rounded-lg overflow-hidden">
-                <div className="px-4 py-2 border-b border-[#d6d0c4]/50 flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-slate-800">{tipoLabels[tipo] ?? tipo}</h3>
+              <div key={tipo} className="bg-surface-2/40 rounded-lg overflow-hidden">
+                <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-fg-muted">{tipoLabels[tipo] ?? tipo}</h3>
                   <div className="flex items-center gap-3 text-xs">
                     {totales.ars !== 0 && (
-                      <span className={cn('font-mono', totales.ars >= 0 ? 'text-orange-500' : 'text-amber-700')}>
+                      <span className={cn('font-mono', totales.ars >= 0 ? 'text-primary' : 'text-amber-700')}>
                         {totales.ars >= 0 ? '+' : ''}{formatCurrency(totales.ars)}
                       </span>
                     )}
@@ -563,15 +563,15 @@ export function CierreMesClient(props: Props) {
                     return (
                       <div key={c.id} className="px-4 py-1.5 flex items-center justify-between text-xs">
                         <div>
-                          <p className="text-slate-700">{c.nombre}</p>
-                          <p className="text-slate-500 text-[10px]">
+                          <p className="text-fg-muted">{c.nombre}</p>
+                          <p className="text-fg-soft text-[10px]">
                             {c.signo_pn > 0 ? '↑ suma al PN' : '↓ resta del PN'}
                             {c.marca && <> · {c.marca}</>}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-mono text-slate-800">{formatCurrency(saldo, c.moneda)}</p>
-                          <p className={cn('text-[10px] font-mono', aporte >= 0 ? 'text-orange-500' : 'text-amber-700')}>
+                          <p className="font-mono text-fg-muted">{formatCurrency(saldo, c.moneda)}</p>
+                          <p className={cn('text-[10px] font-mono', aporte >= 0 ? 'text-primary' : 'text-amber-700')}>
                             {aporte >= 0 ? '+' : ''}{formatCurrency(aporte, c.moneda)}
                           </p>
                         </div>
@@ -586,9 +586,9 @@ export function CierreMesClient(props: Props) {
 
         {/* Otros activos manuales */}
         {props.activosManuales.length > 0 && (
-          <div className="bg-[#f5f0e6]/40 rounded-lg overflow-hidden">
-            <div className="px-4 py-2 border-b border-[#d6d0c4]/50 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-slate-800 flex items-center gap-2">
+          <div className="bg-surface-2/40 rounded-lg overflow-hidden">
+            <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
+              <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2">
                 <TrendingUp className="w-3.5 h-3.5 text-purple-700" />
                 Otros activos
               </h3>
@@ -601,23 +601,23 @@ export function CierreMesClient(props: Props) {
               {props.activosManuales.map((a) => (
                 <div key={a.id} className="px-4 py-1.5 flex items-center justify-between text-xs">
                   <div>
-                    <p className="text-slate-700">{a.descripcion}</p>
-                    <p className="text-slate-500 text-[10px]">
+                    <p className="text-fg-muted">{a.descripcion}</p>
+                    <p className="text-fg-soft text-[10px]">
                       {a.categoria ?? '—'}
                       {a.titular?.nombre && <> · {a.titular.nombre}</>}
                     </p>
                   </div>
-                  <span className="font-mono text-slate-800">{formatCurrency(Number(a.monto), a.moneda)}</span>
+                  <span className="font-mono text-fg-muted">{formatCurrency(Number(a.monto), a.moneda)}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        <div className="bg-white border border-orange-500/30 rounded-lg p-3 flex items-center justify-between">
-          <span className="text-sm font-medium text-slate-800">TOTAL ACTIVOS</span>
+        <div className="bg-surface border border-orange-500/30 rounded-lg p-3 flex items-center justify-between">
+          <span className="text-sm font-medium text-fg-muted">TOTAL ACTIVOS</span>
           <div className="flex items-center gap-4">
-            <span className="font-mono text-orange-500 font-bold text-lg">{formatCurrency(totalActivosArs)}</span>
+            <span className="font-mono text-primary font-bold text-lg">{formatCurrency(totalActivosArs)}</span>
             {totalActivosUsd > 0 && <span className="font-mono text-green-700 font-bold text-lg">{formatCurrency(totalActivosUsd, 'USD')}</span>}
           </div>
         </div>
@@ -705,9 +705,9 @@ export function CierreMesClient(props: Props) {
         )}
 
         {/* Pasivos manuales */}
-        <div className="bg-[#f5f0e6]/40 rounded-lg overflow-hidden">
-          <div className="px-4 py-2 border-b border-[#d6d0c4]/50 flex items-center justify-between">
-            <h3 className="text-sm font-medium text-slate-800 flex items-center gap-2">
+        <div className="bg-surface-2/40 rounded-lg overflow-hidden">
+          <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
+            <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2">
               <Plus className="w-3.5 h-3.5 text-amber-700" />
               Pasivos manuales (préstamos, deudas no registradas)
             </h3>
@@ -719,21 +719,21 @@ export function CierreMesClient(props: Props) {
             )}
           </div>
           {pasivosManuales.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-slate-500">Sin pasivos manuales cargados</p>
+            <p className="px-4 py-3 text-xs text-fg-soft">Sin pasivos manuales cargados</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#d6d0c4]/40">
-                  <th className="text-left px-4 py-1.5 text-[10px] font-medium text-slate-500 uppercase">Descripción</th>
-                  <th className="text-left px-4 py-1.5 text-[10px] font-medium text-slate-500 uppercase">Acreedor</th>
-                  <th className="text-right px-4 py-1.5 text-[10px] font-medium text-slate-500 uppercase">Monto</th>
-                  <th className="text-left px-4 py-1.5 text-[10px] font-medium text-slate-500 uppercase">Moneda</th>
+                <tr className="border-b border-border-strong/40">
+                  <th className="text-left px-4 py-1.5 text-[10px] font-medium text-fg-soft uppercase">Descripción</th>
+                  <th className="text-left px-4 py-1.5 text-[10px] font-medium text-fg-soft uppercase">Acreedor</th>
+                  <th className="text-right px-4 py-1.5 text-[10px] font-medium text-fg-soft uppercase">Monto</th>
+                  <th className="text-left px-4 py-1.5 text-[10px] font-medium text-fg-soft uppercase">Moneda</th>
                   {!cerrado && <th />}
                 </tr>
               </thead>
               <tbody>
                 {pasivosManuales.map((p) => (
-                  <tr key={p.id} className="border-b border-[#d6d0c4]/30 last:border-0">
+                  <tr key={p.id} className="border-b border-border-strong/30 last:border-0">
                     <td className="px-4 py-1.5">
                       <input
                         type="text"
@@ -741,7 +741,7 @@ export function CierreMesClient(props: Props) {
                         onChange={(e) => actualizarPasivo(p.id, { descripcion: e.target.value })}
                         disabled={cerrado}
                         placeholder="Ej: Préstamo personal"
-                        className="w-full px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-60"
+                        className="w-full px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg text-xs focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
                       />
                     </td>
                     <td className="px-4 py-1.5">
@@ -751,7 +751,7 @@ export function CierreMesClient(props: Props) {
                         onChange={(e) => actualizarPasivo(p.id, { acreedor: e.target.value })}
                         disabled={cerrado}
                         placeholder="—"
-                        className="w-full px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-60"
+                        className="w-full px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg text-xs focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
                       />
                     </td>
                     <td className="px-4 py-1.5 w-40">
@@ -762,7 +762,7 @@ export function CierreMesClient(props: Props) {
                         onChange={(e) => actualizarPasivo(p.id, { monto: Number(e.target.value) })}
                         disabled={cerrado}
                         placeholder="0.00"
-                        className="w-full px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-amber-700 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-60"
+                        className="w-full px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-amber-700 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
                       />
                     </td>
                     <td className="px-4 py-1.5 w-24">
@@ -770,7 +770,7 @@ export function CierreMesClient(props: Props) {
                         value={p.moneda}
                         onChange={(e) => actualizarPasivo(p.id, { moneda: e.target.value as 'ARS' | 'USD' })}
                         disabled={cerrado}
-                        className="w-full px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-60"
+                        className="w-full px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg text-xs focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
                       >
                         <option value="ARS">ARS</option>
                         <option value="USD">USD</option>
@@ -781,7 +781,7 @@ export function CierreMesClient(props: Props) {
                         <button
                           type="button"
                           onClick={() => eliminarPasivo(p.id)}
-                          className="p-1 rounded text-slate-500 hover:text-red-700 hover:bg-[#e8e0d0]"
+                          className="p-1 rounded text-fg-soft hover:text-red-700 hover:bg-surface-2"
                           title="Eliminar pasivo"
                         >
                           <Trash2 className="w-3 h-3" />
@@ -795,8 +795,8 @@ export function CierreMesClient(props: Props) {
           )}
         </div>
 
-        <div className="bg-white border border-amber-500/30 rounded-lg p-3 flex items-center justify-between">
-          <span className="text-sm font-medium text-slate-800">TOTAL PASIVOS</span>
+        <div className="bg-surface border border-amber-500/30 rounded-lg p-3 flex items-center justify-between">
+          <span className="text-sm font-medium text-fg-muted">TOTAL PASIVOS</span>
           <div className="flex items-center gap-4">
             <span className="font-mono text-amber-700 font-bold text-lg">{formatCurrency(totalPasivosArs)}</span>
             {totalPasivosUsd > 0 && <span className="font-mono text-amber-800 font-bold text-lg">{formatCurrency(totalPasivosUsd, 'USD')}</span>}
@@ -807,12 +807,12 @@ export function CierreMesClient(props: Props) {
       {/* SECCIÓN RETIROS */}
       <Section title="Retiros del mes" subtitle="Detraídos por los socios — se suman al resultado" icon={ArrowDownCircle} color="purple">
         {retirosPorSocio.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-slate-500 text-center">Sin retiros registrados en {formatMonth(props.mes)}</p>
+          <p className="px-4 py-6 text-sm text-fg-soft text-center">Sin retiros registrados en {formatMonth(props.mes)}</p>
         ) : (
           retirosPorSocio.map(([socio, data]) => (
-            <div key={socio} className="bg-[#f5f0e6]/40 rounded-lg overflow-hidden">
-              <div className="px-4 py-2 border-b border-[#d6d0c4]/50 flex items-center justify-between">
-                <h3 className="text-sm font-medium text-slate-800">{socio}</h3>
+            <div key={socio} className="bg-surface-2/40 rounded-lg overflow-hidden">
+              <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
+                <h3 className="text-sm font-medium text-fg-muted">{socio}</h3>
                 <div className="flex items-center gap-3 text-xs">
                   {data.ars > 0 && <span className="font-mono text-purple-700">{formatCurrency(data.ars)}</span>}
                   {data.usd > 0 && <span className="font-mono text-green-700">{formatCurrency(data.usd, 'USD')}</span>}
@@ -820,12 +820,12 @@ export function CierreMesClient(props: Props) {
               </div>
               <div className="p-3 grid grid-cols-2 md:grid-cols-3 gap-2">
                 {Array.from(data.porCategoria.values()).map((c, i) => (
-                  <div key={i} className="bg-white/40 rounded p-2 text-xs">
-                    <div className="flex items-center gap-1 text-slate-700">
+                  <div key={i} className="bg-surface/40 rounded p-2 text-xs">
+                    <div className="flex items-center gap-1 text-fg-muted">
                       {c.cat?.emoji && <span>{c.cat.emoji}</span>}
                       <span>{c.cat?.nombre ?? 'Sin categoría'}</span>
                     </div>
-                    <div className="font-mono text-slate-900 mt-0.5">
+                    <div className="font-mono text-fg mt-0.5">
                       {c.ars > 0 && formatCurrency(c.ars)}
                       {c.usd > 0 && (c.ars > 0 ? ' · ' : '') + formatCurrency(c.usd, 'USD')}
                     </div>
@@ -836,8 +836,8 @@ export function CierreMesClient(props: Props) {
           ))
         )}
 
-        <div className="bg-white border border-purple-500/30 rounded-lg p-3 flex items-center justify-between">
-          <span className="text-sm font-medium text-slate-800">TOTAL RETIROS</span>
+        <div className="bg-surface border border-purple-500/30 rounded-lg p-3 flex items-center justify-between">
+          <span className="text-sm font-medium text-fg-muted">TOTAL RETIROS</span>
           <div className="flex items-center gap-4">
             <span className="font-mono text-purple-700 font-bold text-lg">{formatCurrency(totalRetirosArs)}</span>
             {totalRetirosUsd > 0 && <span className="font-mono text-green-700 font-bold text-lg">{formatCurrency(totalRetirosUsd, 'USD')}</span>}
@@ -847,30 +847,30 @@ export function CierreMesClient(props: Props) {
 
       {/* GASTOS FINANCIEROS DEL MES (mig 033 + 034) */}
       {props.resumenGastosFinancieros && (props.resumenGastosFinancieros.total > 0 || props.resumenGastosFinancieros.capitalPendienteCreditos > 0) && (
-        <div className="bg-white border border-amber-500/30 rounded-xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-[#e8e4dc] flex items-center gap-2">
+        <div className="bg-surface border border-amber-500/30 rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-border flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-amber-700" />
-            <h2 className="text-base font-semibold text-slate-900">Gastos financieros del mes</h2>
-            <span className="text-xs text-slate-500 ml-2">(auto-generados desde cierres de inversiones)</span>
+            <h2 className="text-base font-semibold text-fg">Gastos financieros del mes</h2>
+            <span className="text-xs text-fg-soft ml-2">(auto-generados desde cierres de inversiones)</span>
           </div>
           <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
             {props.resumenGastosFinancieros.porSubcategoria.map((sub) => (
               <div key={sub.slug} className="border border-amber-500/20 rounded-lg p-4">
-                <p className="text-xs text-slate-600 mb-1">{sub.nombre}</p>
+                <p className="text-xs text-fg-muted mb-1">{sub.nombre}</p>
                 <p className="text-2xl font-bold text-amber-700 font-mono">{formatCurrency(sub.total)}</p>
-                <p className="text-xs text-slate-500 mt-1">{sub.count} gasto{sub.count !== 1 ? 's' : ''}</p>
+                <p className="text-xs text-fg-soft mt-1">{sub.count} gasto{sub.count !== 1 ? 's' : ''}</p>
               </div>
             ))}
             <div className="border border-amber-500/40 bg-amber-500/5 rounded-lg p-4">
-              <p className="text-xs text-slate-700 mb-1 font-semibold">TOTAL GASTOS FINANCIEROS</p>
+              <p className="text-xs text-fg-muted mb-1 font-semibold">TOTAL GASTOS FINANCIEROS</p>
               <p className="text-2xl font-bold text-amber-800 font-mono">{formatCurrency(props.resumenGastosFinancieros.total)}</p>
-              <p className="text-xs text-slate-500 mt-1">suma del mes</p>
+              <p className="text-xs text-fg-soft mt-1">suma del mes</p>
             </div>
             {props.resumenGastosFinancieros.capitalPendienteCreditos > 0 && (
               <div className="border border-rose-500/30 bg-rose-500/5 rounded-lg p-4 md:col-span-3">
                 <p className="text-xs text-rose-700 mb-1 font-semibold">CAPITAL PENDIENTE — CRÉDITOS BANCARIOS</p>
                 <p className="text-2xl font-bold text-rose-700 font-mono">{formatCurrency(props.resumenGastosFinancieros.capitalPendienteCreditos)}</p>
-                <p className="text-xs text-slate-500 mt-1">Deuda por capital (no interés) al cierre del mes</p>
+                <p className="text-xs text-fg-soft mt-1">Deuda por capital (no interés) al cierre del mes</p>
               </div>
             )}
           </div>
@@ -879,75 +879,75 @@ export function CierreMesClient(props: Props) {
 
       {/* RESUMEN PATRIMONIAL */}
       <div className="bg-gradient-to-br from-slate-900 to-slate-900/40 border border-orange-500/30 rounded-xl overflow-x-auto">
-        <div className="px-5 py-3 border-b border-[#e8e4dc] flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-orange-500" />
-          <h2 className="text-base font-semibold text-slate-900">Variación patrimonial</h2>
+        <div className="px-5 py-3 border-b border-border flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-primary" />
+          <h2 className="text-base font-semibold text-fg">Variación patrimonial</h2>
         </div>
         <div className="p-5 grid grid-cols-2 gap-4">
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-slate-600">PN al cierre del mes anterior</span>
-              <span className="font-mono text-slate-700">{formatCurrency(pnAnteriorArs)}</span>
+              <span className="text-fg-muted">PN al cierre del mes anterior</span>
+              <span className="font-mono text-fg-muted">{formatCurrency(pnAnteriorArs)}</span>
             </div>
-            <div className="flex justify-between border-t border-[#e8e4dc] pt-3">
-              <span className="text-slate-600">Activos totales (ARS + USD@TC)</span>
-              <span className="font-mono text-orange-500">{formatCurrency(totalActivosArs + totalActivosUsd * tipoCambio)}</span>
+            <div className="flex justify-between border-t border-border pt-3">
+              <span className="text-fg-muted">Activos totales (ARS + USD@TC)</span>
+              <span className="font-mono text-primary">{formatCurrency(totalActivosArs + totalActivosUsd * tipoCambio)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600">Pasivos totales (ARS + USD@TC)</span>
+              <span className="text-fg-muted">Pasivos totales (ARS + USD@TC)</span>
               <span className="font-mono text-amber-700">- {formatCurrency(totalPasivosArs + totalPasivosUsd * tipoCambio)}</span>
             </div>
-            <div className="flex justify-between border-t border-[#d6d0c4] pt-3 font-medium">
-              <span className="text-slate-800">PN al cierre actual</span>
-              <span className="font-mono text-slate-900 text-base">{formatCurrency(pnArs)}</span>
+            <div className="flex justify-between border-t border-border-strong pt-3 font-medium">
+              <span className="text-fg-muted">PN al cierre actual</span>
+              <span className="font-mono text-fg text-base">{formatCurrency(pnArs)}</span>
             </div>
           </div>
-          <div className="space-y-3 text-sm bg-[#f5f0e6]/40 rounded-lg p-4">
+          <div className="space-y-3 text-sm bg-surface-2/40 rounded-lg p-4">
             <div className="flex justify-between">
-              <span className="text-slate-600">Variación PN</span>
+              <span className="text-fg-muted">Variación PN</span>
               <span className={cn('font-mono font-medium', variacionPN >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
                 {variacionPN >= 0 ? '+' : ''}{formatCurrency(variacionPN)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600">+ Retiros del mes</span>
+              <span className="text-fg-muted">+ Retiros del mes</span>
               <span className="font-mono text-purple-700">{formatCurrency(totalRetirosArsConvertido)}</span>
             </div>
-            <div className="flex justify-between border-t border-[#d6d0c4] pt-3 font-bold">
-              <span className="text-slate-900">RESULTADO DEL MES</span>
+            <div className="flex justify-between border-t border-border-strong pt-3 font-bold">
+              <span className="text-fg">RESULTADO DEL MES</span>
               <span className={cn('font-mono text-lg', resultado >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
                 {formatCurrency(resultado)}
               </span>
             </div>
-            <p className="text-[10px] text-slate-500 italic pt-2 border-t border-[#d6d0c4]/40">
+            <p className="text-[10px] text-fg-soft italic pt-2 border-t border-border-strong/40">
               Resultado = (PN actual − PN anterior) + Retiros · TC del cierre: ${tipoCambio.toFixed(2)}
             </p>
           </div>
         </div>
 
         {/* Liquidez detallada */}
-        <div className="px-5 py-3 border-t border-[#e8e4dc] grid grid-cols-2 gap-4 text-xs">
-          <div className="bg-[#f5f0e6]/40 rounded p-2">
-            <p className="text-slate-500 mb-1">Liquidez total ARS (sin convertir)</p>
-            <p className="font-mono text-slate-900 font-medium">{formatCurrency(totalActivosArs - totalPasivosArs)}</p>
+        <div className="px-5 py-3 border-t border-border grid grid-cols-2 gap-4 text-xs">
+          <div className="bg-surface-2/40 rounded p-2">
+            <p className="text-fg-soft mb-1">Liquidez total ARS (sin convertir)</p>
+            <p className="font-mono text-fg font-medium">{formatCurrency(totalActivosArs - totalPasivosArs)}</p>
           </div>
-          <div className="bg-[#f5f0e6]/40 rounded p-2">
-            <p className="text-slate-500 mb-1">Liquidez total USD (sin convertir)</p>
-            <p className="font-mono text-slate-900 font-medium">{formatCurrency(totalActivosUsd - totalPasivosUsd, 'USD')}</p>
+          <div className="bg-surface-2/40 rounded p-2">
+            <p className="text-fg-soft mb-1">Liquidez total USD (sin convertir)</p>
+            <p className="font-mono text-fg font-medium">{formatCurrency(totalActivosUsd - totalPasivosUsd, 'USD')}</p>
           </div>
         </div>
       </div>
 
       {/* Notas */}
-      <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
-        <label className="block text-xs font-medium text-slate-600 mb-1.5">Notas del cierre</label>
+      <div className="bg-surface border border-border rounded-xl p-4">
+        <label className="block text-xs font-medium text-fg-muted mb-1.5">Notas del cierre</label>
         <textarea
           value={notas}
           onChange={(e) => setNotas(e.target.value)}
           disabled={cerrado}
           rows={2}
           placeholder="Observaciones, ajustes manuales, contexto del mes..."
-          className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60 resize-none"
+          className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60 resize-none"
         />
       </div>
     </div>
@@ -969,18 +969,18 @@ function Section({ title, subtitle, icon: Icon, color, children }: {
     purple: 'border-purple-500/20',
   }
   const iconColor = {
-    indigo: 'text-orange-500',
+    indigo: 'text-primary',
     amber: 'text-amber-700',
     purple: 'text-purple-700',
   }
   return (
-    <div className={cn('bg-white border rounded-xl overflow-x-auto', colorMap[color])}>
-      <div className="px-5 py-3 border-b border-[#e8e4dc]">
+    <div className={cn('bg-surface border rounded-xl overflow-x-auto', colorMap[color])}>
+      <div className="px-5 py-3 border-b border-border">
         <h2 className={cn('text-sm font-semibold flex items-center gap-2', iconColor[color])}>
           <Icon className="w-4 h-4" />
           {title}
         </h2>
-        <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
+        <p className="text-xs text-fg-soft mt-0.5">{subtitle}</p>
       </div>
       <div className="p-4 space-y-3">{children}</div>
     </div>
@@ -995,10 +995,10 @@ function PasivoBlock({ title, icon: Icon, items }: {
   const totalArs = items.filter((i) => i.moneda !== 'USD').reduce((s, i) => s + i.monto, 0)
   const totalUsd = items.filter((i) => i.moneda === 'USD').reduce((s, i) => s + i.monto, 0)
   return (
-    <div className="bg-[#f5f0e6]/40 rounded-lg overflow-hidden">
-      <div className="px-4 py-2 border-b border-[#d6d0c4]/50 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-slate-800 flex items-center gap-2">
-          <Icon className="w-3.5 h-3.5 text-slate-600" />
+    <div className="bg-surface-2/40 rounded-lg overflow-hidden">
+      <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
+        <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2">
+          <Icon className="w-3.5 h-3.5 text-fg-muted" />
           {title}
         </h3>
         <div className="flex items-center gap-3 text-xs">
@@ -1010,10 +1010,10 @@ function PasivoBlock({ title, icon: Icon, items }: {
         {items.map((it, i) => (
           <div key={i} className="px-4 py-1.5 flex items-center justify-between text-xs">
             <div>
-              <p className="text-slate-700">{it.label}</p>
-              <p className="text-slate-500 text-[10px]">{it.detalle}</p>
+              <p className="text-fg-muted">{it.label}</p>
+              <p className="text-fg-soft text-[10px]">{it.detalle}</p>
             </div>
-            <span className="font-mono text-slate-800">{formatCurrency(it.monto, it.moneda as 'ARS' | 'USD')}</span>
+            <span className="font-mono text-fg-muted">{formatCurrency(it.monto, it.moneda as 'ARS' | 'USD')}</span>
           </div>
         ))}
       </div>

@@ -66,7 +66,7 @@ export function LiquidacionMasivaModal({
   if (disponibles.length === 0) {
     return (
       <div className="space-y-3 text-sm">
-        <p className="text-slate-700">Todos los empleados activos ya tienen nómina del mes {mes}.</p>
+        <p className="text-fg-muted">Todos los empleados activos ya tienen nómina del mes {mes}.</p>
         <div className="flex justify-end">
           <Button variant="secondary" onClick={onClose}>Cerrar</Button>
         </div>
@@ -81,7 +81,7 @@ export function LiquidacionMasivaModal({
         {resultado.errors.length > 0 && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 max-h-40 overflow-y-auto">
             <p className="text-red-700 text-xs font-medium mb-1">{resultado.errors.length} aviso(s):</p>
-            <ul className="text-xs text-red-300 space-y-0.5">
+            <ul className="text-xs text-danger space-y-0.5">
               {resultado.errors.map((e, i) => <li key={i}>· {e}</li>)}
             </ul>
           </div>
@@ -95,12 +95,12 @@ export function LiquidacionMasivaModal({
 
   return (
     <div className="space-y-4">
-      <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg p-3 text-xs text-slate-700 space-y-1">
+      <div className="bg-surface-2/40 border border-border-strong/40 rounded-lg p-3 text-xs text-fg-muted space-y-1">
         <p>
           Se generarán nóminas usando los <strong>valores por defecto de cada empleado</strong>:
           básico, valor hora, comida y aportes. Sin extras ni adicionales.
         </p>
-        <p className="text-slate-600">Los empleados con nómina ya cargada del mes están excluidos.</p>
+        <p className="text-fg-muted">Los empleados con nómina ya cargada del mes están excluidos.</p>
       </div>
 
       <Input
@@ -113,19 +113,19 @@ export function LiquidacionMasivaModal({
 
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">
+          <p className="text-xs font-medium text-fg-muted uppercase tracking-wider">
             Seleccionar empleados ({seleccionados.size}/{disponibles.length})
           </p>
           <button
             type="button"
             onClick={toggleAll}
-            className="text-xs text-orange-500 hover:text-orange-600"
+            className="text-xs text-primary hover:text-orange-600"
           >
             {seleccionados.size === disponibles.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
           </button>
         </div>
 
-        <div className="border border-[#d6d0c4] rounded-lg max-h-72 overflow-y-auto divide-y divide-slate-800">
+        <div className="border border-border-strong rounded-lg max-h-72 overflow-y-auto divide-y divide-slate-800">
           {disponibles.map((e) => {
             const checked = seleccionados.has(e.id)
             const netoEstimado = (e.sueldo_basico ?? 0) + (e.monto_comidas ?? 0)
@@ -133,7 +133,7 @@ export function LiquidacionMasivaModal({
               <label
                 key={e.id}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-[#f5f0e6]/50',
+                  'flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-surface-2/50',
                   checked && 'bg-orange-500/10',
                 )}
               >
@@ -141,13 +141,13 @@ export function LiquidacionMasivaModal({
                   type="checkbox"
                   checked={checked}
                   onChange={() => toggle(e.id)}
-                  className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700 text-orange-600"
+                  className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2 text-orange-600"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-900 truncate">{e.apellido}, {e.nombre}</p>
-                  <p className="text-xs text-slate-500">{e.tipo_empleado} · básico {formatCurrency(e.sueldo_basico)}</p>
+                  <p className="text-sm text-fg truncate">{e.apellido}, {e.nombre}</p>
+                  <p className="text-xs text-fg-soft">{e.tipo_empleado} · básico {formatCurrency(e.sueldo_basico)}</p>
                 </div>
-                <span className="text-xs font-mono text-slate-600">≈ {formatCurrency(netoEstimado)}</span>
+                <span className="text-xs font-mono text-fg-muted">≈ {formatCurrency(netoEstimado)}</span>
               </label>
             )
           })}

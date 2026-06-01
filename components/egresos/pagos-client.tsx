@@ -42,7 +42,7 @@ const INSTRUMENTO_LABEL: Record<string, string> = {
 const INSTRUMENTO_COLOR: Record<string, string> = {
   EFECTIVO: 'text-green-700 bg-green-500/10 border-green-500/20',
   TRANSFERENCIA: 'text-blue-700 bg-blue-500/10 border-blue-500/20',
-  CUENTA_CORRIENTE: 'text-orange-500 bg-orange-500/10 border-orange-500/20',
+  CUENTA_CORRIENTE: 'text-primary bg-orange-500/10 border-orange-500/20',
   CHEQUE_FISICO: 'text-amber-700 bg-amber-500/10 border-amber-500/20',
   ECHEQ: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
 }
@@ -68,7 +68,7 @@ function InstrumentoBadge({ instrumento }: { instrumento: string }) {
   return (
     <span className={cn(
       'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-xs font-medium',
-      INSTRUMENTO_COLOR[instrumento] ?? 'text-slate-600 bg-slate-500/10 border-slate-500/20'
+      INSTRUMENTO_COLOR[instrumento] ?? 'text-fg-muted bg-slate-500/10 border-slate-500/20'
     )}>
       <Icon className="w-3 h-3" />
       {INSTRUMENTO_LABEL[instrumento] ?? instrumento}
@@ -107,8 +107,8 @@ export function PagosClient({ pagos }: { pagos: Pago[] }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Egresos — Pagos</h1>
-        <p className="text-sm text-slate-600 mt-0.5">{pagos.length} pagos registrados</p>
+        <h1 className="text-2xl font-bold text-fg">Egresos — Pagos</h1>
+        <p className="text-sm text-fg-muted mt-0.5">{pagos.length} pagos registrados</p>
       </div>
 
       {/* KPIs por instrumento */}
@@ -120,17 +120,17 @@ export function PagosClient({ pagos }: { pagos: Pago[] }) {
               key={inst}
               onClick={() => setFiltroInstrumento(filtroInstrumento === inst ? 'TODOS' : inst)}
               className={cn(
-                'text-left bg-white border rounded-xl p-4 transition-all',
+                'text-left bg-surface border rounded-xl p-4 transition-all',
                 filtroInstrumento === inst
                   ? 'border-orange-500/50 ring-1 ring-orange-500/30'
-                  : 'border-[#e8e4dc] hover:border-[#d6d0c4]'
+                  : 'border-border hover:border-border-strong'
               )}
             >
               <div className="flex items-center gap-2 mb-2">
-                <Icon className="w-3.5 h-3.5 text-slate-600" />
-                <p className="text-xs text-slate-600">{INSTRUMENTO_LABEL[inst]}</p>
+                <Icon className="w-3.5 h-3.5 text-fg-muted" />
+                <p className="text-xs text-fg-muted">{INSTRUMENTO_LABEL[inst]}</p>
               </div>
-              <p className="text-base font-bold text-slate-900">
+              <p className="text-base font-bold text-fg">
                 {formatCurrency(porInstrumento[inst] ?? 0)}
               </p>
             </button>
@@ -141,17 +141,17 @@ export function PagosClient({ pagos }: { pagos: Pago[] }) {
       {/* Filtros */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-soft" />
           <input
             type="text"
             placeholder="Buscar compra, proveedor, cheque..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full pl-9 pr-3.5 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+            className="w-full pl-9 pr-3.5 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           />
         </div>
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-slate-500" />
+          <Filter className="w-4 h-4 text-fg-soft" />
           {INSTRUMENTOS.map((inst) => (
             <button
               key={inst}
@@ -160,7 +160,7 @@ export function PagosClient({ pagos }: { pagos: Pago[] }) {
                 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
                 filtroInstrumento === inst
                   ? 'bg-orange-500/20 text-orange-600 border border-orange-500/40'
-                  : 'bg-[#f5f0e6] text-slate-600 border border-[#d6d0c4] hover:text-slate-800'
+                  : 'bg-surface-2 text-fg-muted border border-border-strong hover:text-fg-muted'
               )}
             >
               {inst === 'TODOS' ? 'Todos' : INSTRUMENTO_LABEL[inst]}
@@ -170,53 +170,53 @@ export function PagosClient({ pagos }: { pagos: Pago[] }) {
       </div>
 
       {/* Tabla */}
-      <div className="bg-white border border-[#e8e4dc] rounded-xl overflow-x-auto">
+      <div className="bg-surface border border-border rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#e8e4dc]">
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Concepto / Proveedor</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Instrumento</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Condición</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase">Monto</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Emisión</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Vencimiento</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase">Detalle</th>
+            <tr className="border-b border-border">
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Concepto / Proveedor</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Instrumento</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Condición</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Monto</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Emisión</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Vencimiento</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Detalle</th>
             </tr>
           </thead>
           <tbody>
             {pagosFiltrados.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                <td colSpan={7} className="px-4 py-12 text-center text-fg-soft">
                   <ArrowDownCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   No hay pagos registrados
                 </td>
               </tr>
             ) : (
               pagosFiltrados.map((p) => (
-                <tr key={p.id} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30">
+                <tr key={p.id} className="border-b border-border/60 hover:bg-surface-2/30">
                   <td className="px-4 py-3">
-                    <p className="text-slate-900 font-medium truncate max-w-[220px]">
+                    <p className="text-fg font-medium truncate max-w-[220px]">
                       {p.compra?.descripcion ?? '—'}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-fg-soft">
                       {(p.compra?.proveedor as { nombre: string } | null)?.nombre ?? '—'}
                     </p>
                   </td>
                   <td className="px-4 py-3">
                     <InstrumentoBadge instrumento={p.instrumento} />
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-600">
+                  <td className="px-4 py-3 text-xs text-fg-muted">
                     {CONDICION_LABEL[p.condicion_pago] ?? p.condicion_pago}
                     {p.numero_cuota && p.total_cuotas && (
-                      <span className="text-slate-500 ml-1">
+                      <span className="text-fg-soft ml-1">
                         ({p.numero_cuota}/{p.total_cuotas})
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono font-semibold text-slate-900">
+                  <td className="px-4 py-3 text-right font-mono font-semibold text-fg">
                     {formatCurrency(p.monto)}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-600">
+                  <td className="px-4 py-3 text-xs text-fg-muted">
                     {formatDate(p.fecha_emision)}
                   </td>
                   <td className="px-4 py-3 text-xs">
@@ -226,10 +226,10 @@ export function PagosClient({ pagos }: { pagos: Pago[] }) {
                         {formatDate(p.fecha_vencimiento)}
                       </span>
                     ) : (
-                      <span className="text-slate-600">—</span>
+                      <span className="text-fg-muted">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-500">
+                  <td className="px-4 py-3 text-xs text-fg-soft">
                     {p.numero_cheque && <span>Nro. {p.numero_cheque}</span>}
                     {p.banco_emisor && <span className="ml-1">· {p.banco_emisor}</span>}
                   </td>
@@ -239,11 +239,11 @@ export function PagosClient({ pagos }: { pagos: Pago[] }) {
           </tbody>
           {pagosFiltrados.length > 0 && (
             <tfoot>
-              <tr className="border-t border-[#d6d0c4] bg-[#f5f0e6]/50">
-                <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-slate-700">
+              <tr className="border-t border-border-strong bg-surface-2/50">
+                <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-fg-muted">
                   TOTAL ({pagosFiltrados.length} pagos)
                 </td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">
+                <td className="px-4 py-3 text-right font-mono font-bold text-fg">
                   {formatCurrency(totalPagado)}
                 </td>
                 <td colSpan={3} />

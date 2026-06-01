@@ -139,17 +139,17 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
     : 'Ingreso'
 
   return (
-    <div className="bg-white border border-orange-500/20 rounded-xl overflow-x-auto">
+    <div className="bg-surface border border-orange-500/20 rounded-xl overflow-x-auto">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full px-4 py-3 border-b border-[#e8e4dc] flex items-center justify-between hover:bg-[#f5f0e6]/40 transition-colors"
+        className="w-full px-4 py-3 border-b border-border flex items-center justify-between hover:bg-surface-2/40 transition-colors"
       >
-        <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-          <Calculator className="w-4 h-4 text-orange-500" />
+        <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
+          <Calculator className="w-4 h-4 text-primary" />
           Simular movimiento — {formatMonth(mesActual)}
         </h2>
-        {open ? <ChevronUp className="w-4 h-4 text-slate-600" /> : <ChevronDown className="w-4 h-4 text-slate-600" />}
+        {open ? <ChevronUp className="w-4 h-4 text-fg-muted" /> : <ChevronDown className="w-4 h-4 text-fg-muted" />}
       </button>
 
       {open && (
@@ -168,7 +168,7 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
                     'flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors',
                     active
                       ? 'bg-orange-500/20 border-orange-500/50 text-orange-600'
-                      : 'bg-[#f5f0e6] border-[#d6d0c4] text-slate-600 hover:text-slate-800'
+                      : 'bg-surface-2 border-border-strong text-fg-muted hover:text-fg-muted'
                   )}
                 >
                   <Icon className={cn('w-3.5 h-3.5', active ? '' : t.color)} />
@@ -181,19 +181,19 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
           {/* Fecha + monto */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-600">Fecha del movimiento</label>
+              <label className="block text-xs font-medium text-fg-muted">Fecha del movimiento</label>
               <input
                 type="date"
                 min={primerDiaMes(mesActual)}
                 max={new Date(parseInt(mesActual.split('-')[0]), parseInt(mesActual.split('-')[1]), 0).toISOString().split('T')[0]}
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
-                className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-600">
-                Monto {tipo === 'RETIRO_TOTAL' && <span className="text-slate-500">(automático)</span>}
+              <label className="block text-xs font-medium text-fg-muted">
+                Monto {tipo === 'RETIRO_TOTAL' && <span className="text-fg-soft">(automático)</span>}
               </label>
               <input
                 type="number"
@@ -202,27 +202,27 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
                 value={tipo === 'RETIRO_TOTAL' ? saldoInicioMes : (monto || '')}
                 onChange={(e) => setMonto(Number(e.target.value))}
                 disabled={tipo === 'RETIRO_TOTAL'}
-                className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm disabled:opacity-60"
+                className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm disabled:opacity-60"
                 placeholder="0.00"
               />
             </div>
           </div>
 
           {/* Resultado */}
-          <div ref={ref} className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-xl p-4 space-y-3 text-sm">
-            <div className="border-b border-[#d6d0c4]/60 pb-2 mb-1">
-              <p className="text-xs text-slate-600">SIMULACIÓN — {tipoDescripcion}  ·  {formatDate(fecha)}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">{inversorNombre} · {instrumento.codigo ?? instrumento.id.substring(0, 8)}</p>
+          <div ref={ref} className="bg-surface-2/40 border border-border-strong/40 rounded-xl p-4 space-y-3 text-sm">
+            <div className="border-b border-border-strong/60 pb-2 mb-1">
+              <p className="text-xs text-fg-muted">SIMULACIÓN — {tipoDescripcion}  ·  {formatDate(fecha)}</p>
+              <p className="text-[10px] text-fg-soft mt-0.5">{inversorNombre} · {instrumento.codigo ?? instrumento.id.substring(0, 8)}</p>
             </div>
 
             <div className="space-y-1">
               <div className="row flex justify-between">
-                <span className="text-slate-600">Capital inicio del mes</span>
-                <span className="font-mono text-slate-900">{formatMoneda(saldoInicioMes, moneda)}</span>
+                <span className="text-fg-muted">Capital inicio del mes</span>
+                <span className="font-mono text-fg">{formatMoneda(saldoInicioMes, moneda)}</span>
               </div>
               <div className="row flex justify-between">
-                <span className="text-slate-600">Tasa vigente</span>
-                <span className="font-mono text-slate-800">{(tasaVigente * 100).toFixed(2)}%</span>
+                <span className="text-fg-muted">Tasa vigente</span>
+                <span className="font-mono text-fg-muted">{(tasaVigente * 100).toFixed(2)}%</span>
               </div>
             </div>
 
@@ -235,14 +235,14 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
               <>
                 {/* Tramos */}
                 {result.tramos.map((seg, i) => (
-                  <div key={i} className="bg-white/40 rounded-lg p-3 border-l-2 border-orange-500/40">
+                  <div key={i} className="bg-surface/40 rounded-lg p-3 border-l-2 border-orange-500/40">
                     <div className="flex items-center justify-between text-xs text-orange-600 mb-1.5">
                       <span>── Tramo {i + 1}: {formatDate(seg.desde)} → {formatDate(seg.hasta)}</span>
-                      <span className="text-slate-500">({seg.dias} de {result.diasMes} días · {(seg.tasa * 100).toFixed(2)}%)</span>
+                      <span className="text-fg-soft">({seg.dias} de {result.diasMes} días · {(seg.tasa * 100).toFixed(2)}%)</span>
                     </div>
                     <div className="flex justify-between text-xs">
-                      <span className="text-slate-600">Base de cálculo</span>
-                      <span className="font-mono text-slate-800">{formatMoneda(
+                      <span className="text-fg-muted">Base de cálculo</span>
+                      <span className="font-mono text-fg-muted">{formatMoneda(
                         // base = interes / (tasa * dias / dim) (reverse calc); alternativamente lo guardamos
                         seg.tasa > 0 && seg.dias > 0
                           ? seg.interes / (seg.tasa * (seg.dias / result.diasMes))
@@ -251,42 +251,42 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
                       )}</span>
                     </div>
                     <div className="flex justify-between text-xs">
-                      <span className="text-slate-600">Interés</span>
+                      <span className="text-fg-muted">Interés</span>
                       <span className="font-mono text-amber-700 font-semibold">{formatMoneda(seg.interes, moneda)}</span>
                     </div>
                   </div>
                 ))}
 
                 {/* Resultado final */}
-                <div className="border-t border-[#d6d0c4]/60 pt-3 space-y-1.5">
+                <div className="border-t border-border-strong/60 pt-3 space-y-1.5">
                   {result.esRetiroTotal ? (
                     <>
-                      <p className="text-xs text-slate-500 mb-1 uppercase tracking-wide">── Total a acreditar al inversor ──</p>
+                      <p className="text-xs text-fg-soft mb-1 uppercase tracking-wide">── Total a acreditar al inversor ──</p>
                       <div className="row flex justify-between">
-                        <span className="text-slate-700">Capital</span>
-                        <span className="font-mono text-slate-900">{formatMoneda(result.capitalAlMomento ?? 0, moneda)}</span>
+                        <span className="text-fg-muted">Capital</span>
+                        <span className="font-mono text-fg">{formatMoneda(result.capitalAlMomento ?? 0, moneda)}</span>
                       </div>
                       <div className="row flex justify-between">
-                        <span className="text-slate-700">Intereses devengados</span>
+                        <span className="text-fg-muted">Intereses devengados</span>
                         <span className="font-mono text-amber-700">{formatMoneda(result.totalIntereses, moneda)}</span>
                       </div>
-                      <div className="total bg-[#faf6ee] border border-orange-500/40 rounded-lg px-3 py-2 flex justify-between text-base font-bold mt-2">
-                        <span className="text-slate-900">TOTAL A PAGAR</span>
-                        <span className="font-mono text-orange-500">{formatMoneda(result.totalAPagar ?? 0, moneda)}</span>
+                      <div className="total bg-bg border border-orange-500/40 rounded-lg px-3 py-2 flex justify-between text-base font-bold mt-2">
+                        <span className="text-fg">TOTAL A PAGAR</span>
+                        <span className="font-mono text-primary">{formatMoneda(result.totalAPagar ?? 0, moneda)}</span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-2">
+                      <p className="text-xs text-fg-soft mt-2">
                         El instrumento quedará cerrado a partir del {formatDate(fecha)}
                       </p>
                     </>
                   ) : (
                     <>
-                      <p className="text-xs text-slate-500 mb-1 uppercase tracking-wide">── Resultado del mes ──</p>
+                      <p className="text-xs text-fg-soft mb-1 uppercase tracking-wide">── Resultado del mes ──</p>
                       <div className="row flex justify-between">
-                        <span className="text-slate-700">Total intereses devengados</span>
+                        <span className="text-fg-muted">Total intereses devengados</span>
                         <span className="font-mono text-amber-700">{formatMoneda(result.totalIntereses, moneda)}</span>
                       </div>
                       <div className="row flex justify-between">
-                        <span className="text-slate-700">{tipo === 'INGRESO' ? 'Ingreso' : 'Retiro'}</span>
+                        <span className="text-fg-muted">{tipo === 'INGRESO' ? 'Ingreso' : 'Retiro'}</span>
                         <span className={cn(
                           'font-mono',
                           tipo === 'INGRESO' ? 'text-green-700' : 'text-red-700'
@@ -295,14 +295,14 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
                         </span>
                       </div>
                       <div className="row flex justify-between text-base font-semibold pt-1">
-                        <span className="text-slate-900">Saldo al cierre del mes</span>
-                        <span className="font-mono text-slate-900 flex items-center gap-1.5">
+                        <span className="text-fg">Saldo al cierre del mes</span>
+                        <span className="font-mono text-fg flex items-center gap-1.5">
                           {formatMoneda(result.saldoCierre, moneda)}
                           <CheckCircle2 className="w-4 h-4 text-green-700" />
                         </span>
                       </div>
-                      <div className="row flex justify-between text-xs pt-2 mt-2 border-t border-[#d6d0c4]/40">
-                        <span className="text-slate-600">Gasto financiero del mes</span>
+                      <div className="row flex justify-between text-xs pt-2 mt-2 border-t border-border-strong/40">
+                        <span className="text-fg-muted">Gasto financiero del mes</span>
                         <span className="font-mono text-amber-700">{formatMoneda(result.totalIntereses, moneda)}</span>
                       </div>
                     </>
@@ -312,7 +312,7 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
             )}
 
             {/* Footer del comprobante */}
-            <p className="footer text-[10px] text-slate-500 italic pt-2 border-t border-[#d6d0c4]/40">
+            <p className="footer text-[10px] text-fg-soft italic pt-2 border-t border-border-strong/40">
               Este documento es una simulación. Los valores son estimados al {new Date().toLocaleDateString('es-AR')} {new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}.
             </p>
           </div>

@@ -113,7 +113,7 @@ function VacacionesForm({
       />
 
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-slate-700">Períodos</p>
+        <p className="text-sm font-medium text-fg-muted">Períodos</p>
         <Button size="sm" variant="ghost" onClick={agregarPeriodo}>
           <PlusCircle className="w-3.5 h-3.5" />
           Agregar período
@@ -121,16 +121,16 @@ function VacacionesForm({
       </div>
 
       {periodos.length === 0 && (
-        <p className="text-sm text-slate-500 text-center py-3 bg-[#f5f0e6] rounded-lg">
+        <p className="text-sm text-fg-soft text-center py-3 bg-surface-2 rounded-lg">
           Sin períodos. Podés guardar solo con los días disponibles o agregar períodos tomados/agendados.
         </p>
       )}
 
       <div className="space-y-3">
         {periodos.map((p, i) => (
-          <div key={i} className="bg-[#f5f0e6] rounded-xl p-4 space-y-3">
+          <div key={i} className="bg-surface-2 rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-600">Período {i + 1}</span>
+              <span className="text-xs font-medium text-fg-muted">Período {i + 1}</span>
               <div className="flex items-center gap-2">
                 {p.dias > 0 && (
                   <Badge variant="info">{p.dias} {p.dias === 1 ? 'día' : 'días'}</Badge>
@@ -166,17 +166,17 @@ function VacacionesForm({
       </div>
 
       {periodos.length > 0 && (
-        <div className="bg-[#f5f0e6] rounded-xl p-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-center text-sm">
+        <div className="bg-surface-2 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-center text-sm">
           <div>
-            <p className="text-slate-600 text-xs mb-1">Disponibles</p>
-            <p className="font-bold text-slate-900">{diasDisponibles}d</p>
+            <p className="text-fg-muted text-xs mb-1">Disponibles</p>
+            <p className="font-bold text-fg">{diasDisponibles}d</p>
           </div>
           <div>
-            <p className="text-slate-600 text-xs mb-1">Tomados/agendados</p>
+            <p className="text-fg-muted text-xs mb-1">Tomados/agendados</p>
             <p className="font-bold text-amber-700">{diasTomados}d</p>
           </div>
           <div>
-            <p className="text-slate-600 text-xs mb-1">Restantes</p>
+            <p className="text-fg-muted text-xs mb-1">Restantes</p>
             <p className={`font-bold ${diasRestantes < 0 ? 'text-red-700' : 'text-green-700'}`}>
               {diasRestantes}d
             </p>
@@ -230,8 +230,8 @@ export function VacacionesClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Vacaciones {ano}</h1>
-          <p className="text-sm text-slate-600 mt-0.5">
+          <h1 className="text-2xl font-bold text-fg">Vacaciones {ano}</h1>
+          <p className="text-sm text-fg-muted mt-0.5">
             {vacaciones.length} empleados con registro · {sinVacaciones.length} sin registrar
           </p>
         </div>
@@ -242,23 +242,23 @@ export function VacacionesClient({
       </div>
 
       {vacaciones.length === 0 ? (
-        <div className="bg-white border border-[#e8e4dc] rounded-xl p-12 text-center">
-          <CalendarDays className="w-10 h-10 mx-auto mb-3 text-slate-600" />
-          <p className="text-slate-600 font-medium">Sin registros para {ano}</p>
-          <p className="text-slate-500 text-sm mt-1">
+        <div className="bg-surface border border-border rounded-xl p-12 text-center">
+          <CalendarDays className="w-10 h-10 mx-auto mb-3 text-fg-muted" />
+          <p className="text-fg-muted font-medium">Sin registros para {ano}</p>
+          <p className="text-fg-soft text-sm mt-1">
             Hacé click en "Registrar vacaciones" para agregar días disponibles y períodos.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {vacaciones.map((v) => (
-            <div key={v.id} className="bg-white border border-[#e8e4dc] rounded-xl p-5">
+            <div key={v.id} className="bg-surface border border-border rounded-xl p-5">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <p className="font-semibold text-slate-900">
+                  <p className="font-semibold text-fg">
                     {v.empleado?.apellido}, {v.empleado?.nombre}
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5">{ano}</p>
+                  <p className="text-xs text-fg-soft mt-0.5">{ano}</p>
                 </div>
                 <Button size="sm" variant="ghost" onClick={() => openEdit(v)}>
                   Editar
@@ -266,16 +266,16 @@ export function VacacionesClient({
               </div>
 
               <div className="grid grid-cols-3 gap-2 mb-4 text-center">
-                <div className="bg-[#f5f0e6] rounded-lg p-2.5">
-                  <p className="text-xs text-slate-600 mb-1">Disponibles</p>
-                  <p className="font-bold text-slate-900">{v.dias_disponibles}d</p>
+                <div className="bg-surface-2 rounded-lg p-2.5">
+                  <p className="text-xs text-fg-muted mb-1">Disponibles</p>
+                  <p className="font-bold text-fg">{v.dias_disponibles}d</p>
                 </div>
-                <div className="bg-[#f5f0e6] rounded-lg p-2.5">
-                  <p className="text-xs text-slate-600 mb-1">Tomados</p>
+                <div className="bg-surface-2 rounded-lg p-2.5">
+                  <p className="text-xs text-fg-muted mb-1">Tomados</p>
                   <p className="font-bold text-amber-700">{v.dias_tomados}d</p>
                 </div>
-                <div className="bg-[#f5f0e6] rounded-lg p-2.5">
-                  <p className="text-xs text-slate-600 mb-1">Restantes</p>
+                <div className="bg-surface-2 rounded-lg p-2.5">
+                  <p className="text-xs text-fg-muted mb-1">Restantes</p>
                   <p className={`font-bold ${v.dias_restantes < 0 ? 'text-red-700' : 'text-green-700'}`}>
                     {v.dias_restantes}d
                   </p>
@@ -284,22 +284,22 @@ export function VacacionesClient({
 
               {v.periodos.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-slate-600 uppercase tracking-wider">Períodos</p>
+                  <p className="text-xs font-medium text-fg-muted uppercase tracking-wider">Períodos</p>
                   {v.periodos.map((p, i) => {
                     const esFuturo = new Date(p.fecha_inicio) > new Date()
                     return (
-                      <div key={i} className="flex items-center justify-between py-1.5 border-b border-[#e8e4dc] last:border-0">
+                      <div key={i} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
                         <div>
-                          <p className="text-sm text-slate-800">
+                          <p className="text-sm text-fg-muted">
                             {formatDate(p.fecha_inicio)} → {formatDate(p.fecha_fin)}
                           </p>
-                          {p.notas && <p className="text-xs text-slate-500">{p.notas}</p>}
+                          {p.notas && <p className="text-xs text-fg-soft">{p.notas}</p>}
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant={esFuturo ? 'info' : 'success'}>
                             {esFuturo ? 'Agendado' : 'Tomado'}
                           </Badge>
-                          <span className="text-xs text-slate-600">{p.dias}d</span>
+                          <span className="text-xs text-fg-muted">{p.dias}d</span>
                         </div>
                       </div>
                     )
@@ -308,7 +308,7 @@ export function VacacionesClient({
               )}
 
               {v.periodos.length === 0 && (
-                <p className="text-xs text-slate-500 text-center py-2">Sin períodos registrados</p>
+                <p className="text-xs text-fg-soft text-center py-2">Sin períodos registrados</p>
               )}
             </div>
           ))}
@@ -316,14 +316,14 @@ export function VacacionesClient({
       )}
 
       {sinVacaciones.length > 0 && (
-        <div className="bg-white border border-[#e8e4dc] rounded-xl p-4">
-          <p className="text-sm font-medium text-slate-600 mb-2">Sin registro en {ano}:</p>
+        <div className="bg-surface border border-border rounded-xl p-4">
+          <p className="text-sm font-medium text-fg-muted mb-2">Sin registro en {ano}:</p>
           <div className="flex flex-wrap gap-2">
             {sinVacaciones.map((e) => (
               <button
                 key={e.id}
                 onClick={openCreate}
-                className="px-2.5 py-1 bg-[#f5f0e6] hover:bg-[#e8e0d0] rounded-lg text-xs text-slate-600 hover:text-slate-800 transition-colors"
+                className="px-2.5 py-1 bg-surface-2 hover:bg-surface-2 rounded-lg text-xs text-fg-muted hover:text-fg-muted transition-colors"
               >
                 {e.apellido}, {e.nombre}
               </button>

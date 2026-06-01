@@ -129,7 +129,7 @@ function GastoForm({
 
       <Input label="Concepto" name="concepto" defaultValue={gasto?.concepto} placeholder="Descripción del gasto" required />
 
-      <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-xl p-4 space-y-3">
+      <div className="bg-surface-2/40 border border-border-strong/40 rounded-xl p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="col-span-2">
             <MoneyInput
@@ -141,11 +141,11 @@ function GastoForm({
             />
           </div>
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-600">Moneda</label>
+            <label className="block text-xs font-medium text-fg-muted">Moneda</label>
             <select
               value={moneda}
               onChange={(e) => setMoneda(e.target.value as 'ARS' | 'USD')}
-              className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+              className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             >
               <option value="ARS">ARS</option>
               <option value="USD">USD</option>
@@ -155,11 +155,11 @@ function GastoForm({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-600">Tipo IVA</label>
+            <label className="block text-xs font-medium text-fg-muted">Tipo IVA</label>
             <select
               value={porcentajeIva}
               onChange={(e) => setPorcentajeIva(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+              className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             >
               {tiposIva.map((t) => (
                 <option key={t.id} value={t.porcentaje}>{t.nombre}</option>
@@ -180,14 +180,14 @@ function GastoForm({
             type="checkbox"
             checked={ivaIncluido}
             onChange={(e) => setIvaIncluido(e.target.checked)}
-            className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700"
+            className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2"
           />
-          <span className="text-sm text-slate-700">El monto incluye IVA</span>
+          <span className="text-sm text-fg-muted">El monto incluye IVA</span>
         </label>
 
         {ivaIncluido && monto > 0 && (
-          <div className="bg-slate-700/40 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
-            <span className="text-slate-600">Neto sin IVA ({porcentajeIva}%)</span>
+          <div className="bg-surface-2/40 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
+            <span className="text-fg-muted">Neto sin IVA ({porcentajeIva}%)</span>
             <span className="font-mono text-green-700 font-semibold">
               {formatCurrency(montoNetoCalc, moneda)}
             </span>
@@ -202,7 +202,7 @@ function GastoForm({
       </div>
 
       {/* Medio de pago */}
-      <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-xl p-4 space-y-3">
+      <div className="bg-surface-2/40 border border-border-strong/40 rounded-xl p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Select
             label="Medio de pago"
@@ -231,7 +231,7 @@ function GastoForm({
 
         {medioPago === 'TARJETA' && (
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-600 flex items-center gap-1.5">
+            <label className="block text-xs font-medium text-fg-muted flex items-center gap-1.5">
               <CreditCard className="w-3.5 h-3.5" />
               Cantidad de cuotas *
             </label>
@@ -245,7 +245,7 @@ function GastoForm({
                     'px-3 py-1.5 rounded-lg border text-sm font-mono font-medium transition-colors',
                     cuotasTotal === n
                       ? 'bg-orange-500/20 border-orange-500/50 text-orange-600'
-                      : 'bg-slate-700 border-[#c8c0b0] text-slate-600 hover:text-slate-800'
+                      : 'bg-surface-2 border-[#c8c0b0] text-fg-muted hover:text-fg-muted'
                   )}
                 >
                   {n}{n === 1 ? ' (sin cuotas)' : ' cuotas'}
@@ -256,11 +256,11 @@ function GastoForm({
                 min="1"
                 value={cuotasTotal}
                 onChange={(e) => setCuotasTotal(Math.max(1, Number(e.target.value)))}
-                className="w-20 px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
+                className="w-20 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
             {cuotasTotal > 1 && monto > 0 && !tieneIntereses && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-fg-soft">
                 {cuotasTotal} cuotas de <span className="font-mono text-amber-700">{formatCurrency(monto / cuotasTotal, moneda)}</span> · pasivos generados al pagar
               </p>
             )}
@@ -269,21 +269,21 @@ function GastoForm({
 
         {/* Intereses por financiación — solo TARJETA con cuotas > 1 */}
         {medioPago === 'TARJETA' && cuotasTotal > 1 && (
-          <div className="bg-[#f5f0e6]/40 border border-[#d6d0c4]/40 rounded-lg p-3 space-y-2">
+          <div className="bg-surface-2/40 border border-border-strong/40 rounded-lg p-3 space-y-2">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={tieneIntereses}
                 onChange={(e) => setTieneIntereses(e.target.checked)}
-                className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700"
+                className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2"
               />
-              <span className="text-sm text-slate-700">Tiene intereses por financiación</span>
-              <span className="text-xs text-slate-500">(se registra como "Gasto Financiero")</span>
+              <span className="text-sm text-fg-muted">Tiene intereses por financiación</span>
+              <span className="text-xs text-fg-soft">(se registra como "Gasto Financiero")</span>
             </label>
             {tieneIntereses && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-6">
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-slate-600">Tipo de interés</label>
+                  <label className="block text-xs font-medium text-fg-muted">Tipo de interés</label>
                   <div className="grid grid-cols-2 gap-2">
                     {(['MONTO', 'PORCENTAJE'] as const).map((t) => (
                       <button
@@ -294,7 +294,7 @@ function GastoForm({
                           'px-3 py-2 rounded-lg border text-xs font-medium transition-colors',
                           interesTipo === t
                             ? 'bg-amber-600/20 border-amber-500/50 text-amber-800'
-                            : 'bg-slate-700 border-[#c8c0b0] text-slate-600 hover:text-slate-800'
+                            : 'bg-surface-2 border-[#c8c0b0] text-fg-muted hover:text-fg-muted'
                         )}
                       >
                         {t === 'MONTO' ? 'Monto fijo $' : '% sobre precio'}
@@ -303,7 +303,7 @@ function GastoForm({
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-slate-600">
+                  <label className="block text-xs font-medium text-fg-muted">
                     {interesTipo === 'MONTO' ? 'Monto del interés ($)' : 'Porcentaje (%)'}
                   </label>
                   <div className="relative">
@@ -313,10 +313,10 @@ function GastoForm({
                       min="0"
                       value={interesValor || ''}
                       onChange={(e) => setInteresValor(Math.max(0, Number(e.target.value)))}
-                      className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+                      className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
                       placeholder="0"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-soft text-xs">
                       {interesTipo === 'MONTO' ? '$' : '%'}
                     </span>
                   </div>
@@ -328,19 +328,19 @@ function GastoForm({
               const total = monto + interes
               const cuota = total / cuotasTotal
               return (
-                <div className="bg-white/40 rounded-lg px-3 py-2 grid grid-cols-3 gap-2 text-xs">
+                <div className="bg-surface/40 rounded-lg px-3 py-2 grid grid-cols-3 gap-2 text-xs">
                   <div>
-                    <p className="text-slate-500">Precio</p>
-                    <p className="font-mono text-slate-700">{formatCurrency(monto, moneda)}</p>
+                    <p className="text-fg-soft">Precio</p>
+                    <p className="font-mono text-fg-muted">{formatCurrency(monto, moneda)}</p>
                   </div>
                   <div>
-                    <p className="text-slate-500">+ Intereses</p>
+                    <p className="text-fg-soft">+ Intereses</p>
                     <p className="font-mono text-amber-700">+{formatCurrency(interes, moneda)}</p>
                   </div>
                   <div>
-                    <p className="text-slate-500">Cuota mensual</p>
+                    <p className="text-fg-soft">Cuota mensual</p>
                     <p className="font-mono text-orange-600 font-semibold">{formatCurrency(cuota, moneda)}</p>
-                    <p className="text-[10px] text-slate-600">{cuotasTotal} × {formatCurrency(cuota, moneda)}</p>
+                    <p className="text-[10px] text-fg-muted">{cuotasTotal} × {formatCurrency(cuota, moneda)}</p>
                   </div>
                 </div>
               )
@@ -350,16 +350,16 @@ function GastoForm({
       </div>
 
       {/* Prorrateo */}
-      <div className="bg-[#f5f0e6]/60 border border-[#d6d0c4]/60 rounded-xl p-4 space-y-3">
+      <div className="bg-surface-2/60 border border-border-strong/60 rounded-xl p-4 space-y-3">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
             checked={esCompartido}
             onChange={(e) => setEsCompartido(e.target.checked)}
-            className="w-4 h-4 rounded border-[#c8c0b0] bg-slate-700"
+            className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2"
           />
-          <Layers className="w-4 h-4 text-slate-600" />
-          <span className="text-sm font-medium text-slate-700">Gasto compartido (prorratear entre marcas)</span>
+          <Layers className="w-4 h-4 text-fg-muted" />
+          <span className="text-sm font-medium text-fg-muted">Gasto compartido (prorratear entre marcas)</span>
         </label>
         {esCompartido && (
           <div className="pl-6">
@@ -388,43 +388,43 @@ function GastoForm({
 function DetalleGastoModal({ gasto, onClose }: { gasto: Gasto; onClose: () => void }) {
   return (
     <div className="space-y-3">
-      <div className="bg-[#f5f0e6]/60 rounded-lg p-4 space-y-2 text-sm">
-        <div className="flex justify-between"><span className="text-slate-600">Concepto</span><span className="text-slate-900">{gasto.concepto}</span></div>
-        <div className="flex justify-between"><span className="text-slate-600">Categoría</span><span>{gasto.categoria}</span></div>
+      <div className="bg-surface-2/60 rounded-lg p-4 space-y-2 text-sm">
+        <div className="flex justify-between"><span className="text-fg-muted">Concepto</span><span className="text-fg">{gasto.concepto}</span></div>
+        <div className="flex justify-between"><span className="text-fg-muted">Categoría</span><span>{gasto.categoria}</span></div>
         <div className="flex justify-between">
-          <span className="text-slate-600">Monto bruto</span>
+          <span className="text-fg-muted">Monto bruto</span>
           <span className="font-mono">{formatCurrency(gasto.monto)}</span>
         </div>
         {gasto.iva_incluido && (
           <>
             <div className="flex justify-between">
-              <span className="text-slate-600">Monto neto (sin IVA {gasto.porcentaje_iva}%)</span>
+              <span className="text-fg-muted">Monto neto (sin IVA {gasto.porcentaje_iva}%)</span>
               <span className="font-mono text-green-700">{formatCurrency(gasto.monto_neto)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600">IVA</span>
+              <span className="text-fg-muted">IVA</span>
               <span className="font-mono text-amber-700">{formatCurrency(gasto.monto - gasto.monto_neto)}</span>
             </div>
           </>
         )}
         {gasto.medio_pago && (
-          <div className="flex justify-between"><span className="text-slate-600">Medio pago</span><span>{gasto.medio_pago}</span></div>
+          <div className="flex justify-between"><span className="text-fg-muted">Medio pago</span><span>{gasto.medio_pago}</span></div>
         )}
       </div>
 
       {gasto.prorrateo && (
-        <div className="bg-[#f5f0e6]/60 rounded-lg p-4">
-          <p className="text-xs font-medium text-slate-600 mb-2 flex items-center gap-1.5">
+        <div className="bg-surface-2/60 rounded-lg p-4">
+          <p className="text-xs font-medium text-fg-muted mb-2 flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5" />
             Prorrateo entre marcas
           </p>
           <div className="space-y-1.5">
             {Object.entries(gasto.prorrateo).map(([marca, pct]) => (
               <div key={marca} className="flex justify-between items-center text-sm">
-                <span className="text-slate-700">{marca}</span>
+                <span className="text-fg-muted">{marca}</span>
                 <span className="font-mono">
-                  <span className="text-orange-500">{pct}%</span>
-                  <span className="text-slate-600 ml-2">→ {formatCurrency((gasto.monto * Number(pct)) / 100)}</span>
+                  <span className="text-primary">{pct}%</span>
+                  <span className="text-fg-muted ml-2">→ {formatCurrency((gasto.monto * Number(pct)) / 100)}</span>
                 </span>
               </div>
             ))}
@@ -433,9 +433,9 @@ function DetalleGastoModal({ gasto, onClose }: { gasto: Gasto; onClose: () => vo
       )}
 
       {gasto.detalles && Object.keys(gasto.detalles).length > 0 && (
-        <div className="bg-[#f5f0e6]/60 rounded-lg p-4">
-          <p className="text-xs font-medium text-slate-600 mb-2">Detalles técnicos</p>
-          <pre className="text-xs text-slate-700 font-mono whitespace-pre-wrap">{JSON.stringify(gasto.detalles, null, 2)}</pre>
+        <div className="bg-surface-2/60 rounded-lg p-4">
+          <p className="text-xs font-medium text-fg-muted mb-2">Detalles técnicos</p>
+          <pre className="text-xs text-fg-muted font-mono whitespace-pre-wrap">{JSON.stringify(gasto.detalles, null, 2)}</pre>
         </div>
       )}
 
@@ -489,20 +489,20 @@ function PagarModal({
 
   return (
     <div className="space-y-4">
-      <div className="bg-[#f5f0e6]/60 rounded-lg p-3">
-        <p className="text-sm text-slate-900 font-medium">{gasto.concepto}</p>
-        <p className="text-xs text-slate-500 mt-0.5">
+      <div className="bg-surface-2/60 rounded-lg p-3">
+        <p className="text-sm text-fg font-medium">{gasto.concepto}</p>
+        <p className="text-xs text-fg-soft mt-0.5">
           {gasto.categoria} · <span className="font-mono">{formatCurrency(gasto.monto, gasto.moneda)}</span>
         </p>
       </div>
 
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-slate-700">Fecha de pago</label>
+        <label className="block text-sm font-medium text-fg-muted">Fecha de pago</label>
         <input
           type="date"
           value={fechaPago}
           onChange={(e) => setFechaPago(e.target.value)}
-          className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+          className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
         />
       </div>
 
@@ -516,14 +516,14 @@ function PagarModal({
         </div>
       ) : (
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-slate-700 flex items-center gap-1.5">
+          <label className="block text-sm font-medium text-fg-muted flex items-center gap-1.5">
             <Wallet className="w-4 h-4" />
             Cuenta de origen <span className="text-red-700">*</span>
           </label>
           <select
             value={cuentaId}
             onChange={(e) => setCuentaId(e.target.value)}
-            className="w-full px-3 py-2 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+            className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             required
           >
             <option value="">— Seleccionar cuenta —</option>
@@ -531,7 +531,7 @@ function PagarModal({
               <option key={c.id} value={c.id}>{c.banco} · {c.nombre}</option>
             ))}
           </select>
-          <p className="text-xs text-slate-500">Solo registro — no afecta saldos por ahora</p>
+          <p className="text-xs text-fg-soft">Solo registro — no afecta saldos por ahora</p>
         </div>
       )}
 
@@ -604,8 +604,8 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Gastos</h1>
-          <p className="text-sm text-slate-600 mt-0.5">{gastos.length} registros</p>
+          <h1 className="text-2xl font-bold text-fg">Gastos</h1>
+          <p className="text-sm text-fg-muted mt-0.5">{gastos.length} registros</p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="w-4 h-4" />
@@ -615,33 +615,33 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
-          { label: 'Total bruto', ars: totalGastosARS, usd: totalGastosUSD, color: 'text-slate-900' },
+          { label: 'Total bruto', ars: totalGastosARS, usd: totalGastosUSD, color: 'text-fg' },
           { label: 'Total neto (sin IVA)', ars: totalNetoARS, usd: totalNetoUSD, color: 'text-green-700' },
-          { label: 'Pagado', ars: totalPagadoARS, usd: totalPagadoUSD, color: 'text-orange-500' },
+          { label: 'Pagado', ars: totalPagadoARS, usd: totalPagadoUSD, color: 'text-primary' },
           { label: 'Pendiente', ars: totalPendienteARS, usd: totalPendienteUSD, color: 'text-amber-700' },
         ].map((item) => (
-          <div key={item.label} className="bg-white border border-[#e8e4dc] rounded-xl p-4 space-y-1">
-            <p className="text-xs text-slate-600">{item.label}</p>
+          <div key={item.label} className="bg-surface border border-border rounded-xl p-4 space-y-1">
+            <p className="text-xs text-fg-muted">{item.label}</p>
             <p className={`text-lg font-bold ${item.color} font-mono`}>
-              {item.ars > 0 ? formatCurrency(item.ars, 'ARS') : <span className="text-slate-600">—</span>}
+              {item.ars > 0 ? formatCurrency(item.ars, 'ARS') : <span className="text-fg-muted">—</span>}
             </p>
             <p className="text-xs font-mono text-green-700/80">
-              {item.usd > 0 ? formatCurrency(item.usd, 'USD') : <span className="text-slate-600">U$S —</span>}
+              {item.usd > 0 ? formatCurrency(item.usd, 'USD') : <span className="text-fg-muted">U$S —</span>}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="bg-white border border-[#e8e4dc] rounded-xl">
-        <div className="p-4 border-b border-[#e8e4dc] flex flex-wrap gap-3">
-          <div className="flex items-center gap-2 text-sm text-slate-600">
+      <div className="bg-surface border border-border rounded-xl">
+        <div className="p-4 border-b border-border flex flex-wrap gap-3">
+          <div className="flex items-center gap-2 text-sm text-fg-muted">
             <Filter className="w-3.5 h-3.5" />
             Filtros:
           </div>
           <select
             value={searchParams.get('mes') ?? mes}
             onChange={(e) => setFilter('mes', e.target.value)}
-            className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
           >
             {getMonthOptions().map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -650,7 +650,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
           <select
             value={filtros.negocio ?? ''}
             onChange={(e) => setFilter('negocio', e.target.value)}
-            className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="">Todos los negocios</option>
             {MARCAS.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -658,7 +658,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
           <select
             value={filtros.estado ?? ''}
             onChange={(e) => setFilter('estado', e.target.value)}
-            className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="">Todos los estados</option>
             {ESTADOS.map((e) => <option key={e} value={e}>{e.charAt(0) + e.slice(1).toLowerCase()}</option>)}
@@ -668,32 +668,32 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#e8e4dc]">
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase tracking-wider">Fecha</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase tracking-wider">Concepto</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase tracking-wider">Categoría</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase tracking-wider">Negocio</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-slate-600 uppercase tracking-wider">Monto</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase tracking-wider">Estado</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-600 uppercase tracking-wider">Fecha pago</th>
+              <tr className="border-b border-border">
+                <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase tracking-wider">Fecha</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase tracking-wider">Concepto</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase tracking-wider">Categoría</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase tracking-wider">Negocio</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase tracking-wider">Monto</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase tracking-wider">Estado</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase tracking-wider">Fecha pago</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {gastos.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={8} className="px-4 py-12 text-center text-fg-soft">
                     <TrendingDown className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     No hay gastos para este período
                   </td>
                 </tr>
               ) : (
                 gastos.map((g) => (
-                  <tr key={g.id} className="border-b border-[#e8e4dc]/60 hover:bg-[#f5f0e6]/30 transition-colors">
-                    <td className="px-4 py-3 text-slate-700 font-mono text-xs whitespace-nowrap">{formatDate(g.fecha)}</td>
+                  <tr key={g.id} className="border-b border-border/60 hover:bg-surface-2/30 transition-colors">
+                    <td className="px-4 py-3 text-fg-muted font-mono text-xs whitespace-nowrap">{formatDate(g.fecha)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <p className="text-slate-900 font-medium">{g.concepto}</p>
+                        <p className="text-fg font-medium">{g.concepto}</p>
                         {g.prorrateo && (
                           <Badge variant="info" className="text-[10px]">
                             <Layers className="w-2.5 h-2.5 mr-0.5 inline" />
@@ -704,12 +704,12 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
                           <Badge variant="purple" className="text-[10px]">Recurrente</Badge>
                         )}
                       </div>
-                      {g.notas && <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[200px]">{g.notas}</p>}
+                      {g.notas && <p className="text-xs text-fg-soft mt-0.5 truncate max-w-[200px]">{g.notas}</p>}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{g.categoria}</td>
+                    <td className="px-4 py-3 text-fg-muted">{g.categoria}</td>
                     <td className="px-4 py-3"><MarcaBadge marca={g.negocio} /></td>
                     <td className="px-4 py-3 text-right">
-                      <p className="font-mono font-medium text-slate-900">{formatCurrency(g.monto, g.moneda || 'ARS')}</p>
+                      <p className="font-mono font-medium text-fg">{formatCurrency(g.monto, g.moneda || 'ARS')}</p>
                       {g.iva_incluido && (
                         <p className="text-xs text-green-700 font-mono">neto: {formatCurrency(g.monto_neto, g.moneda || 'ARS')}</p>
                       )}
@@ -718,7 +718,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
                       )}
                     </td>
                     <td className="px-4 py-3"><EstadoBadge estado={g.estado} /></td>
-                    <td className="px-4 py-3 text-slate-600 text-xs">{g.fecha_pago ? formatDate(g.fecha_pago) : '—'}</td>
+                    <td className="px-4 py-3 text-fg-muted text-xs">{g.fecha_pago ? formatDate(g.fecha_pago) : '—'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <Button size="sm" variant="ghost" onClick={() => setDetalleGasto(g)} title="Ver detalles">

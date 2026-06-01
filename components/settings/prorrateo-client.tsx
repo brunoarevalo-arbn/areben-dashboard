@@ -60,14 +60,14 @@ export function ProrrateoSettingsClient({ configs }: { configs: ConfiguracionPro
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Configuración de Prorrateo</h1>
-        <p className="text-sm text-slate-600 mt-0.5">
+        <h1 className="text-2xl font-bold text-fg">Configuración de Prorrateo</h1>
+        <p className="text-sm text-fg-muted mt-0.5">
           Porcentajes por defecto entre marcas — se precargan al marcar un gasto como "Compartido"
         </p>
       </div>
 
-      <div className="bg-white border border-[#e8e4dc] rounded-xl p-6 space-y-4">
-        <div className="flex items-center gap-2 text-slate-700 text-sm font-medium">
+      <div className="bg-surface border border-border rounded-xl p-6 space-y-4">
+        <div className="flex items-center gap-2 text-fg-muted text-sm font-medium">
           <Layers className="w-4 h-4" />
           Distribución por marca
         </div>
@@ -76,7 +76,7 @@ export function ProrrateoSettingsClient({ configs }: { configs: ConfiguracionPro
           {configs.map((c) => (
             <div key={c.id} className={cn(
               'flex items-center justify-between gap-4 px-4 py-3 rounded-lg border',
-              COLORES[c.marca] ?? 'text-slate-600 border-[#d6d0c4] bg-[#f5f0e6]/40'
+              COLORES[c.marca] ?? 'text-fg-muted border-border-strong bg-surface-2/40'
             )}>
               <span className="font-medium text-base">{c.marca}</span>
               <div className="flex items-center gap-3">
@@ -88,9 +88,9 @@ export function ProrrateoSettingsClient({ configs }: { configs: ConfiguracionPro
                     max="100"
                     value={valores[c.marca] ?? 0}
                     onChange={(e) => update(c.marca, Number(e.target.value))}
-                    className="w-28 px-3 py-1.5 pr-8 bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg text-slate-900 font-mono text-right focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-28 px-3 py-1.5 pr-8 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono text-right focus:outline-none focus:ring-2 focus:ring-primary"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-soft text-sm">%</span>
                 </div>
               </div>
             </div>
@@ -111,7 +111,7 @@ export function ProrrateoSettingsClient({ configs }: { configs: ConfiguracionPro
           <button
             type="button"
             onClick={distribuirEqui}
-            className="text-xs px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-700"
+            className="text-xs px-3 py-1.5 rounded-lg bg-surface-2 hover:bg-slate-600 text-fg-muted"
             title="Distribuir equitativamente"
           >
             Distribución equitativa
@@ -136,9 +136,9 @@ export function ProrrateoSettingsClient({ configs }: { configs: ConfiguracionPro
         )}
       </div>
 
-      <div className="bg-white/40 border border-[#e8e4dc] rounded-xl p-4 text-xs text-slate-600">
-        <p className="font-medium text-slate-700 mb-2">¿Cómo funciona?</p>
-        <ul className="space-y-1 list-disc list-inside text-slate-500">
+      <div className="bg-surface/40 border border-border rounded-xl p-4 text-xs text-fg-muted">
+        <p className="font-medium text-fg-muted mb-2">¿Cómo funciona?</p>
+        <ul className="space-y-1 list-disc list-inside text-fg-soft">
           <li>Estos porcentajes se aplican como default cuando marcás un gasto como "Compartido entre marcas".</li>
           <li>Podés sobrescribir el reparto en cada gasto puntual sin perder esta configuración.</li>
           <li>Si una marca cambia su participación, modificás un solo lugar y se aplica a todos los gastos compartidos nuevos.</li>

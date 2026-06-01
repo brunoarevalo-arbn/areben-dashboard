@@ -211,7 +211,7 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
       </div>
 
       {/* Monto e IVA */}
-      <div className="bg-[#f5f0e6] rounded-xl p-4 space-y-4">
+      <div className="bg-surface-2 rounded-xl p-4 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <MoneyInput
             label="Monto total (con IVA)"
@@ -220,7 +220,7 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
             required
           />
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-700">% Facturado</label>
+            <label className="block text-sm font-medium text-fg-muted">% Facturado</label>
             <div className="relative">
               <input
                 type="number"
@@ -229,9 +229,9 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
                 max="100"
                 value={porcentajeFact}
                 onChange={(e) => setPorcentajeFact(Number(e.target.value))}
-                className="w-full px-3.5 py-2.5 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all text-sm pr-8"
+                className="w-full px-3.5 py-2.5 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm pr-8"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 text-sm">%</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-muted text-sm">%</span>
             </div>
           </div>
         </div>
@@ -243,7 +243,7 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
             'w-full flex items-center justify-between px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors',
             desglosarIVA
               ? 'bg-orange-500/20 border-orange-500/40 text-orange-600'
-              : 'bg-slate-700 border-[#c8c0b0] text-slate-700 hover:bg-slate-600'
+              : 'bg-surface-2 border-[#c8c0b0] text-fg-muted hover:bg-slate-600'
           )}
         >
           <span>Desglosar IVA (21%)</span>
@@ -252,14 +252,14 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
 
         {desglosarIVA && (
           <div className="space-y-3 pt-1">
-            <div className="flex items-center justify-between text-xs text-slate-600 px-1">
+            <div className="flex items-center justify-between text-xs text-fg-muted px-1">
               <span>Base imponible = ${formatCurrency(montoTotal * porcentajeFact / 100).replace('$', '')}</span>
-              <span className="text-slate-500">({porcentajeFact}% de {formatCurrency(montoTotal)})</span>
+              <span className="text-fg-soft">({porcentajeFact}% de {formatCurrency(montoTotal)})</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="block text-xs font-medium text-slate-600">
-                  Neto sin IVA <span className="text-slate-500 font-normal">(editable)</span>
+                <label className="block text-xs font-medium text-fg-muted">
+                  Neto sin IVA <span className="text-fg-soft font-normal">(editable)</span>
                 </label>
                 <input
                   type="number"
@@ -270,13 +270,13 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
                     setMontoNeto(n)
                     setIva(Math.round((montoTotal * porcentajeFact / 100 - n) * 100) / 100)
                   }}
-                  className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-green-700 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                  className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-green-700 font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                   placeholder="0.00"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="block text-xs font-medium text-slate-600">
-                  IVA (21%) <span className="text-slate-500 font-normal">(editable)</span>
+                <label className="block text-xs font-medium text-fg-muted">
+                  IVA (21%) <span className="text-fg-soft font-normal">(editable)</span>
                 </label>
                 <input
                   type="number"
@@ -287,13 +287,13 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
                     setIva(iv)
                     setMontoNeto(Math.round((montoTotal * porcentajeFact / 100 - iv) * 100) / 100)
                   }}
-                  className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-amber-700 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                  className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-amber-700 font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                   placeholder="0.00"
                 />
               </div>
             </div>
-            <div className="flex items-center justify-between bg-slate-700/50 rounded-lg px-4 py-2.5 text-sm">
-              <span className="text-slate-600">Verificación:</span>
+            <div className="flex items-center justify-between bg-surface-2/50 rounded-lg px-4 py-2.5 text-sm">
+              <span className="text-fg-muted">Verificación:</span>
               <span className={cn(
                 'font-mono font-medium',
                 Math.abs(montoNeto + iva - montoTotal * porcentajeFact / 100) < 0.02
@@ -310,7 +310,7 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
       {/* Forma de pago — solo en creación */}
       {!editing && (
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-slate-700">Forma de pago</label>
+        <label className="block text-sm font-medium text-fg-muted">Forma de pago</label>
         <div className="grid grid-cols-4 gap-2">
           {([
             { v: 'DESPUES', label: 'Registrar después' },
@@ -326,7 +326,7 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
                 'px-2 py-2 rounded-lg border text-xs font-medium transition-colors text-center',
                 formaPago === v
                   ? 'bg-orange-500/20 border-orange-500/50 text-orange-600'
-                  : 'bg-[#f5f0e6] border-[#d6d0c4] text-slate-600 hover:text-slate-800'
+                  : 'bg-surface-2 border-border-strong text-fg-muted hover:text-fg-muted'
               )}
             >
               {label}
@@ -335,10 +335,10 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
         </div>
 
         {formaPago !== 'DESPUES' && (
-          <div className="bg-[#f5f0e6]/60 border border-[#d6d0c4]/60 rounded-xl p-4 space-y-3">
+          <div className="bg-surface-2/60 border border-border-strong/60 rounded-xl p-4 space-y-3">
             {/* Instrumento */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-600">Instrumento</label>
+              <label className="block text-xs font-medium text-fg-muted">Instrumento</label>
               <div className="flex gap-2 flex-wrap">
                 {opcionesInstrumento.map((op) => {
                   const Icon = INSTRUMENTO_ICONS[op.value]
@@ -354,7 +354,7 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
                         'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors',
                         instrumento === op.value
                           ? 'bg-orange-500/20 border-orange-500/50 text-orange-600'
-                          : 'bg-slate-700 border-[#c8c0b0] text-slate-600 hover:text-slate-800'
+                          : 'bg-surface-2 border-[#c8c0b0] text-fg-muted hover:text-fg-muted'
                       )}
                     >
                       {Icon}
@@ -368,20 +368,20 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
             {/* Fecha de emisión */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="block text-xs font-medium text-slate-600">Fecha de emisión</label>
+                <label className="block text-xs font-medium text-fg-muted">Fecha de emisión</label>
                 <input
                   type="date"
                   value={fechaEmisionPago}
                   onChange={(e) => setFechaEmisionPago(e.target.value)}
                   required
-                  className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                  className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                 />
               </div>
 
               {/* Fecha de vencimiento para cheques o A Plazo */}
               {(esCheque || formaPago === 'A_PLAZO') && (
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-slate-600">
+                  <label className="block text-xs font-medium text-fg-muted">
                     Fecha de cobro / vencimiento
                     {esCheque && <span className="text-red-700 ml-1">*</span>}
                   </label>
@@ -391,7 +391,7 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
                     onChange={(e) => setFechaVencimientoPago(e.target.value)}
                     required={esCheque}
                     className={cn(
-                      'w-full px-3 py-2 bg-slate-700 border rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm',
+                      'w-full px-3 py-2 bg-surface-2 border rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm',
                       esCheque ? 'border-amber-500/40' : 'border-[#c8c0b0]'
                     )}
                   />
@@ -403,23 +403,23 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
             {esCheque && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-slate-600">Número de cheque</label>
+                  <label className="block text-xs font-medium text-fg-muted">Número de cheque</label>
                   <input
                     type="text"
                     value={numeroCheque}
                     onChange={(e) => setNumeroCheque(e.target.value)}
                     placeholder="Nro."
-                    className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                    className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-slate-600">Banco emisor</label>
+                  <label className="block text-xs font-medium text-fg-muted">Banco emisor</label>
                   <input
                     type="text"
                     value={bancoEmisor}
                     onChange={(e) => setBancoEmisor(e.target.value)}
                     placeholder="Ej: Nación"
-                    className="w-full px-3 py-2 bg-slate-700 border border-[#c8c0b0] rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                    className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                   />
                 </div>
               </div>
@@ -429,41 +429,41 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
             {formaPago === 'EN_CUOTAS' && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-medium text-slate-600">Cuotas</label>
+                  <label className="block text-xs font-medium text-fg-muted">Cuotas</label>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setNumCuotas((n) => Math.max(2, n - 1))}
-                      className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-700 flex items-center justify-center font-bold text-sm"
+                      className="w-6 h-6 rounded bg-surface-2 hover:bg-slate-600 text-fg-muted flex items-center justify-center font-bold text-sm"
                     >−</button>
-                    <span className="text-xs font-mono text-slate-800 w-6 text-center">{numCuotas}</span>
+                    <span className="text-xs font-mono text-fg-muted w-6 text-center">{numCuotas}</span>
                     <button
                       type="button"
                       onClick={() => setNumCuotas((n) => Math.min(36, n + 1))}
-                      className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 text-slate-700 flex items-center justify-center font-bold text-sm"
+                      className="w-6 h-6 rounded bg-surface-2 hover:bg-slate-600 text-fg-muted flex items-center justify-center font-bold text-sm"
                     >+</button>
                   </div>
                 </div>
-                <div className="bg-[#f5f0e6] rounded-lg overflow-hidden border border-[#d6d0c4]/50 max-h-52 overflow-y-auto">
+                <div className="bg-surface-2 rounded-lg overflow-hidden border border-border-strong/50 max-h-52 overflow-y-auto">
                   <table className="w-full text-xs">
-                    <thead className="sticky top-0 bg-[#f5f0e6] border-b border-[#d6d0c4]">
+                    <thead className="sticky top-0 bg-surface-2 border-b border-border-strong">
                       <tr>
-                        <th className="text-left px-3 py-1.5 text-slate-500 font-medium w-8">#</th>
-                        <th className="text-left px-3 py-1.5 text-slate-500 font-medium">Monto</th>
-                        <th className="text-left px-3 py-1.5 text-slate-500 font-medium">Vencimiento</th>
+                        <th className="text-left px-3 py-1.5 text-fg-soft font-medium w-8">#</th>
+                        <th className="text-left px-3 py-1.5 text-fg-soft font-medium">Monto</th>
+                        <th className="text-left px-3 py-1.5 text-fg-soft font-medium">Vencimiento</th>
                       </tr>
                     </thead>
                     <tbody>
                       {cuotas.map((c, i) => (
-                        <tr key={i} className="border-b border-[#d6d0c4]/50 last:border-0">
-                          <td className="px-3 py-1.5 text-slate-500">{i + 1}</td>
+                        <tr key={i} className="border-b border-border-strong/50 last:border-0">
+                          <td className="px-3 py-1.5 text-fg-soft">{i + 1}</td>
                           <td className="px-3 py-1.5">
                             <input
                               type="number"
                               step="0.01"
                               value={c.monto || ''}
                               onChange={(e) => updateCuota(i, 'monto', Number(e.target.value))}
-                              className="w-full px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 font-mono focus:outline-none focus:ring-1 focus:ring-orange-500 text-xs"
+                              className="w-full px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono focus:outline-none focus:ring-1 focus:ring-primary text-xs"
                             />
                           </td>
                           <td className="px-3 py-1.5">
@@ -472,7 +472,7 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
                               value={c.fecha_vencimiento}
                               onChange={(e) => updateCuota(i, 'fecha_vencimiento', e.target.value)}
                               required
-                              className="w-full px-2 py-1 bg-slate-700 border border-[#c8c0b0] rounded text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500 text-xs"
+                              className="w-full px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg focus:outline-none focus:ring-1 focus:ring-primary text-xs"
                             />
                           </td>
                         </tr>
@@ -481,14 +481,14 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
                   </table>
                 </div>
                 <div className="flex justify-between items-center px-1 text-xs">
-                  <span className="text-slate-500">Total cuotas:</span>
+                  <span className="text-fg-soft">Total cuotas:</span>
                   <span className={cn(
                     'font-mono font-medium',
                     Math.abs(totalCuotas - montoTotal) < 0.02 ? 'text-green-700' : 'text-amber-700'
                   )}>
                     {formatCurrency(totalCuotas)}
                     {Math.abs(totalCuotas - montoTotal) >= 0.02 && (
-                      <span className="text-slate-500 ml-1">(dif. {formatCurrency(totalCuotas - montoTotal)})</span>
+                      <span className="text-fg-soft ml-1">(dif. {formatCurrency(totalCuotas - montoTotal)})</span>
                     )}
                   </span>
                 </div>

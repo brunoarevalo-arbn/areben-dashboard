@@ -32,7 +32,7 @@ export function DashboardShell({ children, userEmail }: Props) {
   }, [drawerOpen])
 
   return (
-    <div className="flex h-screen bg-[#faf6ee] overflow-hidden">
+    <div className="flex h-screen bg-bg overflow-hidden">
       {/* Sidebar — visible siempre en desktop, drawer en mobile */}
       <div className="hidden md:flex">
         <Sidebar />

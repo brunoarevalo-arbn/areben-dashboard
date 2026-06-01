@@ -34,7 +34,7 @@ function InversorForm({ inv, onClose }: { inv?: Inversor; onClose: () => void })
   return (
     <form action={formAction} className="space-y-5">
       <section className="space-y-3">
-        <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Datos básicos</h3>
+        <h3 className="text-xs font-semibold text-fg-muted uppercase tracking-wide">Datos básicos</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input label="Nombre" name="nombre" defaultValue={inv?.nombre} required />
           <Select label="Tipo" name="tipo" defaultValue={inv?.tipo ?? 'persona_fisica'} options={[
@@ -45,9 +45,9 @@ function InversorForm({ inv, onClose }: { inv?: Inversor; onClose: () => void })
         <Textarea label="Notas internas" name="notas" defaultValue={inv?.notas ?? ''} placeholder="Datos del acuerdo, observaciones..." rows={2} />
       </section>
 
-      <section className="space-y-3 pt-3 border-t border-[#e8e4dc]">
-        <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
-          Identificación formal <span className="text-slate-500 normal-case font-normal">(para comprobantes al inversor)</span>
+      <section className="space-y-3 pt-3 border-t border-border">
+        <h3 className="text-xs font-semibold text-fg-muted uppercase tracking-wide">
+          Identificación formal <span className="text-fg-soft normal-case font-normal">(para comprobantes al inversor)</span>
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input label="DNI" name="dni" defaultValue={inv?.dni ?? ''} placeholder="12.345.678" />
@@ -55,8 +55,8 @@ function InversorForm({ inv, onClose }: { inv?: Inversor; onClose: () => void })
         </div>
       </section>
 
-      <section className="space-y-3 pt-3 border-t border-[#e8e4dc]">
-        <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Domicilio</h3>
+      <section className="space-y-3 pt-3 border-t border-border">
+        <h3 className="text-xs font-semibold text-fg-muted uppercase tracking-wide">Domicilio</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input label="Calle y número" name="domicilio_calle" defaultValue={inv?.domicilio_calle ?? ''} placeholder="Ej: Av. Santa Fe 1234" />
           <Input label="Ciudad" name="domicilio_ciudad" defaultValue={inv?.domicilio_ciudad ?? ''} />
@@ -65,8 +65,8 @@ function InversorForm({ inv, onClose }: { inv?: Inversor; onClose: () => void })
         </div>
       </section>
 
-      <section className="space-y-3 pt-3 border-t border-[#e8e4dc]">
-        <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Contacto</h3>
+      <section className="space-y-3 pt-3 border-t border-border">
+        <h3 className="text-xs font-semibold text-fg-muted uppercase tracking-wide">Contacto</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input label="Email" name="email" type="email" defaultValue={inv?.email ?? ''} placeholder="inversor@email.com" />
           <Input label="Teléfono" name="telefono" defaultValue={inv?.telefono ?? ''} placeholder="+54 11 1234-5678" />
@@ -74,7 +74,7 @@ function InversorForm({ inv, onClose }: { inv?: Inversor; onClose: () => void })
       </section>
 
       {error && <p className="text-sm text-red-700">{error}</p>}
-      <div className="flex justify-end gap-3 pt-3 border-t border-[#e8e4dc]">
+      <div className="flex justify-end gap-3 pt-3 border-t border-border">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button type="submit" disabled={isPending}>
           {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -134,8 +134,8 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Inversiones de Terceros</h1>
-          <p className="text-sm text-slate-600 mt-0.5">{inversores.length} inversores · {instrumentos.length} instrumentos</p>
+          <h1 className="text-2xl font-bold text-fg">Inversiones de Terceros</h1>
+          <p className="text-sm text-fg-muted mt-0.5">{inversores.length} inversores · {instrumentos.length} instrumentos</p>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/inversiones/cierre">
@@ -159,26 +159,26 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
 
       {/* KPIs totales */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <div className="bg-white border border-green-500/20 rounded-xl p-5">
-          <p className="text-xs text-slate-600 mb-1">Total invertido USD (saldos actuales)</p>
+        <div className="bg-surface border border-green-500/20 rounded-xl p-5">
+          <p className="text-xs text-fg-muted mb-1">Total invertido USD (saldos actuales)</p>
           <p className="text-2xl font-bold text-green-700">{formatMoneda(totalUsd, 'USD')}</p>
         </div>
-        <div className="bg-white border border-orange-500/20 rounded-xl p-5">
-          <p className="text-xs text-slate-600 mb-1">Total invertido ARS (saldos actuales)</p>
-          <p className="text-2xl font-bold text-orange-500">{formatMoneda(totalArs, 'ARS')}</p>
+        <div className="bg-surface border border-orange-500/20 rounded-xl p-5">
+          <p className="text-xs text-fg-muted mb-1">Total invertido ARS (saldos actuales)</p>
+          <p className="text-2xl font-bold text-primary">{formatMoneda(totalArs, 'ARS')}</p>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="bg-white border border-[#e8e4dc] rounded-xl p-4 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 text-sm text-slate-600">
+      <div className="bg-surface border border-border rounded-xl p-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 text-sm text-fg-muted">
           <Filter className="w-3.5 h-3.5" />
           Filtros:
         </div>
         <select
           value={filtroMoneda}
           onChange={(e) => setFiltroMoneda(e.target.value as typeof filtroMoneda)}
-          className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="TODOS">Todas las monedas</option>
           <option value="USD">USD</option>
@@ -187,7 +187,7 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
         <select
           value={filtroEstado}
           onChange={(e) => setFiltroEstado(e.target.value as typeof filtroEstado)}
-          className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="TODOS">Todos los estados</option>
           <option value="activo">Activo</option>
@@ -197,13 +197,13 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
         <select
           value={filtroCap}
           onChange={(e) => setFiltroCap(e.target.value as typeof filtroCap)}
-          className="bg-[#f5f0e6] border border-[#d6d0c4] rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="TODOS">Cualquier tipo</option>
           <option value="CAPITALIZABLE">Capitalizable</option>
           <option value="NO_CAPITALIZABLE">No capitalizable</option>
         </select>
-        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer ml-auto">
+        <label className="flex items-center gap-2 text-xs text-fg-muted cursor-pointer ml-auto">
           <input
             type="checkbox"
             checked={showInactivos}
@@ -217,9 +217,9 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
       {/* Lista */}
       <div className="space-y-3">
         {inversoresVisibles.length === 0 ? (
-          <div className="bg-white border border-[#e8e4dc] rounded-xl p-12 text-center">
-            <Briefcase className="w-8 h-8 mx-auto mb-2 text-slate-600" />
-            <p className="text-slate-500">No hay inversores con esos filtros</p>
+          <div className="bg-surface border border-border rounded-xl p-12 text-center">
+            <Briefcase className="w-8 h-8 mx-auto mb-2 text-fg-muted" />
+            <p className="text-fg-soft">No hay inversores con esos filtros</p>
           </div>
         ) : (
           inversoresVisibles.map((inv) => {
@@ -233,18 +233,18 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
               <div
                 key={inv.id}
                 className={cn(
-                  'bg-white border rounded-xl p-5',
-                  !inv.activo ? 'border-[#e8e4dc] opacity-50' : 'border-[#e8e4dc] hover:border-[#d6d0c4] transition-colors'
+                  'bg-surface border rounded-xl p-5',
+                  !inv.activo ? 'border-border opacity-50' : 'border-border hover:border-border-strong transition-colors'
                 )}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    {inv.tipo === 'empresa' ? <Briefcase className="w-5 h-5 text-orange-500" /> : <User className="w-5 h-5 text-slate-600" />}
+                    {inv.tipo === 'empresa' ? <Briefcase className="w-5 h-5 text-primary" /> : <User className="w-5 h-5 text-fg-muted" />}
                     <div>
-                      <Link href={`/inversiones/${inv.id}`} className="font-semibold text-slate-900 hover:text-orange-500 transition-colors">
+                      <Link href={`/inversiones/${inv.id}`} className="font-semibold text-fg hover:text-primary transition-colors">
                         {inv.nombre}
                       </Link>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-fg-soft">
                         {inv.tipo === 'empresa' ? 'Empresa' : 'Persona física'} · {insts.length} instrumento(s)
                       </p>
                     </div>
@@ -273,24 +273,24 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
                   <>
                     <div className="grid grid-cols-2 gap-3 mb-3">
                       {totalUsdInv > 0 && (
-                        <div className="bg-[#f5f0e6]/40 rounded-lg p-3">
-                          <p className="text-xs text-slate-500">Total USD</p>
+                        <div className="bg-surface-2/40 rounded-lg p-3">
+                          <p className="text-xs text-fg-soft">Total USD</p>
                           <p className="text-base font-mono font-bold text-green-700">{formatMoneda(totalUsdInv, 'USD')}</p>
                         </div>
                       )}
                       {totalArsInv > 0 && (
-                        <div className="bg-[#f5f0e6]/40 rounded-lg p-3">
-                          <p className="text-xs text-slate-500">Total ARS</p>
-                          <p className="text-base font-mono font-bold text-orange-500">{formatMoneda(totalArsInv, 'ARS')}</p>
+                        <div className="bg-surface-2/40 rounded-lg p-3">
+                          <p className="text-xs text-fg-soft">Total ARS</p>
+                          <p className="text-base font-mono font-bold text-primary">{formatMoneda(totalArsInv, 'ARS')}</p>
                         </div>
                       )}
                     </div>
 
                     <div className="space-y-1.5">
                       {insts.map((i) => (
-                        <div key={i.id} className="flex items-center justify-between bg-[#f5f0e6]/30 rounded-lg px-3 py-2 text-sm">
+                        <div key={i.id} className="flex items-center justify-between bg-surface-2/30 rounded-lg px-3 py-2 text-sm">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs text-slate-600">{i.codigo ?? i.id.substring(0, 8)}</span>
+                            <span className="font-mono text-xs text-fg-muted">{i.codigo ?? i.id.substring(0, 8)}</span>
                             <Badge variant={i.moneda === 'USD' ? 'success' : 'info'}>{i.moneda}</Badge>
                             <Badge variant={i.capitalizable ? 'purple' : 'default'}>
                               {i.capitalizable ? 'Capitalizable' : 'No cap.'}
@@ -299,7 +299,7 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
                               {i.estado}
                             </Badge>
                           </div>
-                          <span className="font-mono text-slate-800">
+                          <span className="font-mono text-fg-muted">
                             {formatMoneda(ultimoSaldo.get(i.id) ?? Number(i.capital_inicial), i.moneda)}
                           </span>
                         </div>
