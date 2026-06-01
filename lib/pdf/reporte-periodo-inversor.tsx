@@ -421,12 +421,15 @@ export function ReporteInversorPDF({ data }: { data: ReporteInversorData }) {
           <Text style={styles.tableLabel}>Capital al inicio del período</Text>
           <Text style={styles.tableValue}>{formatMoney(periodo.saldo_inicio, instrumento.moneda)}</Text>
         </View>
-        <View style={styles.tableRow}>
-          <Text style={styles.tableLabel}>Interés devengado en el período</Text>
-          <Text style={[styles.tableValue, { color: COLOR_ACCENT, fontWeight: 700 }]}>
-            + {formatMoney(periodo.interes_devengado, instrumento.moneda)}
-          </Text>
-        </View>
+        {/* En NO capitalizable, el interés NO se suma al capital — se paga aparte */}
+        {instrumento.capitalizable && (
+          <View style={styles.tableRow}>
+            <Text style={styles.tableLabel}>Interés devengado (se reinvierte)</Text>
+            <Text style={[styles.tableValue, { color: COLOR_ACCENT, fontWeight: 700 }]}>
+              + {formatMoney(periodo.interes_devengado, instrumento.moneda)}
+            </Text>
+          </View>
+        )}
         {periodo.movimiento !== 0 && (
           <View style={styles.tableRow}>
             <Text style={styles.tableLabel}>Movimientos del período (ingresos/retiros)</Text>
@@ -439,6 +442,21 @@ export function ReporteInversorPDF({ data }: { data: ReporteInversorData }) {
           <Text style={styles.totalLabel}>Capital al cierre del período</Text>
           <Text style={styles.tableValueStrong}>{formatMoney(periodo.saldo_cierre, instrumento.moneda)}</Text>
         </View>
+
+        {/* Para NO capitalizable, mostrar aparte el interés a pagar */}
+        {!instrumento.capitalizable && (
+          <>
+            <View style={[styles.tableRow, { marginTop: 8 }]}>
+              <Text style={[styles.tableLabel, { color: COLOR_TEXT, fontWeight: 700 }]}>Interés a pagar al inversor</Text>
+              <Text style={[styles.tableValueStrong, { color: COLOR_ACCENT }]}>
+                {formatMoney(periodo.interes_devengado, instrumento.moneda)}
+              </Text>
+            </View>
+            <Text style={[styles.paragraph, { fontSize: 9, color: COLOR_MUTED, marginTop: 4 }]}>
+              Modalidad no capitalizable: el interés del período se abona al inversor y no se reinvierte al capital.
+            </Text>
+          </>
+        )}
 
         {/* Texto de cierre */}
         <Text style={[styles.paragraph, { marginTop: 14 }]}>

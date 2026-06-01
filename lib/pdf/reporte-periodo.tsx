@@ -434,13 +434,16 @@ export function ReportePeriodoPDF({ data }: { data: ReportePeriodoData }) {
             <Text style={styles.rowLabel}>(A) Capital al inicio del período</Text>
             <Text style={styles.rowValueMono}>{formatMoney(periodo.saldo_inicio, instrumento.moneda)}</Text>
           </View>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>(B) Interés devengado en el período</Text>
-            <Text style={[styles.rowValueMono, { color: COLOR_ACCENT }]}>+ {formatMoney(periodo.interes_devengado, instrumento.moneda)}</Text>
-          </View>
+          {/* En NO capitalizable, el interés NO se suma al capital — se paga aparte */}
+          {instrumento.capitalizable && (
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>(B) Interés devengado (se reinvierte)</Text>
+              <Text style={[styles.rowValueMono, { color: COLOR_ACCENT }]}>+ {formatMoney(periodo.interes_devengado, instrumento.moneda)}</Text>
+            </View>
+          )}
           {periodo.movimiento !== 0 && (
             <View style={styles.row}>
-              <Text style={styles.rowLabel}>(C) Movimientos del período (ingresos/retiros)</Text>
+              <Text style={styles.rowLabel}>{instrumento.capitalizable ? '(C)' : '(B)'} Movimientos del período (ingresos/retiros)</Text>
               <Text style={styles.rowValueMono}>
                 {periodo.movimiento >= 0 ? '+ ' : '- '}{formatMoney(Math.abs(periodo.movimiento), instrumento.moneda)}
               </Text>
@@ -450,6 +453,18 @@ export function ReportePeriodoPDF({ data }: { data: ReportePeriodoData }) {
             <Text style={[styles.rowLabel, { color: COLOR_TEXT, fontWeight: 700 }]}>(=) Capital al cierre del período</Text>
             <Text style={styles.rowValueStrong}>{formatMoney(periodo.saldo_cierre, instrumento.moneda)}</Text>
           </View>
+
+          {/* En NO capitalizable, mostrar el interés aparte */}
+          {!instrumento.capitalizable && (
+            <View style={[styles.row, { marginTop: 8, borderBottomWidth: 0 }]}>
+              <Text style={[styles.rowLabel, { color: COLOR_TEXT, fontWeight: 700 }]}>
+                Interés a pagar al inversor (no se reinvierte)
+              </Text>
+              <Text style={[styles.rowValueStrong, { color: COLOR_ACCENT }]}>
+                {formatMoney(periodo.interes_devengado, instrumento.moneda)}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Gasto generado */}
