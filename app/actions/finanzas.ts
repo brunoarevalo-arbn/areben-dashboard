@@ -577,6 +577,112 @@ export async function deleteRecurrente(id: string) {
   revalidatePath('/finanzas/gastos-recurrentes')
 }
 
+// ============================================================
+// Bulk edit de recurrentes (edición masiva)
+// ============================================================
+
+const bulkPatchSchema = z.object({
+  categoria: z.string().min(1).optional(),
+  monto_estimado: z.coerce.number().positive().optional(),
+  iva_incluido: z.coerce.boolean().optional(),
+  porcentaje_iva: z.coerce.number().min(0).max(100).optional(),
+  medio_pago: z.string().min(1).optional(),
+  dia_vencimiento: z.coerce.number().int().min(1).max(31).nullable().optional(),
+  tipo_mes: z.enum(['CORRIENTE', 'VENCIDO']).optional(),
+})
+
+export type BulkRecurrentePatch = z.infer<typeof bulkPatchSchema>
+
+/**
+ * Aplica el mismo set parcial de cambios a múltiples recurrentes.
+ * Solo los campos presentes en el patch se modifican; el resto queda igual en cada uno.
+ */
+export async function bulkUpdateRecurrentes(
+  ids: string[],
+  patch: BulkRecurrentePatch,
+): Promise<{ updated: number; error?: string }> {
+  await requireUser()
+  if (!ids.length) return { updated: 0 }
+
+  const parsed = bulkPatchSchema.safeParse(patch)
+  if (!parsed.success) return { updated: 0, error: parsed.error.issues[0].message }
+
+  // Limpiar undefined: solo enviamos a Supabase lo explícitamente definido.
+  const updateData: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(parsed.data)) {
+    if (v !== undefined) updateData[k] = v
+  }
+  if (Object.keys(updateData).length === 0) {
+    return { updated: 0, error: 'No hay ningún campo seleccionado para actualizar' }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('gastos_recurrentes')
+    .update(updateData)
+    .in('id', ids)
+  if (error) return { updated: 0, error: error.message }
+
+  revalidatePath('/finanzas/recurrentes')
+  return { updated: ids.length }
+}
+
+export async function bulkToggleRecurrentesActivo(
+  ids: string[],
+  activo: boolean,
+): Promise<{ updated: number; error?: string }> {
+  await requireUser()
+  if (!ids.length) return { updated: 0 }
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('gastos_recurrentes')
+    .update({ activo })
+    .in('id', ids)
+  if (error) return { updated: 0, error: error.message }
+  revalidatePath('/finanzas/recurrentes')
+  return { updated: ids.length }
+}
+
+/**
+ * Multiplica el monto_estimado de cada recurrente seleccionado por (1 + porcentaje/100).
+ * Soporta porcentajes positivos (aumento) y negativos (descuento).
+ */
+export async function bulkAjustarMontosRecurrentes(
+  ids: string[],
+  porcentaje: number,
+): Promise<{ updated: number; errors: string[] }> {
+  await requireUser()
+  if (!ids.length) return { updated: 0, errors: [] }
+  if (!Number.isFinite(porcentaje) || porcentaje === 0) {
+    return { updated: 0, errors: ['El porcentaje debe ser distinto de 0'] }
+  }
+  const supabase = await createClient()
+  const { data: actuales, error: errLoad } = await supabase
+    .from('gastos_recurrentes')
+    .select('id, monto_estimado')
+    .in('id', ids)
+  if (errLoad) return { updated: 0, errors: [errLoad.message] }
+
+  const factor = 1 + porcentaje / 100
+  const errors: string[] = []
+  let updated = 0
+  for (const r of actuales ?? []) {
+    const nuevoMonto = Math.round(Number(r.monto_estimado) * factor * 100) / 100
+    if (nuevoMonto <= 0) {
+      errors.push(`Recurrente ${r.id.substring(0, 8)}: el monto resultante (${nuevoMonto}) no es válido`)
+      continue
+    }
+    const { error } = await supabase
+      .from('gastos_recurrentes')
+      .update({ monto_estimado: nuevoMonto })
+      .eq('id', r.id)
+    if (error) errors.push(`Recurrente ${r.id.substring(0, 8)}: ${error.message}`)
+    else updated++
+  }
+  revalidatePath('/finanzas/recurrentes')
+  return { updated, errors }
+}
+
 /**
  * Confirma masivamente varios recurrentes para un mes — usa el monto_estimado.
  * Para montos personalizados, usar confirmarRecurrente uno por uno.

@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   createRecurrente, updateRecurrente, deleteRecurrente, confirmarRecurrente,
   confirmarRecurrentesMasivo, importRecurrentesExcel,
+  bulkUpdateRecurrentes, bulkToggleRecurrentesActivo, bulkAjustarMontosRecurrentes,
+  type BulkRecurrentePatch,
 } from '@/app/actions/finanzas'
 import type { GastoRecurrente, ProrrateoDefault, ProrrateoMarcas, TipoIVA, ConfiguracionProrrateo } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
@@ -15,7 +17,7 @@ import { ExcelImport } from '@/components/ui/excel-import'
 import { formatCurrency, formatMonth, getMonthOptions } from '@/lib/utils'
 import {
   Plus, Pencil, Trash2, Repeat, Loader2, CheckCircle2, Info,
-  Receipt, CreditCard, Upload, ListChecks,
+  Receipt, CreditCard, Upload, ListChecks, Power, PowerOff, Percent, Edit3,
 } from 'lucide-react'
 import { ProrrateoEditor } from './prorrateo-editor'
 import { cn } from '@/lib/utils'
@@ -529,6 +531,261 @@ function DetalleModal({ recurrente, onClose }: { recurrente: GastoRecurrente; on
   )
 }
 
+// ─── BulkEditModal ────────────────────────────────────────────────────────────
+
+function BulkEditModal({
+  ids,
+  tiposIva,
+  onClose,
+}: {
+  ids: string[]
+  tiposIva: TipoIVA[]
+  onClose: () => void
+}) {
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+  // Para cada campo: un toggle "aplicar" + el valor a aplicar
+  const [applyCategoria, setApplyCategoria] = useState(false)
+  const [categoria, setCategoria] = useState<string>(CATEGORIAS[0])
+  const [applyMonto, setApplyMonto] = useState(false)
+  const [monto, setMonto] = useState<number>(0)
+  const [applyIvaIncluido, setApplyIvaIncluido] = useState(false)
+  const [ivaIncluido, setIvaIncluido] = useState(true)
+  const [applyPorcentajeIva, setApplyPorcentajeIva] = useState(false)
+  const [porcentajeIva, setPorcentajeIva] = useState<number>(21)
+  const [applyMedioPago, setApplyMedioPago] = useState(false)
+  const [medioPago, setMedioPago] = useState<string>('TRANSFERENCIA')
+  const [applyDiaVenc, setApplyDiaVenc] = useState(false)
+  const [diaVenc, setDiaVenc] = useState<number>(1)
+  const [applyTipoMes, setApplyTipoMes] = useState(false)
+  const [tipoMes, setTipoMes] = useState<'CORRIENTE' | 'VENCIDO'>('CORRIENTE')
+
+  // Cuántos cambios se aplicarán
+  const cambios: string[] = []
+  if (applyCategoria) cambios.push(`Categoría: ${categoria}`)
+  if (applyMonto) cambios.push(`Monto: ${formatCurrency(monto)}`)
+  if (applyIvaIncluido) cambios.push(`IVA incluido: ${ivaIncluido ? 'sí' : 'no'}`)
+  if (applyPorcentajeIva) cambios.push(`% IVA: ${porcentajeIva}%`)
+  if (applyMedioPago) cambios.push(`Medio pago: ${medioPago}`)
+  if (applyDiaVenc) cambios.push(`Día venc.: ${diaVenc}`)
+  if (applyTipoMes) cambios.push(`Tipo mes: ${tipoMes}`)
+
+  function submit() {
+    setError(null)
+    if (cambios.length === 0) {
+      setError('Marcá al menos un campo para aplicar.')
+      return
+    }
+    const patch: BulkRecurrentePatch = {}
+    if (applyCategoria) patch.categoria = categoria
+    if (applyMonto) patch.monto_estimado = monto
+    if (applyIvaIncluido) patch.iva_incluido = ivaIncluido
+    if (applyPorcentajeIva) patch.porcentaje_iva = porcentajeIva
+    if (applyMedioPago) patch.medio_pago = medioPago
+    if (applyDiaVenc) patch.dia_vencimiento = diaVenc
+    if (applyTipoMes) patch.tipo_mes = tipoMes
+
+    startTransition(async () => {
+      const r = await bulkUpdateRecurrentes(ids, patch)
+      if (r.error) setError(r.error)
+      else onClose()
+    })
+  }
+
+  // Helper para renderizar fila "checkbox + label + control"
+  function FieldRow({
+    apply, setApply, label, children,
+  }: {
+    apply: boolean; setApply: (v: boolean) => void; label: string; children: React.ReactNode
+  }) {
+    return (
+      <div className={cn(
+        'flex items-center gap-3 p-3 rounded-lg border transition-colors',
+        apply ? 'bg-orange-500/5 border-orange-500/30' : 'bg-surface-2/40 border-border-strong/40'
+      )}>
+        <input
+          type="checkbox"
+          checked={apply}
+          onChange={(e) => setApply(e.target.checked)}
+          className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2 text-orange-600 focus:ring-primary shrink-0"
+        />
+        <label className="text-sm font-medium text-fg-muted w-32 shrink-0">{label}</label>
+        <div className={cn('flex-1', !apply && 'opacity-50 pointer-events-none')}>
+          {children}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-fg-muted">
+        Editando <span className="font-semibold text-fg">{ids.length} recurrente(s)</span>.
+        Marcá los campos que querés modificar — el resto queda intacto en cada uno.
+      </p>
+
+      <FieldRow apply={applyCategoria} setApply={setApplyCategoria} label="Categoría">
+        <select
+          value={categoria}
+          onChange={(e) => setCategoria(e.target.value)}
+          className="w-full px-3 py-2 bg-surface border border-border-strong rounded-lg text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </FieldRow>
+
+      <FieldRow apply={applyMonto} setApply={setApplyMonto} label="Monto estimado">
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          value={monto || ''}
+          onChange={(e) => setMonto(Number(e.target.value))}
+          placeholder="0.00"
+          className="w-full px-3 py-2 bg-surface border border-border-strong rounded-lg text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+      </FieldRow>
+
+      <FieldRow apply={applyIvaIncluido} setApply={setApplyIvaIncluido} label="IVA incluido">
+        <select
+          value={ivaIncluido ? 'true' : 'false'}
+          onChange={(e) => setIvaIncluido(e.target.value === 'true')}
+          className="w-full px-3 py-2 bg-surface border border-border-strong rounded-lg text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          <option value="true">Sí (IVA dentro del monto)</option>
+          <option value="false">No (IVA aparte)</option>
+        </select>
+      </FieldRow>
+
+      <FieldRow apply={applyPorcentajeIva} setApply={setApplyPorcentajeIva} label="% IVA">
+        <select
+          value={String(porcentajeIva)}
+          onChange={(e) => setPorcentajeIva(Number(e.target.value))}
+          className="w-full px-3 py-2 bg-surface border border-border-strong rounded-lg text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          {tiposIva.map((t) => <option key={t.id} value={t.porcentaje}>{t.nombre} ({t.porcentaje}%)</option>)}
+        </select>
+      </FieldRow>
+
+      <FieldRow apply={applyMedioPago} setApply={setApplyMedioPago} label="Medio de pago">
+        <select
+          value={medioPago}
+          onChange={(e) => setMedioPago(e.target.value)}
+          className="w-full px-3 py-2 bg-surface border border-border-strong rounded-lg text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          {MEDIOS_PAGO.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+        </select>
+      </FieldRow>
+
+      <FieldRow apply={applyDiaVenc} setApply={setApplyDiaVenc} label="Día vencimiento">
+        <input
+          type="number"
+          min="1"
+          max="31"
+          value={diaVenc}
+          onChange={(e) => setDiaVenc(Number(e.target.value))}
+          className="w-full px-3 py-2 bg-surface border border-border-strong rounded-lg text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+      </FieldRow>
+
+      <FieldRow apply={applyTipoMes} setApply={setApplyTipoMes} label="Tipo de mes">
+        <select
+          value={tipoMes}
+          onChange={(e) => setTipoMes(e.target.value as 'CORRIENTE' | 'VENCIDO')}
+          className="w-full px-3 py-2 bg-surface border border-border-strong rounded-lg text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          <option value="CORRIENTE">Corriente</option>
+          <option value="VENCIDO">Vencido</option>
+        </select>
+      </FieldRow>
+
+      {cambios.length > 0 && (
+        <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-sm">
+          <p className="text-orange-700 font-medium mb-1">Vas a aplicar a {ids.length} recurrente(s):</p>
+          <ul className="text-fg-muted text-xs space-y-0.5">
+            {cambios.map((c) => <li key={c}>· {c}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {error && <p className="text-sm text-danger bg-danger-bg border border-danger-bd rounded-lg px-3 py-2">{error}</p>}
+
+      <div className="flex justify-end gap-3 pt-2 border-t border-border">
+        <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button type="button" onClick={submit} disabled={isPending || cambios.length === 0}>
+          {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+          Aplicar a {ids.length}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ─── BulkAjustarModal ─────────────────────────────────────────────────────────
+
+function BulkAjustarModal({ ids, onClose }: { ids: string[]; onClose: () => void }) {
+  const [isPending, startTransition] = useTransition()
+  const [pct, setPct] = useState<number>(10)
+  const [error, setError] = useState<string | null>(null)
+  const factor = 1 + pct / 100
+
+  function submit() {
+    setError(null)
+    if (pct === 0) {
+      setError('El porcentaje debe ser distinto de 0.')
+      return
+    }
+    startTransition(async () => {
+      const r = await bulkAjustarMontosRecurrentes(ids, pct)
+      if (r.errors.length > 0) setError(r.errors.join('\n'))
+      else onClose()
+    })
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-fg-muted">
+        Multiplica el monto estimado de <span className="font-semibold text-fg">{ids.length} recurrente(s)</span> por el factor que indiques.
+        Usá un valor negativo para descontar (ej. -5 = baja del 5%).
+      </p>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-fg-muted">Porcentaje de ajuste (%)</label>
+        <div className="relative">
+          <input
+            type="number"
+            step="0.01"
+            value={pct || ''}
+            onChange={(e) => setPct(Number(e.target.value))}
+            placeholder="Ej: 10 = +10%, -5 = -5%"
+            className="w-full px-3 py-2 pr-8 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-soft text-sm">%</span>
+        </div>
+      </div>
+
+      <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-sm">
+        <p className="text-orange-700 font-medium">
+          Cada monto se va a multiplicar por <span className="font-mono">{factor.toFixed(4)}</span>
+        </p>
+        <p className="text-fg-muted text-xs mt-1">
+          Ejemplo: $100.000 → ${(100000 * factor).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+        </p>
+      </div>
+
+      {error && <p className="text-sm text-danger bg-danger-bg border border-danger-bd rounded-lg px-3 py-2 whitespace-pre-wrap">{error}</p>}
+
+      <div className="flex justify-end gap-3 pt-2 border-t border-border">
+        <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button type="button" onClick={submit} disabled={isPending || pct === 0}>
+          {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+          Aplicar a {ids.length}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 // ─── RecurrentesClient ────────────────────────────────────────────────────────
 
 export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrateosDefault, gastosMes, tiposIva, configProrrateo }: Props) {
@@ -541,9 +798,13 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
   const [detalleRec, setDetalleRec] = useState<GastoRecurrente | undefined>()
   const [isPending, startTransition] = useTransition()
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
+  const [bulkEditOpen, setBulkEditOpen] = useState(false)
+  const [bulkAjustarOpen, setBulkAjustarOpen] = useState(false)
 
   const confirmadosIds = new Set(gastosMes.filter((g) => g.recurrente_id).map((g) => g.recurrente_id!))
   const recurrentesPendientes = recurrentes.filter((r) => !confirmadosIds.has(r.id))
+  // Los ids seleccionados que aún no fueron confirmados en este mes — sirve para "Pasar a gastos del mes"
+  const idsSelNoConfirmados = Array.from(seleccionados).filter((id) => !confirmadosIds.has(id))
 
   function toggleSel(id: string) {
     setSeleccionados((prev) => {
@@ -555,19 +816,23 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
   }
 
   function toggleAll() {
-    if (seleccionados.size === recurrentesPendientes.length) {
+    if (seleccionados.size === recurrentes.length) {
       setSeleccionados(new Set())
     } else {
-      setSeleccionados(new Set(recurrentesPendientes.map((r) => r.id)))
+      setSeleccionados(new Set(recurrentes.map((r) => r.id)))
     }
   }
 
   function confirmarMasivo() {
-    if (seleccionados.size === 0) return
-    if (!confirm(`¿Pasar ${seleccionados.size} recurrente(s) a gastos del mes ${mes}?\nUsará el monto estimado de cada uno.`)) return
+    // Solo aplica a los no confirmados de la selección
+    if (idsSelNoConfirmados.length === 0) {
+      alert('Los recurrentes seleccionados ya están confirmados este mes.')
+      return
+    }
+    if (!confirm(`¿Pasar ${idsSelNoConfirmados.length} recurrente(s) a gastos del mes ${mes}?\nUsará el monto estimado de cada uno.`)) return
     startTransition(async () => {
       try {
-        const r = await confirmarRecurrentesMasivo(Array.from(seleccionados), mes)
+        const r = await confirmarRecurrentesMasivo(idsSelNoConfirmados, mes)
         if (r.errors.length) {
           alert(`Confirmados: ${r.ok}\nErrores:\n${r.errors.join('\n')}`)
         }
@@ -575,6 +840,17 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
       } catch (e) {
         alert((e as Error).message)
       }
+    })
+  }
+
+  function bulkToggleActivo(activo: boolean) {
+    if (seleccionados.size === 0) return
+    const accion = activo ? 'activar' : 'desactivar'
+    if (!confirm(`¿${accion[0].toUpperCase() + accion.slice(1)} ${seleccionados.size} recurrente(s)?`)) return
+    startTransition(async () => {
+      const r = await bulkToggleRecurrentesActivo(Array.from(seleccionados), activo)
+      if (r.error) alert(r.error)
+      else setSeleccionados(new Set())
     })
   }
 
@@ -639,25 +915,72 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
 
       {/* Barra de acciones masivas */}
       {seleccionados.size > 0 && (
-        <div className="bg-orange-500/10 border border-orange-500/40 rounded-xl px-4 py-3 flex items-center justify-between sticky top-0 z-10 backdrop-blur">
+        <div className="bg-orange-500/10 border border-orange-500/40 rounded-xl px-4 py-3 flex items-center justify-between sticky top-0 z-10 backdrop-blur flex-wrap gap-2">
           <div className="flex items-center gap-2 text-sm">
             <ListChecks className="w-4 h-4 text-primary" />
-            <span className="text-orange-600 font-medium">{seleccionados.size} recurrente(s) seleccionado(s)</span>
+            <span className="text-orange-600 font-medium">
+              {seleccionados.size} seleccionado(s)
+              {idsSelNoConfirmados.length !== seleccionados.size && (
+                <span className="text-fg-soft ml-1">({idsSelNoConfirmados.length} sin confirmar este mes)</span>
+              )}
+            </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button size="sm" variant="secondary" onClick={() => setSeleccionados(new Set())}>
               Limpiar
             </Button>
             <Button
               size="sm"
-              variant="success"
-              onClick={confirmarMasivo}
+              variant="secondary"
+              onClick={() => setBulkEditOpen(true)}
               disabled={isPending}
-              title={`Pasar ${seleccionados.size} recurrente(s) a gastos del mes con su monto estimado`}
+              title="Editar campos en lote (categoría, monto, IVA, etc)"
             >
-              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              Pasar a gastos del mes
+              <Edit3 className="w-3.5 h-3.5" />
+              Editar ({seleccionados.size})
             </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setBulkAjustarOpen(true)}
+              disabled={isPending}
+              title="Subir o bajar todos los montos un %"
+            >
+              <Percent className="w-3.5 h-3.5" />
+              Ajustar montos
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => bulkToggleActivo(true)}
+              disabled={isPending}
+              title="Activar los seleccionados"
+            >
+              <Power className="w-3.5 h-3.5" />
+              Activar
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => bulkToggleActivo(false)}
+              disabled={isPending}
+              title="Desactivar los seleccionados (no van a aparecer al confirmar el mes)"
+            >
+              <PowerOff className="w-3.5 h-3.5" />
+              Desactivar
+            </Button>
+            {idsSelNoConfirmados.length > 0 && (
+              <Button
+                size="sm"
+                variant="success"
+                onClick={confirmarMasivo}
+                disabled={isPending}
+                title={`Pasar ${idsSelNoConfirmados.length} recurrente(s) a gastos del mes con su monto estimado`}
+              >
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                Pasar a gastos ({idsSelNoConfirmados.length})
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -669,10 +992,10 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
               <th className="px-3 py-3 w-10">
                 <input
                   type="checkbox"
-                  checked={recurrentesPendientes.length > 0 && seleccionados.size === recurrentesPendientes.length}
+                  checked={recurrentes.length > 0 && seleccionados.size === recurrentes.length}
                   onChange={toggleAll}
-                  disabled={recurrentesPendientes.length === 0}
-                  title="Seleccionar todos los pendientes del mes"
+                  disabled={recurrentes.length === 0}
+                  title="Seleccionar todos"
                   className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2 text-orange-600 focus:ring-primary"
                 />
               </th>
@@ -707,9 +1030,10 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
                         type="checkbox"
                         checked={checked}
                         onChange={() => toggleSel(r.id)}
-                        disabled={confirmado}
-                        title={confirmado ? 'Ya confirmado este mes' : 'Seleccionar para confirmación masiva'}
-                        className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2 text-orange-600 focus:ring-primary disabled:opacity-30"
+                        title={confirmado
+                          ? 'Ya confirmado este mes (podés editarlo igual, no se va a confirmar de nuevo)'
+                          : 'Seleccionar'}
+                        className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2 text-orange-600 focus:ring-primary"
                       />
                     </td>
                     <td className="px-4 py-2.5">
@@ -833,6 +1157,33 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
           <DetalleModal recurrente={detalleRec} onClose={() => setDetalleRec(undefined)} />
         </Modal>
       )}
+
+      <Modal
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        title="Edición masiva de recurrentes"
+        description="Aplicar los mismos cambios a varios recurrentes a la vez"
+        className="max-w-2xl"
+      >
+        <BulkEditModal
+          ids={Array.from(seleccionados)}
+          tiposIva={tiposIva}
+          onClose={() => { setBulkEditOpen(false); setSeleccionados(new Set()) }}
+        />
+      </Modal>
+
+      <Modal
+        open={bulkAjustarOpen}
+        onOpenChange={setBulkAjustarOpen}
+        title="Ajustar montos por porcentaje"
+        description="Aumentar o disminuir todos los montos seleccionados un %"
+        className="max-w-md"
+      >
+        <BulkAjustarModal
+          ids={Array.from(seleccionados)}
+          onClose={() => { setBulkAjustarOpen(false); setSeleccionados(new Set()) }}
+        />
+      </Modal>
     </div>
   )
 }
