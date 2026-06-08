@@ -6,6 +6,7 @@ import {
   createRecurrente, updateRecurrente, deleteRecurrente, confirmarRecurrente,
   confirmarRecurrentesMasivo, importRecurrentesExcel,
   bulkUpdateRecurrentes, bulkToggleRecurrentesActivo, bulkAjustarMontosRecurrentes,
+  updateMontoRecurrente,
   type BulkRecurrentePatch,
 } from '@/app/actions/finanzas'
 import type { GastoRecurrente, ProrrateoDefault, ProrrateoMarcas, TipoIVA, ConfiguracionProrrateo } from '@/types/database'
@@ -18,6 +19,7 @@ import { formatCurrency, formatMonth, getMonthOptions } from '@/lib/utils'
 import {
   Plus, Pencil, Trash2, Repeat, Loader2, CheckCircle2, Info,
   Receipt, CreditCard, Upload, ListChecks, Power, PowerOff, Percent, Edit3,
+  Save, X,
 } from 'lucide-react'
 import { ProrrateoEditor } from './prorrateo-editor'
 import { cn } from '@/lib/utils'
@@ -527,6 +529,91 @@ function DetalleModal({ recurrente, onClose }: { recurrente: GastoRecurrente; on
       <div className="flex justify-end">
         <Button variant="secondary" onClick={onClose}>Cerrar</Button>
       </div>
+    </div>
+  )
+}
+
+// ─── MontoEditor (edición inline del monto en la tabla) ──────────────────────
+
+function MontoEditor({
+  recurrente,
+  confirmado,
+  onSaved,
+}: {
+  recurrente: GastoRecurrente
+  confirmado: boolean
+  onSaved: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState<number>(Number(recurrente.monto_estimado))
+  const [isPending, startTransition] = useTransition()
+
+  if (!editing) {
+    return (
+      <div className="flex items-center justify-end gap-1.5 group">
+        <span className="font-mono text-fg">{formatCurrency(recurrente.monto_estimado, recurrente.moneda)}</span>
+        <button
+          type="button"
+          onClick={() => { setVal(Number(recurrente.monto_estimado)); setEditing(true) }}
+          title={confirmado
+            ? 'Ya confirmado este mes — al editar acá cambiás el template, pero el gasto generado no se actualiza solo.'
+            : 'Editar monto'}
+          className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-surface-2 text-fg-soft hover:text-fg transition-all"
+        >
+          <Pencil className="w-3 h-3" />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-1 justify-end">
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        value={val || ''}
+        onChange={(e) => setVal(Number(e.target.value))}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            ;(e.currentTarget.nextElementSibling as HTMLButtonElement | null)?.click()
+          }
+          if (e.key === 'Escape') {
+            setVal(Number(recurrente.monto_estimado))
+            setEditing(false)
+          }
+        }}
+        autoFocus
+        className="w-28 px-2 py-1 bg-surface border border-border-strong rounded text-fg font-mono text-xs text-right focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-primary/25"
+      />
+      <button
+        type="button"
+        disabled={isPending || val <= 0}
+        onClick={() => {
+          startTransition(async () => {
+            try {
+              await updateMontoRecurrente(recurrente.id, val)
+              setEditing(false)
+              onSaved()
+            } catch (e) {
+              alert((e as Error).message)
+            }
+          })
+        }}
+        className="p-1 rounded bg-green-600/20 text-green-700 hover:bg-green-600/30 disabled:opacity-50"
+        title="Guardar (Enter)"
+      >
+        {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+      </button>
+      <button
+        type="button"
+        onClick={() => { setVal(Number(recurrente.monto_estimado)); setEditing(false) }}
+        className="p-1 rounded bg-surface-2 text-fg-soft hover:bg-[#e3ddd0]"
+        title="Cancelar (Esc)"
+      >
+        <X className="w-3 h-3" />
+      </button>
     </div>
   )
 }
@@ -1045,7 +1132,7 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
                     </td>
                     <td className="px-4 py-2.5 text-fg-muted">{r.categoria}</td>
                     <td className="px-4 py-2.5 text-right font-mono text-fg">
-                      {formatCurrency(r.monto_estimado, r.moneda)}
+                      <MontoEditor recurrente={r} confirmado={confirmado} onSaved={() => router.refresh()} />
                       {r.monto_secundario && r.monto_secundario > 0 && r.moneda_secundaria && (
                         <p className="text-xs text-blue-700 font-mono">
                           + {formatCurrency(r.monto_secundario, r.moneda_secundaria)}

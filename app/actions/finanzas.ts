@@ -577,6 +577,24 @@ export async function deleteRecurrente(id: string) {
   revalidatePath('/finanzas/gastos-recurrentes')
 }
 
+/**
+ * Update quirúrgico solo del monto_estimado — usado por la edición inline
+ * en la tabla de recurrentes.
+ */
+export async function updateMontoRecurrente(id: string, monto: number) {
+  await requireUser()
+  if (!Number.isFinite(monto) || monto <= 0) {
+    throw new Error('El monto debe ser un número positivo')
+  }
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('gastos_recurrentes')
+    .update({ monto_estimado: Math.round(monto * 100) / 100 })
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/recurrentes')
+}
+
 // ============================================================
 // Bulk edit de recurrentes (edición masiva)
 // ============================================================
