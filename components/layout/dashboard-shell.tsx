@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Sidebar } from './sidebar'
 import { TopNav } from './topnav'
 import { QuickActions } from './quick-actions'
+import { MesActivoProvider } from '@/components/mes-activo/mes-activo-provider'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -32,6 +33,7 @@ export function DashboardShell({ children, userEmail }: Props) {
   }, [drawerOpen])
 
   return (
+    <MesActivoProvider>
     <div className="flex h-screen bg-bg overflow-hidden">
       {/* Sidebar — visible siempre en desktop, drawer en mobile */}
       <div className="hidden md:flex">
@@ -74,5 +76,6 @@ export function DashboardShell({ children, userEmail }: Props) {
 
       <QuickActions />
     </div>
+    </MesActivoProvider>
   )
 }

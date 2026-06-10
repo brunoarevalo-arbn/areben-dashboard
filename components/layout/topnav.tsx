@@ -3,6 +3,7 @@
 import { signOut } from '@/app/actions/auth'
 import { Bell, LogOut, User, Menu, Building2 } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme/theme-toggle'
+import { MesActivoSelector } from '@/components/mes-activo/mes-activo-selector'
 
 interface TopNavProps {
   userEmail?: string
@@ -33,6 +34,7 @@ export function TopNav({ userEmail, onMenuClick }: TopNavProps) {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
+        <MesActivoSelector />
         <ThemeToggle />
         <button
           className="hidden sm:block p-2 rounded-lg hover:bg-surface-2 text-fg-muted hover:text-fg transition-colors relative"
