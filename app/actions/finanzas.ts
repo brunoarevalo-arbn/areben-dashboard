@@ -580,6 +580,57 @@ export async function deleteRecurrente(id: string) {
 }
 
 /**
+ * Revierte un gasto PAGADO a PENDIENTE: borra todos los pagos asociados en
+ * el ledger y limpia fecha_pago + cuenta_origen_pago_id.
+ *
+ * Útil cuando un gasto se marcó pagado por error o cuando se borraba
+ * automáticamente por paid-on-commit (lógica vieja). El user invoca esto
+ * desde un botón en la tabla de gastos.
+ */
+export async function revertirPagoGasto(gastoId: string) {
+  await requireUser()
+  const supabase = await createClient()
+
+  const { data: gasto, error: errGet } = await supabase
+    .from('gastos')
+    .select('id, estado, auto_generado, gasto_padre_id')
+    .eq('id', gastoId)
+    .single()
+  if (errGet || !gasto) throw new Error('Gasto no encontrado')
+  if (gasto.estado !== 'PAGADO') {
+    throw new Error('El gasto no está en estado PAGADO — nada para revertir')
+  }
+  if (gasto.auto_generado || gasto.gasto_padre_id) {
+    throw new Error('Es un gasto auto-generado — revertí el gasto principal en su lugar')
+  }
+
+  // Borrar todos los pagos asociados al gasto (tipo_origen=GASTO).
+  // Incluye tanto pagos virtuales (acreditado=false) como reales.
+  const { error: errDel } = await supabase
+    .from('pagos')
+    .delete()
+    .eq('tipo_origen', 'GASTO')
+    .eq('origen_id', gastoId)
+  if (errDel) throw new Error(errDel.message)
+
+  // Volver el gasto a PENDIENTE y limpiar la fecha de pago efectivo.
+  const { error: errUpd } = await supabase
+    .from('gastos')
+    .update({
+      estado: 'PENDIENTE',
+      fecha_pago: null,
+      cuenta_origen_pago_id: null,
+    })
+    .eq('id', gastoId)
+  if (errUpd) throw new Error(errUpd.message)
+
+  revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/pagos')
+  revalidatePath('/finanzas/cierre-mes')
+}
+
+/**
  * Update quirúrgico solo del monto de un gasto — usado por la edición inline
  * en la tabla de gastos. Recalcula monto_neto según IVA del propio gasto.
  *

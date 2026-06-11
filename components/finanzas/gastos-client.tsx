@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createGasto, updateGasto, deleteGasto, marcarGastoPagado, updateMontoGasto } from '@/app/actions/finanzas'
+import { createGasto, updateGasto, deleteGasto, marcarGastoPagado, updateMontoGasto, revertirPagoGasto } from '@/app/actions/finanzas'
 import type { Gasto, ProrrateoMarcas, ProrrateoDefault, TipoIVA, ConfiguracionProrrateo } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,7 @@ import { EstadoBadge, MarcaBadge, Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate, getMonthOptions } from '@/lib/utils'
 import {
   Plus, Pencil, Trash2, CheckCircle, Filter, TrendingDown, Loader2,
-  Info, Layers, Receipt, Wallet, CreditCard, Save, X, Search,
+  Info, Layers, Receipt, Wallet, CreditCard, Save, X, Search, RotateCcw,
 } from 'lucide-react'
 import { ProrrateoEditor } from './prorrateo-editor'
 import { MoneyInput } from '@/components/ui/money-input'
@@ -730,6 +730,21 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
     startTransition(() => deleteGasto(id))
   }
 
+  function handleRevertirPago(g: Gasto) {
+    if (!confirm(
+      `¿Revertir el pago de "${g.concepto}"?\n\n` +
+      `El gasto vuelve a PENDIENTE y se borra el pago asociado del ledger. ` +
+      `Si era un pago real (acreditado en caja), también se va — vas a tener que cargarlo de nuevo cuando corresponda.`
+    )) return
+    startTransition(async () => {
+      try {
+        await revertirPagoGasto(g.id)
+      } catch (e) {
+        alert((e as Error).message)
+      }
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -935,6 +950,17 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
                         {g.estado !== 'PAGADO' && (
                           <Button size="sm" variant="success" onClick={() => setPagarGasto(g)} title="Registrar pago (con cuenta de origen)">
                             <CheckCircle className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                        {g.estado === 'PAGADO' && !g.auto_generado && !g.gasto_padre_id && (
+                          <Button
+                            size="sm"
+                            variant="warning"
+                            onClick={() => handleRevertirPago(g)}
+                            disabled={isPending}
+                            title="Revertir pago: vuelve el gasto a PENDIENTE y borra el pago asociado"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
                           </Button>
                         )}
                         <Button size="sm" variant="ghost" onClick={() => openEdit(g)} title="Editar gasto">
