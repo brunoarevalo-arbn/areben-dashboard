@@ -578,6 +578,54 @@ export async function deleteRecurrente(id: string) {
 }
 
 /**
+ * Update quirúrgico solo del monto de un gasto — usado por la edición inline
+ * en la tabla de gastos. Recalcula monto_neto según IVA del propio gasto.
+ *
+ * No permite editar:
+ * - Gastos PAGADOS (rompería la conciliación con los pagos del ledger).
+ * - Gastos con cuotas múltiples (las cuotas ya generadas no se recalculan acá;
+ *   para esos casos usar el modal full que maneja la regeneración).
+ * - Gastos auto-generados (intereses, aportes patronales, gastos de inversión),
+ *   que dependen del gasto padre.
+ */
+export async function updateMontoGasto(id: string, monto: number) {
+  await requireUser()
+  if (!Number.isFinite(monto) || monto <= 0) {
+    throw new Error('El monto debe ser un número positivo')
+  }
+  const supabase = await createClient()
+  const { data: gasto, error: errGet } = await supabase
+    .from('gastos')
+    .select('id, estado, auto_generado, gasto_padre_id, cuotas_total, iva_incluido, porcentaje_iva')
+    .eq('id', id)
+    .single()
+  if (errGet || !gasto) throw new Error('Gasto no encontrado')
+
+  if (gasto.estado === 'PAGADO') {
+    throw new Error('El gasto está pagado — editá el monto desde el modal o registrá el ajuste como otro gasto')
+  }
+  if (gasto.auto_generado || gasto.gasto_padre_id) {
+    throw new Error('Es un gasto auto-generado, no se puede editar directamente — modificá el gasto principal')
+  }
+  if ((gasto.cuotas_total ?? 1) > 1) {
+    throw new Error('Tiene cuotas — editalo desde el modal para regenerar las cuotas correctamente')
+  }
+
+  const montoFinal = Math.round(monto * 100) / 100
+  const montoNeto = calcularMontoNeto(montoFinal, gasto.iva_incluido, Number(gasto.porcentaje_iva ?? 21))
+
+  const { error: errUpd } = await supabase
+    .from('gastos')
+    .update({ monto: montoFinal, monto_neto: montoNeto })
+    .eq('id', id)
+  if (errUpd) throw new Error(errUpd.message)
+
+  revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/cierre-mes')
+}
+
+/**
  * Update quirúrgico solo del monto_estimado — usado por la edición inline
  * en la tabla de recurrentes.
  */

@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createGasto, updateGasto, deleteGasto, marcarGastoPagado } from '@/app/actions/finanzas'
+import { createGasto, updateGasto, deleteGasto, marcarGastoPagado, updateMontoGasto } from '@/app/actions/finanzas'
 import type { Gasto, ProrrateoMarcas, ProrrateoDefault, TipoIVA, ConfiguracionProrrateo } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,7 @@ import { EstadoBadge, MarcaBadge, Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate, getMonthOptions } from '@/lib/utils'
 import {
   Plus, Pencil, Trash2, CheckCircle, Filter, TrendingDown, Loader2,
-  Info, Layers, Receipt, Wallet, CreditCard,
+  Info, Layers, Receipt, Wallet, CreditCard, Save, X,
 } from 'lucide-react'
 import { ProrrateoEditor } from './prorrateo-editor'
 import { MoneyInput } from '@/components/ui/money-input'
@@ -550,6 +550,105 @@ function PagarModal({
 
 // ─── GastosClient ─────────────────────────────────────────────────────────────
 
+// ─── MontoGastoEditor (edición inline del monto) ──────────────────────────────
+
+function MontoGastoEditor({ gasto, onSaved }: { gasto: Gasto; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState<number>(Number(gasto.monto))
+  const [isPending, startTransition] = useTransition()
+
+  // Condiciones para deshabilitar la edición inline (ver server action updateMontoGasto)
+  const noEditable =
+    gasto.estado === 'PAGADO' ||
+    !!gasto.auto_generado ||
+    !!gasto.gasto_padre_id ||
+    (gasto.cuotas_total ?? 1) > 1
+
+  const tooltipNoEditable = gasto.estado === 'PAGADO'
+    ? 'Ya pagado — editá desde el modal si necesitás corregir'
+    : (gasto.auto_generado || gasto.gasto_padre_id)
+      ? 'Auto-generado — modificá el gasto principal'
+      : (gasto.cuotas_total ?? 1) > 1
+        ? 'Con cuotas — editá desde el modal para regenerar las cuotas'
+        : 'Editar monto'
+
+  if (!editing) {
+    return (
+      <div className="flex items-center justify-end gap-1.5 group">
+        <span className="font-mono font-medium text-fg">{formatCurrency(gasto.monto, gasto.moneda || 'ARS')}</span>
+        {!noEditable && (
+          <button
+            type="button"
+            onClick={() => { setVal(Number(gasto.monto)); setEditing(true) }}
+            title="Editar monto (Enter para guardar, Esc para cancelar)"
+            className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-surface-2 text-fg-soft hover:text-fg transition-all"
+          >
+            <Pencil className="w-3 h-3" />
+          </button>
+        )}
+        {noEditable && (
+          <span className="opacity-0 group-hover:opacity-100 text-fg-soft text-[10px] transition-all" title={tooltipNoEditable}>
+            🔒
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-1 justify-end">
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        value={val || ''}
+        onChange={(e) => setVal(Number(e.target.value))}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            ;(e.currentTarget.nextElementSibling as HTMLButtonElement | null)?.click()
+          }
+          if (e.key === 'Escape') {
+            setVal(Number(gasto.monto))
+            setEditing(false)
+          }
+        }}
+        autoFocus
+        className="w-28 px-2 py-1 bg-surface border border-border-strong rounded text-fg font-mono text-xs text-right focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-primary/25"
+      />
+      <button
+        type="button"
+        disabled={isPending || val <= 0}
+        onClick={() => {
+          startTransition(async () => {
+            try {
+              await updateMontoGasto(gasto.id, val)
+              setEditing(false)
+              onSaved()
+            } catch (e) {
+              alert((e as Error).message)
+            }
+          })
+        }}
+        className="p-1 rounded bg-green-600/20 text-green-700 hover:bg-green-600/30 disabled:opacity-50"
+        title="Guardar (Enter)"
+      >
+        {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+      </button>
+      <button
+        type="button"
+        onClick={() => { setVal(Number(gasto.monto)); setEditing(false) }}
+        className="p-1 rounded bg-surface-2 text-fg-soft hover:bg-[#e3ddd0]"
+        title="Cancelar (Esc)"
+      >
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+  )
+}
+
+// ─── GastosClient ─────────────────────────────────────────────────────────────
+
 export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjetas, prorrateosDefault, tiposIva, configProrrateo }: GastosClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -709,7 +808,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
                     <td className="px-4 py-3 text-fg-muted">{g.categoria}</td>
                     <td className="px-4 py-3"><MarcaBadge marca={g.negocio} /></td>
                     <td className="px-4 py-3 text-right">
-                      <p className="font-mono font-medium text-fg">{formatCurrency(g.monto, g.moneda || 'ARS')}</p>
+                      <MontoGastoEditor gasto={g} onSaved={() => router.refresh()} />
                       {g.iva_incluido && (
                         <p className="text-xs text-green-700 font-mono">neto: {formatCurrency(g.monto_neto, g.moneda || 'ARS')}</p>
                       )}
