@@ -314,10 +314,12 @@ export async function createGasto(prevState: string | null, formData: FormData) 
     await syncGastoIntereses(gasto.id)
   }
 
-  // Paid-on-commit: tarjeta/cheque/cta-cte saldan contra el proveedor al momento
-  if (gasto) {
-    await marcarGastoPagadoOnCommit(gasto.id)
-  }
+  // NOTA: Paid-on-commit deshabilitado por pedido del usuario — todos los
+  // gastos quedan PENDIENTE hasta que se marquen pagados manualmente.
+  // El helper marcarGastoPagadoOnCommit queda en el código por si se quiere
+  // revertir; para invocarlo manualmente sobre un gasto específico, usar
+  // el modal "Marcar pagado".
+  // if (gasto) { await marcarGastoPagadoOnCommit(gasto.id) }
 
   revalidatePath('/finanzas/gastos')
   revalidatePath('/finanzas/tarjetas')
@@ -359,8 +361,8 @@ export async function updateGasto(id: string, prevState: string | null, formData
   // Sincronizar el gasto-intereses (crea, actualiza o borra según corresponda)
   await syncGastoIntereses(id)
 
-  // Paid-on-commit: si pasó a un instrumento de compromiso desplazado, saldarlo
-  await marcarGastoPagadoOnCommit(id)
+  // NOTA: Paid-on-commit deshabilitado (ver createGasto).
+  // await marcarGastoPagadoOnCommit(id)
 
   revalidatePath('/finanzas/gastos')
   revalidatePath('/finanzas/tarjetas')
@@ -849,14 +851,14 @@ export async function confirmarRecurrentesMasivo(recurrenteIds: string[], mes: s
             }
           }
         }
-        // Paid-on-commit
-        for (const g of insertadosMasivo ?? []) {
-          try {
-            await marcarGastoPagadoOnCommit(g.id)
-          } catch (e) {
-            errors.push(`${rec.concepto}: auto-saldo — ${(e as Error).message}`)
-          }
-        }
+        // NOTA: Paid-on-commit deshabilitado — los gastos generados desde
+        // recurrentes quedan PENDIENTE para que el usuario los marque pagados
+        // manualmente.
+        // for (const g of insertadosMasivo ?? []) {
+        //   try { await marcarGastoPagadoOnCommit(g.id) } catch (e) {
+        //     errors.push(`${rec.concepto}: auto-saldo — ${(e as Error).message}`)
+        //   }
+        // }
       }
     } catch (e) {
       errors.push(`Recurrente ${recId.slice(0, 8)}…: ${(e as Error).message}`)
@@ -1009,10 +1011,8 @@ export async function confirmarRecurrente(args: {
     }
   }
 
-  // Paid-on-commit: tarjeta/cheque/cta-cte saldan contra el proveedor al momento
-  for (const g of insertados ?? []) {
-    await marcarGastoPagadoOnCommit(g.id)
-  }
+  // NOTA: Paid-on-commit deshabilitado (ver createGasto).
+  // for (const g of insertados ?? []) { await marcarGastoPagadoOnCommit(g.id) }
 
   revalidatePath('/finanzas/gastos-recurrentes')
   revalidatePath('/finanzas/recurrentes')

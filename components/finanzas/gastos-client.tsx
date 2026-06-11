@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState, useTransition, useEffect } from 'react'
+import { useActionState, useState, useTransition, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createGasto, updateGasto, deleteGasto, marcarGastoPagado, updateMontoGasto } from '@/app/actions/finanzas'
 import type { Gasto, ProrrateoMarcas, ProrrateoDefault, TipoIVA, ConfiguracionProrrateo } from '@/types/database'
@@ -11,7 +11,7 @@ import { EstadoBadge, MarcaBadge, Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate, getMonthOptions } from '@/lib/utils'
 import {
   Plus, Pencil, Trash2, CheckCircle, Filter, TrendingDown, Loader2,
-  Info, Layers, Receipt, Wallet, CreditCard, Save, X,
+  Info, Layers, Receipt, Wallet, CreditCard, Save, X, Search,
 } from 'lucide-react'
 import { ProrrateoEditor } from './prorrateo-editor'
 import { MoneyInput } from '@/components/ui/money-input'
@@ -658,20 +658,51 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
   const [pagarGasto, setPagarGasto] = useState<Gasto | undefined>()
   const [isPending, startTransition] = useTransition()
 
+  // Búsqueda client-side: general + por columna
+  const [searchGeneral, setSearchGeneral] = useState('')
+  const [filterConcepto, setFilterConcepto] = useState('')
+  const [filterCategoria, setFilterCategoria] = useState('')
+  const [filterMonto, setFilterMonto] = useState('')
+
+  const gastosFiltrados = useMemo(() => {
+    const qGen = searchGeneral.trim().toLowerCase()
+    const qConc = filterConcepto.trim().toLowerCase()
+    const qCat = filterCategoria.trim().toLowerCase()
+    const qMonto = filterMonto.trim()
+    if (!qGen && !qConc && !qCat && !qMonto) return gastos
+    return gastos.filter((g) => {
+      if (qGen) {
+        const haystack = [g.concepto, g.categoria, g.notas, String(g.monto), String(g.monto_neto)]
+          .filter(Boolean).join(' ').toLowerCase()
+        if (!haystack.includes(qGen)) return false
+      }
+      if (qConc && !(g.concepto || '').toLowerCase().includes(qConc)) return false
+      if (qCat && !(g.categoria || '').toLowerCase().includes(qCat)) return false
+      if (qMonto && !String(g.monto).includes(qMonto)) return false
+      return true
+    })
+  }, [gastos, searchGeneral, filterConcepto, filterCategoria, filterMonto])
+
   // Totales separados por moneda — sin sumar ni convertir
+  // Se calculan sobre los gastos filtrados para que los KPIs reflejen lo que ves
   const ars = (g: Gasto) => (g.moneda === 'USD' ? 0 : g.monto)
   const usd = (g: Gasto) => (g.moneda === 'USD' ? g.monto : 0)
   const arsNeto = (g: Gasto) => (g.moneda === 'USD' ? 0 : (g.monto_neto || g.monto))
   const usdNeto = (g: Gasto) => (g.moneda === 'USD' ? (g.monto_neto || g.monto) : 0)
 
-  const totalGastosARS = gastos.reduce((s, g) => s + ars(g), 0)
-  const totalGastosUSD = gastos.reduce((s, g) => s + usd(g), 0)
-  const totalNetoARS = gastos.reduce((s, g) => s + arsNeto(g), 0)
-  const totalNetoUSD = gastos.reduce((s, g) => s + usdNeto(g), 0)
-  const totalPagadoARS = gastos.filter((g) => g.estado === 'PAGADO').reduce((s, g) => s + ars(g), 0)
-  const totalPagadoUSD = gastos.filter((g) => g.estado === 'PAGADO').reduce((s, g) => s + usd(g), 0)
-  const totalPendienteARS = gastos.filter((g) => g.estado === 'PENDIENTE').reduce((s, g) => s + ars(g), 0)
-  const totalPendienteUSD = gastos.filter((g) => g.estado === 'PENDIENTE').reduce((s, g) => s + usd(g), 0)
+  const totalGastosARS = gastosFiltrados.reduce((s, g) => s + ars(g), 0)
+  const totalGastosUSD = gastosFiltrados.reduce((s, g) => s + usd(g), 0)
+  const totalNetoARS = gastosFiltrados.reduce((s, g) => s + arsNeto(g), 0)
+  const totalNetoUSD = gastosFiltrados.reduce((s, g) => s + usdNeto(g), 0)
+  const totalPagadoARS = gastosFiltrados.filter((g) => g.estado === 'PAGADO').reduce((s, g) => s + ars(g), 0)
+  const totalPagadoUSD = gastosFiltrados.filter((g) => g.estado === 'PAGADO').reduce((s, g) => s + usd(g), 0)
+  const totalPendienteARS = gastosFiltrados.filter((g) => g.estado === 'PENDIENTE').reduce((s, g) => s + ars(g), 0)
+  const totalPendienteUSD = gastosFiltrados.filter((g) => g.estado === 'PENDIENTE').reduce((s, g) => s + usd(g), 0)
+
+  const hayBusquedaActiva = !!(searchGeneral || filterConcepto || filterCategoria || filterMonto)
+  function limpiarBusquedas() {
+    setSearchGeneral(''); setFilterConcepto(''); setFilterCategoria(''); setFilterMonto('')
+  }
 
   function setFilter(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -732,62 +763,140 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
       </div>
 
       <div className="bg-surface border border-border rounded-xl">
-        <div className="p-4 border-b border-border flex flex-wrap gap-3">
-          <div className="flex items-center gap-2 text-sm text-fg-muted">
-            <Filter className="w-3.5 h-3.5" />
-            Filtros:
+        {/* Buscador general */}
+        <div className="p-4 border-b border-border space-y-3">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-fg-soft pointer-events-none" />
+            <input
+              type="text"
+              value={searchGeneral}
+              onChange={(e) => setSearchGeneral(e.target.value)}
+              placeholder="Buscar en concepto, categoría, notas o monto..."
+              className="w-full pl-10 pr-9 py-2 bg-surface-2 border border-border-strong rounded-lg text-sm text-fg placeholder-fg-soft focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            />
+            {searchGeneral && (
+              <button
+                type="button"
+                onClick={() => setSearchGeneral('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-surface text-fg-soft hover:text-fg"
+                title="Limpiar búsqueda"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
-          <select
-            value={searchParams.get('mes') ?? mes}
-            onChange={(e) => setFilter('mes', e.target.value)}
-            className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            {getMonthOptions().map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          <select
-            value={filtros.negocio ?? ''}
-            onChange={(e) => setFilter('negocio', e.target.value)}
-            className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="">Todos los negocios</option>
-            {MARCAS.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
-          <select
-            value={filtros.estado ?? ''}
-            onChange={(e) => setFilter('estado', e.target.value)}
-            className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="">Todos los estados</option>
-            {ESTADOS.map((e) => <option key={e} value={e}>{e.charAt(0) + e.slice(1).toLowerCase()}</option>)}
-          </select>
+
+          {/* Filtros existentes (server-side via URL) + indicador de filtros activos */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-fg-muted">
+              <Filter className="w-3.5 h-3.5" />
+              Filtros:
+            </div>
+            <select
+              value={searchParams.get('mes') ?? mes}
+              onChange={(e) => setFilter('mes', e.target.value)}
+              className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              {getMonthOptions().map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <select
+              value={filtros.negocio ?? ''}
+              onChange={(e) => setFilter('negocio', e.target.value)}
+              className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="">Todos los negocios</option>
+              {MARCAS.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <select
+              value={filtros.estado ?? ''}
+              onChange={(e) => setFilter('estado', e.target.value)}
+              className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="">Todos los estados</option>
+              {ESTADOS.map((e) => <option key={e} value={e}>{e.charAt(0) + e.slice(1).toLowerCase()}</option>)}
+            </select>
+            {hayBusquedaActiva && (
+              <button
+                type="button"
+                onClick={limpiarBusquedas}
+                className="ml-auto text-xs text-primary hover:underline"
+              >
+                Limpiar búsquedas
+              </button>
+            )}
+          </div>
+
+          {/* Conteo de resultados cuando hay búsqueda activa */}
+          {hayBusquedaActiva && (
+            <p className="text-xs text-fg-muted">
+              Mostrando <span className="font-semibold text-fg">{gastosFiltrados.length}</span> de {gastos.length} registros
+            </p>
+          )}
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase tracking-wider">Fecha</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase tracking-wider">Concepto</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase tracking-wider">Categoría</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase tracking-wider">Negocio</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase tracking-wider">Monto</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase tracking-wider">Estado</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase tracking-wider">Fecha pago</th>
-                <th className="px-4 py-3" />
+                <th className="text-left px-4 pt-3 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">Fecha</th>
+                <th className="text-left px-4 pt-3 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">Concepto</th>
+                <th className="text-left px-4 pt-3 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">Categoría</th>
+                <th className="text-left px-4 pt-3 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">Negocio</th>
+                <th className="text-right px-4 pt-3 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">Monto</th>
+                <th className="text-left px-4 pt-3 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">Estado</th>
+                <th className="text-left px-4 pt-3 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">Fecha pago</th>
+                <th className="px-4 pt-3 pb-2" />
+              </tr>
+              {/* Fila de filtros por columna */}
+              <tr className="border-b border-border bg-surface-2/30">
+                <th className="px-4 pb-2"></th>
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filterConcepto}
+                    onChange={(e) => setFilterConcepto(e.target.value)}
+                    placeholder="Filtrar concepto..."
+                    className="w-full px-2 py-1 bg-surface border border-border-strong rounded text-xs font-normal normal-case tracking-normal text-fg placeholder-fg-soft focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </th>
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filterCategoria}
+                    onChange={(e) => setFilterCategoria(e.target.value)}
+                    placeholder="Filtrar categoría..."
+                    className="w-full px-2 py-1 bg-surface border border-border-strong rounded text-xs font-normal normal-case tracking-normal text-fg placeholder-fg-soft focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </th>
+                <th className="px-4 pb-2"></th>
+                <th className="px-4 pb-2 text-right">
+                  <input
+                    type="text"
+                    value={filterMonto}
+                    onChange={(e) => setFilterMonto(e.target.value)}
+                    placeholder="Ej: 1440"
+                    className="w-full px-2 py-1 bg-surface border border-border-strong rounded text-xs font-normal normal-case tracking-normal text-fg placeholder-fg-soft font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </th>
+                <th className="px-4 pb-2"></th>
+                <th className="px-4 pb-2"></th>
+                <th className="px-4 pb-2"></th>
               </tr>
             </thead>
             <tbody>
-              {gastos.length === 0 ? (
+              {gastosFiltrados.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-fg-soft">
                     <TrendingDown className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                    No hay gastos para este período
+                    {hayBusquedaActiva
+                      ? 'No se encontraron gastos con esos filtros'
+                      : 'No hay gastos para este período'}
                   </td>
                 </tr>
               ) : (
-                gastos.map((g) => (
+                gastosFiltrados.map((g) => (
                   <tr key={g.id} className="border-b border-border/60 hover:bg-surface-2/30 transition-colors">
                     <td className="px-4 py-3 text-fg-muted font-mono text-xs whitespace-nowrap">{formatDate(g.fecha)}</td>
                     <td className="px-4 py-3">
