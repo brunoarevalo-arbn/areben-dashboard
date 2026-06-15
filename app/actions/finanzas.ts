@@ -2261,3 +2261,46 @@ export async function upsertSaldo(prevState: string | null, formData: FormData) 
   revalidatePath('/finanzas/saldos')
   return null
 }
+
+/**
+ * Paga TODO el saldo pendiente de un recurrente: marca todos los gastos
+ * pendientes asociados a ese recurrente_id como PAGADO, desde la cuenta indicada.
+ * Devuelve cuántos gastos se pagaron y el total.
+ */
+export async function pagarSaldoRecurrente(args: {
+  recurrenteId: string
+  cuentaOrigenId: string | null
+  fechaPago?: string
+}) {
+  await requireUser()
+  const supabase = await createClient()
+
+  const { data: gastos, error } = await supabase
+    .from('gastos')
+    .select('id, monto')
+    .eq('recurrente_id', args.recurrenteId)
+    .neq('estado', 'PAGADO')
+  if (error) throw new Error(error.message)
+  if (!gastos || gastos.length === 0) {
+    return { pagados: 0, total: 0 }
+  }
+
+  let total = 0
+  let pagados = 0
+  for (const g of gastos) {
+    try {
+      await marcarGastoPagado(g.id, args.cuentaOrigenId, args.fechaPago)
+      total += Number(g.monto)
+      pagados += 1
+    } catch {
+      // Ignorar errores individuales para que un gasto roto no impida pagar los demás
+    }
+  }
+
+  revalidatePath('/finanzas/saldos-acumulados')
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/recurrentes')
+
+  return { pagados, total }
+}

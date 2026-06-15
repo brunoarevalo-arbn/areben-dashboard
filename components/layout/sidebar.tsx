@@ -61,6 +61,7 @@ const navItems: NavItem[] = [
       { label: 'AFIP', href: '/finanzas/afip', icon: Receipt },
       { label: 'Bienes de Uso', href: '/finanzas/bienes', icon: Boxes },
       { label: 'Pendientes', href: '/finanzas/pendientes', icon: Clock },
+      { label: 'Saldos acumulados', href: '/finanzas/saldos-acumulados', icon: Receipt },
       { label: 'Pagos del mes', href: '/finanzas/pagos', icon: Wallet },
       { label: 'Cierre de mes', href: '/finanzas/cierre-mes', icon: FileCheck },
       {
