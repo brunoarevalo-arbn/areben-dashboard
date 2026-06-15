@@ -6,7 +6,7 @@ import { deleteCompra, createPago } from '@/app/actions/compras'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
-import { EstadoBadge, MarcaBadge } from '@/components/ui/badge'
+import { MarcaBadge } from '@/components/ui/badge'
 import { formatCurrency, formatDate, getMonthOptions } from '@/lib/utils'
 import {
   Plus, Trash2, ShoppingCart, Loader2,
@@ -495,7 +495,7 @@ export function ComprasClient({
   const [searchGeneral, setSearchGeneral] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState<'TODOS' | 'PENDIENTE' | 'PAGADO'>('TODOS')
 
-  type SortKey = 'descripcion' | 'proveedor' | 'negocio' | 'monto_total' | 'saldo' | 'monto_neto' | 'iva' | 'fecha' | 'estado'
+  type SortKey = 'fecha' | 'negocio' | 'proveedor' | 'descripcion' | 'monto_total' | 'monto_neto' | 'iva' | 'saldo'
   const [sortKey, setSortKey] = useState<SortKey>('fecha')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
@@ -548,15 +548,14 @@ export function ComprasClient({
   }).sort((a, b) => {
     const getVal = (c: Compra): string | number => {
       switch (sortKey) {
-        case 'descripcion': return (c.descripcion ?? '').toLowerCase()
-        case 'proveedor': return ((c.proveedor as { nombre: string } | null)?.nombre ?? '').toLowerCase()
+        case 'fecha': return c.fecha ?? ''
         case 'negocio': return c.negocio ?? ''
+        case 'proveedor': return ((c.proveedor as { nombre: string } | null)?.nombre ?? '').toLowerCase()
+        case 'descripcion': return (c.descripcion ?? '').toLowerCase()
         case 'monto_total': return Number(c.monto_total ?? 0)
-        case 'saldo': return Number(c.saldo_pendiente ?? c.monto_total ?? 0)
         case 'monto_neto': return Number(c.monto_neto ?? 0)
         case 'iva': return Number(c.iva ?? 0)
-        case 'fecha': return c.fecha ?? ''
-        case 'estado': return c.estado ?? ''
+        case 'saldo': return Number(c.saldo_pendiente ?? c.monto_total ?? 0)
       }
     }
     const av = getVal(a)
@@ -714,15 +713,14 @@ export function ComprasClient({
           <thead>
             <tr className="border-b border-border">
               {([
-                { key: 'descripcion', label: 'Descripción', align: 'left' },
+                { key: 'fecha', label: 'Fecha', align: 'left' },
+                { key: 'negocio', label: 'Marca', align: 'left' },
                 { key: 'proveedor', label: 'Proveedor', align: 'left' },
-                { key: 'negocio', label: 'Negocio', align: 'left' },
+                { key: 'descripcion', label: 'Descripción', align: 'left' },
                 { key: 'monto_total', label: 'Total', align: 'right' },
-                { key: 'saldo', label: 'Saldo', align: 'right' },
                 { key: 'monto_neto', label: 'Neto', align: 'right' },
                 { key: 'iva', label: 'IVA', align: 'right' },
-                { key: 'fecha', label: 'Fecha', align: 'left' },
-                { key: 'estado', label: 'Estado', align: 'left' },
+                { key: 'saldo', label: 'Saldo', align: 'right' },
               ] as { key: SortKey; label: string; align: 'left' | 'right' }[]).map((col) => {
                 const active = sortKey === col.key
                 return (
@@ -748,14 +746,14 @@ export function ComprasClient({
           <tbody>
             {compras.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-12 text-center text-fg-soft">
+                <td colSpan={9} className="px-4 py-12 text-center text-fg-soft">
                   <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   No hay compras registradas
                 </td>
               </tr>
             ) : comprasFiltradas.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-12 text-center text-fg-soft">
+                <td colSpan={9} className="px-4 py-12 text-center text-fg-soft">
                   <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   No hay compras que coincidan con los filtros
                 </td>
@@ -766,10 +764,15 @@ export function ComprasClient({
                 const pagada = c.estado === 'PAGADO' || saldo <= 0
                 return (
                   <tr key={c.id} className="border-b border-border/60 hover:bg-surface-2/30">
+                    <td className="px-4 py-3 text-fg-muted text-xs whitespace-nowrap">{formatDate(c.fecha)}</td>
+                    <td className="px-4 py-3"><MarcaBadge marca={c.negocio} /></td>
+                    <td className="px-4 py-3 text-fg-muted">
+                      {(c.proveedor as { nombre: string } | null)?.nombre ?? '—'}
+                    </td>
                     <td className="px-4 py-3">
                       <p className="text-fg font-medium">{c.descripcion}</p>
                       {c.notas && (
-                        <p className="text-xs text-fg-soft truncate max-w-[160px]">{c.notas}</p>
+                        <p className="text-xs text-fg-soft truncate max-w-[200px]">{c.notas}</p>
                       )}
                       {c.pagos && c.pagos.length > 0 && (
                         <p className="text-xs text-primary mt-0.5">
@@ -777,21 +780,10 @@ export function ComprasClient({
                         </p>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-fg-muted">
-                      {(c.proveedor as { nombre: string } | null)?.nombre ?? '—'}
-                    </td>
-                    <td className="px-4 py-3"><MarcaBadge marca={c.negocio} /></td>
                     <td className="px-4 py-3 text-right font-mono text-fg">
                       {formatCurrency(c.monto_total)}
                       {c.moneda !== 'ARS' && (
                         <span className="text-xs text-fg-soft ml-1">({c.moneda})</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono">
-                      {pagada ? (
-                        <span className="text-green-700 text-xs font-medium">Saldado</span>
-                      ) : (
-                        <span className="text-red-700 font-medium">{formatCurrency(saldo)}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-green-700">
@@ -800,8 +792,13 @@ export function ComprasClient({
                     <td className="px-4 py-3 text-right font-mono text-amber-700">
                       {c.iva > 0 ? formatCurrency(c.iva) : '—'}
                     </td>
-                    <td className="px-4 py-3 text-fg-muted text-xs">{formatDate(c.fecha)}</td>
-                    <td className="px-4 py-3"><EstadoBadge estado={c.estado} /></td>
+                    <td className="px-4 py-3 text-right font-mono">
+                      {pagada ? (
+                        <span className="text-green-700 text-xs font-medium">Saldado</span>
+                      ) : (
+                        <span className="text-red-700 font-medium">{formatCurrency(saldo)}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         {!pagada && (
@@ -842,12 +839,12 @@ export function ComprasClient({
           {compras.length > 0 && (
             <tfoot>
               <tr className="border-t border-border-strong bg-surface-2/50">
-                <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-fg-muted">TOTAL</td>
+                <td colSpan={4} className="px-4 py-3 text-sm font-semibold text-fg-muted">TOTAL</td>
                 <td className="px-4 py-3 text-right font-mono font-bold text-fg">{formatCurrency(totalMonto)}</td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-red-700">{formatCurrency(totalSaldo)}</td>
                 <td className="px-4 py-3 text-right font-mono font-bold text-green-700">{formatCurrency(totalNeto)}</td>
                 <td className="px-4 py-3 text-right font-mono font-bold text-amber-700">{formatCurrency(totalIVA)}</td>
-                <td colSpan={3} />
+                <td className="px-4 py-3 text-right font-mono font-bold text-red-700">{formatCurrency(totalSaldo)}</td>
+                <td />
               </tr>
             </tfoot>
           )}
