@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { TarjetasClient } from '@/components/finanzas/tarjetas-client'
 
+export const dynamic = 'force-dynamic'
+
 export default async function TarjetasPage() {
   const supabase = await createClient()
 
