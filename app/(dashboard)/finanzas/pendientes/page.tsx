@@ -18,6 +18,7 @@ export default async function PendientesPage() {
     { data: cuentasBancarias },
     { data: tarjetas },
     { data: proveedores },
+    { data: cuotasPlanAfip },
   ] = await Promise.all([
     // Gastos NO pagados de los últimos 12 meses (escala con el tiempo de uso).
     // Excluye los pagados con TARJETA: su salida de cash vive en el "Pago TC..."
@@ -101,6 +102,21 @@ export default async function PendientesPage() {
     supabase.from('cuentas_bancarias').select('id, nombre, banco').eq('activo', true).order('banco'),
     supabase.from('tarjetas_credito').select('id, nombre, banco').eq('activo', true).order('banco'),
     supabase.from('proveedores').select('id, nombre').eq('activo', true).order('nombre'),
+    // Cuotas de planes AFIP no pagadas — ventana ±6 meses pasado + 24 meses futuro
+    (() => {
+      const dDesde = new Date(); dDesde.setMonth(dDesde.getMonth() - 6)
+      const desdeFecha = dDesde.toISOString().split('T')[0]
+      const dHasta = new Date(); dHasta.setMonth(dHasta.getMonth() + 24)
+      const hastaFecha = dHasta.toISOString().split('T')[0]
+      return supabase
+        .from('plan_afip_cuotas')
+        .select('*, plan:planes_afip(id, nombre, numero_plan, cuenta_debito_id)')
+        .eq('pagada', false)
+        .gte('fecha_vencimiento', desdeFecha)
+        .lte('fecha_vencimiento', hastaFecha)
+        .order('fecha_vencimiento', { ascending: true })
+        .limit(500)
+    })(),
   ])
 
   // Saldo total actual de Tesorería
@@ -209,6 +225,7 @@ export default async function PendientesPage() {
       cuentas={cuentasBancarias ?? []}
       tarjetas={tarjetas ?? []}
       proveedores={proveedores ?? []}
+      cuotasPlanAfip={cuotasPlanAfip ?? []}
     />
   )
 }
