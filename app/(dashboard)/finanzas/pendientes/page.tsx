@@ -19,6 +19,7 @@ export default async function PendientesPage() {
     { data: tarjetas },
     { data: proveedores },
     { data: cuotasPlanAfip },
+    { data: cuotasPrestamo },
   ] = await Promise.all([
     // Gastos NO pagados de los últimos 12 meses (escala con el tiempo de uso).
     // Excluye los pagados con TARJETA: su salida de cash vive en el "Pago TC..."
@@ -111,6 +112,21 @@ export default async function PendientesPage() {
       return supabase
         .from('plan_afip_cuotas')
         .select('*, plan:planes_afip(id, nombre, numero_plan, cuenta_debito_id)')
+        .eq('pagada', false)
+        .gte('fecha_vencimiento', desdeFecha)
+        .lte('fecha_vencimiento', hastaFecha)
+        .order('fecha_vencimiento', { ascending: true })
+        .limit(500)
+    })(),
+    // Cuotas de préstamos no pagadas
+    (() => {
+      const dDesde = new Date(); dDesde.setMonth(dDesde.getMonth() - 6)
+      const desdeFecha = dDesde.toISOString().split('T')[0]
+      const dHasta = new Date(); dHasta.setMonth(dHasta.getMonth() + 36)
+      const hastaFecha = dHasta.toISOString().split('T')[0]
+      return supabase
+        .from('prestamo_cuotas')
+        .select('*, prestamo:prestamos(id, nombre, acreedor, moneda, cuenta_pago_id)')
         .eq('pagada', false)
         .gte('fecha_vencimiento', desdeFecha)
         .lte('fecha_vencimiento', hastaFecha)
@@ -226,6 +242,7 @@ export default async function PendientesPage() {
       tarjetas={tarjetas ?? []}
       proveedores={proveedores ?? []}
       cuotasPlanAfip={cuotasPlanAfip ?? []}
+      cuotasPrestamo={cuotasPrestamo ?? []}
     />
   )
 }

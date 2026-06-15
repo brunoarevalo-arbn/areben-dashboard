@@ -63,6 +63,7 @@ const navItems: NavItem[] = [
       { label: 'Pendientes', href: '/finanzas/pendientes', icon: Clock },
       { label: 'Saldos acumulados', href: '/finanzas/saldos-acumulados', icon: Receipt },
       { label: 'Planes AFIP', href: '/finanzas/planes-afip', icon: FileText },
+      { label: 'Préstamos', href: '/finanzas/prestamos', icon: TrendingDown },
       { label: 'Pagos del mes', href: '/finanzas/pagos', icon: Wallet },
       { label: 'Cierre de mes', href: '/finanzas/cierre-mes', icon: FileCheck },
       {

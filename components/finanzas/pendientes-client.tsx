@@ -103,6 +103,19 @@ interface CuotaPlanAfip {
   plan?: { id: string; nombre: string; numero_plan: string | null; cuenta_debito_id: string | null } | null
 }
 
+interface CuotaPrestamo {
+  id: string
+  prestamo_id: string
+  cuota_numero: number
+  total_cuotas: number
+  capital: number
+  interes: number
+  monto_total: number
+  fecha_vencimiento: string
+  pagada: boolean
+  prestamo?: { id: string; nombre: string; acreedor: string; moneda: string; cuenta_pago_id: string | null } | null
+}
+
 interface Props {
   mesActual: string
   hoy: string
@@ -118,6 +131,7 @@ interface Props {
   tarjetas: { id: string; nombre: string; banco: string }[]
   proveedores: { id: string; nombre: string }[]
   cuotasPlanAfip?: CuotaPlanAfip[]
+  cuotasPrestamo?: CuotaPrestamo[]
 }
 
 type GrupoFecha = 'VENCIDO' | 'ESTA_SEMANA' | 'ESTE_MES' | 'FUTURO'
@@ -618,6 +632,63 @@ function InstrumentoItem({ inst, hoy }: { inst: InstrumentoProximo; hoy: string 
   )
 }
 
+// ─── CuotaPrestamoItem ─────────────────────────────────────────────────────────
+
+function CuotaPrestamoItem({
+  cuota, hoy, onRefetch,
+}: {
+  cuota: CuotaPrestamo
+  hoy: string
+  onRefetch: () => void
+}) {
+  const [isPending, startTransition] = useTransition()
+  const dias = (() => {
+    const f = new Date(cuota.fecha_vencimiento + 'T00:00:00')
+    const h = new Date(hoy + 'T00:00:00')
+    return Math.ceil((f.getTime() - h.getTime()) / (1000 * 60 * 60 * 24))
+  })()
+  const colorBorder = dias < 0 ? 'border-red-500' : dias <= 7 ? 'border-amber-500' : 'border-transparent'
+  const colorBg = dias < 0 ? 'bg-red-500/5' : dias <= 7 ? 'bg-amber-500/5' : ''
+  return (
+    <div className={cn('border-l-4', colorBorder, colorBg)}>
+      <div className="flex items-center justify-between px-4 py-3 hover:bg-surface-2/30">
+        <div className="flex items-center gap-3 min-w-0">
+          <Receipt className="w-5 h-5 text-fg-muted shrink-0" />
+          <div className="min-w-0">
+            <p className="text-fg font-medium truncate">
+              {cuota.prestamo?.nombre ?? 'Préstamo'} · Cuota {cuota.cuota_numero}/{cuota.total_cuotas}
+              {cuota.prestamo?.acreedor && <span className="text-fg-soft text-xs ml-2">— {cuota.prestamo.acreedor}</span>}
+            </p>
+            <p className="text-xs text-fg-soft">
+              {formatDate(cuota.fecha_vencimiento)} · {dias < 0 ? `Vencido hace ${Math.abs(dias)}d` : dias === 0 ? 'Hoy' : `En ${dias}d`}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="text-right">
+            <p className="font-mono font-bold text-fg">{formatCurrency(cuota.monto_total)}</p>
+            <p className="text-xs text-fg-soft">Capital {formatCurrency(cuota.capital)} + Int {formatCurrency(cuota.interes)}</p>
+          </div>
+          <Button
+            size="sm"
+            variant="success"
+            disabled={isPending}
+            onClick={() => startTransition(async () => {
+              const { marcarCuotaPrestamoPagada } = await import('@/app/actions/prestamos')
+              await marcarCuotaPrestamoPagada(cuota.id)
+              onRefetch()
+            })}
+            title="Marcar la cuota como pagada"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Pagada
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── CuotaPlanAfipItem ─────────────────────────────────────────────────────────
 
 function CuotaPlanAfipItem({
@@ -871,9 +942,9 @@ interface GastoGrupoCargas {
 interface ItemConFecha {
   fecha: string
   grupo: GrupoFecha
-  tipo: 'cheque' | 'cuota' | 'instrumento' | 'pago_cta_cte' | 'compra_sin_plan' | 'gasto' | 'gasto_grupo' | 'cuota_plan_afip'
+  tipo: 'cheque' | 'cuota' | 'instrumento' | 'pago_cta_cte' | 'compra_sin_plan' | 'gasto' | 'gasto_grupo' | 'cuota_plan_afip' | 'cuota_prestamo'
   prioridad: number // para ordenar dentro del grupo (cheques rojos primero)
-  data: ChequePendiente | CuotaPendiente | InstrumentoProximo | PagoCtaCte | CompraSinPlanPago | GastoPend | GastoGrupoCargas | CuotaPlanAfip
+  data: ChequePendiente | CuotaPendiente | InstrumentoProximo | PagoCtaCte | CompraSinPlanPago | GastoPend | GastoGrupoCargas | CuotaPlanAfip | CuotaPrestamo
 }
 
 export function PendientesClient({
@@ -881,6 +952,7 @@ export function PendientesClient({
   cheques, pagosCtaCte, comprasSinPlanPago, cuotas, instrumentosProximos,
   gastosPendientes, cuentas, tarjetas, proveedores,
   cuotasPlanAfip = [],
+  cuotasPrestamo = [],
 }: Props) {
   const [_tick, setTick] = useState(0)
   const refetch = () => setTick((t) => t + 1)
@@ -976,6 +1048,18 @@ export function PendientesClient({
       })
     }
 
+    // Cuotas de préstamos no pagadas
+    for (const c of cuotasPrestamo) {
+      const fecha = c.fecha_vencimiento
+      list.push({
+        fecha,
+        grupo: clasificarFecha(fecha, hoy),
+        tipo: 'cuota_prestamo',
+        prioridad: 18, // entre AFIP y resto
+        data: c,
+      })
+    }
+
     // Ordenar por (grupo > prioridad > fecha asc)
     return list.sort((a, b) => {
       const ordenGrupo: Record<GrupoFecha, number> = { VENCIDO: 0, ESTA_SEMANA: 1, ESTE_MES: 2, FUTURO: 3 }
@@ -983,7 +1067,7 @@ export function PendientesClient({
       if (a.prioridad !== b.prioridad) return a.prioridad - b.prioridad
       return a.fecha.localeCompare(b.fecha)
     })
-  }, [cheques, pagosCtaCte, comprasSinPlanPago, cuotas, instrumentosProximos, gastosPendientes, cuotasPlanAfip, mesActual, hoy, saldoActualARS, saldoActualUSD, _tick])
+  }, [cheques, pagosCtaCte, comprasSinPlanPago, cuotas, instrumentosProximos, gastosPendientes, cuotasPlanAfip, cuotasPrestamo, mesActual, hoy, saldoActualARS, saldoActualUSD, _tick])
 
   // Mostrar todos los buckets ahora, incluyendo FUTURO para visualizar cuotas de tarjeta a futuro
   const visibles = items
@@ -1043,6 +1127,9 @@ export function PendientesClient({
     }
     if (it.tipo === 'cuota_plan_afip') {
       return <CuotaPlanAfipItem key={key} cuota={it.data as CuotaPlanAfip} hoy={hoy} onRefetch={refetch} />
+    }
+    if (it.tipo === 'cuota_prestamo') {
+      return <CuotaPrestamoItem key={key} cuota={it.data as CuotaPrestamo} hoy={hoy} onRefetch={refetch} />
     }
     return <InstrumentoItem key={key} inst={it.data as InstrumentoProximo} hoy={hoy} />
   }
