@@ -180,26 +180,50 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas, gastosCon
     return v.totalCuotas + v.totalGastos + v.totalRetiros
   }
 
-  // Proyección de pasivos por mes
+  // Proyección de pasivos por mes — suma cuotas + gastos + retiros con tarjeta_id.
+  // Para retiros/gastos sin fecha_pago explícita, asumimos que el consumo del mes M
+  // vence el mes siguiente (regla simple sin mirar día de cierre).
+  function mesVencimiento(consumoMes: string): string {
+    const [y, m] = consumoMes.split('-').map(Number)
+    const d = new Date(y, m, 1) // m es índice 0-11, esto da m+1 efectivo
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  }
   const proyeccion = useMemo(() => {
     const mapa = new Map<string, { total: number; cantidad: number; pagado: number }>()
+
     for (const c of cuotas) {
-      if (c.pagada) {
-        const k = c.mes_vencimiento
-        if (!mapa.has(k)) mapa.set(k, { total: 0, cantidad: 0, pagado: 0 })
-        mapa.get(k)!.pagado += c.monto_cuota
-        continue
-      }
       const k = c.mes_vencimiento
       if (!mapa.has(k)) mapa.set(k, { total: 0, cantidad: 0, pagado: 0 })
+      if (c.pagada) {
+        mapa.get(k)!.pagado += Number(c.monto_cuota)
+      } else {
+        const v = mapa.get(k)!
+        v.total += Number(c.monto_cuota)
+        v.cantidad += 1
+      }
+    }
+
+    for (const g of gastosConTarjeta) {
+      if (g.estado === 'PAGADO') continue
+      const k = g.fecha_pago ? g.fecha_pago.substring(0, 7) : mesVencimiento(g.mes)
+      if (!mapa.has(k)) mapa.set(k, { total: 0, cantidad: 0, pagado: 0 })
       const v = mapa.get(k)!
-      v.total += c.monto_cuota
+      v.total += Number(g.monto)
       v.cantidad += 1
     }
+
+    for (const r of retirosConTarjeta) {
+      const k = mesVencimiento(r.mes)
+      if (!mapa.has(k)) mapa.set(k, { total: 0, cantidad: 0, pagado: 0 })
+      const v = mapa.get(k)!
+      v.total += Number(r.monto_pesos)
+      v.cantidad += 1
+    }
+
     return Array.from(mapa.entries())
       .map(([mes, v]) => ({ mes, ...v }))
       .sort((a, b) => a.mes.localeCompare(b.mes))
-  }, [cuotas])
+  }, [cuotas, gastosConTarjeta, retirosConTarjeta])
 
   const cuotasPendientes = cuotas.filter((c) => !c.pagada)
 
