@@ -19,7 +19,7 @@ import { formatCurrency, formatMonth, getMonthOptions } from '@/lib/utils'
 import {
   Plus, Pencil, Trash2, Repeat, Loader2, CheckCircle2, Info,
   Receipt, CreditCard, Upload, ListChecks, Power, PowerOff, Percent, Edit3,
-  Save, X,
+  Save, X, Search,
 } from 'lucide-react'
 import { ProrrateoEditor } from './prorrateo-editor'
 import { cn } from '@/lib/utils'
@@ -887,9 +887,19 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [bulkAjustarOpen, setBulkAjustarOpen] = useState(false)
+  const [searchRec, setSearchRec] = useState('')
 
   const confirmadosIds = new Set(gastosMes.filter((g) => g.recurrente_id).map((g) => g.recurrente_id!))
   const recurrentesPendientes = recurrentes.filter((r) => !confirmadosIds.has(r.id))
+  const recurrentesFiltrados = useMemo(() => {
+    const q = searchRec.trim().toLowerCase()
+    if (!q) return recurrentes
+    return recurrentes.filter((r) =>
+      [r.concepto, r.categoria, r.medio_pago, String(r.monto_estimado)]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q))
+    )
+  }, [recurrentes, searchRec])
   // Los ids seleccionados que aún no fueron confirmados en este mes — sirve para "Pasar a gastos del mes"
   const idsSelNoConfirmados = Array.from(seleccionados).filter((id) => !confirmadosIds.has(id))
 
@@ -1072,7 +1082,35 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
         </div>
       )}
 
-      <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+      <div className="bg-surface border border-border rounded-xl">
+        <div className="p-4 border-b border-border">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-fg-soft pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar recurrente (concepto, categoría, medio de pago, monto)..."
+              value={searchRec}
+              onChange={(e) => setSearchRec(e.target.value)}
+              className="w-full bg-surface-2 border border-border rounded-lg pl-9 pr-9 py-2 text-sm text-fg placeholder:text-fg-soft focus:outline-none focus:border-orange-500/60"
+            />
+            {searchRec && (
+              <button
+                type="button"
+                onClick={() => setSearchRec('')}
+                title="Limpiar búsqueda"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-surface text-fg-soft hover:text-fg"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {searchRec && (
+            <p className="text-xs text-fg-muted mt-2">
+              Mostrando {recurrentesFiltrados.length} de {recurrentes.length} recurrentes
+            </p>
+          )}
+        </div>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
@@ -1103,8 +1141,15 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
                   Sin gastos recurrentes configurados
                 </td>
               </tr>
+            ) : recurrentesFiltrados.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="px-4 py-12 text-center text-fg-soft">
+                  <Search className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                  Sin resultados para "{searchRec}"
+                </td>
+              </tr>
             ) : (
-              recurrentes.map((r) => {
+              recurrentesFiltrados.map((r) => {
                 const confirmado = confirmadosIds.has(r.id)
                 const checked = seleccionados.has(r.id)
                 return (
@@ -1196,6 +1241,7 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <Modal open={modal} onOpenChange={setModal} title={editRec ? 'Editar recurrente' : 'Nuevo recurrente'} className="max-w-xl">

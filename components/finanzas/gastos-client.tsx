@@ -694,10 +694,10 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
   const totalGastosUSD = gastosFiltrados.reduce((s, g) => s + usd(g), 0)
   const totalNetoARS = gastosFiltrados.reduce((s, g) => s + arsNeto(g), 0)
   const totalNetoUSD = gastosFiltrados.reduce((s, g) => s + usdNeto(g), 0)
-  const totalPagadoARS = gastosFiltrados.filter((g) => g.estado === 'PAGADO').reduce((s, g) => s + ars(g), 0)
-  const totalPagadoUSD = gastosFiltrados.filter((g) => g.estado === 'PAGADO').reduce((s, g) => s + usd(g), 0)
-  const totalPendienteARS = gastosFiltrados.filter((g) => g.estado === 'PENDIENTE').reduce((s, g) => s + ars(g), 0)
-  const totalPendienteUSD = gastosFiltrados.filter((g) => g.estado === 'PENDIENTE').reduce((s, g) => s + usd(g), 0)
+  const totalPagadoNetoARS = gastosFiltrados.filter((g) => g.estado === 'PAGADO').reduce((s, g) => s + arsNeto(g), 0)
+  const totalPagadoNetoUSD = gastosFiltrados.filter((g) => g.estado === 'PAGADO').reduce((s, g) => s + usdNeto(g), 0)
+  const totalPendienteNetoARS = gastosFiltrados.filter((g) => g.estado === 'PENDIENTE').reduce((s, g) => s + arsNeto(g), 0)
+  const totalPendienteNetoUSD = gastosFiltrados.filter((g) => g.estado === 'PENDIENTE').reduce((s, g) => s + usdNeto(g), 0)
 
   const hayBusquedaActiva = !!(searchGeneral || filterConcepto || filterCategoria || filterMonto)
   function limpiarBusquedas() {
@@ -760,10 +760,10 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
-          { label: 'Total bruto', ars: totalGastosARS, usd: totalGastosUSD, color: 'text-fg' },
-          { label: 'Total neto (sin IVA)', ars: totalNetoARS, usd: totalNetoUSD, color: 'text-green-700' },
-          { label: 'Pagado', ars: totalPagadoARS, usd: totalPagadoUSD, color: 'text-primary' },
-          { label: 'Pendiente', ars: totalPendienteARS, usd: totalPendienteUSD, color: 'text-amber-700' },
+          { label: 'Total (sin IVA)', ars: totalNetoARS, usd: totalNetoUSD, color: 'text-green-700' },
+          { label: 'Pagado (sin IVA)', ars: totalPagadoNetoARS, usd: totalPagadoNetoUSD, color: 'text-primary' },
+          { label: 'Pendiente (sin IVA)', ars: totalPendienteNetoARS, usd: totalPendienteNetoUSD, color: 'text-amber-700' },
+          { label: 'Total bruto (c/ IVA)', ars: totalGastosARS, usd: totalGastosUSD, color: 'text-fg-muted' },
         ].map((item) => (
           <div key={item.label} className="bg-surface border border-border rounded-xl p-4 space-y-1">
             <p className="text-xs text-fg-muted">{item.label}</p>
