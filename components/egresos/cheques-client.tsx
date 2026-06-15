@@ -1,8 +1,14 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { acreditarCheque } from '@/app/actions/compras'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { FileCheck, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Modal } from '@/components/ui/modal'
+import {
+  FileCheck, AlertTriangle, Clock, CheckCircle2, Search, X, ArrowUp, ArrowDown, Loader2, Wallet,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Cheque {
@@ -16,6 +22,9 @@ interface Cheque {
   numero_cheque: string | null
   banco_emisor: string | null
   cuit_beneficiario: string | null
+  cuenta_id: string | null
+  acreditado: boolean
+  fecha_acreditacion: string | null
   numero_cuota: number | null
   total_cuotas: number | null
   notas: string | null
@@ -23,7 +32,17 @@ interface Cheque {
     descripcion: string
     proveedor?: { nombre: string } | null
   } | null
+  cuenta?: { id: string; nombre: string; banco: string } | null
 }
+
+interface Cuenta {
+  id: string
+  nombre: string
+  banco: string
+}
+
+type SortKey = 'fecha_vencimiento' | 'monto' | 'numero_cheque' | 'banco_emisor' | 'proveedor' | 'cuenta'
+type EstadoFiltro = 'PENDIENTE' | 'PAGADO' | 'TODOS'
 
 function diasHasta(fecha: string | null): number | null {
   if (!fecha) return null
@@ -64,53 +83,118 @@ function EstadoCheque({ dias }: { dias: number | null }) {
       </span>
     )
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-surface-2/50 text-fg-muted border border-[#c8c0b0]/30">
-      <CheckCircle2 className="w-3 h-3" />
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-fg-soft/10 text-fg-soft border border-border">
       En {dias}d
     </span>
   )
 }
 
-export function ChequesClient({ cheques }: { cheques: Cheque[] }) {
-  const hoy = new Date()
-  hoy.setHours(0, 0, 0, 0)
+export function ChequesClient({ cheques, cuentas: _cuentas }: { cheques: Cheque[]; cuentas: Cuenta[] }) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [search, setSearch] = useState('')
+  const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>('PENDIENTE')
+  const [sortKey, setSortKey] = useState<SortKey>('fecha_vencimiento')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [cobrarTarget, setCobrarTarget] = useState<Cheque | null>(null)
 
-  const stats = useMemo(() => {
-    const vencidos = cheques.filter((c) => {
-      const d = diasHasta(c.fecha_vencimiento)
-      return d !== null && d < 0
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  const chequesFiltrados = useMemo(() => {
+    return cheques.filter((c) => {
+      if (estadoFiltro === 'PENDIENTE' && c.acreditado) return false
+      if (estadoFiltro === 'PAGADO' && !c.acreditado) return false
+      if (search) {
+        const q = search.toLowerCase()
+        const haystack = [
+          c.numero_cheque,
+          c.banco_emisor,
+          c.cuit_beneficiario,
+          c.compra?.descripcion,
+          (c.compra?.proveedor as { nombre: string } | null)?.nombre,
+          c.cuenta?.nombre,
+          c.cuenta?.banco,
+          String(c.monto),
+        ].filter(Boolean).join(' ').toLowerCase()
+        if (!haystack.includes(q)) return false
+      }
+      return true
+    }).sort((a, b) => {
+      const getVal = (c: Cheque): string | number => {
+        switch (sortKey) {
+          case 'fecha_vencimiento': return c.fecha_vencimiento ?? '9999-99-99'
+          case 'monto': return Number(c.monto)
+          case 'numero_cheque': return (c.numero_cheque ?? '').toLowerCase()
+          case 'banco_emisor': return ((c.cuenta?.banco ?? c.banco_emisor) ?? '').toLowerCase()
+          case 'proveedor': return ((c.compra?.proveedor as { nombre: string } | null)?.nombre ?? '').toLowerCase()
+          case 'cuenta': return (c.cuenta?.nombre ?? '').toLowerCase()
+        }
+      }
+      const av = getVal(a)
+      const bv = getVal(b)
+      if (av < bv) return sortDir === 'asc' ? -1 : 1
+      if (av > bv) return sortDir === 'asc' ? 1 : -1
+      return 0
     })
-    const proximos7 = cheques.filter((c) => {
-      const d = diasHasta(c.fecha_vencimiento)
-      return d !== null && d >= 0 && d <= 7
-    })
-    const proximos30 = cheques.filter((c) => {
-      const d = diasHasta(c.fecha_vencimiento)
-      return d !== null && d >= 0 && d <= 30
-    })
-    const totalCartera = cheques.reduce((s, c) => s + c.monto, 0)
-    return {
-      totalCartera,
-      cantTotal: cheques.length,
-      vencidos: { cant: vencidos.length, monto: vencidos.reduce((s, c) => s + c.monto, 0) },
-      proximos7: { cant: proximos7.length, monto: proximos7.reduce((s, c) => s + c.monto, 0) },
-      proximos30: { cant: proximos30.length, monto: proximos30.reduce((s, c) => s + c.monto, 0) },
-    }
-  }, [cheques])
+  }, [cheques, estadoFiltro, search, sortKey, sortDir])
+
+  // KPIs (sobre todos los cheques, no los filtrados — son el "panorama")
+  const pendientes = cheques.filter((c) => !c.acreditado)
+  const stats = {
+    totalCartera: pendientes.reduce((s, c) => s + Number(c.monto), 0),
+    cantTotal: pendientes.length,
+    vencidos: {
+      cant: pendientes.filter((c) => {
+        const d = diasHasta(c.fecha_vencimiento)
+        return d !== null && d < 0
+      }).length,
+      monto: pendientes.filter((c) => {
+        const d = diasHasta(c.fecha_vencimiento)
+        return d !== null && d < 0
+      }).reduce((s, c) => s + Number(c.monto), 0),
+    },
+    proximos7: {
+      cant: pendientes.filter((c) => {
+        const d = diasHasta(c.fecha_vencimiento)
+        return d !== null && d >= 0 && d <= 7
+      }).length,
+      monto: pendientes.filter((c) => {
+        const d = diasHasta(c.fecha_vencimiento)
+        return d !== null && d >= 0 && d <= 7
+      }).reduce((s, c) => s + Number(c.monto), 0),
+    },
+    proximos30: {
+      cant: pendientes.filter((c) => {
+        const d = diasHasta(c.fecha_vencimiento)
+        return d !== null && d >= 0 && d <= 30
+      }).length,
+      monto: pendientes.filter((c) => {
+        const d = diasHasta(c.fecha_vencimiento)
+        return d !== null && d >= 0 && d <= 30
+      }).reduce((s, c) => s + Number(c.monto), 0),
+    },
+  }
+
+  const totalFiltrado = chequesFiltrados.reduce((s, c) => s + Number(c.monto), 0)
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-fg">Cartera de Cheques</h1>
         <p className="text-sm text-fg-muted mt-0.5">
-          {cheques.length} cheque{cheques.length !== 1 ? 's' : ''} en cartera
+          {chequesFiltrados.length === cheques.length
+            ? `${cheques.length} cheque${cheques.length !== 1 ? 's' : ''} en cartera`
+            : `${chequesFiltrados.length} de ${cheques.length} cheques`}
         </p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-surface border border-border rounded-xl p-4">
-          <p className="text-xs text-fg-muted mb-1">Total en cartera</p>
+          <p className="text-xs text-fg-muted mb-1">Total cartera (pendientes)</p>
           <p className="text-xl font-bold text-fg">{formatCurrency(stats.totalCartera)}</p>
           <p className="text-xs text-fg-soft mt-0.5">{stats.cantTotal} cheques</p>
         </div>
@@ -142,100 +226,276 @@ export function ChequesClient({ cheques }: { cheques: Cheque[] }) {
       </div>
 
       {/* Tabla */}
-      <div className="bg-surface border border-border rounded-xl overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Tipo</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Nro. Cheque</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Banco</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Concepto / Proveedor</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">CUIT benef.</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Monto</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Emisión</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Vencimiento</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {cheques.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="px-4 py-12 text-center text-fg-soft">
-                  <FileCheck className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  No hay cheques en cartera
-                </td>
-              </tr>
-            ) : (
-              cheques.map((c) => {
-                const dias = diasHasta(c.fecha_vencimiento)
-                const urgente = dias !== null && dias <= 7
-                return (
-                  <tr
-                    key={c.id}
-                    className={cn(
-                      'border-b border-border/60 hover:bg-surface-2/30',
-                      urgente && 'bg-amber-500/5'
-                    )}
-                  >
-                    <td className="px-4 py-3">
-                      <span className={cn(
-                        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-xs font-medium',
-                        c.instrumento === 'ECHEQ'
-                          ? 'text-orange-400 bg-orange-500/10 border-orange-500/20'
-                          : 'text-amber-700 bg-amber-500/10 border-amber-500/20'
-                      )}>
-                        <FileCheck className="w-3 h-3" />
-                        {c.instrumento === 'ECHEQ' ? 'E-Cheq' : 'Físico'}
+      <div className="bg-surface border border-border rounded-xl">
+        {/* Filtros */}
+        <div className="p-4 border-b border-border space-y-3">
+          <div className="flex gap-2 flex-wrap items-center">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-fg-soft pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar (nº cheque, banco, proveedor, CUIT, monto)..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-surface-2 border border-border rounded-lg pl-9 pr-9 py-2 text-sm text-fg placeholder:text-fg-soft focus:outline-none focus:border-orange-500/60"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-surface text-fg-soft hover:text-fg"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            <div className="flex gap-1">
+              {([
+                { v: 'PENDIENTE' as const, label: 'Pendientes', color: 'amber' },
+                { v: 'PAGADO' as const, label: 'Pagados', color: 'green' },
+                { v: 'TODOS' as const, label: 'Todos', color: 'orange' },
+              ]).map(({ v, label, color }) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setEstadoFiltro(v)}
+                  className={cn(
+                    'px-3 py-2 rounded-lg text-xs font-medium border transition-colors',
+                    estadoFiltro === v
+                      ? color === 'green'
+                        ? 'bg-green-500/15 border-green-500/40 text-green-700'
+                        : color === 'amber'
+                          ? 'bg-amber-500/15 border-amber-500/40 text-amber-700'
+                          : 'bg-orange-500/15 border-orange-500/40 text-orange-600'
+                      : 'bg-surface-2 border-border text-fg-muted hover:text-fg'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                {([
+                  { key: 'fecha_vencimiento', label: 'Vencimiento', align: 'left' },
+                  { key: 'numero_cheque', label: 'Nº cheque', align: 'left' },
+                  { key: 'banco_emisor', label: 'Tipo / Banco', align: 'left' },
+                  { key: 'cuenta', label: 'Cuenta emisora', align: 'left' },
+                  { key: 'proveedor', label: 'Concepto / Beneficiario', align: 'left' },
+                  { key: 'monto', label: 'Monto', align: 'right' },
+                ] as { key: SortKey; label: string; align: 'left' | 'right' }[]).map((col) => {
+                  const active = sortKey === col.key
+                  return (
+                    <th
+                      key={col.key}
+                      onClick={() => toggleSort(col.key)}
+                      className={cn(
+                        'px-4 py-3 text-xs font-medium uppercase cursor-pointer select-none hover:text-fg transition-colors',
+                        active ? 'text-fg' : 'text-fg-muted',
+                        col.align === 'right' ? 'text-right' : 'text-left'
+                      )}
+                    >
+                      <span className={cn('inline-flex items-center gap-1', col.align === 'right' && 'flex-row-reverse')}>
+                        {col.label}
+                        {active && (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-fg-muted text-xs">
-                      {c.numero_cheque ?? <span className="text-fg-muted">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-fg-muted">
-                      {c.banco_emisor ?? <span className="text-fg-muted">—</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-fg font-medium truncate max-w-[180px]">
-                        {c.compra?.descripcion ?? '—'}
-                      </p>
-                      <p className="text-xs text-fg-soft">
-                        {(c.compra?.proveedor as { nombre: string } | null)?.nombre ?? '—'}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-fg-muted text-xs">
-                      {c.cuit_beneficiario ?? <span className="text-fg-muted">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono font-semibold text-fg">
-                      {formatCurrency(c.monto)}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-fg-muted">
-                      {formatDate(c.fecha_emision)}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-fg-muted font-medium">
-                      {c.fecha_vencimiento ? formatDate(c.fecha_vencimiento) : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <EstadoCheque dias={dias} />
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-          {cheques.length > 0 && (
-            <tfoot>
-              <tr className="border-t border-border-strong bg-surface-2/50">
-                <td colSpan={5} className="px-4 py-3 text-sm font-semibold text-fg-muted">
-                  TOTAL CARTERA
-                </td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-fg">
-                  {formatCurrency(stats.totalCartera)}
-                </td>
-                <td colSpan={3} />
+                    </th>
+                  )
+                })}
+                <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Estado</th>
+                <th className="px-4 py-3" />
               </tr>
-            </tfoot>
-          )}
-        </table>
+            </thead>
+            <tbody>
+              {chequesFiltrados.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-fg-soft">
+                    <FileCheck className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    {cheques.length === 0 ? 'No hay cheques en cartera' : 'Sin resultados con los filtros activos'}
+                  </td>
+                </tr>
+              ) : (
+                chequesFiltrados.map((c) => {
+                  const dias = c.acreditado ? null : diasHasta(c.fecha_vencimiento)
+                  const urgente = dias !== null && dias <= 7
+                  return (
+                    <tr
+                      key={c.id}
+                      className={cn(
+                        'border-b border-border/60 hover:bg-surface-2/30',
+                        urgente && !c.acreditado && 'bg-amber-500/5',
+                        c.acreditado && 'opacity-60',
+                      )}
+                    >
+                      <td className="px-4 py-3 text-xs text-fg-muted font-medium whitespace-nowrap">
+                        {c.fecha_vencimiento ? formatDate(c.fecha_vencimiento) : '—'}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-fg text-xs">
+                        {c.numero_cheque ?? <span className="text-fg-muted">—</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={cn(
+                          'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-xs font-medium',
+                          c.instrumento === 'ECHEQ'
+                            ? 'text-orange-400 bg-orange-500/10 border-orange-500/20'
+                            : 'text-amber-700 bg-amber-500/10 border-amber-500/20'
+                        )}>
+                          <FileCheck className="w-3 h-3" />
+                          {c.instrumento === 'ECHEQ' ? 'E-Cheq' : 'Físico'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-fg-muted">
+                        {c.cuenta ? (
+                          <>
+                            <p className="text-fg font-medium">{c.cuenta.banco}</p>
+                            <p className="text-xs text-fg-soft">{c.cuenta.nombre}</p>
+                          </>
+                        ) : (
+                          <span className="text-fg-soft">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-fg font-medium truncate max-w-[200px]">
+                          {c.compra?.descripcion ?? '—'}
+                        </p>
+                        <p className="text-xs text-fg-soft">
+                          {(c.compra?.proveedor as { nombre: string } | null)?.nombre ?? '—'}
+                          {c.cuit_beneficiario && (
+                            <span className="ml-1 text-fg-muted font-mono">· CUIT {c.cuit_beneficiario}</span>
+                          )}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-semibold text-fg whitespace-nowrap">
+                        {formatCurrency(c.monto)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {c.acreditado ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/15 text-green-700 border border-green-500/20">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Pagado {c.fecha_acreditacion && `· ${formatDate(c.fecha_acreditacion)}`}
+                          </span>
+                        ) : (
+                          <EstadoCheque dias={dias} />
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {!c.acreditado && (
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={() => setCobrarTarget(c)}
+                            disabled={isPending}
+                            title="Marcar el cheque como pagado (debitado de la cuenta emisora)"
+                          >
+                            <Wallet className="w-3.5 h-3.5" />
+                            Marcar pagado
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+            {chequesFiltrados.length > 0 && (
+              <tfoot>
+                <tr className="border-t border-border-strong bg-surface-2/50">
+                  <td colSpan={5} className="px-4 py-3 text-sm font-semibold text-fg-muted">
+                    TOTAL {estadoFiltro === 'PENDIENTE' ? 'PENDIENTES' : estadoFiltro === 'PAGADO' ? 'PAGADOS' : 'FILTRADO'}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono font-bold text-fg whitespace-nowrap">
+                    {formatCurrency(totalFiltrado)}
+                  </td>
+                  <td colSpan={2} />
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+
+      {/* Modal marcar pagado */}
+      <Modal
+        open={!!cobrarTarget}
+        onOpenChange={(o) => { if (!o) setCobrarTarget(null) }}
+        title={`Marcar cheque como pagado`}
+        className="max-w-md"
+      >
+        {cobrarTarget && (
+          <MarcarPagadoForm
+            cheque={cobrarTarget}
+            onClose={() => { setCobrarTarget(null); router.refresh() }}
+          />
+        )}
+      </Modal>
+    </div>
+  )
+}
+
+// ─── MarcarPagadoForm ────────────────────────────────────────────────────────
+
+function MarcarPagadoForm({ cheque, onClose }: { cheque: Cheque; onClose: () => void }) {
+  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0])
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  function submit() {
+    setError(null)
+    startTransition(async () => {
+      try {
+        await acreditarCheque(cheque.id, fecha)
+        onClose()
+      } catch (e) {
+        setError((e as Error).message)
+      }
+    })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-surface-2 rounded-lg p-3 space-y-1">
+        <p className="text-sm text-fg">
+          Cheque <span className="font-mono font-medium">{cheque.numero_cheque ?? 's/n'}</span>
+          {' '}por <span className="font-mono font-medium">{formatCurrency(cheque.monto)}</span>
+        </p>
+        {cheque.cuenta && (
+          <p className="text-xs text-fg-soft">
+            Se debitará de: {cheque.cuenta.banco} — {cheque.cuenta.nombre}
+          </p>
+        )}
+        {cheque.compra?.proveedor && (
+          <p className="text-xs text-fg-soft">
+            Para: {(cheque.compra.proveedor as { nombre: string }).nombre}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="block text-sm font-medium text-fg-muted">Fecha en que se debitó</label>
+        <input
+          type="date"
+          value={fecha}
+          onChange={(e) => setFecha(e.target.value)}
+          required
+          className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+        />
+      </div>
+
+      {error && <p className="text-sm text-red-700">{error}</p>}
+
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="secondary" onClick={onClose} disabled={isPending}>
+          Cancelar
+        </Button>
+        <Button type="button" variant="success" onClick={submit} disabled={isPending}>
+          {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+          Marcar pagado
+        </Button>
       </div>
     </div>
   )
