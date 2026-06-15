@@ -604,14 +604,204 @@ function InstrumentoItem({ inst, hoy }: { inst: InstrumentoProximo; hoy: string 
   )
 }
 
+// ─── GastoGrupoCargasItem ──────────────────────────────────────────────────────
+
+function GastoGrupoCargasItem({
+  grupo,
+  hoy,
+  cuentas,
+  onPagoParcial,
+  onRefetch,
+}: {
+  grupo: { mes: string; categoria: string; gastos: GastoPend[]; totalSaldo: number; cantidad: number }
+  hoy: string
+  cuentas: { id: string; nombre: string; banco: string }[]
+  onPagoParcial: (t: PagoTarget) => void
+  onRefetch: () => void
+}) {
+  const [expandido, setExpandido] = useState(false)
+  const [pagarTodoOpen, setPagarTodoOpen] = useState(false)
+  const fechaVenc = grupo.gastos[0]?.fecha_pago ?? `${grupo.mes}-15`
+  const dias = (() => {
+    const f = new Date(fechaVenc + 'T00:00:00')
+    const h = new Date(hoy + 'T00:00:00')
+    return Math.ceil((f.getTime() - h.getTime()) / (1000 * 60 * 60 * 24))
+  })()
+  const colorBorder = dias < 0 ? 'border-red-500' : dias <= 7 ? 'border-amber-500' : 'border-transparent'
+  const colorBg = dias < 0 ? 'bg-red-500/5' : dias <= 7 ? 'bg-amber-500/5' : ''
+  return (
+    <div className={cn('border-l-4', colorBorder, colorBg)}>
+      <div className="flex items-center justify-between px-4 py-3 hover:bg-surface-2/30">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => setExpandido((v) => !v)}
+            className="p-1 -ml-1 rounded hover:bg-surface-2 text-fg-soft"
+          >
+            {expandido ? <ChevronRight className="w-4 h-4 rotate-90" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+          <Receipt className="w-5 h-5 text-purple-700 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-fg font-medium">
+              Cargas Sociales · {formatMonth(grupo.mes)}
+              <span className="text-fg-soft text-xs ml-2">({grupo.cantidad} empleado{grupo.cantidad > 1 ? 's' : ''})</span>
+            </p>
+            <p className="text-xs text-fg-soft">
+              Vence {formatDate(fechaVenc)} · {dias < 0 ? `Vencido hace ${Math.abs(dias)}d` : dias === 0 ? 'Vence hoy' : `En ${dias}d`}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <p className="font-mono font-bold text-amber-700">{formatCurrency(grupo.totalSaldo)}</p>
+          <Button size="sm" variant="success" onClick={() => setPagarTodoOpen(true)} title="Marcar pagados todos los aportes de este mes">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Pagar todo
+          </Button>
+        </div>
+      </div>
+      {expandido && (
+        <div className="border-t border-border/60 bg-surface-2/20 divide-y divide-border/40">
+          {grupo.gastos.map((g) => (
+            <div key={g.id} className="px-4 py-2 pl-12 flex items-center justify-between text-sm">
+              <div className="min-w-0">
+                <p className="text-fg-muted text-xs">{g.concepto}</p>
+                {g.total_pagado && g.total_pagado > 0 && (
+                  <p className="text-xs text-amber-700">
+                    Pagado parcial: {formatCurrency(g.total_pagado)} de {formatCurrency(g.monto)}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <p className="font-mono text-xs text-fg">{formatCurrency(g.saldo_pendiente ?? Number(g.monto))}</p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onPagoParcial({
+                    tipo_origen: 'GASTO',
+                    origen_id: g.id,
+                    monto_total: g.monto,
+                    saldo_pendiente: g.saldo_pendiente,
+                    moneda: g.moneda === 'USD' ? 'USD' : 'ARS',
+                    descripcion: g.concepto,
+                    contexto: g.categoria,
+                  })}
+                  title="Pagar este individual (parcial o total)"
+                >
+                  Pagar
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal pagar todo el grupo */}
+      <Modal
+        open={pagarTodoOpen}
+        onOpenChange={(o) => { if (!o) setPagarTodoOpen(false) }}
+        title={`Pagar todas las Cargas Sociales · ${formatMonth(grupo.mes)}`}
+        className="max-w-md"
+      >
+        <PagarGrupoForm
+          grupo={grupo}
+          cuentas={cuentas}
+          onClose={() => { setPagarTodoOpen(false); onRefetch() }}
+        />
+      </Modal>
+    </div>
+  )
+}
+
+function PagarGrupoForm({
+  grupo,
+  cuentas,
+  onClose,
+}: {
+  grupo: { mes: string; categoria: string; gastos: GastoPend[]; totalSaldo: number; cantidad: number }
+  cuentas: { id: string; nombre: string; banco: string }[]
+  onClose: () => void
+}) {
+  const [cuentaId, setCuentaId] = useState('')
+  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0])
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  function submit() {
+    setError(null)
+    if (!cuentaId) { setError('Seleccioná la cuenta de origen'); return }
+    startTransition(async () => {
+      try {
+        for (const g of grupo.gastos) {
+          try {
+            await marcarGastoPagado(g.id, cuentaId, fecha)
+          } catch {
+            // ignorar errores individuales
+          }
+        }
+        onClose()
+      } catch (e) {
+        setError((e as Error).message)
+      }
+    })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+        <p className="text-sm text-fg">
+          Vas a pagar <strong>{grupo.cantidad}</strong> aporte{grupo.cantidad > 1 ? 's' : ''} de Cargas Sociales de <strong>{formatMonth(grupo.mes)}</strong>:
+        </p>
+        <p className="text-xl font-mono font-bold text-amber-700 mt-1">{formatCurrency(grupo.totalSaldo)}</p>
+      </div>
+      <div className="space-y-1.5">
+        <label className="block text-sm font-medium text-fg-muted">Cuenta de origen</label>
+        <select
+          value={cuentaId}
+          onChange={(e) => setCuentaId(e.target.value)}
+          required
+          className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+        >
+          <option value="">Seleccioná...</option>
+          {cuentas.map((c) => <option key={c.id} value={c.id}>{c.banco} — {c.nombre}</option>)}
+        </select>
+      </div>
+      <div className="space-y-1.5">
+        <label className="block text-sm font-medium text-fg-muted">Fecha de pago</label>
+        <input
+          type="date"
+          value={fecha}
+          onChange={(e) => setFecha(e.target.value)}
+          className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+        />
+      </div>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="secondary" onClick={onClose} disabled={isPending}>Cancelar</Button>
+        <Button type="button" variant="success" onClick={submit} disabled={isPending}>
+          {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+          Marcar todos pagados
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Client ───────────────────────────────────────────────────────────────
+
+interface GastoGrupoCargas {
+  mes: string
+  categoria: string
+  gastos: GastoPend[]
+  totalSaldo: number
+  cantidad: number
+}
 
 interface ItemConFecha {
   fecha: string
   grupo: GrupoFecha
-  tipo: 'cheque' | 'cuota' | 'instrumento' | 'pago_cta_cte' | 'compra_sin_plan' | 'gasto'
+  tipo: 'cheque' | 'cuota' | 'instrumento' | 'pago_cta_cte' | 'compra_sin_plan' | 'gasto' | 'gasto_grupo'
   prioridad: number // para ordenar dentro del grupo (cheques rojos primero)
-  data: ChequePendiente | CuotaPendiente | InstrumentoProximo | PagoCtaCte | CompraSinPlanPago | GastoPend
+  data: ChequePendiente | CuotaPendiente | InstrumentoProximo | PagoCtaCte | CompraSinPlanPago | GastoPend | GastoGrupoCargas
 }
 
 export function PendientesClient({
@@ -675,10 +865,30 @@ export function PendientesClient({
       list.push({ fecha: i.fecha_fin, grupo: clasificarFecha(i.fecha_fin, hoy), tipo: 'instrumento', prioridad: 30, data: i })
     }
 
-    // Gastos pendientes (incluye nóminas auto-creadas)
+    // Gastos pendientes (incluye nóminas auto-creadas).
+    // Las Cargas Sociales (auto-creadas por la nómina, 1 por empleado) se
+    // agrupan por mes para mostrar un total agregado en vez de N líneas.
+    const cargasSocialesPorMes = new Map<string, GastoPend[]>()
     for (const g of gastosPendientes) {
+      if (g.categoria === 'Cargas Sociales') {
+        const arr = cargasSocialesPorMes.get(g.mes) ?? []
+        arr.push(g)
+        cargasSocialesPorMes.set(g.mes, arr)
+        continue
+      }
       const fecha = g.fecha_pago ?? `${g.mes}-15`
       list.push({ fecha, grupo: clasificarFecha(fecha, hoy), tipo: 'gasto', prioridad: g.categoria === 'Sueldos' ? 20 : 50, data: g })
+    }
+    for (const [mes, gastos] of cargasSocialesPorMes.entries()) {
+      const fecha = gastos[0]?.fecha_pago ?? `${mes}-15`
+      const totalSaldo = gastos.reduce((s, x) => s + (x.saldo_pendiente ?? Number(x.monto)), 0)
+      list.push({
+        fecha,
+        grupo: clasificarFecha(fecha, hoy),
+        tipo: 'gasto_grupo',
+        prioridad: 25, // entre sueldos (20) y resto (50)
+        data: { mes, categoria: 'Cargas Sociales', gastos, totalSaldo, cantidad: gastos.length } as GastoGrupoCargas,
+      })
     }
 
     // Ordenar por (grupo > prioridad > fecha asc)
@@ -742,6 +952,9 @@ export function PendientesClient({
     }
     if (it.tipo === 'gasto') {
       return <GastoPendItem key={key} gasto={it.data as GastoPend} hoy={hoy} cuentas={cuentas} onPagoParcial={abrirPagoParcial} />
+    }
+    if (it.tipo === 'gasto_grupo') {
+      return <GastoGrupoCargasItem key={key} grupo={it.data as GastoGrupoCargas} hoy={hoy} cuentas={cuentas} onPagoParcial={abrirPagoParcial} onRefetch={refetch} />
     }
     return <InstrumentoItem key={key} inst={it.data as InstrumentoProximo} hoy={hoy} />
   }
