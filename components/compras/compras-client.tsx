@@ -486,6 +486,10 @@ export function ComprasClient({
   const router = useRouter()
   const searchParams = useSearchParams()
 
+  const TABS = ['TODAS', 'BDI', 'ZATTIA', 'STUNNED', 'GENERAL'] as const
+  type Tab = typeof TABS[number]
+  const [marcaActiva, setMarcaActiva] = useState<Tab>('TODAS')
+
   // Quick action: ?nuevo=1 abre modal automáticamente
   useEffect(() => {
     if (searchParams.get('nuevo') === '1') {
@@ -497,10 +501,20 @@ export function ComprasClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const totalMonto = compras.reduce((s, c) => s + c.monto_total, 0)
-  const totalNeto = compras.reduce((s, c) => s + c.monto_neto, 0)
-  const totalIVA = compras.reduce((s, c) => s + c.iva, 0)
-  const totalSaldo = compras.reduce((s, c) => s + (c.saldo_pendiente ?? c.monto_total), 0)
+  const comprasFiltradas = marcaActiva === 'TODAS'
+    ? compras
+    : compras.filter((c) => c.negocio === marcaActiva)
+
+  const totalMonto = comprasFiltradas.reduce((s, c) => s + c.monto_total, 0)
+  const totalNeto = comprasFiltradas.reduce((s, c) => s + c.monto_neto, 0)
+  const totalIVA = comprasFiltradas.reduce((s, c) => s + c.iva, 0)
+  const totalSaldo = comprasFiltradas.reduce((s, c) => s + (c.saldo_pendiente ?? c.monto_total), 0)
+
+  // Conteo por marca (para los badges en los tabs)
+  const conteoPorMarca = compras.reduce<Record<string, number>>((acc, c) => {
+    acc[c.negocio] = (acc[c.negocio] ?? 0) + 1
+    return acc
+  }, {})
 
   function handleDelete(id: string) {
     if (!confirm('¿Eliminar esta compra? También se borrarán los pagos y cuotas asociados.')) return
@@ -518,12 +532,45 @@ export function ComprasClient({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-fg">Compras</h1>
-          <p className="text-sm text-fg-muted mt-0.5">{compras.length} registros</p>
+          <p className="text-sm text-fg-muted mt-0.5">
+            {marcaActiva === 'TODAS'
+              ? `${compras.length} registros`
+              : `${comprasFiltradas.length} de ${compras.length} registros (${marcaActiva})`}
+          </p>
         </div>
         <Button onClick={() => setModalOpen(true)}>
           <Plus className="w-4 h-4" />
-          Agregar compra
+          {marcaActiva === 'TODAS' ? 'Agregar compra' : `Agregar compra ${marcaActiva}`}
         </Button>
+      </div>
+
+      {/* Tabs por marca */}
+      <div className="flex items-center gap-1 border-b border-border overflow-x-auto">
+        {TABS.map((tab) => {
+          const isActive = marcaActiva === tab
+          const count = tab === 'TODAS' ? compras.length : (conteoPorMarca[tab] ?? 0)
+          return (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setMarcaActiva(tab)}
+              className={cn(
+                'px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap flex items-center gap-2',
+                isActive
+                  ? 'border-orange-500 text-orange-500'
+                  : 'border-transparent text-fg-muted hover:text-fg hover:border-border'
+              )}
+            >
+              {tab === 'TODAS' ? 'Todas' : tab}
+              <span className={cn(
+                'text-xs px-1.5 py-0.5 rounded-full',
+                isActive ? 'bg-orange-500/15 text-orange-500' : 'bg-surface-2 text-fg-soft'
+              )}>
+                {count}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {/* KPIs */}
@@ -570,8 +617,15 @@ export function ComprasClient({
                   No hay compras registradas
                 </td>
               </tr>
+            ) : comprasFiltradas.length === 0 ? (
+              <tr>
+                <td colSpan={10} className="px-4 py-12 text-center text-fg-soft">
+                  <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                  No hay compras de {marcaActiva}
+                </td>
+              </tr>
             ) : (
-              compras.map((c) => {
+              comprasFiltradas.map((c) => {
                 const saldo = c.saldo_pendiente ?? c.monto_total
                 const pagada = c.estado === 'PAGADO' || saldo <= 0
                 return (
@@ -672,7 +726,11 @@ export function ComprasClient({
         description="Registrá una nueva compra con o sin desglose de IVA"
         className="max-w-xl"
       >
-        <CompraForm proveedores={proveedores} onClose={() => setModalOpen(false)} />
+        <CompraForm
+          proveedores={proveedores}
+          onClose={() => setModalOpen(false)}
+          initialNegocio={marcaActiva !== 'TODAS' ? marcaActiva : undefined}
+        />
       </Modal>
 
       {/* Modal: editar compra */}

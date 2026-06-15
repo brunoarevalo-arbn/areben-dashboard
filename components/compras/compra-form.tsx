@@ -64,7 +64,7 @@ function generarCuotas(n: number, base: number): CuotaRow[] {
 
 // ─── CompraForm ───────────────────────────────────────────────────────────────
 
-export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; proveedores: Proveedor[]; onClose: () => void }) {
+export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { compra?: Compra; proveedores: Proveedor[]; onClose: () => void; initialNegocio?: string }) {
   const hoy = new Date().toISOString().split('T')[0]
   const editing = !!compra
 
@@ -190,7 +190,7 @@ export function CompraForm({ compra, proveedores, onClose }: { compra?: Compra; 
         <Select
           label="Negocio"
           name="negocio"
-          defaultValue={compra?.negocio ?? 'GENERAL'}
+          defaultValue={compra?.negocio ?? initialNegocio ?? 'GENERAL'}
           options={MARCAS.map((m) => ({ value: m, label: m }))}
         />
       </div>
