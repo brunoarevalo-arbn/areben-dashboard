@@ -5,7 +5,7 @@ import { createCompra, updateCompra } from '@/app/actions/compras'
 import { MoneyInput } from '@/components/ui/money-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import {
   Loader2, ChevronDown, ChevronUp,
   CreditCard, Banknote, Building2, FileCheck,
@@ -14,7 +14,7 @@ import type { Compra, Proveedor } from './compras-client'
 
 // ─── Tipos y constantes locales del form ──────────────────────────────────────
 
-type FormaPago = 'DESPUES' | 'CONTADO' | 'A_PLAZO' | 'EN_CUOTAS'
+type FormaPago = 'DESPUES' | 'CONTADO' | 'A_PLAZO' | 'EN_CUOTAS' | 'MIXTO'
 type Instrumento = 'EFECTIVO' | 'TRANSFERENCIA' | 'CUENTA_CORRIENTE' | 'CHEQUE_FISICO' | 'ECHEQ'
 
 interface CuotaRow {
@@ -22,6 +22,8 @@ interface CuotaRow {
   fecha_vencimiento: string
   numero_cheque?: string
   banco_emisor?: string
+  /** Solo se usa en MIXTO — cada fila tiene su propio instrumento */
+  instrumento?: Instrumento
 }
 
 const MARCAS = ['BDI', 'ZATTIA', 'STUNNED', 'GENERAL']
@@ -117,8 +119,20 @@ export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { c
   function handleFormaPagoChange(v: FormaPago) {
     setFormaPago(v)
     if (v === 'CONTADO') setInstrumento('EFECTIVO')
-    else if (v !== 'DESPUES') setInstrumento('CUENTA_CORRIENTE')
+    else if (v === 'A_PLAZO' || v === 'EN_CUOTAS') setInstrumento('CUENTA_CORRIENTE')
     setFechaVencimientoPago('')
+    if (v === 'MIXTO' && montoTotal > 0) {
+      setCuotas([
+        { monto: 0, fecha_vencimiento: hoy, instrumento: 'EFECTIVO' },
+      ])
+    }
+  }
+
+  function addPagoMixto() {
+    setCuotas((prev) => [...prev, { monto: 0, fecha_vencimiento: hoy, instrumento: 'TRANSFERENCIA' }])
+  }
+  function removePagoMixto(i: number) {
+    setCuotas((prev) => prev.filter((_, idx) => idx !== i))
   }
 
   function handleToggleIVA() {
@@ -150,13 +164,18 @@ export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { c
 
     if (formaPago !== 'DESPUES') {
       fd.set('registrar_pago', 'true')
-      fd.set('condicion_pago', formaPago === 'CONTADO' ? 'CONTADO' : formaPago === 'A_PLAZO' ? 'A_PLAZO' : 'EN_CUOTAS')
-      fd.set('instrumento', instrumento)
+      const condicion =
+        formaPago === 'CONTADO' ? 'CONTADO' :
+        formaPago === 'A_PLAZO' ? 'A_PLAZO' :
+        formaPago === 'EN_CUOTAS' ? 'EN_CUOTAS' :
+        'MIXTO'
+      fd.set('condicion_pago', condicion)
+      fd.set('instrumento', formaPago === 'MIXTO' ? 'EFECTIVO' : instrumento)
       fd.set('fecha_emision_pago', fechaEmisionPago)
       if (fechaVencimientoPago) fd.set('fecha_vencimiento_pago', fechaVencimientoPago)
       if (numeroCheque) fd.set('numero_cheque', numeroCheque)
       if (bancoEmisor) fd.set('banco_emisor', bancoEmisor)
-      if (formaPago === 'EN_CUOTAS') {
+      if (formaPago === 'EN_CUOTAS' || formaPago === 'MIXTO') {
         fd.set('cuotas', JSON.stringify(cuotas))
       } else {
         fd.set('monto_pago', String(montoTotal))
@@ -360,12 +379,13 @@ export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { c
       {!editing && (
       <div className="space-y-3">
         <label className="block text-sm font-medium text-fg-muted">Forma de pago</label>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-5 gap-2">
           {([
-            { v: 'DESPUES', label: 'Registrar después' },
+            { v: 'DESPUES', label: 'Después' },
             { v: 'CONTADO', label: 'Contado' },
             { v: 'A_PLAZO', label: 'A Plazo' },
             { v: 'EN_CUOTAS', label: 'En Cuotas' },
+            { v: 'MIXTO', label: 'Mixto' },
           ] as { v: FormaPago; label: string }[]).map(({ v, label }) => (
             <button
               key={v}
@@ -385,7 +405,8 @@ export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { c
 
         {formaPago !== 'DESPUES' && (
           <div className="bg-surface-2/60 border border-border-strong/60 rounded-xl p-4 space-y-3">
-            {/* Instrumento */}
+            {/* Instrumento — oculto en MIXTO (cada fila tiene el suyo) */}
+            {formaPago !== 'MIXTO' && (
             <div className="space-y-1.5">
               <label className="block text-xs font-medium text-fg-muted">Instrumento</label>
               <div className="flex gap-2 flex-wrap">
@@ -413,40 +434,66 @@ export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { c
                 })}
               </div>
             </div>
+            )}
 
-            {/* Fecha de emisión */}
+            {/* Fechas — etiqueta cambia según el caso */}
+            {formaPago !== 'CONTADO' && formaPago !== 'MIXTO' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-medium text-fg-muted">Fecha de emisión</label>
-                <input
-                  type="date"
-                  value={fechaEmisionPago}
-                  onChange={(e) => setFechaEmisionPago(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                />
-              </div>
+              {/* Fecha de emisión solo cuando es cheque (es la fecha que dice el cheque) */}
+              {esCheque && (
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-fg-muted">Fecha de emisión del cheque</label>
+                  <input
+                    type="date"
+                    value={fechaEmisionPago}
+                    onChange={(e) => setFechaEmisionPago(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  />
+                </div>
+              )}
 
-              {/* Fecha de vencimiento para cheques o A Plazo */}
-              {(esCheque || formaPago === 'A_PLAZO') && (
+              {/* Para A Plazo no-cheque: solo fecha de pago */}
+              {formaPago === 'A_PLAZO' && !esCheque && (
                 <div className="space-y-1.5">
                   <label className="block text-xs font-medium text-fg-muted">
-                    Fecha de cobro / vencimiento
-                    {esCheque && <span className="text-red-700 ml-1">*</span>}
+                    {instrumento === 'CUENTA_CORRIENTE' ? 'Fecha de vencimiento' : 'Fecha de pago'}
+                    <span className="text-red-700 ml-1">*</span>
                   </label>
                   <input
                     type="date"
                     value={fechaVencimientoPago}
                     onChange={(e) => setFechaVencimientoPago(e.target.value)}
-                    required={esCheque}
-                    className={cn(
-                      'w-full px-3 py-2 bg-surface-2 border rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm',
-                      esCheque ? 'border-amber-500/40' : 'border-[#c8c0b0]'
-                    )}
+                    required
+                    className="w-full px-3 py-2 bg-surface-2 border border-amber-500/40 rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  />
+                </div>
+              )}
+
+              {/* Para cheques: fecha de vencimiento (cobro) */}
+              {esCheque && (
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-fg-muted">
+                    Fecha de cobro / vencimiento
+                    <span className="text-red-700 ml-1">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={fechaVencimientoPago}
+                    onChange={(e) => setFechaVencimientoPago(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 bg-surface-2 border border-amber-500/40 rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                   />
                 </div>
               )}
             </div>
+            )}
+
+            {formaPago === 'CONTADO' && (
+              <p className="text-xs text-fg-soft">
+                Fecha de pago: hoy ({formatDate(fechaEmisionPago)})
+              </p>
+            )}
 
             {/* Datos cheque */}
             {esCheque && (
@@ -470,6 +517,112 @@ export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { c
                     placeholder="Ej: Nación"
                     className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                   />
+                </div>
+              </div>
+            )}
+
+            {/* Plan de pagos MIXTO */}
+            {formaPago === 'MIXTO' && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-medium text-fg-muted">Plan de pagos</label>
+                  <button
+                    type="button"
+                    onClick={addPagoMixto}
+                    className="text-xs px-2 py-1 rounded bg-orange-500/15 border border-orange-500/30 text-orange-600 hover:bg-orange-500/25"
+                  >
+                    + Agregar pago
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {cuotas.map((c, i) => {
+                    const inst = c.instrumento ?? 'EFECTIVO'
+                    const esChequeFila = inst === 'CHEQUE_FISICO' || inst === 'ECHEQ'
+                    const requiereFecha = inst !== 'EFECTIVO' && inst !== 'TRANSFERENCIA'
+                    return (
+                      <div key={i} className="bg-surface-2 border border-border-strong/50 rounded-lg p-2.5 space-y-2">
+                        <div className="grid grid-cols-12 gap-2 items-end">
+                          <div className="col-span-3 space-y-1">
+                            <label className="block text-xs text-fg-soft">Monto</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={c.monto || ''}
+                              onChange={(e) => updateCuota(i, 'monto', Number(e.target.value))}
+                              className="w-full px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono focus:outline-none focus:ring-1 focus:ring-primary text-xs"
+                            />
+                          </div>
+                          <div className="col-span-4 space-y-1">
+                            <label className="block text-xs text-fg-soft">Instrumento</label>
+                            <select
+                              value={inst}
+                              onChange={(e) => updateCuota(i, 'instrumento', e.target.value)}
+                              className="w-full px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg focus:outline-none focus:ring-1 focus:ring-primary text-xs"
+                            >
+                              <option value="EFECTIVO">Efectivo</option>
+                              <option value="TRANSFERENCIA">Transferencia</option>
+                              <option value="CUENTA_CORRIENTE">Cta. Corriente</option>
+                              <option value="CHEQUE_FISICO">Cheque físico</option>
+                              <option value="ECHEQ">E-Cheq</option>
+                            </select>
+                          </div>
+                          <div className="col-span-4 space-y-1">
+                            <label className="block text-xs text-fg-soft">
+                              {esChequeFila ? 'Vence (cobro)' : inst === 'CUENTA_CORRIENTE' ? 'Vence' : 'Fecha'}
+                            </label>
+                            <input
+                              type="date"
+                              value={c.fecha_vencimiento}
+                              onChange={(e) => updateCuota(i, 'fecha_vencimiento', e.target.value)}
+                              required={requiereFecha}
+                              className="w-full px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg focus:outline-none focus:ring-1 focus:ring-primary text-xs"
+                            />
+                          </div>
+                          <div className="col-span-1">
+                            <button
+                              type="button"
+                              onClick={() => removePagoMixto(i)}
+                              disabled={cuotas.length === 1}
+                              title={cuotas.length === 1 ? 'Tiene que haber al menos un pago' : 'Quitar'}
+                              className="w-full px-2 py-1.5 rounded bg-red-500/10 border border-red-500/20 text-red-700 hover:bg-red-500/20 text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                        {esChequeFila && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={c.numero_cheque ?? ''}
+                              onChange={(e) => updateCuota(i, 'numero_cheque', e.target.value)}
+                              placeholder="Nº cheque"
+                              className="px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg focus:outline-none focus:ring-1 focus:ring-primary text-xs"
+                            />
+                            <input
+                              type="text"
+                              value={c.banco_emisor ?? ''}
+                              onChange={(e) => updateCuota(i, 'banco_emisor', e.target.value)}
+                              placeholder="Banco emisor"
+                              className="px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg focus:outline-none focus:ring-1 focus:ring-primary text-xs"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="flex justify-between items-center px-1 text-xs">
+                  <span className="text-fg-soft">Total plan:</span>
+                  <span className={cn(
+                    'font-mono font-medium',
+                    Math.abs(totalCuotas - montoTotal) < 0.02 ? 'text-green-700' : 'text-amber-700'
+                  )}>
+                    {formatCurrency(totalCuotas)}
+                    {Math.abs(totalCuotas - montoTotal) >= 0.02 && (
+                      <span className="text-fg-soft ml-1">(dif. {formatCurrency(totalCuotas - montoTotal)})</span>
+                    )}
+                  </span>
                 </div>
               </div>
             )}

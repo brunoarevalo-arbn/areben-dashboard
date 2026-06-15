@@ -143,6 +143,40 @@ export async function createCompra(prevState: string | null, formData: FormData)
     }))
     const { error } = await supabase.from('pagos').insert(rows)
     if (error) return error.message
+  } else if (condicion_pago === 'MIXTO' && cuotasJson) {
+    // En MIXTO cada fila tiene su propio instrumento, monto y fecha
+    const pagos = JSON.parse(cuotasJson) as {
+      monto: number
+      fecha_vencimiento: string
+      instrumento?: string
+      numero_cheque?: string
+      banco_emisor?: string
+    }[]
+    const hoy = new Date().toISOString().split('T')[0]
+    const rows = pagos
+      .filter((p) => p.monto > 0)
+      .map((p) => {
+        const inst = p.instrumento || 'EFECTIVO'
+        const esContado = inst === 'EFECTIVO' || inst === 'TRANSFERENCIA'
+        return {
+          compra_id: compra.id,
+          origen_id: compra.id,
+          tipo_origen: 'COMPRA',
+          monto: p.monto,
+          moneda: 'ARS',
+          fecha_emision: esContado ? (p.fecha_vencimiento || hoy) : hoy,
+          fecha_vencimiento: esContado ? null : (p.fecha_vencimiento || null),
+          condicion_pago: 'MIXTO',
+          instrumento: inst,
+          numero_cheque: p.numero_cheque || null,
+          banco_emisor: p.banco_emisor || null,
+        }
+      })
+    if (rows.length === 0) {
+      return null
+    }
+    const { error } = await supabase.from('pagos').insert(rows)
+    if (error) return error.message
   } else {
     const monto = Number(formData.get('monto_pago') || result.data.monto_total)
     const { error } = await supabase.from('pagos').insert({
