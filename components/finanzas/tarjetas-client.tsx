@@ -14,11 +14,45 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+interface GastoConTarjeta {
+  id: string
+  concepto: string
+  categoria: string
+  monto: number
+  mes: string
+  fecha: string | null
+  fecha_pago: string | null
+  estado: string
+  tarjeta_id: string | null
+  notas: string | null
+}
+
+interface RetiroConTarjeta {
+  id: string
+  socio: string
+  socio_id: string | null
+  monto_pesos: number
+  monto_usd: number
+  fecha: string
+  mes: string
+  tarjeta_id: string | null
+  notas: string | null
+}
+
+interface SocioLite {
+  id: string
+  alias: string | null
+  nombre: string
+}
+
 interface Props {
-  tarjetas: TarjetaCredito[]
+  tarjetas: (TarjetaCredito & { socio?: SocioLite | null })[]
   titulares: CuentaTitular[]
   cuotas: (CuotaTarjeta & { tarjeta?: { nombre: string; banco: string } })[]
   cuentas: { id: string; nombre: string; banco: string }[]
+  gastosConTarjeta: GastoConTarjeta[]
+  retirosConTarjeta: RetiroConTarjeta[]
+  socios: SocioLite[]
 }
 
 // ─── TarjetaForm ──────────────────────────────────────────────────────────────
@@ -95,11 +129,56 @@ function TarjetaForm({
 
 // ─── TarjetasClient ───────────────────────────────────────────────────────────
 
-export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) {
+export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas, gastosConTarjeta, retirosConTarjeta, socios: _socios }: Props) {
   const [modal, setModal] = useState(false)
   const [editTarjeta, setEditTarjeta] = useState<TarjetaCredito | undefined>()
   const [resumenTarjeta, setResumenTarjeta] = useState<TarjetaCredito | null>(null)
+  const [detalleTarjeta, setDetalleTarjeta] = useState<(TarjetaCredito & { socio?: SocioLite | null }) | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  // Por tarjeta: total agregado pendiente (cuotas + gastos + retiros)
+  const consumosPorTarjeta = useMemo(() => {
+    const m = new Map<string, {
+      totalCuotas: number
+      totalGastos: number
+      totalRetiros: number
+      qtyCuotas: number
+      qtyGastos: number
+      qtyRetiros: number
+    }>()
+    for (const t of tarjetas) {
+      m.set(t.id, { totalCuotas: 0, totalGastos: 0, totalRetiros: 0, qtyCuotas: 0, qtyGastos: 0, qtyRetiros: 0 })
+    }
+    for (const c of cuotas) {
+      if (c.pagada) continue
+      const v = m.get(c.tarjeta_id)
+      if (!v) continue
+      v.totalCuotas += Number(c.monto_cuota)
+      v.qtyCuotas += 1
+    }
+    for (const g of gastosConTarjeta) {
+      if (g.estado === 'PAGADO') continue
+      if (!g.tarjeta_id) continue
+      const v = m.get(g.tarjeta_id)
+      if (!v) continue
+      v.totalGastos += Number(g.monto)
+      v.qtyGastos += 1
+    }
+    for (const r of retirosConTarjeta) {
+      if (!r.tarjeta_id) continue
+      const v = m.get(r.tarjeta_id)
+      if (!v) continue
+      v.totalRetiros += Number(r.monto_pesos)
+      v.qtyRetiros += 1
+    }
+    return m
+  }, [tarjetas, cuotas, gastosConTarjeta, retirosConTarjeta])
+
+  function totalTarjeta(tarjetaId: string): number {
+    const v = consumosPorTarjeta.get(tarjetaId)
+    if (!v) return 0
+    return v.totalCuotas + v.totalGastos + v.totalRetiros
+  }
 
   // Proyección de pasivos por mes
   const proyeccion = useMemo(() => {
@@ -123,9 +202,11 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
   }, [cuotas])
 
   const cuotasPendientes = cuotas.filter((c) => !c.pagada)
-  const totalPendiente = cuotasPendientes.reduce((s, c) => s + c.monto_cuota, 0)
 
-  // Deuda gastos viejos (ya cerraron pero no se pagaron — vencimiento <= mes actual)
+  // Pasivo total = suma de todas las tarjetas (cuotas + gastos + retiros pendientes)
+  const totalPendiente = tarjetas.reduce((s, t) => s + totalTarjeta(t.id), 0)
+
+  // Deuda vencida (cuotas que ya pasaron de mes)
   const mesActual = new Date().toISOString().substring(0, 7)
   const deudaVencida = cuotasPendientes
     .filter((c) => c.mes_vencimiento <= mesActual)
@@ -183,7 +264,8 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
         ) : (
           tarjetas.map((t) => {
             const cuotasT = cuotas.filter((c) => c.tarjeta_id === t.id && !c.pagada)
-            const totalT = cuotasT.reduce((s, c) => s + c.monto_cuota, 0)
+            const totalT = totalTarjeta(t.id)
+            const desglose = consumosPorTarjeta.get(t.id)
             return (
               <div key={t.id} className={cn(
                 'bg-surface border rounded-xl p-5',
@@ -202,7 +284,12 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
                   </div>
                   <div className="flex flex-col gap-1 items-end">
                     <Badge variant={t.tipo === 'CREDITO' ? 'info' : 'default'}>{t.tipo}</Badge>
-                    {t.titular && <span className="text-xs text-fg-soft">{t.titular.nombre}</span>}
+                    {t.socio && (
+                      <span className="text-xs text-fg-soft">
+                        Titular: {t.socio.alias ?? t.socio.nombre}
+                      </span>
+                    )}
+                    {!t.socio && t.titular && <span className="text-xs text-fg-soft">{t.titular.nombre}</span>}
                   </div>
                 </div>
 
@@ -227,8 +314,31 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
                   <div>
                     <p className="text-xs text-fg-muted">Pasivo pendiente</p>
                     <p className="text-base font-mono font-bold text-amber-700">{formatCurrency(totalT)}</p>
+                    {desglose && (totalT > 0) && (
+                      <p className="text-xs text-fg-soft mt-0.5">
+                        {desglose.qtyRetiros > 0 && (
+                          <span title="Retiros de socios con esta TC">{desglose.qtyRetiros}R</span>
+                        )}
+                        {desglose.qtyGastos > 0 && (
+                          <span className="ml-1" title="Gastos con esta TC">{desglose.qtyGastos}G</span>
+                        )}
+                        {desglose.qtyCuotas > 0 && (
+                          <span className="ml-1" title="Cuotas pendientes">{desglose.qtyCuotas}C</span>
+                        )}
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-1">
+                    {totalT > 0 && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setDetalleTarjeta(t)}
+                        title="Ver el detalle de qué arma este pasivo"
+                      >
+                        Ver detalle
+                      </Button>
+                    )}
                     {cuotasT.length > 0 && (
                       <Button
                         size="sm"
@@ -368,6 +478,114 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas }: Props) 
           />
         )}
       </Modal>
+
+      <Modal
+        open={!!detalleTarjeta}
+        onOpenChange={(o) => { if (!o) setDetalleTarjeta(null) }}
+        title={`Detalle de consumos — ${detalleTarjeta?.nombre ?? ''}`}
+        className="max-w-2xl"
+      >
+        {detalleTarjeta && (
+          <DetalleTarjeta
+            tarjeta={detalleTarjeta}
+            retiros={retirosConTarjeta.filter((r) => r.tarjeta_id === detalleTarjeta.id)}
+            gastos={gastosConTarjeta.filter((g) => g.tarjeta_id === detalleTarjeta.id && g.estado !== 'PAGADO')}
+            cuotas={cuotas.filter((c) => c.tarjeta_id === detalleTarjeta.id && !c.pagada)}
+          />
+        )}
+      </Modal>
+    </div>
+  )
+}
+
+// ─── DetalleTarjeta ───────────────────────────────────────────────────────────
+
+function DetalleTarjeta({
+  tarjeta: _tarjeta,
+  retiros,
+  gastos,
+  cuotas,
+}: {
+  tarjeta: TarjetaCredito & { socio?: SocioLite | null }
+  retiros: RetiroConTarjeta[]
+  gastos: GastoConTarjeta[]
+  cuotas: CuotaTarjeta[]
+}) {
+  // Agrupar todo por mes
+  const porMes = useMemo(() => {
+    const m = new Map<string, { retiros: RetiroConTarjeta[]; gastos: GastoConTarjeta[]; cuotas: CuotaTarjeta[]; total: number }>()
+    for (const r of retiros) {
+      const k = r.mes
+      if (!m.has(k)) m.set(k, { retiros: [], gastos: [], cuotas: [], total: 0 })
+      m.get(k)!.retiros.push(r)
+      m.get(k)!.total += Number(r.monto_pesos)
+    }
+    for (const g of gastos) {
+      const k = g.mes
+      if (!m.has(k)) m.set(k, { retiros: [], gastos: [], cuotas: [], total: 0 })
+      m.get(k)!.gastos.push(g)
+      m.get(k)!.total += Number(g.monto)
+    }
+    for (const c of cuotas) {
+      const k = c.mes_vencimiento
+      if (!m.has(k)) m.set(k, { retiros: [], gastos: [], cuotas: [], total: 0 })
+      m.get(k)!.cuotas.push(c)
+      m.get(k)!.total += Number(c.monto_cuota)
+    }
+    return Array.from(m.entries()).sort((a, b) => b[0].localeCompare(a[0]))
+  }, [retiros, gastos, cuotas])
+
+  if (porMes.length === 0) {
+    return <p className="text-sm text-fg-soft text-center py-6">Sin consumos pendientes en esta tarjeta.</p>
+  }
+
+  return (
+    <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+      {porMes.map(([mes, data]) => (
+        <div key={mes} className="border border-border rounded-lg overflow-hidden">
+          <div className="px-3 py-2 bg-surface-2/40 border-b border-border flex items-center justify-between">
+            <p className="text-sm font-semibold text-fg">{formatMonth(mes)}</p>
+            <p className="text-sm font-mono font-bold text-amber-700">{formatCurrency(data.total)}</p>
+          </div>
+          <div className="divide-y divide-border/60">
+            {data.retiros.map((r) => (
+              <div key={`r-${r.id}`} className="px-3 py-2 flex items-center justify-between text-sm">
+                <div className="min-w-0">
+                  <p className="text-fg truncate">
+                    <Badge variant="purple" className="mr-1.5">Retiro {r.socio.split(' ')[0]}</Badge>
+                    {r.notas?.replace(/^\[WS [^\]]+\]\s*/, '') ?? '—'}
+                  </p>
+                  <p className="text-xs text-fg-soft">{formatDate(r.fecha)}</p>
+                </div>
+                <p className="font-mono text-fg whitespace-nowrap ml-3">{formatCurrency(r.monto_pesos)}</p>
+              </div>
+            ))}
+            {data.gastos.map((g) => (
+              <div key={`g-${g.id}`} className="px-3 py-2 flex items-center justify-between text-sm">
+                <div className="min-w-0">
+                  <p className="text-fg truncate">
+                    <Badge variant="info" className="mr-1.5">Gasto</Badge>
+                    {g.concepto}
+                  </p>
+                  <p className="text-xs text-fg-soft">{g.fecha ? formatDate(g.fecha) : '—'} · {g.categoria}</p>
+                </div>
+                <p className="font-mono text-fg whitespace-nowrap ml-3">{formatCurrency(g.monto)}</p>
+              </div>
+            ))}
+            {data.cuotas.map((c) => (
+              <div key={`c-${c.id}`} className="px-3 py-2 flex items-center justify-between text-sm">
+                <div className="min-w-0">
+                  <p className="text-fg truncate">
+                    <Badge variant="default" className="mr-1.5">Cuota {c.cuota_numero}/{c.cuotas_total}</Badge>
+                    {c.concepto}
+                  </p>
+                </div>
+                <p className="font-mono text-fg whitespace-nowrap ml-3">{formatCurrency(c.monto_cuota)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
