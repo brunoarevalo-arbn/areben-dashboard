@@ -342,10 +342,16 @@ export function CuentaSociosClient({ socios, retiros, categorias, socioInicial }
                       </td>
                       <td className="px-4 py-2 text-right">
                         <div className="font-mono text-fg font-medium">
-                          {Number(r.monto_pesos) > 0 && formatCurrency(r.monto_pesos)}
-                          {Number(r.monto_usd) > 0 && Number(r.monto_pesos) > 0 && ' / '}
-                          {Number(r.monto_usd) > 0 && (
-                            <span className="text-green-700">{formatCurrency(r.monto_usd, 'USD')}</span>
+                          {Number(r.monto_pesos) !== 0 && (
+                            <span className={Number(r.monto_pesos) < 0 ? 'text-green-600' : ''}>
+                              {formatCurrency(r.monto_pesos)}
+                            </span>
+                          )}
+                          {Number(r.monto_usd) !== 0 && Number(r.monto_pesos) !== 0 && ' / '}
+                          {Number(r.monto_usd) !== 0 && (
+                            <span className={Number(r.monto_usd) < 0 ? 'text-green-600' : 'text-green-700'}>
+                              {formatCurrency(r.monto_usd, 'USD')}
+                            </span>
                           )}
                         </div>
                       </td>
