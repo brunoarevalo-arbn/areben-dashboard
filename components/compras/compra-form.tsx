@@ -22,6 +22,8 @@ interface CuotaRow {
   fecha_vencimiento: string
   numero_cheque?: string
   banco_emisor?: string
+  /** FK a cuentas_bancarias.id — cuenta emisora del cheque (chequera) */
+  cuenta_id?: string
   /** Solo se usa en MIXTO — cada fila tiene su propio instrumento */
   instrumento?: Instrumento
 }
@@ -66,7 +68,7 @@ function generarCuotas(n: number, base: number): CuotaRow[] {
 
 // ─── CompraForm ───────────────────────────────────────────────────────────────
 
-export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { compra?: Compra; proveedores: Proveedor[]; onClose: () => void; initialNegocio?: string }) {
+export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegocio }: { compra?: Compra; proveedores: Proveedor[]; cuentas: { id: string; nombre: string; banco: string }[]; onClose: () => void; initialNegocio?: string }) {
   const hoy = new Date().toISOString().split('T')[0]
   const editing = !!compra
 
@@ -83,7 +85,7 @@ export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { c
   const [fechaEmisionPago, setFechaEmisionPago] = useState(hoy)
   const [fechaVencimientoPago, setFechaVencimientoPago] = useState('')
   const [numeroCheque, setNumeroCheque] = useState('')
-  const [bancoEmisor, setBancoEmisor] = useState('')
+  const [cuentaEmisoraId, setCuentaEmisoraId] = useState('')
   const [numCuotas, setNumCuotas] = useState(3)
   const [cuotas, setCuotas] = useState<CuotaRow[]>([])
 
@@ -174,9 +176,13 @@ export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { c
       fd.set('fecha_emision_pago', fechaEmisionPago)
       if (fechaVencimientoPago) fd.set('fecha_vencimiento_pago', fechaVencimientoPago)
       if (numeroCheque) fd.set('numero_cheque', numeroCheque)
-      if (bancoEmisor) fd.set('banco_emisor', bancoEmisor)
+      if (cuentaEmisoraId) fd.set('cuenta_id', cuentaEmisoraId)
       if (formaPago === 'EN_CUOTAS' || formaPago === 'MIXTO') {
-        fd.set('cuotas', JSON.stringify(cuotas))
+        // Para EN_CUOTAS, fusionar la cuenta_emisora global a cada cuota (si es cheque)
+        const cuotasFinal = formaPago === 'EN_CUOTAS' && esCheque
+          ? cuotas.map((c) => ({ ...c, cuenta_id: cuentaEmisoraId || c.cuenta_id }))
+          : cuotas
+        fd.set('cuotas', JSON.stringify(cuotasFinal))
       } else {
         fd.set('monto_pago', String(montoTotal))
       }
@@ -497,27 +503,35 @@ export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { c
 
             {/* Datos cheque */}
             {esCheque && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-fg-muted">Número de cheque</label>
-                  <input
-                    type="text"
-                    value={numeroCheque}
-                    onChange={(e) => setNumeroCheque(e.target.value)}
-                    placeholder="Nro."
+                  <label className="block text-xs font-medium text-fg-muted">
+                    Cuenta emisora (chequera) <span className="text-red-700 ml-1">*</span>
+                  </label>
+                  <select
+                    value={cuentaEmisoraId}
+                    onChange={(e) => setCuentaEmisoraId(e.target.value)}
+                    required
                     className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                  />
+                  >
+                    <option value="">Seleccioná cuenta...</option>
+                    {cuentas.map((c) => (
+                      <option key={c.id} value={c.id}>{c.banco} — {c.nombre}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-fg-muted">Banco emisor</label>
-                  <input
-                    type="text"
-                    value={bancoEmisor}
-                    onChange={(e) => setBancoEmisor(e.target.value)}
-                    placeholder="Ej: Nación"
-                    className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                  />
-                </div>
+                {formaPago !== 'EN_CUOTAS' && (
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-medium text-fg-muted">Número de cheque</label>
+                    <input
+                      type="text"
+                      value={numeroCheque}
+                      onChange={(e) => setNumeroCheque(e.target.value)}
+                      placeholder="Nro."
+                      className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -599,13 +613,16 @@ export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { c
                               placeholder="Nº cheque"
                               className="px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg focus:outline-none focus:ring-1 focus:ring-primary text-xs"
                             />
-                            <input
-                              type="text"
-                              value={c.banco_emisor ?? ''}
-                              onChange={(e) => updateCuota(i, 'banco_emisor', e.target.value)}
-                              placeholder="Banco emisor"
+                            <select
+                              value={c.cuenta_id ?? ''}
+                              onChange={(e) => updateCuota(i, 'cuenta_id', e.target.value)}
                               className="px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg focus:outline-none focus:ring-1 focus:ring-primary text-xs"
-                            />
+                            >
+                              <option value="">Cuenta emisora...</option>
+                              {cuentas.map((cu) => (
+                                <option key={cu.id} value={cu.id}>{cu.banco} — {cu.nombre}</option>
+                              ))}
+                            </select>
                           </div>
                         )}
                       </div>
@@ -653,6 +670,9 @@ export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { c
                         <th className="text-left px-3 py-1.5 text-fg-soft font-medium w-8">#</th>
                         <th className="text-left px-3 py-1.5 text-fg-soft font-medium">Monto</th>
                         <th className="text-left px-3 py-1.5 text-fg-soft font-medium">Vencimiento</th>
+                        {esCheque && (
+                          <th className="text-left px-3 py-1.5 text-fg-soft font-medium">Nº cheque</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody>
@@ -677,6 +697,17 @@ export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { c
                               className="w-full px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg focus:outline-none focus:ring-1 focus:ring-primary text-xs"
                             />
                           </td>
+                          {esCheque && (
+                            <td className="px-3 py-1.5">
+                              <input
+                                type="text"
+                                value={c.numero_cheque ?? ''}
+                                onChange={(e) => updateCuota(i, 'numero_cheque', e.target.value)}
+                                placeholder="Nro."
+                                className="w-full px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono focus:outline-none focus:ring-1 focus:ring-primary text-xs"
+                              />
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>

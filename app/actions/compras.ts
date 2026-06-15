@@ -116,7 +116,7 @@ export async function createCompra(prevState: string | null, formData: FormData)
   const fecha_emision = formData.get('fecha_emision_pago') as string
   const fecha_vencimiento = (formData.get('fecha_vencimiento_pago') as string) || null
   const numero_cheque = (formData.get('numero_cheque') as string) || null
-  const banco_emisor = (formData.get('banco_emisor') as string) || null
+  const cuenta_id = (formData.get('cuenta_id') as string) || null
   const cuotasJson = formData.get('cuotas') as string | null
 
   if (INSTRUMENTOS_CHEQUE.includes(instrumento) && !fecha_vencimiento) {
@@ -125,7 +125,7 @@ export async function createCompra(prevState: string | null, formData: FormData)
   }
 
   if (condicion_pago === 'EN_CUOTAS' && cuotasJson) {
-    const cuotas = JSON.parse(cuotasJson) as { monto: number; fecha_vencimiento: string; numero_cheque?: string; banco_emisor?: string }[]
+    const cuotas = JSON.parse(cuotasJson) as { monto: number; fecha_vencimiento: string; numero_cheque?: string; cuenta_id?: string }[]
     const rows = cuotas.map((c, i) => ({
       compra_id: compra.id,
       origen_id: compra.id,
@@ -137,20 +137,19 @@ export async function createCompra(prevState: string | null, formData: FormData)
       condicion_pago,
       instrumento,
       numero_cheque: c.numero_cheque || numero_cheque || null,
-      banco_emisor: c.banco_emisor || banco_emisor || null,
+      cuenta_id: c.cuenta_id || cuenta_id || null,
       numero_cuota: i + 1,
       total_cuotas: cuotas.length,
     }))
     const { error } = await supabase.from('pagos').insert(rows)
     if (error) return error.message
   } else if (condicion_pago === 'MIXTO' && cuotasJson) {
-    // En MIXTO cada fila tiene su propio instrumento, monto y fecha
     const pagos = JSON.parse(cuotasJson) as {
       monto: number
       fecha_vencimiento: string
       instrumento?: string
       numero_cheque?: string
-      banco_emisor?: string
+      cuenta_id?: string
     }[]
     const hoy = new Date().toISOString().split('T')[0]
     const rows = pagos
@@ -169,7 +168,7 @@ export async function createCompra(prevState: string | null, formData: FormData)
           condicion_pago: 'MIXTO',
           instrumento: inst,
           numero_cheque: p.numero_cheque || null,
-          banco_emisor: p.banco_emisor || null,
+          cuenta_id: p.cuenta_id || null,
         }
       })
     if (rows.length === 0) {
@@ -190,7 +189,7 @@ export async function createCompra(prevState: string | null, formData: FormData)
       condicion_pago,
       instrumento,
       numero_cheque,
-      banco_emisor,
+      cuenta_id,
     })
     if (error) return error.message
   }

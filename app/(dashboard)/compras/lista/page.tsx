@@ -40,13 +40,18 @@ export default async function ComprasListaPage({
         .in('compra_id', compraIds)
     : null
 
-  const [pagosResult, { data: proveedores }] = await Promise.all([
+  const [pagosResult, { data: proveedores }, { data: cuentas }] = await Promise.all([
     pagosQuery,
     supabase
       .from('proveedores')
       .select('id, nombre')
       .eq('activo', true)
       .order('nombre'),
+    supabase
+      .from('cuentas_bancarias')
+      .select('id, nombre, banco')
+      .eq('activo', true)
+      .order('banco'),
   ])
   const pagos = pagosResult?.data ?? []
 
@@ -67,6 +72,7 @@ export default async function ComprasListaPage({
     <ComprasClient
       compras={compras}
       proveedores={proveedores ?? []}
+      cuentas={cuentas ?? []}
       mes={mes}
     />
   )

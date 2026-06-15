@@ -476,10 +476,12 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
 export function ComprasClient({
   compras,
   proveedores,
+  cuentas,
   mes,
 }: {
   compras: Compra[]
   proveedores: Proveedor[]
+  cuentas: { id: string; nombre: string; banco: string }[]
   mes: string
 }) {
   const [modalOpen, setModalOpen] = useState(false)
@@ -862,6 +864,7 @@ export function ComprasClient({
       >
         <CompraForm
           proveedores={proveedores}
+          cuentas={cuentas}
           onClose={() => setModalOpen(false)}
           initialNegocio={marcaActiva !== 'TODAS' ? marcaActiva : undefined}
         />
@@ -876,7 +879,7 @@ export function ComprasClient({
           description="Modificar montos, proveedor, fecha o condiciones de IVA"
           className="max-w-xl"
         >
-          <CompraForm compra={editTarget} proveedores={proveedores} onClose={() => setEditTarget(null)} />
+          <CompraForm compra={editTarget} proveedores={proveedores} cuentas={cuentas} onClose={() => setEditTarget(null)} />
         </Modal>
       )}
 
