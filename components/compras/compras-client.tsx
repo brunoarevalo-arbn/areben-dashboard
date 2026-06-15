@@ -11,7 +11,7 @@ import { formatCurrency, formatDate, getMonthOptions } from '@/lib/utils'
 import {
   Plus, Trash2, ShoppingCart, Loader2,
   CreditCard, Banknote, Building2, FileCheck, AlertCircle, PlusCircle, X, Pencil,
-  Search,
+  Search, ArrowUp, ArrowDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CompraForm } from './compra-form'
@@ -495,6 +495,19 @@ export function ComprasClient({
   const [searchGeneral, setSearchGeneral] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState<'TODOS' | 'PENDIENTE' | 'PAGADO'>('TODOS')
 
+  type SortKey = 'descripcion' | 'proveedor' | 'negocio' | 'monto_total' | 'saldo' | 'monto_neto' | 'iva' | 'fecha' | 'estado'
+  const [sortKey, setSortKey] = useState<SortKey>('fecha')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir(key === 'fecha' || key === 'monto_total' || key === 'saldo' ? 'desc' : 'asc')
+    }
+  }
+
   // Quick action: ?nuevo=1 abre modal automáticamente
   useEffect(() => {
     if (searchParams.get('nuevo') === '1') {
@@ -532,6 +545,25 @@ export function ComprasClient({
       if (!haystack.includes(q)) return false
     }
     return true
+  }).sort((a, b) => {
+    const getVal = (c: Compra): string | number => {
+      switch (sortKey) {
+        case 'descripcion': return (c.descripcion ?? '').toLowerCase()
+        case 'proveedor': return ((c.proveedor as { nombre: string } | null)?.nombre ?? '').toLowerCase()
+        case 'negocio': return c.negocio ?? ''
+        case 'monto_total': return Number(c.monto_total ?? 0)
+        case 'saldo': return Number(c.saldo_pendiente ?? c.monto_total ?? 0)
+        case 'monto_neto': return Number(c.monto_neto ?? 0)
+        case 'iva': return Number(c.iva ?? 0)
+        case 'fecha': return c.fecha ?? ''
+        case 'estado': return c.estado ?? ''
+      }
+    }
+    const av = getVal(a)
+    const bv = getVal(b)
+    if (av < bv) return sortDir === 'asc' ? -1 : 1
+    if (av > bv) return sortDir === 'asc' ? 1 : -1
+    return 0
   })
 
   const totalMonto = comprasFiltradas.reduce((s, c) => s + c.monto_total, 0)
@@ -681,15 +713,35 @@ export function ComprasClient({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Descripción</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Proveedor</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Negocio</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Total</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Saldo</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Neto</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">IVA</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Fecha</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Estado</th>
+              {([
+                { key: 'descripcion', label: 'Descripción', align: 'left' },
+                { key: 'proveedor', label: 'Proveedor', align: 'left' },
+                { key: 'negocio', label: 'Negocio', align: 'left' },
+                { key: 'monto_total', label: 'Total', align: 'right' },
+                { key: 'saldo', label: 'Saldo', align: 'right' },
+                { key: 'monto_neto', label: 'Neto', align: 'right' },
+                { key: 'iva', label: 'IVA', align: 'right' },
+                { key: 'fecha', label: 'Fecha', align: 'left' },
+                { key: 'estado', label: 'Estado', align: 'left' },
+              ] as { key: SortKey; label: string; align: 'left' | 'right' }[]).map((col) => {
+                const active = sortKey === col.key
+                return (
+                  <th
+                    key={col.key}
+                    onClick={() => toggleSort(col.key)}
+                    className={cn(
+                      'px-4 py-3 text-xs font-medium uppercase cursor-pointer select-none hover:text-fg transition-colors',
+                      active ? 'text-fg' : 'text-fg-muted',
+                      col.align === 'right' ? 'text-right' : 'text-left'
+                    )}
+                  >
+                    <span className={cn('inline-flex items-center gap-1', col.align === 'right' && 'flex-row-reverse')}>
+                      {col.label}
+                      {active && (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
+                    </span>
+                  </th>
+                )
+              })}
               <th className="px-4 py-3" />
             </tr>
           </thead>
