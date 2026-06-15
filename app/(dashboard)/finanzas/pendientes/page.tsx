@@ -19,11 +19,14 @@ export default async function PendientesPage() {
     { data: tarjetas },
     { data: proveedores },
   ] = await Promise.all([
-    // Gastos NO pagados de los últimos 12 meses (escala con el tiempo de uso)
+    // Gastos NO pagados de los últimos 12 meses (escala con el tiempo de uso).
+    // Excluye los pagados con TARJETA: su salida de cash vive en el "Pago TC..."
+    // consolidado, no acá. Esta vista es de tesorería, no contable.
     supabase
       .from('gastos')
-      .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, estado, cuenta_id')
+      .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, estado, cuenta_id, medio_pago')
       .neq('estado', 'PAGADO')
+      .or('medio_pago.is.null,medio_pago.neq.TARJETA')
       .gte('mes', (() => {
         const d = new Date()
         d.setMonth(d.getMonth() - 12)
