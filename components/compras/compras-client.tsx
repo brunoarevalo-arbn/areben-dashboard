@@ -7,10 +7,11 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { EstadoBadge, MarcaBadge } from '@/components/ui/badge'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, getMonthOptions } from '@/lib/utils'
 import {
   Plus, Trash2, ShoppingCart, Loader2,
   CreditCard, Banknote, Building2, FileCheck, AlertCircle, PlusCircle, X, Pencil,
+  Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CompraForm } from './compra-form'
@@ -475,9 +476,11 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
 export function ComprasClient({
   compras,
   proveedores,
+  mes,
 }: {
   compras: Compra[]
   proveedores: Proveedor[]
+  mes: string
 }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Compra | null>(null)
@@ -489,6 +492,8 @@ export function ComprasClient({
   const TABS = ['TODAS', 'BDI', 'ZATTIA', 'STUNNED', 'GENERAL'] as const
   type Tab = typeof TABS[number]
   const [marcaActiva, setMarcaActiva] = useState<Tab>('TODAS')
+  const [searchGeneral, setSearchGeneral] = useState('')
+  const [estadoFiltro, setEstadoFiltro] = useState<'TODOS' | 'PENDIENTE' | 'PAGADO'>('TODOS')
 
   // Quick action: ?nuevo=1 abre modal automáticamente
   useEffect(() => {
@@ -501,9 +506,33 @@ export function ComprasClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const comprasFiltradas = marcaActiva === 'TODAS'
-    ? compras
-    : compras.filter((c) => c.negocio === marcaActiva)
+  function cambiarMes(nuevoMes: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('mes', nuevoMes)
+    router.push(`?${params.toString()}`)
+  }
+
+  const comprasFiltradas = compras.filter((c) => {
+    if (marcaActiva !== 'TODAS' && c.negocio !== marcaActiva) return false
+    if (estadoFiltro !== 'TODOS') {
+      const saldo = c.saldo_pendiente ?? c.monto_total
+      const pagada = c.estado === 'PAGADO' || saldo <= 0
+      if (estadoFiltro === 'PAGADO' && !pagada) return false
+      if (estadoFiltro === 'PENDIENTE' && pagada) return false
+    }
+    if (searchGeneral) {
+      const q = searchGeneral.toLowerCase()
+      const haystack = [
+        c.descripcion,
+        (c.proveedor as { nombre: string } | null)?.nombre ?? '',
+        c.notas,
+        String(c.monto_total),
+        c.negocio,
+      ].filter(Boolean).join(' ').toLowerCase()
+      if (!haystack.includes(q)) return false
+    }
+    return true
+  })
 
   const totalMonto = comprasFiltradas.reduce((s, c) => s + c.monto_total, 0)
   const totalNeto = comprasFiltradas.reduce((s, c) => s + c.monto_neto, 0)
@@ -533,15 +562,23 @@ export function ComprasClient({
         <div>
           <h1 className="text-2xl font-bold text-fg">Compras</h1>
           <p className="text-sm text-fg-muted mt-0.5">
-            {marcaActiva === 'TODAS'
-              ? `${compras.length} registros`
-              : `${comprasFiltradas.length} de ${compras.length} registros (${marcaActiva})`}
+            {comprasFiltradas.length === compras.length
+              ? `${compras.length} compras en el mes`
+              : `${comprasFiltradas.length} de ${compras.length} compras`}
           </p>
         </div>
-        <Button onClick={() => setModalOpen(true)}>
-          <Plus className="w-4 h-4" />
-          {marcaActiva === 'TODAS' ? 'Agregar compra' : `Agregar compra ${marcaActiva}`}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select
+            value={mes}
+            onChange={(e) => cambiarMes(e.target.value)}
+            options={getMonthOptions()}
+            className="w-44"
+          />
+          <Button onClick={() => setModalOpen(true)}>
+            <Plus className="w-4 h-4" />
+            {marcaActiva === 'TODAS' ? 'Agregar' : `Agregar ${marcaActiva}`}
+          </Button>
+        </div>
       </div>
 
       {/* Tabs por marca */}
@@ -593,7 +630,54 @@ export function ComprasClient({
         </div>
       </div>
 
-      <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+      <div className="bg-surface border border-border rounded-xl">
+        {/* Buscador + filtro estado */}
+        <div className="p-4 border-b border-border space-y-3">
+          <div className="flex gap-2 flex-wrap items-center">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-fg-soft pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar compra (descripción, proveedor, monto, marca)..."
+                value={searchGeneral}
+                onChange={(e) => setSearchGeneral(e.target.value)}
+                className="w-full bg-surface-2 border border-border rounded-lg pl-9 pr-9 py-2 text-sm text-fg placeholder:text-fg-soft focus:outline-none focus:border-orange-500/60"
+              />
+              {searchGeneral && (
+                <button
+                  type="button"
+                  onClick={() => setSearchGeneral('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-surface text-fg-soft hover:text-fg"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            <div className="flex gap-1">
+              {(['TODOS', 'PENDIENTE', 'PAGADO'] as const).map((est) => (
+                <button
+                  key={est}
+                  type="button"
+                  onClick={() => setEstadoFiltro(est)}
+                  className={cn(
+                    'px-3 py-2 rounded-lg text-xs font-medium border transition-colors',
+                    estadoFiltro === est
+                      ? est === 'PAGADO'
+                        ? 'bg-green-500/15 border-green-500/40 text-green-700'
+                        : est === 'PENDIENTE'
+                          ? 'bg-amber-500/15 border-amber-500/40 text-amber-700'
+                          : 'bg-orange-500/15 border-orange-500/40 text-orange-600'
+                      : 'bg-surface-2 border-border text-fg-muted hover:text-fg'
+                  )}
+                >
+                  {est === 'TODOS' ? 'Todos los estados' : est === 'PENDIENTE' ? 'Pendientes' : 'Pagadas'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
@@ -621,7 +705,7 @@ export function ComprasClient({
               <tr>
                 <td colSpan={10} className="px-4 py-12 text-center text-fg-soft">
                   <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  No hay compras de {marcaActiva}
+                  No hay compras que coincidan con los filtros
                 </td>
               </tr>
             ) : (
@@ -716,6 +800,7 @@ export function ComprasClient({
             </tfoot>
           )}
         </table>
+        </div>
       </div>
 
       {/* Modal: nueva compra */}

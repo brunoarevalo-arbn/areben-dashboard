@@ -1,25 +1,38 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentMonth } from '@/lib/utils'
 import { ComprasClient } from '@/components/compras/compras-client'
 
-export default async function ComprasListaPage() {
+export const dynamic = 'force-dynamic'
+
+export default async function ComprasListaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mes?: string }>
+}) {
+  const params = await searchParams
+  const mes = params.mes ?? getCurrentMonth()
+
   const supabase = await createClient()
 
-  // Sólo compras de los últimos 12 meses para no escalar mal
-  const haceUnAno = new Date()
-  haceUnAno.setMonth(haceUnAno.getMonth() - 12)
-  const desde = haceUnAno.toISOString().split('T')[0]
+  // Rango del mes activo: primer y último día
+  const [yearStr, monthStr] = mes.split('-')
+  const year = Number(yearStr)
+  const month = Number(monthStr)
+  const desde = `${mes}-01`
+  // Último día del mes — JS: new Date(year, month, 0) da el último del mes anterior+1 = último del mes
+  const ultimo = new Date(year, month, 0).getDate()
+  const hasta = `${mes}-${String(ultimo).padStart(2, '0')}`
 
-  // 1) Compras de los últimos 12 meses (sin pagos en el join — lazy load)
   const { data: comprasRaw } = await supabase
     .from('compras')
     .select('*, proveedor:proveedores(nombre)')
     .gte('fecha', desde)
+    .lte('fecha', hasta)
     .order('fecha', { ascending: false })
-    .limit(200)
+    .limit(500)
 
   const compraIds = (comprasRaw ?? []).map((c) => c.id)
 
-  // 2) Pagos de esas compras en una query aparte (evita 200×N rows en el join)
   const pagosQuery = compraIds.length > 0
     ? supabase
         .from('pagos')
@@ -37,7 +50,6 @@ export default async function ComprasListaPage() {
   ])
   const pagos = pagosResult?.data ?? []
 
-  // 3) Re-armar el shape esperado por el client
   type PagoRow = (typeof pagos)[number]
   const pagosByCompra = new Map<string, PagoRow[]>()
   for (const p of pagos) {
@@ -55,6 +67,7 @@ export default async function ComprasListaPage() {
     <ComprasClient
       compras={compras}
       proveedores={proveedores ?? []}
+      mes={mes}
     />
   )
 }
