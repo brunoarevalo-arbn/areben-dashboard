@@ -117,6 +117,7 @@ export async function createCompra(prevState: string | null, formData: FormData)
   const fecha_vencimiento = (formData.get('fecha_vencimiento_pago') as string) || null
   const numero_cheque = (formData.get('numero_cheque') as string) || null
   const cuenta_id = (formData.get('cuenta_id') as string) || null
+  const cuit_beneficiario = (formData.get('cuit_beneficiario') as string) || null
   const cuotasJson = formData.get('cuotas') as string | null
 
   if (INSTRUMENTOS_CHEQUE.includes(instrumento) && !fecha_vencimiento) {
@@ -138,6 +139,7 @@ export async function createCompra(prevState: string | null, formData: FormData)
       instrumento,
       numero_cheque: c.numero_cheque || numero_cheque || null,
       cuenta_id: c.cuenta_id || cuenta_id || null,
+      cuit_beneficiario: instrumento === 'CHEQUE_FISICO' ? cuit_beneficiario : null,
       numero_cuota: i + 1,
       total_cuotas: cuotas.length,
     }))
@@ -190,6 +192,7 @@ export async function createCompra(prevState: string | null, formData: FormData)
       instrumento,
       numero_cheque,
       cuenta_id,
+      cuit_beneficiario: instrumento === 'CHEQUE_FISICO' ? cuit_beneficiario : null,
     })
     if (error) return error.message
   }

@@ -15,6 +15,7 @@ interface Cheque {
   fecha_vencimiento: string | null
   numero_cheque: string | null
   banco_emisor: string | null
+  cuit_beneficiario: string | null
   numero_cuota: number | null
   total_cuotas: number | null
   notas: string | null
@@ -149,6 +150,7 @@ export function ChequesClient({ cheques }: { cheques: Cheque[] }) {
               <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Nro. Cheque</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Banco</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Concepto / Proveedor</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">CUIT benef.</th>
               <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Monto</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Emisión</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Vencimiento</th>
@@ -158,7 +160,7 @@ export function ChequesClient({ cheques }: { cheques: Cheque[] }) {
           <tbody>
             {cheques.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-fg-soft">
+                <td colSpan={9} className="px-4 py-12 text-center text-fg-soft">
                   <FileCheck className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   No hay cheques en cartera
                 </td>
@@ -200,6 +202,9 @@ export function ChequesClient({ cheques }: { cheques: Cheque[] }) {
                         {(c.compra?.proveedor as { nombre: string } | null)?.nombre ?? '—'}
                       </p>
                     </td>
+                    <td className="px-4 py-3 font-mono text-fg-muted text-xs">
+                      {c.cuit_beneficiario ?? <span className="text-fg-muted">—</span>}
+                    </td>
                     <td className="px-4 py-3 text-right font-mono font-semibold text-fg">
                       {formatCurrency(c.monto)}
                     </td>
@@ -220,7 +225,7 @@ export function ChequesClient({ cheques }: { cheques: Cheque[] }) {
           {cheques.length > 0 && (
             <tfoot>
               <tr className="border-t border-border-strong bg-surface-2/50">
-                <td colSpan={4} className="px-4 py-3 text-sm font-semibold text-fg-muted">
+                <td colSpan={5} className="px-4 py-3 text-sm font-semibold text-fg-muted">
                   TOTAL CARTERA
                 </td>
                 <td className="px-4 py-3 text-right font-mono font-bold text-fg">

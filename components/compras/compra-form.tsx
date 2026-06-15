@@ -86,6 +86,7 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
   const [fechaVencimientoPago, setFechaVencimientoPago] = useState('')
   const [numeroCheque, setNumeroCheque] = useState('')
   const [cuentaEmisoraId, setCuentaEmisoraId] = useState('')
+  const [cuitBeneficiario, setCuitBeneficiario] = useState('')
   const [numCuotas, setNumCuotas] = useState(3)
   const [cuotas, setCuotas] = useState<CuotaRow[]>([])
 
@@ -177,6 +178,7 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
       if (fechaVencimientoPago) fd.set('fecha_vencimiento_pago', fechaVencimientoPago)
       if (numeroCheque) fd.set('numero_cheque', numeroCheque)
       if (cuentaEmisoraId) fd.set('cuenta_id', cuentaEmisoraId)
+      if (cuitBeneficiario) fd.set('cuit_beneficiario', cuitBeneficiario)
       if (formaPago === 'EN_CUOTAS' || formaPago === 'MIXTO') {
         // Para EN_CUOTAS, fusionar la cuenta_emisora global a cada cuota (si es cheque)
         const cuotasFinal = formaPago === 'EN_CUOTAS' && esCheque
@@ -530,6 +532,24 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
                       placeholder="Nro."
                       className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                     />
+                  </div>
+                )}
+                {instrumento === 'CHEQUE_FISICO' && (
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-medium text-fg-muted">
+                      CUIT del beneficiario
+                      <span className="text-fg-soft font-normal ml-1">(opcional — útil para físicos)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={cuitBeneficiario}
+                      onChange={(e) => setCuitBeneficiario(e.target.value)}
+                      placeholder="20-12345678-9"
+                      className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    />
+                    <p className="text-xs text-fg-soft">
+                      A quién endosaste el cheque. Si va al mismo proveedor, podés dejarlo vacío.
+                    </p>
                   </div>
                 )}
               </div>
