@@ -210,73 +210,112 @@ export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { c
         />
       </div>
 
-      {/* Monto e IVA */}
+      {/* Monto y facturación */}
       <div className="bg-surface-2 rounded-xl p-4 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <MoneyInput
-            label="Monto total (con IVA)"
-            value={montoTotal}
-            onChange={setMontoTotal}
-            required
-          />
-          <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-fg-muted">% Facturado</label>
-            <div className="relative">
-              <input
-                type="number"
-                step="1"
-                min="0"
-                max="100"
-                value={porcentajeFact}
-                onChange={(e) => setPorcentajeFact(Number(e.target.value))}
-                className="w-full px-3.5 py-2.5 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm pr-8"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-muted text-sm">%</span>
-            </div>
+        <MoneyInput
+          label="Monto total (lo que pagaste)"
+          value={montoTotal}
+          onChange={setMontoTotal}
+          required
+        />
+
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-fg-muted">¿El proveedor te factura?</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => { if (!desglosarIVA) handleToggleIVA() }}
+              className={cn(
+                'px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors',
+                desglosarIVA
+                  ? 'bg-orange-500/20 border-orange-500/40 text-orange-600'
+                  : 'bg-surface-2 border-[#c8c0b0] text-fg-muted hover:bg-surface'
+              )}
+            >
+              Sí, factura
+            </button>
+            <button
+              type="button"
+              onClick={() => { if (desglosarIVA) handleToggleIVA() }}
+              className={cn(
+                'px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors',
+                !desglosarIVA
+                  ? 'bg-orange-500/20 border-orange-500/40 text-orange-600'
+                  : 'bg-surface-2 border-[#c8c0b0] text-fg-muted hover:bg-surface'
+              )}
+            >
+              No, sin factura
+            </button>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleToggleIVA}
-          className={cn(
-            'w-full flex items-center justify-between px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors',
-            desglosarIVA
-              ? 'bg-orange-500/20 border-orange-500/40 text-orange-600'
-              : 'bg-surface-2 border-[#c8c0b0] text-fg-muted hover:bg-slate-600'
-          )}
-        >
-          <span>Desglosar IVA (21%)</span>
-          {desglosarIVA ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </button>
-
         {desglosarIVA && (
           <div className="space-y-3 pt-1">
-            <div className="flex items-center justify-between text-xs text-fg-muted px-1">
-              <span>Base imponible = ${formatCurrency(montoTotal * porcentajeFact / 100).replace('$', '')}</span>
-              <span className="text-fg-soft">({porcentajeFact}% de {formatCurrency(montoTotal)})</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-medium text-fg-muted">
-                  Neto sin IVA <span className="text-fg-soft font-normal">(editable)</span>
-                </label>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-fg-muted">% que factura</label>
+              <div className="relative">
                 <input
                   type="number"
-                  step="0.01"
-                  value={montoNeto || ''}
-                  onChange={(e) => {
-                    const n = Number(e.target.value)
-                    setMontoNeto(n)
-                    setIva(Math.round((montoTotal * porcentajeFact / 100 - n) * 100) / 100)
-                  }}
-                  className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-green-700 font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                  placeholder="0.00"
+                  step="1"
+                  min="0"
+                  max="100"
+                  value={porcentajeFact}
+                  onChange={(e) => setPorcentajeFact(Number(e.target.value))}
+                  className="w-full px-3.5 py-2.5 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm pr-8"
                 />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-muted text-sm">%</span>
               </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-medium text-fg-muted">
-                  IVA (21%) <span className="text-fg-soft font-normal">(editable)</span>
+              <p className="text-xs text-fg-soft">
+                Default 100% (todo facturado). Bajalo si te facturan parcial — ej: pagás $100K y te facturan solo $60K → 60%.
+              </p>
+            </div>
+
+            <div className="bg-surface rounded-lg p-3 space-y-1.5 border border-border">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-fg-muted">Parte facturada (con IVA):</span>
+                <span className="font-mono text-fg">{formatCurrency(montoTotal * porcentajeFact / 100)}</span>
+              </div>
+              {porcentajeFact < 100 && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-fg-muted">Parte sin factura:</span>
+                  <span className="font-mono text-fg">{formatCurrency(montoTotal * (100 - porcentajeFact) / 100)}</span>
+                </div>
+              )}
+              <div className="border-t border-border pt-1.5 mt-1 space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-green-700 font-medium">Va al mayor de compras:</span>
+                  <span className="font-mono text-green-700 font-semibold">{formatCurrency(montoNeto + (montoTotal * (100 - porcentajeFact) / 100))}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-amber-700">IVA (crédito fiscal):</span>
+                  <span className="font-mono text-amber-700">{formatCurrency(iva)}</span>
+                </div>
+              </div>
+            </div>
+
+            <details className="text-xs">
+              <summary className="cursor-pointer text-fg-soft hover:text-fg">Editar manualmente neto/IVA</summary>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-fg-muted">
+                    Neto sin IVA <span className="text-fg-soft font-normal">(parte facturada)</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={montoNeto || ''}
+                    onChange={(e) => {
+                      const n = Number(e.target.value)
+                      setMontoNeto(n)
+                      setIva(Math.round((montoTotal * porcentajeFact / 100 - n) * 100) / 100)
+                    }}
+                    className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-green-700 font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-fg-muted">
+                    IVA (21%) <span className="text-fg-soft font-normal">(parte facturada)</span>
                 </label>
                 <input
                   type="number"
@@ -302,6 +341,16 @@ export function CompraForm({ compra, proveedores, onClose, initialNegocio }: { c
               )}>
                 {formatCurrency(montoNeto)} + {formatCurrency(iva)} = {formatCurrency(montoNeto + iva)}
               </span>
+            </div>
+            </details>
+          </div>
+        )}
+
+        {!desglosarIVA && montoTotal > 0 && (
+          <div className="bg-surface rounded-lg p-3 border border-border">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-green-700 font-medium">Va al mayor de compras (sin IVA):</span>
+              <span className="font-mono text-green-700 font-semibold">{formatCurrency(montoTotal)}</span>
             </div>
           </div>
         )}
