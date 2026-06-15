@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { Plus, X, Receipt, ShoppingCart, Users, UserPlus, ArrowDownUp, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+// TODO: leer dinámicamente desde la tabla `socios` (mig 038) cuando se sume
+// un tercer socio. Por ahora hardcoded porque solo hay 2.
 const SOCIOS_RETIRO = ['Darío Arévalo', 'Bruno Arévalo']
 
 interface QuickAction {

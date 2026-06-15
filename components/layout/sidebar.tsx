@@ -57,6 +57,7 @@ const navItems: NavItem[] = [
       { label: 'Recurrentes', href: '/finanzas/recurrentes', icon: Receipt },
       { label: 'Tarjetas', href: '/finanzas/tarjetas', icon: CreditCard },
       { label: 'Retiros', href: '/finanzas/retiros', icon: CreditCard },
+      { label: 'Cuenta de socios', href: '/finanzas/cuenta-socios', icon: Users },
       { label: 'AFIP', href: '/finanzas/afip', icon: Receipt },
       { label: 'Bienes de Uso', href: '/finanzas/bienes', icon: Boxes },
       { label: 'Pendientes', href: '/finanzas/pendientes', icon: Clock },

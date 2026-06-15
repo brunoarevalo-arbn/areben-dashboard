@@ -100,7 +100,8 @@ export interface SaldoMensual {
 
 export interface RetiroSocio {
   id: string
-  socio: string
+  socio: string                         // legacy: string libre, ahora se prefiere socio_id
+  socio_id?: string | null              // FK a socios (mig 038)
   fecha: string
   mes?: string | null
   monto_usd: number
@@ -116,6 +117,24 @@ export interface RetiroSocio {
   tc_cierre?: number | null
   created_at: string
   categoria?: CategoriaRetiro | null
+  socioRel?: Socio | null
+}
+
+// ============ SOCIOS (mig 038) ============
+
+export interface Socio {
+  id: string
+  nombre: string
+  alias?: string | null
+  porcentaje_participacion: number
+  dni?: string | null
+  cuit?: string | null
+  email?: string | null
+  telefono?: string | null
+  activo: boolean
+  notas?: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface CategoriaRetiro {

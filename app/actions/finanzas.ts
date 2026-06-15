@@ -580,6 +580,57 @@ export async function deleteRecurrente(id: string) {
 }
 
 /**
+ * Registra un PAGO/devolución de un socio a la empresa. Se inserta como un
+ * movimiento de retiros_socios con monto NEGATIVO, lo que reduce el saldo
+ * deudor del socio. Mantiene la compatibilidad con el resto de la app porque
+ * algebraicamente SUM(monto_pesos) sigue dando el "neto retirado".
+ */
+export async function registrarPagoSocio(args: {
+  socioId: string
+  fecha: string
+  montoArs: number  // siempre positivo, se convierte a negativo internamente
+  montoUsd: number  // siempre positivo, se convierte a negativo internamente
+  tipoCambio: number
+  categoriaId?: string
+  notas?: string
+}) {
+  await requireUser()
+  if (args.montoArs <= 0 && args.montoUsd <= 0) {
+    throw new Error('Ingresá al menos un monto (ARS o USD).')
+  }
+  const supabase = await createClient()
+  const { data: socio, error: errSocio } = await supabase
+    .from('socios')
+    .select('nombre')
+    .eq('id', args.socioId)
+    .single()
+  if (errSocio || !socio) throw new Error('Socio no encontrado')
+
+  const mes = args.fecha.substring(0, 7)
+  const notaFinal = args.notas
+    ? `[Pago/devolución] ${args.notas}`
+    : '[Pago/devolución del socio]'
+
+  const { error } = await supabase.from('retiros_socios').insert({
+    socio: socio.nombre, // legacy compat — sigue llenándose
+    socio_id: args.socioId,
+    fecha: args.fecha,
+    mes,
+    monto_pesos: -Math.abs(args.montoArs),
+    monto_usd: -Math.abs(args.montoUsd),
+    tipo_cambio: args.tipoCambio,
+    categoria_id: args.categoriaId || null,
+    notas: notaFinal,
+    medio_pago: 'TRANSFERENCIA',
+  })
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/finanzas/cuenta-socios')
+  revalidatePath('/finanzas/retiros')
+  revalidatePath('/finanzas/cierre-mes')
+}
+
+/**
  * Revierte un gasto PAGADO a PENDIENTE: borra todos los pagos asociados en
  * el ledger y limpia fecha_pago + cuenta_origen_pago_id.
  *
