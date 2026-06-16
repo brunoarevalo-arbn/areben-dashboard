@@ -41,10 +41,21 @@ interface CuotaPendiente {
   mes_vencimiento: string
   cuota_numero: number
   cuotas_total: number
+  tarjeta_id?: string | null
   origen_tipo?: string | null
   tarjeta?: { nombre: string; banco: string } | null
   total_pagado?: number
   saldo_pendiente?: number
+}
+
+interface CuotaTcGrupo {
+  tarjeta_id: string
+  tarjeta_nombre: string
+  tarjeta_banco: string
+  mes_vencimiento: string
+  cuotas: CuotaPendiente[]
+  totalSaldo: number
+  cantidad: number
 }
 
 interface PagoCtaCte {
@@ -632,6 +643,96 @@ function InstrumentoItem({ inst, hoy }: { inst: InstrumentoProximo; hoy: string 
   )
 }
 
+// ─── CuotaTcGrupoItem ──────────────────────────────────────────────────────────
+
+function CuotaTcGrupoItem({
+  grupo, hoy, onRefetch,
+}: {
+  grupo: CuotaTcGrupo
+  hoy: string
+  onRefetch: () => void
+}) {
+  const [expandido, setExpandido] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const fechaVenc = fechaCuota(grupo.mes_vencimiento)
+  const dias = (() => {
+    const f = new Date(fechaVenc + 'T00:00:00')
+    const h = new Date(hoy + 'T00:00:00')
+    return Math.ceil((f.getTime() - h.getTime()) / (1000 * 60 * 60 * 24))
+  })()
+  const colorBorder = dias < 0 ? 'border-red-500' : dias <= 7 ? 'border-amber-500' : 'border-transparent'
+  const colorBg = dias < 0 ? 'bg-red-500/5' : dias <= 7 ? 'bg-amber-500/5' : ''
+
+  async function marcarTodasPagadas() {
+    const { marcarCuotaPagada } = await import('@/app/actions/finanzas')
+    for (const c of grupo.cuotas) {
+      try {
+        await marcarCuotaPagada(c.id, true)
+      } catch {
+        // ignorar errores individuales
+      }
+    }
+    onRefetch()
+  }
+
+  return (
+    <div className={cn('border-l-4', colorBorder, colorBg)}>
+      <div className="flex items-center justify-between px-4 py-3 hover:bg-surface-2/30">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => setExpandido((v) => !v)}
+            className="p-1 -ml-1 rounded hover:bg-surface-2 text-fg-soft"
+          >
+            {expandido ? <ChevronRight className="w-4 h-4 rotate-90" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+          <CreditCard className="w-5 h-5 text-purple-700 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-fg font-medium truncate">
+              Resumen {grupo.tarjeta_nombre}
+              <span className="text-fg-soft text-xs ml-2">({grupo.cantidad} consumo{grupo.cantidad > 1 ? 's' : ''})</span>
+            </p>
+            <p className="text-xs text-fg-soft">
+              Vence {formatMonth(grupo.mes_vencimiento)} · {dias < 0 ? `Vencido hace ${Math.abs(dias)}d` : dias === 0 ? 'Hoy' : `En ${dias}d`}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <p className="font-mono font-bold text-amber-700">{formatCurrency(grupo.totalSaldo)}</p>
+          <Button
+            size="sm"
+            variant="success"
+            disabled={isPending}
+            onClick={() => {
+              if (!confirm(`¿Marcar como pagadas las ${grupo.cantidad} cuotas de ${grupo.tarjeta_nombre} de ${formatMonth(grupo.mes_vencimiento)}?`)) return
+              startTransition(marcarTodasPagadas)
+            }}
+            title="Marcar todo el resumen como pagado"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Pagar todo
+          </Button>
+        </div>
+      </div>
+      {expandido && (
+        <div className="border-t border-border/60 bg-surface-2/20 divide-y divide-border/40">
+          {grupo.cuotas.map((c) => (
+            <div key={c.id} className="px-4 py-2 pl-12 flex items-center justify-between text-sm">
+              <div className="min-w-0">
+                <p className="text-fg-muted text-xs truncate">
+                  {c.concepto}
+                  {c.cuotas_total > 1 && <span className="ml-1 text-fg-soft">(cuota {c.cuota_numero}/{c.cuotas_total})</span>}
+                </p>
+              </div>
+              <p className="font-mono text-xs text-fg">{formatCurrency(c.saldo_pendiente ?? c.monto_cuota)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── CuotaPrestamoItem ─────────────────────────────────────────────────────────
 
 function CuotaPrestamoItem({
@@ -942,9 +1043,9 @@ interface GastoGrupoCargas {
 interface ItemConFecha {
   fecha: string
   grupo: GrupoFecha
-  tipo: 'cheque' | 'cuota' | 'instrumento' | 'pago_cta_cte' | 'compra_sin_plan' | 'gasto' | 'gasto_grupo' | 'cuota_plan_afip' | 'cuota_prestamo'
+  tipo: 'cheque' | 'cuota' | 'instrumento' | 'pago_cta_cte' | 'compra_sin_plan' | 'gasto' | 'gasto_grupo' | 'cuota_plan_afip' | 'cuota_prestamo' | 'cuota_tc_grupo'
   prioridad: number // para ordenar dentro del grupo (cheques rojos primero)
-  data: ChequePendiente | CuotaPendiente | InstrumentoProximo | PagoCtaCte | CompraSinPlanPago | GastoPend | GastoGrupoCargas | CuotaPlanAfip | CuotaPrestamo
+  data: ChequePendiente | CuotaPendiente | InstrumentoProximo | PagoCtaCte | CompraSinPlanPago | GastoPend | GastoGrupoCargas | CuotaPlanAfip | CuotaPrestamo | CuotaTcGrupo
 }
 
 export function PendientesClient({
@@ -989,9 +1090,33 @@ export function PendientesClient({
       list.push({ fecha, grupo: clasificarFecha(fecha, hoy), tipo: 'cheque', prioridad, data: c })
     }
 
+    // Agrupar cuotas de TC por tarjeta + mes_vencimiento (resumen consolidado)
+    const cuotasPorTarjetaMes = new Map<string, CuotaPendiente[]>()
     for (const c of cuotas) {
-      const fecha = fechaCuota(c.mes_vencimiento)
-      list.push({ fecha, grupo: clasificarFecha(fecha, hoy), tipo: 'cuota', prioridad: 50, data: c })
+      const key = `${c.tarjeta_id ?? 'sin'}::${c.mes_vencimiento}`
+      const arr = cuotasPorTarjetaMes.get(key) ?? []
+      arr.push(c)
+      cuotasPorTarjetaMes.set(key, arr)
+    }
+    for (const [key, cuotasGrupo] of cuotasPorTarjetaMes.entries()) {
+      const primera = cuotasGrupo[0]
+      const fecha = fechaCuota(primera.mes_vencimiento)
+      const totalSaldo = cuotasGrupo.reduce((s, x) => s + Number(x.saldo_pendiente ?? x.monto_cuota), 0)
+      list.push({
+        fecha,
+        grupo: clasificarFecha(fecha, hoy),
+        tipo: 'cuota_tc_grupo',
+        prioridad: 30,
+        data: {
+          tarjeta_id: primera.tarjeta_id ?? key.split('::')[0],
+          tarjeta_nombre: primera.tarjeta?.nombre ?? 'Sin tarjeta',
+          tarjeta_banco: primera.tarjeta?.banco ?? '',
+          mes_vencimiento: primera.mes_vencimiento,
+          cuotas: cuotasGrupo,
+          totalSaldo,
+          cantidad: cuotasGrupo.length,
+        } as CuotaTcGrupo,
+      })
     }
 
     // Pagos a cuenta corriente / a plazo no acreditados
@@ -1130,6 +1255,9 @@ export function PendientesClient({
     }
     if (it.tipo === 'cuota_prestamo') {
       return <CuotaPrestamoItem key={key} cuota={it.data as CuotaPrestamo} hoy={hoy} onRefetch={refetch} />
+    }
+    if (it.tipo === 'cuota_tc_grupo') {
+      return <CuotaTcGrupoItem key={key} grupo={it.data as CuotaTcGrupo} hoy={hoy} onRefetch={refetch} />
     }
     return <InstrumentoItem key={key} inst={it.data as InstrumentoProximo} hoy={hoy} />
   }
