@@ -663,14 +663,16 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
   const [filterConcepto, setFilterConcepto] = useState('')
   const [filterCategoria, setFilterCategoria] = useState('')
   const [filterMonto, setFilterMonto] = useState('')
+  const [tipoFiltro, setTipoFiltro] = useState<'TODOS' | 'RECURRENTES' | 'EXTRAORDINARIOS'>('TODOS')
 
   const gastosFiltrados = useMemo(() => {
     const qGen = searchGeneral.trim().toLowerCase()
     const qConc = filterConcepto.trim().toLowerCase()
     const qCat = filterCategoria.trim().toLowerCase()
     const qMonto = filterMonto.trim()
-    if (!qGen && !qConc && !qCat && !qMonto) return gastos
     return gastos.filter((g) => {
+      if (tipoFiltro === 'RECURRENTES' && !g.recurrente_id) return false
+      if (tipoFiltro === 'EXTRAORDINARIOS' && g.recurrente_id) return false
       if (qGen) {
         const haystack = [g.concepto, g.categoria, g.notas, String(g.monto), String(g.monto_neto)]
           .filter(Boolean).join(' ').toLowerCase()
@@ -681,7 +683,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
       if (qMonto && !String(g.monto).includes(qMonto)) return false
       return true
     })
-  }, [gastos, searchGeneral, filterConcepto, filterCategoria, filterMonto])
+  }, [gastos, searchGeneral, filterConcepto, filterCategoria, filterMonto, tipoFiltro])
 
   // Totales separados por moneda — sin sumar ni convertir
   // Se calculan sobre los gastos filtrados para que los KPIs reflejen lo que ves
@@ -799,6 +801,29 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
+          </div>
+
+          {/* Filtro Recurrentes / Extraordinarios */}
+          <div className="flex gap-1">
+            {([
+              { v: 'TODOS' as const, label: 'Todos' },
+              { v: 'RECURRENTES' as const, label: 'Recurrentes' },
+              { v: 'EXTRAORDINARIOS' as const, label: 'Extraordinarios' },
+            ]).map(({ v, label }) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setTipoFiltro(v)}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                  tipoFiltro === v
+                    ? 'bg-orange-500/15 border-orange-500/40 text-orange-600'
+                    : 'bg-surface-2 border-border text-fg-muted hover:text-fg'
+                )}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {/* Filtros existentes (server-side via URL) + indicador de filtros activos */}
