@@ -314,12 +314,23 @@ export async function createGasto(prevState: string | null, formData: FormData) 
     await syncGastoIntereses(gasto.id)
   }
 
-  // NOTA: Paid-on-commit deshabilitado por pedido del usuario — todos los
-  // gastos quedan PENDIENTE hasta que se marquen pagados manualmente.
-  // El helper marcarGastoPagadoOnCommit queda en el código por si se quiere
-  // revertir; para invocarlo manualmente sobre un gasto específico, usar
-  // el modal "Marcar pagado".
-  // if (gasto) { await marcarGastoPagadoOnCommit(gasto.id) }
+  // Si el medio de pago es TARJETA, el gasto queda PAGADO automáticamente.
+  // Contablemente: al proveedor ya le pagaste con la TC (saldada esa operación);
+  // el pasivo nuevo son las cuotas que viven en cuotas_tarjeta y se ven
+  // como resumen de TC en pendientes / tarjetas.
+  if (gasto && result.data.medio_pago === 'TARJETA') {
+    await supabase
+      .from('gastos')
+      .update({
+        estado: 'PAGADO',
+        fecha_pago: result.data.fecha ?? new Date().toISOString().split('T')[0],
+      })
+      .eq('id', gasto.id)
+  }
+
+  // Para otros medios (EFECTIVO/TRANSFERENCIA/CHEQUE/CTA_CTE), el gasto queda
+  // PENDIENTE hasta que se marque pagado manualmente (paid-on-commit deshabilitado
+  // por pedido del usuario).
 
   revalidatePath('/finanzas/gastos')
   revalidatePath('/finanzas/tarjetas')
@@ -361,8 +372,25 @@ export async function updateGasto(id: string, prevState: string | null, formData
   // Sincronizar el gasto-intereses (crea, actualiza o borra según corresponda)
   await syncGastoIntereses(id)
 
-  // NOTA: Paid-on-commit deshabilitado (ver createGasto).
-  // await marcarGastoPagadoOnCommit(id)
+  // Si el medio de pago es TARJETA y el gasto está PENDIENTE, marcarlo PAGADO
+  // (al proveedor ya le pagaste con TC). Si Bruno lo dejó PENDIENTE explícito
+  // y querés respetarlo, remové este bloque.
+  if (result.data.medio_pago === 'TARJETA') {
+    const { data: g } = await supabase
+      .from('gastos')
+      .select('estado, fecha, fecha_pago')
+      .eq('id', id)
+      .single()
+    if (g && g.estado === 'PENDIENTE') {
+      await supabase
+        .from('gastos')
+        .update({
+          estado: 'PAGADO',
+          fecha_pago: g.fecha_pago ?? g.fecha ?? new Date().toISOString().split('T')[0],
+        })
+        .eq('id', id)
+    }
+  }
 
   revalidatePath('/finanzas/gastos')
   revalidatePath('/finanzas/tarjetas')
