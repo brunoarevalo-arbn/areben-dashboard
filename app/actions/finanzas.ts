@@ -1415,12 +1415,12 @@ export async function generarCuotasTarjeta(args: {
  * solo invierte el flag (no se borran pagos automáticamente para preservar
  * el historial; si querés borrarlos individualmente, usá deletePagoUnificado).
  */
-export async function marcarCuotaPagada(id: string, pagada: boolean) {
+export async function marcarCuotaPagada(id: string, pagada: boolean, fechaPago?: string) {
   await requireUser()
   const supabase = await createClient()
+  const fecha = fechaPago ?? new Date().toISOString().split('T')[0]
 
   if (!pagada) {
-    // Despagar: invertir el flag únicamente. Los pagos en el ledger se preservan.
     const { error } = await supabase
       .from('cuotas_tarjeta')
       .update({ pagada: false, fecha_pago: null })
@@ -1432,7 +1432,6 @@ export async function marcarCuotaPagada(id: string, pagada: boolean) {
     return
   }
 
-  // Pagar: crear pago en el ledger por el saldo restante
   const { data: c } = await supabase
     .from('cuotas_tarjeta')
     .select('monto_cuota')
@@ -1454,17 +1453,22 @@ export async function marcarCuotaPagada(id: string, pagada: boolean) {
       origen_id: id,
       monto: restante,
       moneda: 'ARS',
-      fecha_emision: new Date().toISOString().split('T')[0],
+      fecha_emision: fecha,
       instrumento: 'TRANSFERENCIA',
       notas: 'Marcado pagado (saldo total)',
     })
   } else {
-    // Ya estaba cubierto, solo flagear
     await supabase
       .from('cuotas_tarjeta')
-      .update({ pagada: true, fecha_pago: new Date().toISOString().split('T')[0] })
+      .update({ pagada: true, fecha_pago: fecha })
       .eq('id', id)
   }
+
+  // Asegurar que la cuota quede marcada con la fecha indicada (recomputarOrigen usa hoy por default)
+  await supabase
+    .from('cuotas_tarjeta')
+    .update({ pagada: true, fecha_pago: fecha })
+    .eq('id', id)
 
   revalidatePath('/finanzas/tarjetas')
   revalidatePath('/finanzas/pendientes')

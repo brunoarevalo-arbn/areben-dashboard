@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { formatCurrency, formatDate, formatMonth } from '@/lib/utils'
 import { Plus, FileText, CheckCircle2, Loader2, ChevronDown, ChevronRight, Trash2, X, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ConfirmarPagoModal } from './confirmar-pago-modal'
 
 interface Plan {
   id: string
@@ -68,6 +69,7 @@ export function PlanesAfipClient({ planes, cuotas, cuentas, gastosDisponibles }:
   const [crearOpen, setCrearOpen] = useState(false)
   const [expandido, setExpandido] = useState<Set<string>>(new Set())
   const [isPending, startTransition] = useTransition()
+  const [confirmarPagoCuota, setConfirmarPagoCuota] = useState<Cuota | null>(null)
 
   function toggleExpand(id: string) {
     setExpandido((prev) => {
@@ -236,9 +238,9 @@ export function PlanesAfipClient({ planes, cuotas, cuentas, gastosDisponibles }:
                               <Button
                                 size="sm"
                                 variant="success"
-                                onClick={() => startTransition(async () => { await marcarCuotaPlanPagada(c.id); router.refresh() })}
+                                onClick={() => setConfirmarPagoCuota(c)}
                                 disabled={isPending}
-                                title="Marcar pagada (débito ya salió)"
+                                title="Marcar pagada (pide fecha del débito)"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                               </Button>
@@ -299,6 +301,21 @@ export function PlanesAfipClient({ planes, cuotas, cuentas, gastosDisponibles }:
           onClose={() => { setCrearOpen(false); router.refresh() }}
         />
       </Modal>
+
+      <ConfirmarPagoModal
+        open={!!confirmarPagoCuota}
+        onOpenChange={(o) => { if (!o) setConfirmarPagoCuota(null) }}
+        title="Marcar cuota pagada"
+        descripcion={confirmarPagoCuota ? `Cuota ${confirmarPagoCuota.cuota_numero}/${confirmarPagoCuota.total_cuotas} · vence ${confirmarPagoCuota.fecha_vencimiento}` : undefined}
+        monto={confirmarPagoCuota?.monto_total}
+        defaultFecha={confirmarPagoCuota?.fecha_vencimiento}
+        onConfirm={async (fecha) => {
+          if (!confirmarPagoCuota) return
+          await marcarCuotaPlanPagada(confirmarPagoCuota.id, fecha)
+          setConfirmarPagoCuota(null)
+          router.refresh()
+        }}
+      />
     </div>
   )
 }

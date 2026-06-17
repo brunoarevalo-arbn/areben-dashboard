@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Plus, Banknote, CheckCircle2, Loader2, ChevronDown, ChevronRight, Trash2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ConfirmarPagoModal } from './confirmar-pago-modal'
 
 interface Prestamo {
   id: string
@@ -58,6 +59,7 @@ export function PrestamosClient({ prestamos, cuotas, cuentas }: Props) {
   const [crearOpen, setCrearOpen] = useState(false)
   const [expandido, setExpandido] = useState<Set<string>>(new Set())
   const [isPending, startTransition] = useTransition()
+  const [confirmarPagoCuota, setConfirmarPagoCuota] = useState<Cuota | null>(null)
 
   function toggleExpand(id: string) {
     setExpandido((prev) => {
@@ -198,8 +200,8 @@ export function PrestamosClient({ prestamos, cuotas, cuentas }: Props) {
                               </Button>
                             ) : (
                               <Button size="sm" variant="success" disabled={isPending}
-                                onClick={() => startTransition(async () => { await marcarCuotaPrestamoPagada(c.id); router.refresh() })}
-                                title="Marcar pagada">
+                                onClick={() => setConfirmarPagoCuota(c)}
+                                title="Marcar pagada (pide fecha del débito)">
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                               </Button>
                             )}
@@ -247,6 +249,21 @@ export function PrestamosClient({ prestamos, cuotas, cuentas }: Props) {
       >
         <CrearPrestamoForm cuentas={cuentas} onClose={() => { setCrearOpen(false); router.refresh() }} />
       </Modal>
+
+      <ConfirmarPagoModal
+        open={!!confirmarPagoCuota}
+        onOpenChange={(o) => { if (!o) setConfirmarPagoCuota(null) }}
+        title="Marcar cuota pagada"
+        descripcion={confirmarPagoCuota ? `Cuota ${confirmarPagoCuota.cuota_numero}/${confirmarPagoCuota.total_cuotas} · vence ${confirmarPagoCuota.fecha_vencimiento}` : undefined}
+        monto={confirmarPagoCuota?.monto_total}
+        defaultFecha={confirmarPagoCuota?.fecha_vencimiento}
+        onConfirm={async (fecha) => {
+          if (!confirmarPagoCuota) return
+          await marcarCuotaPrestamoPagada(confirmarPagoCuota.id, fecha)
+          setConfirmarPagoCuota(null)
+          router.refresh()
+        }}
+      />
     </div>
   )
 }

@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { RegistrarPagoModal, type PagoTarget } from './registrar-pago-modal'
 import { CargarHistoricoModal, type HistoricoTipo } from './cargar-historico-modal'
+import { ConfirmarPagoModal } from './confirmar-pago-modal'
 
 interface ChequePendiente {
   id: string
@@ -653,7 +654,7 @@ function CuotaTcGrupoItem({
   onRefetch: () => void
 }) {
   const [expandido, setExpandido] = useState(false)
-  const [isPending, startTransition] = useTransition()
+  const [confirmarOpen, setConfirmarOpen] = useState(false)
   const fechaVenc = fechaCuota(grupo.mes_vencimiento)
   const dias = (() => {
     const f = new Date(fechaVenc + 'T00:00:00')
@@ -663,11 +664,11 @@ function CuotaTcGrupoItem({
   const colorBorder = dias < 0 ? 'border-red-500' : dias <= 7 ? 'border-amber-500' : 'border-transparent'
   const colorBg = dias < 0 ? 'bg-red-500/5' : dias <= 7 ? 'bg-amber-500/5' : ''
 
-  async function marcarTodasPagadas() {
+  async function marcarTodasPagadas(fecha: string) {
     const { marcarCuotaPagada } = await import('@/app/actions/finanzas')
     for (const c of grupo.cuotas) {
       try {
-        await marcarCuotaPagada(c.id, true)
+        await marcarCuotaPagada(c.id, true, fecha)
       } catch {
         // ignorar errores individuales
       }
@@ -702,12 +703,8 @@ function CuotaTcGrupoItem({
           <Button
             size="sm"
             variant="success"
-            disabled={isPending}
-            onClick={() => {
-              if (!confirm(`¿Marcar como pagadas las ${grupo.cantidad} cuotas de ${grupo.tarjeta_nombre} de ${formatMonth(grupo.mes_vencimiento)}?`)) return
-              startTransition(marcarTodasPagadas)
-            }}
-            title="Marcar todo el resumen como pagado"
+            onClick={() => setConfirmarOpen(true)}
+            title="Marcar todo el resumen como pagado (pide fecha)"
           >
             <CheckCircle2 className="w-3.5 h-3.5" />
             Pagar todo
@@ -729,6 +726,16 @@ function CuotaTcGrupoItem({
           ))}
         </div>
       )}
+
+      <ConfirmarPagoModal
+        open={confirmarOpen}
+        onOpenChange={setConfirmarOpen}
+        title={`Marcar resumen TC pagado · ${grupo.tarjeta_nombre}`}
+        descripcion={`${grupo.cantidad} cuota${grupo.cantidad > 1 ? 's' : ''} de ${formatMonth(grupo.mes_vencimiento)}`}
+        monto={grupo.totalSaldo}
+        defaultFecha={fechaVenc}
+        onConfirm={async (fecha) => { await marcarTodasPagadas(fecha) }}
+      />
     </div>
   )
 }
@@ -742,7 +749,8 @@ function CuotaPrestamoItem({
   hoy: string
   onRefetch: () => void
 }) {
-  const [isPending, startTransition] = useTransition()
+  const [isPending, _startTransition] = useTransition()
+  const [confirmarOpen, setConfirmarOpen] = useState(false)
   const dias = (() => {
     const f = new Date(cuota.fecha_vencimiento + 'T00:00:00')
     const h = new Date(hoy + 'T00:00:00')
@@ -774,18 +782,28 @@ function CuotaPrestamoItem({
             size="sm"
             variant="success"
             disabled={isPending}
-            onClick={() => startTransition(async () => {
-              const { marcarCuotaPrestamoPagada } = await import('@/app/actions/prestamos')
-              await marcarCuotaPrestamoPagada(cuota.id)
-              onRefetch()
-            })}
-            title="Marcar la cuota como pagada"
+            onClick={() => setConfirmarOpen(true)}
+            title="Marcar la cuota como pagada (pide fecha)"
           >
             <CheckCircle2 className="w-3.5 h-3.5" />
             Pagada
           </Button>
         </div>
       </div>
+
+      <ConfirmarPagoModal
+        open={confirmarOpen}
+        onOpenChange={setConfirmarOpen}
+        title="Marcar cuota préstamo pagada"
+        descripcion={`${cuota.prestamo?.nombre ?? 'Préstamo'} · Cuota ${cuota.cuota_numero}/${cuota.total_cuotas} · vence ${cuota.fecha_vencimiento}`}
+        monto={cuota.monto_total}
+        defaultFecha={cuota.fecha_vencimiento}
+        onConfirm={async (fecha) => {
+          const { marcarCuotaPrestamoPagada } = await import('@/app/actions/prestamos')
+          await marcarCuotaPrestamoPagada(cuota.id, fecha)
+          onRefetch()
+        }}
+      />
     </div>
   )
 }
@@ -799,7 +817,8 @@ function CuotaPlanAfipItem({
   hoy: string
   onRefetch: () => void
 }) {
-  const [isPending, startTransition] = useTransition()
+  const [isPending, _startTransition] = useTransition()
+  const [confirmarOpen, setConfirmarOpen] = useState(false)
   const dias = (() => {
     const f = new Date(cuota.fecha_vencimiento + 'T00:00:00')
     const h = new Date(hoy + 'T00:00:00')
@@ -832,18 +851,28 @@ function CuotaPlanAfipItem({
             size="sm"
             variant="success"
             disabled={isPending}
-            onClick={() => startTransition(async () => {
-              const { marcarCuotaPlanPagada } = await import('@/app/actions/planes-afip')
-              await marcarCuotaPlanPagada(cuota.id)
-              onRefetch()
-            })}
-            title="Marcar como pagada (el débito automático ya salió)"
+            onClick={() => setConfirmarOpen(true)}
+            title="Marcar pagada (pide fecha del débito real)"
           >
             <CheckCircle2 className="w-3.5 h-3.5" />
             Pagada
           </Button>
         </div>
       </div>
+
+      <ConfirmarPagoModal
+        open={confirmarOpen}
+        onOpenChange={setConfirmarOpen}
+        title="Marcar cuota plan AFIP pagada"
+        descripcion={`${nombrePlan} · Cuota ${cuota.cuota_numero}/${cuota.total_cuotas} · vence ${cuota.fecha_vencimiento}`}
+        monto={cuota.monto_total}
+        defaultFecha={cuota.fecha_vencimiento}
+        onConfirm={async (fecha) => {
+          const { marcarCuotaPlanPagada } = await import('@/app/actions/planes-afip')
+          await marcarCuotaPlanPagada(cuota.id, fecha)
+          onRefetch()
+        }}
+      />
     </div>
   )
 }
