@@ -502,8 +502,9 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
                 </div>
               )}
 
-              {/* Para cheques: fecha de vencimiento (cobro) */}
-              {esCheque && (
+              {/* Para cheques A Plazo: fecha de vencimiento global (cobro).
+                  En EN_CUOTAS cada cuota tiene su propia fecha en la tabla → no se muestra acá */}
+              {esCheque && formaPago === 'A_PLAZO' && (
                 <div className="space-y-1.5">
                   <label className="block text-xs font-medium text-fg-muted">
                     Fecha de cobro / vencimiento
