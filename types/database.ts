@@ -727,6 +727,7 @@ export interface Proveedor {
   condiciones_pago?: string | null
   moneda: 'ARS' | 'USD'
   notas?: string | null
+  marcas?: string[] | null
   activo: boolean
   created_at: string
 }

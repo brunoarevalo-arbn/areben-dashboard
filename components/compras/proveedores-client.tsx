@@ -11,17 +11,31 @@ import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ExcelImport } from '@/components/ui/excel-import'
 import { Plus, Pencil, Truck, Globe, Loader2, Mail, Phone, Upload } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+const MARCAS_DISPONIBLES = ['BDI', 'ZATTIA', 'STUNNED', 'GENERAL'] as const
 
 function ProveedorForm({ prov, onClose }: { prov?: Proveedor; onClose: () => void }) {
   const action = prov ? updateProveedor.bind(null, prov.id) : createProveedor
+  const [marcasSel, setMarcasSel] = useState<Set<string>>(new Set(prov?.marcas ?? []))
   const [error, formAction, isPending] = useActionState(
     async (prev: string | null, fd: FormData) => {
+      fd.set('marcas', JSON.stringify(Array.from(marcasSel)))
       const res = await action(prev, fd)
       if (!res) onClose()
       return res
     },
     null
   )
+
+  function toggleMarca(m: string) {
+    setMarcasSel((prev) => {
+      const next = new Set(prev)
+      if (next.has(m)) next.delete(m)
+      else next.add(m)
+      return next
+    })
+  }
 
   return (
     <form action={formAction} className="space-y-4">
@@ -55,6 +69,34 @@ function ProveedorForm({ prov, onClose }: { prov?: Proveedor; onClose: () => voi
         <Input label="Teléfono" name="telefono" defaultValue={prov?.telefono ?? ''} />
       </div>
       <Input label="Condiciones de pago" name="condiciones_pago" defaultValue={prov?.condiciones_pago ?? ''} placeholder="Ej: 30 días, 50% adelanto" />
+
+      <div className="space-y-1.5">
+        <label className="block text-sm font-medium text-fg-muted">
+          Marcas a las que provee
+          <span className="text-fg-soft font-normal text-xs ml-2">(Si no marcás ninguna, aparece para todas)</span>
+        </label>
+        <div className="flex gap-2 flex-wrap">
+          {MARCAS_DISPONIBLES.map((m) => {
+            const checked = marcasSel.has(m)
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => toggleMarca(m)}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                  checked
+                    ? 'bg-orange-500/20 border-orange-500/50 text-orange-600'
+                    : 'bg-surface-2 border-border text-fg-muted hover:text-fg'
+                )}
+              >
+                {m}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       <Textarea label="Notas" name="notas" defaultValue={prov?.notas ?? ''} />
 
       {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
@@ -131,6 +173,15 @@ export function ProveedoresClient({ proveedores }: { proveedores: Proveedor[] })
                       <p className="font-semibold text-fg">{p.nombre}</p>
                       <Badge variant={p.moneda === 'USD' ? 'success' : 'default'}>{p.moneda}</Badge>
                     </div>
+                    {p.marcas && p.marcas.length > 0 && (
+                      <div className="flex gap-1 flex-wrap mb-3">
+                        {p.marcas.map((m) => (
+                          <span key={m} className="text-xs px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-600 font-medium">
+                            {m}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     <div className="space-y-1.5 text-sm mb-4">
                       {p.pais !== 'Argentina' && <p className="text-fg-muted">🌍 {p.pais}</p>}
                       {p.contacto && <p className="text-fg-muted">{p.contacto}</p>}

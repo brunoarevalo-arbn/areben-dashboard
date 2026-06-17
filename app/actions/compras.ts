@@ -16,7 +16,20 @@ const proveedorSchema = z.object({
   condiciones_pago: z.string().optional().nullable(),
   moneda: z.enum(['ARS', 'USD']),
   notas: z.string().optional().nullable(),
+  marcas: z.string().optional().nullable(),
 })
+
+function parseMarcas(raw: string | null | undefined): string[] | null {
+  if (!raw) return null
+  try {
+    const arr = JSON.parse(raw)
+    if (!Array.isArray(arr)) return null
+    const limpio = arr.filter((x) => typeof x === 'string' && x.length > 0)
+    return limpio.length > 0 ? limpio : null
+  } catch {
+    return null
+  }
+}
 
 export async function createProveedor(prevState: string | null, formData: FormData) {
   await requireUser()
@@ -32,11 +45,13 @@ export async function createProveedor(prevState: string | null, formData: FormDa
     telefono: result.data.telefono || null,
     condiciones_pago: result.data.condiciones_pago || null,
     notas: result.data.notas || null,
+    marcas: parseMarcas(result.data.marcas),
     activo: true,
   })
   if (error) return error.message
 
   revalidatePath('/compras/proveedores')
+  revalidatePath('/compras/lista')
   return null
 }
 
@@ -54,10 +69,12 @@ export async function updateProveedor(id: string, prevState: string | null, form
     telefono: result.data.telefono || null,
     condiciones_pago: result.data.condiciones_pago || null,
     notas: result.data.notas || null,
+    marcas: parseMarcas(result.data.marcas),
   }).eq('id', id)
   if (error) return error.message
 
   revalidatePath('/compras/proveedores')
+  revalidatePath('/compras/lista')
   return null
 }
 

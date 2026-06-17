@@ -203,22 +203,46 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
 
   const totalCuotas = cuotas.reduce((s, c) => s + (c.monto || 0), 0)
 
+  // Negocio controlado para filtrar proveedores según marca
+  const [negocioActual, setNegocioActual] = useState<string>(compra?.negocio ?? initialNegocio ?? 'GENERAL')
+  const [proveedorActualId, setProveedorActualId] = useState<string>(compra?.proveedor_id ?? '')
+
+  // Proveedor aparece si: no tiene marcas asignadas (genérico) o incluye la marca elegida
+  const proveedoresFiltrados = proveedores.filter((p) => {
+    const ps = p as Proveedor & { marcas?: string[] | null }
+    if (!ps.marcas || ps.marcas.length === 0) return true
+    return ps.marcas.includes(negocioActual)
+  })
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Select
-          label="Proveedor"
-          name="proveedor_id"
-          defaultValue={compra?.proveedor_id ?? ''}
-          options={proveedores.map((p) => ({ value: p.id, label: p.nombre }))}
-          placeholder="Seleccionar..."
-          required
+          label="Marca / Negocio"
+          name="negocio"
+          value={negocioActual}
+          onChange={(e) => {
+            setNegocioActual(e.target.value)
+            // Si el proveedor actual ya no aplica a la nueva marca, limpiarlo
+            const provs = proveedores.filter((p) => {
+              const ps = p as Proveedor & { marcas?: string[] | null }
+              if (!ps.marcas || ps.marcas.length === 0) return true
+              return ps.marcas.includes(e.target.value)
+            })
+            if (proveedorActualId && !provs.find((p) => p.id === proveedorActualId)) {
+              setProveedorActualId('')
+            }
+          }}
+          options={MARCAS.map((m) => ({ value: m, label: m }))}
         />
         <Select
-          label="Negocio"
-          name="negocio"
-          defaultValue={compra?.negocio ?? initialNegocio ?? 'GENERAL'}
-          options={MARCAS.map((m) => ({ value: m, label: m }))}
+          label="Proveedor"
+          name="proveedor_id"
+          value={proveedorActualId}
+          onChange={(e) => setProveedorActualId(e.target.value)}
+          options={proveedoresFiltrados.map((p) => ({ value: p.id, label: p.nombre }))}
+          placeholder={proveedoresFiltrados.length === 0 ? 'Sin proveedores para esta marca' : 'Seleccionar...'}
+          required
         />
       </div>
 
