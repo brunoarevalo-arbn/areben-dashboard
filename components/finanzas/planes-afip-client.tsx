@@ -152,7 +152,13 @@ export function PlanesAfipClient({ planes, cuotas, cuentas, gastosDisponibles }:
         </div>
       ) : (
         <div className="space-y-3">
-          {planes.map((p) => {
+          {[...planes].sort((a, b) => {
+            const order = { ACTIVO: 0, TERMINADO: 1, CADUCO: 2, CANCELADO: 3 } as Record<string, number>
+            const da = order[a.estado] ?? 4
+            const db = order[b.estado] ?? 4
+            if (da !== db) return da - db
+            return (b.fecha_inicio ?? '').localeCompare(a.fecha_inicio ?? '')
+          }).map((p) => {
             const isExp = expandido.has(p.id)
             const st = statsPorPlan.get(p.id) ?? { pagadas: 0, pendientes: 0, totalPagado: 0, totalPendiente: 0, proximoVenc: null }
             const cuotasPlan = cuotas.filter((c) => c.plan_afip_id === p.id).sort((a, b) => a.cuota_numero - b.cuota_numero)
@@ -181,25 +187,43 @@ export function PlanesAfipClient({ planes, cuotas, cuentas, gastosDisponibles }:
                   </div>
                   <div className="flex items-center gap-4 shrink-0">
                     <div className="text-right">
-                      <p className="text-xs text-fg-muted">Pendiente</p>
-                      <p className="font-mono font-bold text-amber-700">{formatCurrency(st.totalPendiente)}</p>
-                      <p className="text-xs text-fg-soft">{st.pendientes}/{p.cantidad_cuotas} cuotas</p>
+                      {p.estado === 'ACTIVO' ? (
+                        <>
+                          <p className="text-xs text-fg-muted">Pendiente</p>
+                          <p className="font-mono font-bold text-amber-700">{formatCurrency(st.totalPendiente)}</p>
+                          <p className="text-xs text-fg-soft">{st.pendientes}/{p.cantidad_cuotas} cuotas</p>
+                        </>
+                      ) : (
+                        <>
+                          <span className={cn(
+                            'inline-block px-2.5 py-1 rounded-full text-xs font-semibold border',
+                            p.estado === 'TERMINADO' && 'bg-green-500/10 text-green-700 border-green-500/30',
+                            p.estado === 'CADUCO' && 'bg-red-500/10 text-red-700 border-red-500/30',
+                            p.estado === 'CANCELADO' && 'bg-surface-2 text-fg-muted border-border'
+                          )}>
+                            {p.estado === 'TERMINADO' ? 'Terminado' : p.estado === 'CADUCO' ? 'Caduco (refinanciado)' : 'Cancelado'}
+                          </span>
+                          <p className="text-xs text-fg-soft mt-1">{st.pagadas}/{p.cantidad_cuotas} cuotas pagadas</p>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {/* Barra de progreso */}
-                <div className="px-5 pb-3">
-                  <div className="h-1.5 bg-surface-2 rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500/50 transition-all" style={{ width: `${avancePct}%` }} />
+                {/* Barra de progreso (solo si tiene sentido mostrarla) */}
+                {(p.estado === 'ACTIVO' || st.pagadas > 0) && (
+                  <div className="px-5 pb-3">
+                    <div className="h-1.5 bg-surface-2 rounded-full overflow-hidden">
+                      <div className="h-full bg-green-500/50 transition-all" style={{ width: `${avancePct}%` }} />
+                    </div>
+                    <p className="text-xs text-fg-soft mt-1">
+                      {Math.round(avancePct)}% pagado · {formatCurrency(st.totalPagado)} de {formatCurrency(p.total_a_pagar)}
+                      {p.intereses > 0 && (
+                        <span className="ml-2 text-red-700">Intereses totales: {formatCurrency(p.intereses)}</span>
+                      )}
+                    </p>
                   </div>
-                  <p className="text-xs text-fg-soft mt-1">
-                    {Math.round(avancePct)}% pagado · {formatCurrency(st.totalPagado)} de {formatCurrency(p.total_a_pagar)}
-                    {p.intereses > 0 && (
-                      <span className="ml-2 text-red-700">Intereses totales: {formatCurrency(p.intereses)}</span>
-                    )}
-                  </p>
-                </div>
+                )}
 
                 {/* Cuotas expandidas */}
                 {isExp && (
