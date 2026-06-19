@@ -111,14 +111,15 @@ export default async function PendientesPage() {
       const hastaFecha = dHasta.toISOString().split('T')[0]
       return supabase
         .from('plan_afip_cuotas')
-        .select('*, plan:planes_afip(id, nombre, numero_plan, cuenta_debito_id)')
+        .select('*, plan:planes_afip!inner(id, nombre, numero_plan, cuenta_debito_id, estado)')
         .eq('pagada', false)
+        .eq('plan.estado', 'ACTIVO')
         .gte('fecha_vencimiento', desdeFecha)
         .lte('fecha_vencimiento', hastaFecha)
         .order('fecha_vencimiento', { ascending: true })
         .limit(500)
     })(),
-    // Cuotas de préstamos no pagadas
+    // Cuotas de préstamos no pagadas (solo de préstamos ACTIVOS)
     (() => {
       const dDesde = new Date(); dDesde.setMonth(dDesde.getMonth() - 6)
       const desdeFecha = dDesde.toISOString().split('T')[0]
@@ -126,8 +127,9 @@ export default async function PendientesPage() {
       const hastaFecha = dHasta.toISOString().split('T')[0]
       return supabase
         .from('prestamo_cuotas')
-        .select('*, prestamo:prestamos(id, nombre, acreedor, moneda, cuenta_pago_id)')
+        .select('*, prestamo:prestamos!inner(id, nombre, acreedor, moneda, cuenta_pago_id, estado)')
         .eq('pagada', false)
+        .eq('prestamo.estado', 'ACTIVO')
         .gte('fecha_vencimiento', desdeFecha)
         .lte('fecha_vencimiento', hastaFecha)
         .order('fecha_vencimiento', { ascending: true })
