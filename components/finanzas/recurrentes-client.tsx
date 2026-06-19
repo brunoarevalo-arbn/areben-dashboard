@@ -288,6 +288,12 @@ function RecurrenteForm({
         )}
       </div>
 
+      <Textarea label="Notas — forma de pago y facturación"
+        name="notas"
+        placeholder="Ej: Cobra el 26 del mes. Período 16 al 16. Tarjeta Visa Galicia. Factura a la empresa con IVA discriminado."
+        defaultValue={recurrente?.notas ?? ''}
+        rows={3} />
+
       <Textarea label="Detalles técnicos (JSON opcional)" name="detalles"
         placeholder='{"poliza": "12345", "cobertura": "Total"}'
         defaultValue={recurrente?.detalles ? JSON.stringify(recurrente.detalles) : ''} rows={2} />
@@ -516,6 +522,13 @@ function DetalleModal({ recurrente, onClose }: { recurrente: GastoRecurrente; on
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {recurrente.notas && (
+        <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4">
+          <p className="text-xs font-medium text-amber-700 mb-2">Notas — forma de pago / facturación</p>
+          <p className="text-sm text-fg whitespace-pre-wrap">{recurrente.notas}</p>
         </div>
       )}
 

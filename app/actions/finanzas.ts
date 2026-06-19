@@ -530,6 +530,7 @@ const recurrenteSchema = z.object({
   tarjeta_id: optUuid,
   dia_vencimiento: optInt({ min: 1, max: 31 }),
   tipo_mes: z.enum(['CORRIENTE', 'VENCIDO']),
+  notas: z.string().optional().nullable(),
 })
 
 export async function createRecurrente(prevState: string | null, formData: FormData) {
@@ -556,6 +557,7 @@ export async function createRecurrente(prevState: string | null, formData: FormD
     cuenta_id: result.data.cuenta_id || null,
     tarjeta_id: result.data.tarjeta_id || null,
     dia_vencimiento: result.data.dia_vencimiento || null,
+    notas: result.data.notas?.trim() || null,
     prorrateo,
     detalles,
     activo: true,
@@ -590,6 +592,7 @@ export async function updateRecurrente(id: string, prevState: string | null, for
     cuenta_id: result.data.cuenta_id || null,
     tarjeta_id: result.data.tarjeta_id || null,
     dia_vencimiento: result.data.dia_vencimiento || null,
+    notas: result.data.notas?.trim() || null,
     prorrateo,
     detalles,
   }).eq('id', id)

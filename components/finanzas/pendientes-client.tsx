@@ -96,6 +96,7 @@ interface GastoPend {
   cuenta_id?: string | null
   total_pagado?: number
   saldo_pendiente?: number
+  recurrente?: { notas: string | null } | null
 }
 
 type InstrumentoProximo = Omit<Instrumento, 'inversor'> & {
@@ -410,7 +411,15 @@ function GastoPendItem({ gasto, hoy, cuentas, onPagoParcial }: { gasto: GastoPen
             <Receipt className="w-4 h-4 text-primary shrink-0" />
           )}
           <div className="min-w-0">
-            <p className="text-sm font-medium text-fg truncate">{gasto.concepto}</p>
+            <p className="text-sm font-medium text-fg truncate flex items-center gap-1.5">
+              <span className="truncate">{gasto.concepto}</span>
+              {gasto.recurrente?.notas && (
+                <span
+                  title={gasto.recurrente.notas}
+                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500/15 text-amber-700 text-[10px] font-bold cursor-help shrink-0"
+                >i</span>
+              )}
+            </p>
             <p className="text-xs text-fg-soft flex items-center gap-2">
               <span>{gasto.categoria}</span>
               {fecha && <><span>·</span><span>vence {formatDate(fecha)}</span></>}
@@ -937,7 +946,15 @@ function GastoGrupoCargasItem({
           {grupo.gastos.map((g) => (
             <div key={g.id} className="px-4 py-2 pl-12 flex items-center justify-between text-sm">
               <div className="min-w-0">
-                <p className="text-fg-muted text-xs">{g.concepto}</p>
+                <p className="text-fg-muted text-xs flex items-center gap-1.5">
+                  <span className="truncate">{g.concepto}</span>
+                  {g.recurrente?.notas && (
+                    <span
+                      title={g.recurrente.notas}
+                      className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-amber-500/15 text-amber-700 text-[9px] font-bold cursor-help shrink-0"
+                    >i</span>
+                  )}
+                </p>
                 {g.total_pagado && g.total_pagado > 0 && (
                   <p className="text-xs text-amber-700">
                     Pagado parcial: {formatCurrency(g.total_pagado)} de {formatCurrency(g.monto)}

@@ -26,7 +26,7 @@ export default async function PendientesPage() {
     // consolidado, no acá. Esta vista es de tesorería, no contable.
     supabase
       .from('gastos')
-      .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, estado, cuenta_id, medio_pago')
+      .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, estado, cuenta_id, medio_pago, recurrente:gastos_recurrentes(notas)')
       .neq('estado', 'PAGADO')
       .or('medio_pago.is.null,medio_pago.neq.TARJETA')
       .gte('mes', (() => {
@@ -218,7 +218,10 @@ export default async function PendientesPage() {
     .map((g) => {
       const pagado = pagosByGasto.get(g.id) ?? 0
       const saldo = Math.max(0, Number(g.monto) - pagado)
-      return { ...g, total_pagado: pagado, saldo_pendiente: saldo }
+      // Supabase devuelve la relación como array; nos quedamos con el primer elemento
+      const recurrenteArr = (g as unknown as { recurrente?: { notas: string | null }[] }).recurrente
+      const recurrente = Array.isArray(recurrenteArr) && recurrenteArr.length > 0 ? recurrenteArr[0] : null
+      return { ...g, total_pagado: pagado, saldo_pendiente: saldo, recurrente }
     })
     .filter((g) => g.saldo_pendiente > 0.01)
 

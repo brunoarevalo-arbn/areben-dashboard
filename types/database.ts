@@ -327,6 +327,7 @@ export interface GastoRecurrente {
   tipo_mes: 'CORRIENTE' | 'VENCIDO'
   prorrateo?: ProrrateoMarcas | null
   detalles?: Record<string, unknown> | null
+  notas?: string | null
   activo: boolean
   created_at: string
 }
