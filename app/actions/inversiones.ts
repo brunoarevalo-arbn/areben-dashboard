@@ -254,6 +254,143 @@ export async function regenerarPeriodos(instrumentoId: string) {
   revalidatePath('/inversiones/gastos')
 }
 
+// ============ RENOVAR INSTRUMENTO ============
+
+export type RenovarResult =
+  | { ok: true; capitalAnterior: number; capitalNuevo: number; fechaInicio: string; fechaFin: string }
+  | { ok: false; error: string }
+
+/**
+ * Renueva un instrumento de inversión sobre sí mismo:
+ * 1) Calcula el saldo final del ciclo actual (capital + intereses devengados de períodos cerrados)
+ * 2) Actualiza el instrumento con: capital_inicial = saldo final, fecha_inicio = fecha_fin actual, fecha_fin = nueva + plazo_dias
+ * 3) Regenera períodos (los cerrados se preservan)
+ *
+ * Requiere que NO haya períodos abiertos (todos cerrados).
+ */
+export async function renovarInstrumento(instrumentoId: string): Promise<RenovarResult> {
+  await requireUser()
+  const supabase = await createClient()
+
+  // 1. Cargar instrumento
+  const { data: inst, error: errInst } = await supabase
+    .from('instrumentos_inversion')
+    .select('id, capital_inicial, fecha_inicio, fecha_fin, plazo_dias, estado, capitalizable, notas')
+    .eq('id', instrumentoId)
+    .single()
+
+  if (errInst || !inst) {
+    return { ok: false, error: 'No se encontró el instrumento' }
+  }
+
+  // 2. Validaciones
+  if (inst.estado !== 'activo') {
+    return { ok: false, error: `El instrumento no está activo (estado: ${inst.estado})` }
+  }
+  if (!inst.fecha_fin) {
+    return { ok: false, error: 'El instrumento no tiene fecha de vencimiento. Configurala antes de renovar.' }
+  }
+  if (!inst.plazo_dias) {
+    return { ok: false, error: 'El instrumento no tiene plazo en días (plazo_dias). Configuralo antes de renovar.' }
+  }
+
+  // 3. Verificar que NO haya períodos abiertos
+  const { data: periodosAbiertos } = await supabase
+    .from('periodos_instrumento')
+    .select('mes')
+    .eq('instrumento_id', instrumentoId)
+    .eq('cerrado', false)
+
+  if (periodosAbiertos && periodosAbiertos.length > 0) {
+    const meses = periodosAbiertos.map((p) => p.mes).join(', ')
+    return {
+      ok: false,
+      error: `Hay ${periodosAbiertos.length} período(s) abierto(s) (${meses}). Cerralos desde /inversiones/cierre antes de renovar.`,
+    }
+  }
+
+  // 4. Calcular saldo final
+  const capitalAnterior = Number(inst.capital_inicial)
+  let capitalNuevo: number
+
+  if (inst.capitalizable) {
+    // Capitalizable: saldo_cierre del último período cerrado
+    const { data: ultimoPeriodo } = await supabase
+      .from('periodos_instrumento')
+      .select('saldo_cierre')
+      .eq('instrumento_id', instrumentoId)
+      .eq('cerrado', true)
+      .order('mes', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (!ultimoPeriodo) {
+      return { ok: false, error: 'No hay períodos cerrados. Cerrá al menos uno antes de renovar.' }
+    }
+    capitalNuevo = Number(ultimoPeriodo.saldo_cierre)
+  } else {
+    // NO capitalizable: capital_inicial + SUM(interes + movimiento) de cerrados
+    const { data: periodosCerrados } = await supabase
+      .from('periodos_instrumento')
+      .select('interes_devengado, movimiento')
+      .eq('instrumento_id', instrumentoId)
+      .eq('cerrado', true)
+
+    if (!periodosCerrados || periodosCerrados.length === 0) {
+      return { ok: false, error: 'No hay períodos cerrados. Cerrá al menos uno antes de renovar.' }
+    }
+    const acumulado = periodosCerrados.reduce(
+      (s, p) => s + Number(p.interes_devengado ?? 0) + Number(p.movimiento ?? 0),
+      0,
+    )
+    capitalNuevo = Math.round((capitalAnterior + acumulado) * 100) / 100
+  }
+
+  // 5. Calcular nuevas fechas
+  const nuevaFechaInicio = inst.fecha_fin // YYYY-MM-DD
+  const fechaInicioDate = new Date(`${nuevaFechaInicio}T00:00:00Z`)
+  const nuevaFechaFinDate = new Date(fechaInicioDate)
+  nuevaFechaFinDate.setUTCDate(nuevaFechaFinDate.getUTCDate() + Number(inst.plazo_dias))
+  const nuevaFechaFin = nuevaFechaFinDate.toISOString().substring(0, 10)
+
+  // 6. Update instrumento
+  const hoyISO = new Date().toISOString().substring(0, 10)
+  const notaRenovacion = `[${hoyISO}] Renovado. Capital anterior: $${capitalAnterior.toFixed(2)} → Nuevo: $${capitalNuevo.toFixed(2)}. Periodo: ${nuevaFechaInicio} → ${nuevaFechaFin}.`
+  const nuevasNotas = inst.notas ? `${inst.notas}\n${notaRenovacion}` : notaRenovacion
+
+  const { error: errUpdate } = await supabase
+    .from('instrumentos_inversion')
+    .update({
+      capital_inicial: capitalNuevo,
+      fecha_inicio: nuevaFechaInicio,
+      fecha_fin: nuevaFechaFin,
+      notas: nuevasNotas,
+    })
+    .eq('id', instrumentoId)
+
+  if (errUpdate) {
+    return { ok: false, error: `Error actualizando instrumento: ${errUpdate.message}` }
+  }
+
+  // 7. Regenerar períodos del nuevo ciclo (los cerrados se preservan)
+  await regenerarPeriodosDB(supabase, instrumentoId)
+
+  // 8. Revalidar paths
+  revalidatePath('/inversiones')
+  revalidatePath(`/inversiones/${instrumentoId}`)
+  revalidatePath('/inversiones/cierre')
+  revalidatePath('/finanzas/gastos')
+  revalidatePath('/finanzas/pendientes')
+
+  return {
+    ok: true,
+    capitalAnterior,
+    capitalNuevo,
+    fechaInicio: nuevaFechaInicio,
+    fechaFin: nuevaFechaFin,
+  }
+}
+
 // ============ TRAMOS DE TASA ============
 
 const tramoSchema = z.object({

@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from 'react'
 import Link from 'next/link'
-import { deleteInstrumento, regenerarPeriodos, deleteTramoTasa } from '@/app/actions/inversiones'
+import { deleteInstrumento, regenerarPeriodos, deleteTramoTasa, renovarInstrumento } from '@/app/actions/inversiones'
 import type { Inversor, Instrumento, PeriodoInstrumento, TramoTasa } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,7 @@ import { CambiarTasaForm } from './cambiar-tasa-form'
 import { SimuladorMovimiento } from './simulador'
 import {
   ChevronLeft, Plus, Pencil, Trash2, RotateCw, FileText, Lock, Unlock,
-  TrendingUp, Calendar, User, Briefcase, Percent, ArrowRight,
+  TrendingUp, Calendar, User, Briefcase, Percent, ArrowRight, RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -186,6 +186,25 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                     title="Regenerar períodos (recalcular)"
                   >
                     <RotateCw className="w-3 h-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={async (e) => {
+                      e.stopPropagation()
+                      const nombre = i.codigo ?? i.id.substring(0, 8)
+                      if (!confirm(`¿Renovar el instrumento "${nombre}"?\n\nCalcula el saldo final del ciclo actual (capital + intereses devengados) y abre un nuevo ciclo con la misma duración (${i.plazo_dias ?? '?'} días) y misma tasa.\n\nRequiere que TODOS los períodos del instrumento estén cerrados.`)) return
+                      const result = await renovarInstrumento(i.id)
+                      if (!result.ok) {
+                        alert(`No se pudo renovar:\n\n${result.error}`)
+                      } else {
+                        alert(`✓ Renovado correctamente.\n\nCapital anterior: $${result.capitalAnterior.toLocaleString('es-AR', { minimumFractionDigits: 2 })}\nCapital nuevo: $${result.capitalNuevo.toLocaleString('es-AR', { minimumFractionDigits: 2 })}\nNuevo período: ${result.fechaInicio} → ${result.fechaFin}`)
+                      }
+                    }}
+                    disabled={isPending}
+                    title="Renovar instrumento (avanzar al siguiente ciclo con el saldo final)"
+                  >
+                    <RefreshCw className="w-3 h-3" />
                   </Button>
                   <Link href={`/inversiones/reporte?instrumento=${i.id}`}>
                     <Button size="sm" variant="ghost" title="Generar reporte">

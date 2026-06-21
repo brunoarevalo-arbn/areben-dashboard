@@ -6,6 +6,7 @@ import {
   actualizarMovimientoPeriodo,
   cerrarPeriodoYCrearGasto,
   reabrirPeriodos,
+  renovarInstrumento,
   type CerrarPeriodoResult,
 } from '@/app/actions/inversiones'
 import type { PeriodoInstrumento, Instrumento, Inversor } from '@/types/database'
@@ -16,7 +17,7 @@ import { formatMoneda } from '@/lib/inversiones-calc'
 import { formatMonth, getMonthOptions, formatCurrency } from '@/lib/utils'
 import {
   Lock, Unlock, AlertTriangle, Loader2, CheckCircle2, PiggyBank, Pencil, Save, X,
-  FileText, XCircle, ArrowRight,
+  FileText, XCircle, ArrowRight, RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -148,6 +149,53 @@ function CerrarPeriodoButton({
     >
       {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
       Cerrar
+    </Button>
+  )
+}
+
+function RenovarInstrumentoButton({
+  instrumento,
+  onDone,
+}: {
+  instrumento: Instrumento & { inversor?: Inversor }
+  onDone: (t: ToastResult) => void
+}) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+
+  function handleClick() {
+    const nombre = instrumento.codigo ?? instrumento.id.substring(0, 8)
+    const inversor = instrumento.inversor?.nombre ?? ''
+    if (!confirm(
+      `¿Renovar el instrumento "${nombre}" (${inversor})?\n\n` +
+      `Calcula el saldo final del ciclo actual (capital + intereses devengados) y abre un nuevo ciclo de ${instrumento.plazo_dias} días con la misma tasa.\n\n` +
+      `Requiere que TODOS los períodos del instrumento estén cerrados (no solo el del mes actual).`,
+    )) return
+    startTransition(async () => {
+      const result = await renovarInstrumento(instrumento.id)
+      if (!result.ok) {
+        onDone({ kind: 'error', message: result.error })
+        return
+      }
+      onDone({
+        kind: 'success',
+        message: `Instrumento ${nombre} renovado`,
+        detail: `Capital $${result.capitalAnterior.toFixed(2)} → $${result.capitalNuevo.toFixed(2)} · Período ${result.fechaInicio} → ${result.fechaFin}`,
+      })
+      router.refresh()
+    })
+  }
+
+  return (
+    <Button
+      variant="secondary"
+      disabled={isPending}
+      onClick={handleClick}
+      title="Renovar instrumento (avanzar al siguiente ciclo con el saldo final)"
+      className="text-xs"
+    >
+      {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+      Renovar
     </Button>
   )
 }
@@ -370,6 +418,9 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                       <div className="flex items-center justify-end gap-2">
                         {!p.cerrado && (
                           <CerrarPeriodoButton p={p} onDone={setToast} />
+                        )}
+                        {p.cerrado && i.fecha_fin && i.plazo_dias && (
+                          <RenovarInstrumentoButton instrumento={i} onDone={setToast} />
                         )}
                         <a
                           href={`/api/reportes/periodo/${p.id}`}
