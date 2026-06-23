@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
-import { formatCurrency, formatDate, cn } from '@/lib/utils'
+import { formatCurrency, formatDate, cn, labelCuenta, ordenarCuentas } from '@/lib/utils'
 import { Loader2, Wallet, CreditCard, Banknote, FileCheck, Trash2, Pencil, AlertCircle } from 'lucide-react'
 import type { TipoOrigenPago, InstrumentoPago } from '@/types/database'
 import { createPagoUnificado, deletePagoUnificado, crearGastoIntereses, editPago } from '@/app/actions/pagos'
@@ -56,7 +56,7 @@ export function RegistrarPagoModal({
   open: boolean
   onOpenChange: (o: boolean) => void
   target: PagoTarget | null
-  cuentas: { id: string; nombre: string; banco: string }[]
+  cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
   /** Pagos previos contra este origen — si se pasa, se muestra arriba con opción de eliminar. */
   historial?: PagoHistorialItem[]
   onSuccess?: () => void
@@ -314,7 +314,7 @@ export function RegistrarPagoModal({
             label={instrumento === 'EFECTIVO' ? 'Caja' : 'Cuenta de origen'}
             value={cuentaId}
             onChange={(e) => setCuentaId(e.target.value)}
-            options={[{ value: '', label: '— Sin asignar —' }, ...cuentas.map((c) => ({ value: c.id, label: `${c.banco} · ${c.nombre}` }))]}
+            options={[{ value: '', label: '— Sin asignar —' }, ...ordenarCuentas(cuentas).map((c) => ({ value: c.id, label: labelCuenta(c) }))]}
           />
         )}
 

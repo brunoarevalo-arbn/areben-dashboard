@@ -29,7 +29,7 @@ export default async function TarjetasPage() {
       .from('cuotas_tarjeta')
       .select('*, tarjeta:tarjetas_credito(nombre, banco)')
       .order('mes_vencimiento', { ascending: true }),
-    supabase.from('cuentas_bancarias').select('id, nombre, banco').eq('activo', true).order('banco'),
+    supabase.from('cuentas_bancarias').select('id, nombre, banco, titular:cuentas_titulares(nombre)').eq('activo', true).order('banco'),
     supabase
       .from('gastos')
       .select('id, concepto, categoria, monto, mes, fecha, fecha_pago, estado, tarjeta_id, notas')
@@ -50,7 +50,7 @@ export default async function TarjetasPage() {
       tarjetas={tarjetas ?? []}
       titulares={titulares ?? []}
       cuotas={cuotas ?? []}
-      cuentas={cuentas ?? []}
+      cuentas={(cuentas ?? []) as unknown as Parameters<typeof TarjetasClient>[0]['cuentas']}
       gastosConTarjeta={gastosConTarjeta ?? []}
       retirosConTarjeta={retirosConTarjeta ?? []}
       socios={socios ?? []}

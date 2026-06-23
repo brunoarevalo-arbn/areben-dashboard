@@ -30,7 +30,7 @@ export default async function PagosPage({
 
   const [{ data: pagos }, { data: cuentas }, { data: compras }, { data: gastos }, { data: nominas }, { data: cuotas }] = await Promise.all([
     query,
-    supabase.from('cuentas_bancarias').select('id, nombre, banco').order('banco'),
+    supabase.from('cuentas_bancarias').select('id, nombre, banco, titular:cuentas_titulares(nombre)').order('banco'),
     supabase.from('compras').select('id, descripcion, proveedor:proveedores(nombre)'),
     supabase.from('gastos').select('id, concepto, categoria'),
     supabase.from('nomina_mensual').select('id, mes, empleado:empleados(nombre, apellido)'),

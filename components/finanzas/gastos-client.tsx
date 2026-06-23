@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { EstadoBadge, MarcaBadge, Badge } from '@/components/ui/badge'
-import { formatCurrency, formatDate, getMonthOptions } from '@/lib/utils'
+import { formatCurrency, formatDate, getMonthOptions, labelCuenta, ordenarCuentas } from '@/lib/utils'
 import {
   Plus, Pencil, Trash2, CheckCircle, Filter, TrendingDown, Loader2,
   Info, Layers, Receipt, Wallet, CreditCard, Save, X, Search, RotateCcw,
@@ -37,7 +37,7 @@ interface GastosClientProps {
   mes: string
   categorias: string[]
   filtros: { negocio?: string; estado?: string }
-  cuentas: { id: string; nombre: string; banco: string }[]
+  cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
   tarjetas: { id: string; nombre: string; banco: string }[]
   prorrateosDefault: ProrrateoDefault[]
   tiposIva: TipoIVA[]
@@ -60,7 +60,7 @@ function GastoForm({
   gasto?: Gasto
   mes: string
   categorias: string[]
-  cuentas: { id: string; nombre: string; banco: string }[]
+  cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
   tarjetas: { id: string; nombre: string; banco: string }[]
   prorrateosDefault: ProrrateoDefault[]
   tiposIva: TipoIVA[]
@@ -224,7 +224,7 @@ function GastoForm({
               label="Cuenta"
               name="cuenta_id"
               defaultValue={gasto?.cuenta_id ?? ''}
-              options={[{ value: '', label: '— Sin asignar —' }, ...cuentas.map((c) => ({ value: c.id, label: `${c.banco} · ${c.nombre}` }))]}
+              options={[{ value: '', label: '— Sin asignar —' }, ...ordenarCuentas(cuentas).map((c) => ({ value: c.id, label: labelCuenta(c) }))]}
             />
           ) : null}
         </div>
@@ -461,7 +461,7 @@ function PagarModal({
   onClose,
 }: {
   gasto: Gasto
-  cuentas: { id: string; nombre: string; banco: string }[]
+  cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
   onClose: () => void
 }) {
   const [cuentaId, setCuentaId] = useState(gasto.cuenta_origen_pago_id ?? gasto.cuenta_id ?? '')
@@ -527,8 +527,8 @@ function PagarModal({
             required
           >
             <option value="">— Seleccionar cuenta —</option>
-            {cuentas.map((c) => (
-              <option key={c.id} value={c.id}>{c.banco} · {c.nombre}</option>
+            {ordenarCuentas(cuentas).map((c) => (
+              <option key={c.id} value={c.id}>{labelCuenta(c)}</option>
             ))}
           </select>
           <p className="text-xs text-fg-soft">Solo registro — no afecta saldos por ahora</p>

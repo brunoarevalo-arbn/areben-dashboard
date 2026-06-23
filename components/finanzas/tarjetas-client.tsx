@@ -7,7 +7,7 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency, formatDate, formatMonth } from '@/lib/utils'
+import { formatCurrency, formatDate, formatMonth, labelCuenta, ordenarCuentas } from '@/lib/utils'
 import {
   Plus, CreditCard, Pencil, Power, Loader2, Calendar,
   TrendingUp, AlertTriangle, CheckCircle2, Wallet,
@@ -49,7 +49,7 @@ interface Props {
   tarjetas: (TarjetaCredito & { socio?: SocioLite | null })[]
   titulares: CuentaTitular[]
   cuotas: (CuotaTarjeta & { tarjeta?: { nombre: string; banco: string } })[]
-  cuentas: { id: string; nombre: string; banco: string }[]
+  cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
   gastosConTarjeta: GastoConTarjeta[]
   retirosConTarjeta: RetiroConTarjeta[]
   socios: SocioLite[]
@@ -624,7 +624,7 @@ function PagarResumenForm({
 }: {
   tarjeta: TarjetaCredito
   cuotas: CuotaTarjeta[]
-  cuentas: { id: string; nombre: string; banco: string }[]
+  cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
   onClose: () => void
 }) {
   // Mes por defecto: el más alto entre todas las cuotas vencidas o el mes actual
@@ -698,7 +698,7 @@ function PagarResumenForm({
         label="Cuenta de origen"
         value={cuentaId}
         onChange={(e) => setCuentaId(e.target.value)}
-        options={[{ value: '', label: '— Seleccionar cuenta —' }, ...cuentas.map((c) => ({ value: c.id, label: `${c.banco} · ${c.nombre}` }))]}
+        options={[{ value: '', label: '— Seleccionar cuenta —' }, ...ordenarCuentas(cuentas).map((c) => ({ value: c.id, label: labelCuenta(c) }))]}
       />
 
       <div className="bg-surface-2/40 border border-border-strong/40 rounded-lg overflow-hidden">

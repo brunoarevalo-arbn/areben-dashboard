@@ -26,7 +26,7 @@ export default async function PlanesAfipPage() {
       .order('fecha_vencimiento', { ascending: true }),
     supabase
       .from('cuentas_bancarias')
-      .select('id, nombre, banco')
+      .select('id, nombre, banco, titular:cuentas_titulares(nombre)')
       .eq('activo', true)
       .order('banco'),
     // Gastos PENDIENTES de Cargas Sociales (para seleccionar al crear plan)
@@ -44,7 +44,7 @@ export default async function PlanesAfipPage() {
     <PlanesAfipClient
       planes={planes ?? []}
       cuotas={cuotas ?? []}
-      cuentas={cuentas ?? []}
+      cuentas={(cuentas ?? []) as unknown as Parameters<typeof PlanesAfipClient>[0]['cuentas']}
       gastosDisponibles={gastosCargasSocialesPendientes ?? []}
     />
   )

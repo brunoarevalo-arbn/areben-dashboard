@@ -49,7 +49,7 @@ export default async function ComprasListaPage({
       .order('nombre'),
     supabase
       .from('cuentas_bancarias')
-      .select('id, nombre, banco')
+      .select('id, nombre, banco, titular:cuentas_titulares(nombre)')
       .eq('activo', true)
       .order('banco'),
   ])

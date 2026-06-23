@@ -17,7 +17,7 @@ export default async function PrestamosPage() {
       .order('fecha_vencimiento', { ascending: true }),
     supabase
       .from('cuentas_bancarias')
-      .select('id, nombre, banco')
+      .select('id, nombre, banco, titular:cuentas_titulares(nombre)')
       .eq('activo', true)
       .order('banco'),
   ])
@@ -26,7 +26,7 @@ export default async function PrestamosPage() {
     <PrestamosClient
       prestamos={prestamos ?? []}
       cuotas={cuotas ?? []}
-      cuentas={cuentas ?? []}
+      cuentas={(cuentas ?? []) as unknown as Parameters<typeof PrestamosClient>[0]['cuentas']}
     />
   )
 }

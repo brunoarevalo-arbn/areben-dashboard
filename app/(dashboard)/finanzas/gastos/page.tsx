@@ -25,7 +25,7 @@ export default async function GastosPage({
   const [{ data: gastos }, { data: categorias }, { data: cuentas }, { data: tarjetas }, { data: prorrateoDef }, { data: tiposIva }, { data: configProrrateo }] = await Promise.all([
     query,
     supabase.from('gastos').select('categoria').order('categoria'),
-    supabase.from('cuentas_bancarias').select('id, nombre, banco').eq('activo', true).order('banco'),
+    supabase.from('cuentas_bancarias').select('id, nombre, banco, titular:cuentas_titulares(nombre)').eq('activo', true).order('banco'),
     supabase.from('tarjetas_credito').select('id, nombre, banco').eq('activo', true).order('banco'),
     supabase.from('prorrateos_default').select('*'),
     supabase.from('tipos_iva').select('*').eq('activo', true).order('orden'),
@@ -40,7 +40,7 @@ export default async function GastosPage({
       mes={mes}
       categorias={uniqueCategorias}
       filtros={{ negocio: params.negocio, estado: params.estado }}
-      cuentas={cuentas ?? []}
+      cuentas={(cuentas ?? []) as unknown as Parameters<typeof GastosClient>[0]['cuentas']}
       tarjetas={tarjetas ?? []}
       prorrateosDefault={prorrateoDef ?? []}
       tiposIva={tiposIva ?? []}

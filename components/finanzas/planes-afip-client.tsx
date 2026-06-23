@@ -6,7 +6,7 @@ import { createPlanAfip, marcarCuotaPlanPagada, desmarcarCuotaPlanPagada, cancel
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
-import { formatCurrency, formatDate, formatMonth } from '@/lib/utils'
+import { formatCurrency, formatDate, formatMonth, labelCuenta, ordenarCuentas } from '@/lib/utils'
 import { Plus, FileText, CheckCircle2, Loader2, ChevronDown, ChevronRight, Trash2, X, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ConfirmarPagoModal } from './confirmar-pago-modal'
@@ -47,6 +47,7 @@ interface Cuenta {
   id: string
   nombre: string
   banco: string
+  titular?: { nombre: string } | null
 }
 
 interface GastoDisponible {
@@ -548,7 +549,7 @@ function CrearPlanForm({
             className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           >
             <option value="">Sin asignar</option>
-            {cuentas.map((c) => <option key={c.id} value={c.id}>{c.banco} — {c.nombre}</option>)}
+            {ordenarCuentas(cuentas).map((c) => <option key={c.id} value={c.id}>{labelCuenta(c)}</option>)}
           </select>
         </div>
       </div>

@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ExcelImport } from '@/components/ui/excel-import'
-import { formatCurrency, formatMonth, getMonthOptions } from '@/lib/utils'
+import { formatCurrency, formatMonth, getMonthOptions, labelCuenta, ordenarCuentas } from '@/lib/utils'
 import {
   Plus, Pencil, Trash2, Repeat, Loader2, CheckCircle2, Info,
   Receipt, CreditCard, Upload, ListChecks, Power, PowerOff, Percent, Edit3,
@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils'
 interface Props {
   mes: string
   recurrentes: GastoRecurrente[]
-  cuentas: { id: string; nombre: string; banco: string }[]
+  cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
   tarjetas: { id: string; nombre: string; banco: string }[]
   prorrateosDefault: ProrrateoDefault[]
   gastosMes: { id: string; recurrente_id: string | null; mes: string; monto: number; estado: string }[]
@@ -56,7 +56,7 @@ function RecurrenteForm({
   onClose,
 }: {
   recurrente?: GastoRecurrente
-  cuentas: { id: string; nombre: string; banco: string }[]
+  cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
   tarjetas: { id: string; nombre: string; banco: string }[]
   prorrateosDefault: ProrrateoDefault[]
   tiposIva: TipoIVA[]
@@ -266,7 +266,7 @@ function RecurrenteForm({
           label="Cuenta"
           name="cuenta_id"
           defaultValue={recurrente?.cuenta_id ?? ''}
-          options={[{ value: '', label: '— Sin asignar —' }, ...cuentas.map((c) => ({ value: c.id, label: `${c.banco} · ${c.nombre}` }))]}
+          options={[{ value: '', label: '— Sin asignar —' }, ...ordenarCuentas(cuentas).map((c) => ({ value: c.id, label: labelCuenta(c) }))]}
         />
       )}
 

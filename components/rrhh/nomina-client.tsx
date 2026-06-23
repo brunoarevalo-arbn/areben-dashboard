@@ -171,7 +171,7 @@ interface NominaClientProps {
   mes: string
   horasExtrasMes: HoraExtraRegistro[]
   cajaAguinaldos: Record<string, number>
-  cuentas: { id: string; nombre: string; banco: string }[]
+  cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
 }
 
 export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes, cajaAguinaldos, cuentas }: NominaClientProps) {

@@ -100,7 +100,7 @@ export default async function PendientesPage() {
       .from('saldos_cuentas')
       .select('mes, saldo_ars, saldo_usd, cuenta:cuentas_bancarias(activo)')
       .eq('mes', mesActual),
-    supabase.from('cuentas_bancarias').select('id, nombre, banco').eq('activo', true).order('banco'),
+    supabase.from('cuentas_bancarias').select('id, nombre, banco, titular:cuentas_titulares(nombre)').eq('activo', true).order('banco'),
     supabase.from('tarjetas_credito').select('id, nombre, banco').eq('activo', true).order('banco'),
     supabase.from('proveedores').select('id, nombre').eq('activo', true).order('nombre'),
     // Cuotas de planes AFIP no pagadas — ventana ±6 meses pasado + 24 meses futuro
@@ -243,7 +243,7 @@ export default async function PendientesPage() {
       cuotas={cuotasConSaldo}
       instrumentosProximos={instrumentosProximos}
       gastosPendientes={gastosConSaldo}
-      cuentas={cuentasBancarias ?? []}
+      cuentas={(cuentasBancarias ?? []) as unknown as Parameters<typeof PendientesClient>[0]['cuentas']}
       tarjetas={tarjetas ?? []}
       proveedores={proveedores ?? []}
       cuotasPlanAfip={cuotasPlanAfip ?? []}

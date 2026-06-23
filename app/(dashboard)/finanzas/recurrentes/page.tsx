@@ -17,7 +17,7 @@ export default async function RecurrentesPage({
       .select('*')
       .eq('activo', true)
       .order('concepto'),
-    supabase.from('cuentas_bancarias').select('id, nombre, banco').eq('activo', true).order('banco'),
+    supabase.from('cuentas_bancarias').select('id, nombre, banco, titular:cuentas_titulares(nombre)').eq('activo', true).order('banco'),
     supabase.from('tarjetas_credito').select('id, nombre, banco').eq('activo', true).order('banco'),
     supabase.from('prorrateos_default').select('*'),
     supabase.from('gastos').select('id, recurrente_id, mes, monto, estado').eq('mes', mes),
@@ -29,7 +29,7 @@ export default async function RecurrentesPage({
     <RecurrentesClient
       mes={mes}
       recurrentes={recurrentes ?? []}
-      cuentas={cuentas ?? []}
+      cuentas={(cuentas ?? []) as unknown as Parameters<typeof RecurrentesClient>[0]['cuentas']}
       tarjetas={tarjetas ?? []}
       prorrateosDefault={prorrateoDef ?? []}
       gastosMes={gastosMes ?? []}

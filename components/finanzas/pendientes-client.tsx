@@ -7,7 +7,7 @@ import { marcarCuotaPagada, marcarGastoPagado } from '@/app/actions/finanzas'
 import type { Instrumento } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency, formatDate, formatMonth } from '@/lib/utils'
+import { formatCurrency, formatDate, formatMonth, labelCuenta, ordenarCuentas } from '@/lib/utils'
 import {
   CheckCircle2, AlertTriangle, Clock, FileCheck, Receipt, CreditCard,
   PiggyBank, Loader2, ChevronRight, AlertCircle, Sparkles, Wallet, Pencil,
@@ -140,7 +140,7 @@ interface Props {
   cuotas: CuotaPendiente[]
   instrumentosProximos: InstrumentoProximo[]
   gastosPendientes: GastoPend[]
-  cuentas: { id: string; nombre: string; banco: string }[]
+  cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
   tarjetas: { id: string; nombre: string; banco: string }[]
   proveedores: { id: string; nombre: string }[]
   cuotasPlanAfip?: CuotaPlanAfip[]
@@ -390,7 +390,7 @@ function CuotaItem({ cuota, onPagar, onPagoParcial, onEditHistorica }: {
   )
 }
 
-function GastoPendItem({ gasto, hoy, cuentas, onPagoParcial }: { gasto: GastoPend; hoy: string; cuentas: { id: string; nombre: string; banco: string }[]; onPagoParcial: (t: PagoTarget) => void }) {
+function GastoPendItem({ gasto, hoy, cuentas, onPagoParcial }: { gasto: GastoPend; hoy: string; cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]; onPagoParcial: (t: PagoTarget) => void }) {
   const [pagarOpen, setPagarOpen] = useState(false)
   const moneda = (gasto.moneda === 'USD' ? 'USD' : 'ARS') as 'USD' | 'ARS'
   const fecha = gasto.fecha_pago
@@ -478,7 +478,7 @@ function GastoPendItem({ gasto, hoy, cuentas, onPagoParcial }: { gasto: GastoPen
   )
 }
 
-function PagarGastoInline({ gasto, cuentas, onClose }: { gasto: GastoPend; cuentas: { id: string; nombre: string; banco: string }[]; onClose: () => void }) {
+function PagarGastoInline({ gasto, cuentas, onClose }: { gasto: GastoPend; cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]; onClose: () => void }) {
   const [cuentaId, setCuentaId] = useState(gasto.cuenta_id ?? '')
   const [fechaPago, setFechaPago] = useState(gasto.fecha_pago ?? new Date().toISOString().split('T')[0])
   const [error, setError] = useState<string | null>(null)
@@ -515,7 +515,7 @@ function PagarGastoInline({ gasto, cuentas, onClose }: { gasto: GastoPend; cuent
           className="px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg text-xs focus:outline-none focus:ring-1 focus:ring-primary sm:col-span-2"
         >
           <option value="">— Cuenta de origen —</option>
-          {cuentas.map((c) => <option key={c.id} value={c.id}>{c.banco} · {c.nombre}</option>)}
+          {ordenarCuentas(cuentas).map((c) => <option key={c.id} value={c.id}>{labelCuenta(c)}</option>)}
         </select>
       </div>
       {error && <p className="text-xs text-red-700">{error}</p>}
@@ -897,7 +897,7 @@ function GastoGrupoCargasItem({
 }: {
   grupo: { mes: string; categoria: string; gastos: GastoPend[]; totalSaldo: number; cantidad: number }
   hoy: string
-  cuentas: { id: string; nombre: string; banco: string }[]
+  cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
   onPagoParcial: (t: PagoTarget) => void
   onRefetch: () => void
 }) {
@@ -1008,7 +1008,7 @@ function PagarGrupoForm({
   onClose,
 }: {
   grupo: { mes: string; categoria: string; gastos: GastoPend[]; totalSaldo: number; cantidad: number }
-  cuentas: { id: string; nombre: string; banco: string }[]
+  cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
   onClose: () => void
 }) {
   const [cuentaId, setCuentaId] = useState('')
@@ -1052,7 +1052,7 @@ function PagarGrupoForm({
           className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
         >
           <option value="">Seleccioná...</option>
-          {cuentas.map((c) => <option key={c.id} value={c.id}>{c.banco} — {c.nombre}</option>)}
+          {ordenarCuentas(cuentas).map((c) => <option key={c.id} value={c.id}>{labelCuenta(c)}</option>)}
         </select>
       </div>
       <div className="space-y-1.5">

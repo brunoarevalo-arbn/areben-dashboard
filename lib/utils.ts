@@ -53,3 +53,31 @@ export function getMonthOptions(count = 12) {
   }
   return options
 }
+
+// ============ Cuentas bancarias (selectores) ============
+// Forma mínima que necesitan los selectores de cuenta de origen.
+// El `titular` viene del join `titular:cuentas_titulares(nombre)` en las queries.
+export type CuentaSelector = {
+  id: string
+  nombre: string
+  banco: string
+  titular?: { nombre: string } | null
+}
+
+// Etiqueta para el desplegable: "Titular — Banco · Nombre".
+// Si la cuenta no tiene titular cargado, cae a "Banco · Nombre".
+export function labelCuenta(c: CuentaSelector): string {
+  const base = `${c.banco} · ${c.nombre}`
+  return c.titular?.nombre ? `${c.titular.nombre} — ${base}` : base
+}
+
+// Ordena por titular, luego banco, luego nombre — así las cuentas de cada
+// persona quedan agrupadas y son más fáciles de encontrar.
+export function ordenarCuentas<T extends CuentaSelector>(cuentas: T[]): T[] {
+  return [...cuentas].sort(
+    (a, b) =>
+      (a.titular?.nombre ?? '').localeCompare(b.titular?.nombre ?? '', 'es') ||
+      a.banco.localeCompare(b.banco, 'es') ||
+      a.nombre.localeCompare(b.nombre, 'es')
+  )
+}

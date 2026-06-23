@@ -15,7 +15,7 @@ export default async function ChequesPage() {
       .limit(1000),
     supabase
       .from('cuentas_bancarias')
-      .select('id, nombre, banco')
+      .select('id, nombre, banco, titular:cuentas_titulares(nombre)')
       .eq('activo', true)
       .order('banco'),
   ])

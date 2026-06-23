@@ -46,7 +46,7 @@ export default async function NominaPage({
       .select('empleado_id, aguinaldo_provisionado, aguinaldo_pagado_de_caja'),
     supabase
       .from('cuentas_bancarias')
-      .select('id, nombre, banco')
+      .select('id, nombre, banco, titular:cuentas_titulares(nombre)')
       .eq('activo', true)
       .order('banco'),
   ])
@@ -120,7 +120,7 @@ export default async function NominaPage({
       mes={mes}
       horasExtrasMes={horasExtrasMes ?? []}
       cajaAguinaldos={cajaAguinaldosObj}
-      cuentas={cuentas ?? []}
+      cuentas={(cuentas ?? []) as unknown as Parameters<typeof NominaClient>[0]['cuentas']}
     />
   )
 }

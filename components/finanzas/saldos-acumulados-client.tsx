@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { Select } from '@/components/ui/input'
-import { formatCurrency, formatMonth, formatDate } from '@/lib/utils'
+import { formatCurrency, formatMonth, formatDate, labelCuenta, ordenarCuentas } from '@/lib/utils'
 import { Wallet, CheckCircle2, Loader2, Receipt, ChevronDown, ChevronRight, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { RegistrarPagoModal, type PagoTarget } from './registrar-pago-modal'
@@ -42,6 +42,7 @@ interface Cuenta {
   id: string
   nombre: string
   banco: string
+  titular?: { nombre: string } | null
 }
 
 interface Props {
@@ -323,7 +324,7 @@ function PagarTodoForm({
         label="Cuenta de origen"
         value={cuentaId}
         onChange={(e) => setCuentaId(e.target.value)}
-        options={[{ value: '', label: 'Seleccioná...' }, ...cuentas.map((c) => ({ value: c.id, label: `${c.banco} — ${c.nombre}` }))]}
+        options={[{ value: '', label: 'Seleccioná...' }, ...ordenarCuentas(cuentas).map((c) => ({ value: c.id, label: labelCuenta(c) }))]}
         required
       />
 

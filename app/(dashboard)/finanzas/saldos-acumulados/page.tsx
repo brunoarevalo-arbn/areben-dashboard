@@ -27,7 +27,7 @@ export default async function SaldosAcumuladosPage() {
       .select('id, concepto, categoria, monto_estimado, medio_pago, dia_vencimiento, tipo_mes')
       .eq('activo', true)
       .order('concepto'),
-    supabase.from('cuentas_bancarias').select('id, nombre, banco').eq('activo', true).order('banco'),
+    supabase.from('cuentas_bancarias').select('id, nombre, banco, titular:cuentas_titulares(nombre)').eq('activo', true).order('banco'),
     // Pagos parciales que ya hay contra esos gastos (para mostrar saldo real)
     supabase.from('pagos').select('origen_id, monto').eq('tipo_origen', 'GASTO'),
   ])
@@ -52,7 +52,7 @@ export default async function SaldosAcumuladosPage() {
     <SaldosAcumuladosClient
       gastos={gastosConSaldo}
       recurrentes={recurrentes ?? []}
-      cuentas={cuentas ?? []}
+      cuentas={(cuentas ?? []) as unknown as Parameters<typeof SaldosAcumuladosClient>[0]['cuentas']}
     />
   )
 }

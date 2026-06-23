@@ -5,7 +5,7 @@ import { createCompra, updateCompra } from '@/app/actions/compras'
 import { MoneyInput } from '@/components/ui/money-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
-import { formatCurrency, formatDate, cn } from '@/lib/utils'
+import { formatCurrency, formatDate, cn, labelCuenta, ordenarCuentas } from '@/lib/utils'
 import {
   Loader2, ChevronDown, ChevronUp,
   CreditCard, Banknote, Building2, FileCheck,
@@ -68,7 +68,7 @@ function generarCuotas(n: number, base: number): CuotaRow[] {
 
 // ─── CompraForm ───────────────────────────────────────────────────────────────
 
-export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegocio }: { compra?: Compra; proveedores: Proveedor[]; cuentas: { id: string; nombre: string; banco: string }[]; onClose: () => void; initialNegocio?: string }) {
+export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegocio }: { compra?: Compra; proveedores: Proveedor[]; cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]; onClose: () => void; initialNegocio?: string }) {
   const hoy = new Date().toISOString().split('T')[0]
   const editing = !!compra
 
@@ -542,8 +542,8 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
                     className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                   >
                     <option value="">Seleccioná cuenta...</option>
-                    {cuentas.map((c) => (
-                      <option key={c.id} value={c.id}>{c.banco} — {c.nombre}</option>
+                    {ordenarCuentas(cuentas).map((c) => (
+                      <option key={c.id} value={c.id}>{labelCuenta(c)}</option>
                     ))}
                   </select>
                 </div>
@@ -664,8 +664,8 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
                               className="px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg focus:outline-none focus:ring-1 focus:ring-primary text-xs"
                             >
                               <option value="">Cuenta emisora...</option>
-                              {cuentas.map((cu) => (
-                                <option key={cu.id} value={cu.id}>{cu.banco} — {cu.nombre}</option>
+                              {ordenarCuentas(cuentas).map((cu) => (
+                                <option key={cu.id} value={cu.id}>{labelCuenta(cu)}</option>
                               ))}
                             </select>
                           </div>

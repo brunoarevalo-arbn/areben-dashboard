@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, labelCuenta, ordenarCuentas } from '@/lib/utils'
 import { Loader2, FileCheck, CreditCard, Banknote, Receipt, Upload, Edit3 } from 'lucide-react'
 import { createPagoUnificado } from '@/app/actions/pagos'
 import {
@@ -48,7 +48,7 @@ interface Props {
   open: boolean
   tipo: HistoricoTipo | null
   onOpenChange: (o: boolean) => void
-  cuentas: { id: string; nombre: string; banco: string }[]
+  cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
   tarjetas?: { id: string; nombre: string; banco: string }[]
   proveedores?: { id: string; nombre: string }[]
   onSuccess?: () => void
@@ -292,7 +292,7 @@ function FormCheque({ cuentas, onSuccess, onClose }: { cuentas: Props['cuentas']
         <Input label="Banco emisor" value={bancoEmisor} onChange={(e) => setBancoEmisor(e.target.value)} placeholder="Galicia, MP" />
       </div>
       <Select label="Cuenta del cheque (opcional)" value={cuentaId} onChange={(e) => setCuentaId(e.target.value)}
-        options={[{ value: '', label: '— Sin asignar —' }, ...cuentas.map((c) => ({ value: c.id, label: `${c.banco} · ${c.nombre}` }))]} />
+        options={[{ value: '', label: '— Sin asignar —' }, ...ordenarCuentas(cuentas).map((c) => ({ value: c.id, label: labelCuenta(c) }))]} />
       <Textarea label="Notas" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="A quién se le firmó, motivo, etc." />
       {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
       <div className="flex justify-end gap-3">
