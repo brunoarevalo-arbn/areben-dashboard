@@ -643,7 +643,7 @@ export interface NominaMensual {
  * - GASTO/NOMINA/CUOTA: origen_id apunta a la entidad correspondiente
  * - LIBRE: origen_id = NULL (cheques históricos sin asignar)
  */
-export type TipoOrigenPago = 'COMPRA' | 'GASTO' | 'NOMINA' | 'CUOTA' | 'LIBRE'
+export type TipoOrigenPago = 'COMPRA' | 'GASTO' | 'NOMINA' | 'CUOTA' | 'LIBRE' | 'PRESTAMO'
 export type InstrumentoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'CUENTA_CORRIENTE' | 'CHEQUE_FISICO' | 'ECHEQ' | 'TARJETA'
 
 export interface Pago {

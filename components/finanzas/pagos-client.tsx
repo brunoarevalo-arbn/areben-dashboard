@@ -47,6 +47,7 @@ const TIPO_LABELS: Record<TipoOrigenPago, { label: string; color: string; icon: 
   GASTO: { label: 'Gasto', color: 'text-amber-700 border-amber-500/30 bg-amber-500/10', icon: Receipt },
   NOMINA: { label: 'Nómina', color: 'text-purple-700 border-purple-500/30 bg-purple-500/10', icon: Users },
   CUOTA: { label: 'Cuota tarjeta', color: 'text-primary border-orange-500/30 bg-orange-500/10', icon: CreditCard },
+  PRESTAMO: { label: 'Cuota préstamo', color: 'text-teal-700 border-teal-500/30 bg-teal-500/10', icon: Receipt },
   LIBRE: { label: 'Libre', color: 'text-fg-muted border-slate-500/30 bg-slate-500/10', icon: AlertCircle },
 }
 

@@ -13,7 +13,7 @@ import { z } from 'zod'
 import { optUuid } from '@/lib/zod-helpers'
 import type { TipoOrigenPago, InstrumentoPago } from '@/types/database'
 
-const TIPO_ORIGEN: TipoOrigenPago[] = ['COMPRA', 'GASTO', 'NOMINA', 'CUOTA', 'LIBRE']
+const TIPO_ORIGEN: TipoOrigenPago[] = ['COMPRA', 'GASTO', 'NOMINA', 'CUOTA', 'LIBRE', 'PRESTAMO']
 const INSTRUMENTOS: InstrumentoPago[] = ['EFECTIVO', 'TRANSFERENCIA', 'CUENTA_CORRIENTE', 'CHEQUE_FISICO', 'ECHEQ', 'TARJETA']
 
 const pagoUnifSchema = z.object({
@@ -124,6 +124,43 @@ async function recomputarOrigen(tipo: TipoOrigenPago, origenId: string | null) {
     }
     return
   }
+
+  if (tipo === 'PRESTAMO') {
+    const { data: c } = await supabase
+      .from('prestamo_cuotas')
+      .select('monto_total, pagada, prestamo_id, fecha_vencimiento')
+      .eq('id', origenId)
+      .single()
+    if (!c) return
+    const total = Number(c.monto_total)
+    const completo = totalPagado + 0.01 >= total
+    const hoy = new Date().toISOString().split('T')[0]
+    if (completo && !c.pagada) {
+      await supabase
+        .from('prestamo_cuotas')
+        .update({ pagada: true, fecha_pago: hoy })
+        .eq('id', origenId)
+      // Marcar el gasto financiero (interés) de ese mes como PAGADO
+      await supabase
+        .from('gastos')
+        .update({ estado: 'PAGADO', fecha_pago: hoy })
+        .eq('prestamo_id', c.prestamo_id)
+        .eq('mes', c.fecha_vencimiento.substring(0, 7))
+        .eq('categoria', 'Gastos Financieros')
+    } else if (!completo && c.pagada) {
+      await supabase
+        .from('prestamo_cuotas')
+        .update({ pagada: false, fecha_pago: null })
+        .eq('id', origenId)
+      await supabase
+        .from('gastos')
+        .update({ estado: 'PENDIENTE', fecha_pago: c.fecha_vencimiento })
+        .eq('prestamo_id', c.prestamo_id)
+        .eq('mes', c.fecha_vencimiento.substring(0, 7))
+        .eq('categoria', 'Gastos Financieros')
+    }
+    return
+  }
 }
 
 /**
@@ -154,6 +191,9 @@ export async function createPagoUnificado(input: PagoUnifInput) {
     } else if (d.tipo_origen === 'CUOTA') {
       const { data } = await supabase.from('cuotas_tarjeta').select('monto_cuota').eq('id', d.origen_id).single()
       totalDeuda = Number(data?.monto_cuota ?? 0)
+    } else if (d.tipo_origen === 'PRESTAMO') {
+      const { data } = await supabase.from('prestamo_cuotas').select('monto_total').eq('id', d.origen_id).single()
+      totalDeuda = Number(data?.monto_total ?? 0)
     }
 
     // Para gastos/nomina/cuota: comparar contra suma ya pagada (compra usa saldo_pendiente)
@@ -205,6 +245,7 @@ export async function createPagoUnificado(input: PagoUnifInput) {
   revalidatePath('/finanzas/gastos')
   revalidatePath('/finanzas/cierre-mes')
   revalidatePath('/finanzas/tarjetas')
+  revalidatePath('/finanzas/prestamos')
   revalidatePath('/rrhh/nomina')
   revalidatePath('/compras/lista')
   revalidatePath('/')
@@ -249,6 +290,7 @@ export async function deletePagoUnificado(id: string) {
   revalidatePath('/finanzas/gastos')
   revalidatePath('/finanzas/cierre-mes')
   revalidatePath('/finanzas/tarjetas')
+  revalidatePath('/finanzas/prestamos')
   revalidatePath('/rrhh/nomina')
   revalidatePath('/compras/lista')
   revalidatePath('/')

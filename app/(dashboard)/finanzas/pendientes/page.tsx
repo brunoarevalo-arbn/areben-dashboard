@@ -231,6 +231,26 @@ export default async function PendientesPage() {
     return { ...c, total_pagado: pagado, saldo_pendiente: saldo }
   }).filter((c) => c.saldo_pendiente > 0.01)
 
+  // Pagos parciales (ledger) contra cuotas de préstamo → saldo real por cuota
+  const cuotaPrestamoIds = (cuotasPrestamo ?? []).map((c) => c.id)
+  const pagosByCuotaPrestamo = new Map<string, number>()
+  if (cuotaPrestamoIds.length > 0) {
+    const { data } = await supabase
+      .from('pagos')
+      .select('origen_id, monto')
+      .eq('tipo_origen', 'PRESTAMO')
+      .in('origen_id', cuotaPrestamoIds)
+    for (const p of data ?? []) {
+      if (!p.origen_id) continue
+      pagosByCuotaPrestamo.set(p.origen_id, (pagosByCuotaPrestamo.get(p.origen_id) ?? 0) + Number(p.monto))
+    }
+  }
+  const cuotasPrestamoConSaldo = (cuotasPrestamo ?? []).map((c) => {
+    const pagado = pagosByCuotaPrestamo.get(c.id) ?? 0
+    const saldo = Math.max(0, Number(c.monto_total) - pagado)
+    return { ...c, total_pagado: pagado, saldo_pendiente: saldo }
+  }).filter((c) => c.saldo_pendiente > 0.01)
+
   return (
     <PendientesClient
       mesActual={mesActual}
@@ -247,7 +267,7 @@ export default async function PendientesPage() {
       tarjetas={tarjetas ?? []}
       proveedores={proveedores ?? []}
       cuotasPlanAfip={cuotasPlanAfip ?? []}
-      cuotasPrestamo={cuotasPrestamo ?? []}
+      cuotasPrestamo={cuotasPrestamoConSaldo}
     />
   )
 }

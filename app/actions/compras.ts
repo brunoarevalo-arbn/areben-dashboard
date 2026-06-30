@@ -372,6 +372,73 @@ export async function acreditarCheque(pagoId: string, fecha?: string) {
   revalidatePath('/egresos/pagos')
 }
 
+// Pago parcial (o total) contra una obligación a cuenta corriente.
+// Modelo "split": la fila de obligación (acreditado=false, monto = lo que resta) se va
+// achicando y cada abono se inserta como fila acreditada propia (con su fecha y nota).
+// El trigger actualizar_saldo_compra (migración 039) recalcula el saldo de la compra solo,
+// porque suma solo los pagos acreditados. Pensado para CC ligadas a una COMPRA.
+export async function pagarCtaCteParcial(
+  pagoId: string,
+  input: { monto: number; fecha: string; cuenta_id?: string | null; notas?: string | null }
+) {
+  await requireUser()
+  const supabase = await createClient()
+
+  const { data: pago, error: errPago } = await supabase
+    .from('pagos')
+    .select('id, compra_id, origen_id, tipo_origen, monto, moneda, fecha_vencimiento, cuenta_id, notas')
+    .eq('id', pagoId)
+    .single()
+  if (errPago || !pago) throw new Error(errPago?.message || 'No se encontró el pago')
+
+  const restante = Number(pago.monto)
+  const abono = Number(input.monto)
+  if (!abono || abono <= 0) throw new Error('El monto debe ser mayor a cero')
+  const fecha = input.fecha || new Date().toISOString().split('T')[0]
+
+  if (abono >= restante - 0.01) {
+    // Pago total: acreditar la obligación completa (+ datos opcionales)
+    const { error } = await supabase
+      .from('pagos')
+      .update({
+        acreditado: true,
+        fecha_acreditacion: fecha,
+        cuenta_id: input.cuenta_id ?? pago.cuenta_id ?? null,
+        notas: input.notas ?? pago.notas ?? null,
+      })
+      .eq('id', pagoId)
+    if (error) throw new Error(error.message)
+  } else {
+    // Pago parcial: 1) achicar la obligación, 2) registrar el abono acreditado
+    const { error: errUpd } = await supabase
+      .from('pagos')
+      .update({ monto: restante - abono })
+      .eq('id', pagoId)
+    if (errUpd) throw new Error(errUpd.message)
+
+    const { error: errIns } = await supabase.from('pagos').insert({
+      compra_id: pago.compra_id,
+      origen_id: pago.origen_id,
+      tipo_origen: pago.tipo_origen,
+      monto: abono,
+      moneda: pago.moneda,
+      fecha_emision: fecha,
+      fecha_vencimiento: null,
+      condicion_pago: 'CONTADO',
+      instrumento: 'CUENTA_CORRIENTE',
+      cuenta_id: input.cuenta_id ?? null,
+      acreditado: true,
+      fecha_acreditacion: fecha,
+      notas: input.notas ?? null,
+    })
+    if (errIns) throw new Error(errIns.message)
+  }
+
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/compras/lista')
+  revalidatePath('/egresos/pagos')
+}
+
 // ============ DATOS GN ============
 
 const datosGNSchema = z.object({

@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from 'react'
 import Link from 'next/link'
-import { acreditarCheque } from '@/app/actions/compras'
+import { acreditarCheque, pagarCtaCteParcial } from '@/app/actions/compras'
 import { marcarCuotaPagada, marcarGastoPagado } from '@/app/actions/finanzas'
 import type { Instrumento } from '@/types/database'
 import { Button } from '@/components/ui/button'
@@ -126,6 +126,8 @@ interface CuotaPrestamo {
   monto_total: number
   fecha_vencimiento: string
   pagada: boolean
+  saldo_pendiente?: number
+  total_pagado?: number
   prestamo?: { id: string; nombre: string; acreedor: string; moneda: string; cuenta_pago_id: string | null } | null
 }
 
@@ -530,47 +532,160 @@ function PagarGastoInline({ gasto, cuentas, onClose }: { gasto: GastoPend; cuent
   )
 }
 
-function PagoCtaCteItem({ pago, hoy, onAcreditar }: { pago: PagoCtaCte; hoy: string; onAcreditar: () => void }) {
+function PagoCtaCteItem({ pago, hoy, cuentas, onAcreditar }: { pago: PagoCtaCte; hoy: string; cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]; onAcreditar: () => void }) {
   const [isPending, startTransition] = useTransition()
+  const [abierto, setAbierto] = useState(false)
   const moneda = (pago.moneda === 'USD' ? 'USD' : 'ARS') as 'USD' | 'ARS'
   const fecha = pago.fecha_vencimiento
   if (!fecha) return null
   const dias = diasHasta(fecha, hoy)
+  // Solo las CC ligadas a una compra usan el flujo de pago parcial con notas (el saldo lo
+  // recalcula el trigger sumando los pagos acreditados). Para gastos se mantiene el botón simple.
+  const esCompra = pago.tipo_origen === 'COMPRA'
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-surface-2/40 transition-colors">
-      <div className="flex items-center gap-3 min-w-0 flex-1">
-        <Receipt className="w-4 h-4 text-blue-700 shrink-0" />
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-fg truncate">
-            {pago.compra?.proveedor?.nombre
-              ?? pago.compra?.descripcion
-              ?? pago.gasto?.concepto
-              ?? '—'}
-            {pago.gasto?.categoria && !pago.compra && (
-              <span className="ml-2 text-xs text-fg-soft">{pago.gasto.categoria}</span>
-            )}
-            {pago.numero_cuota && pago.total_cuotas && pago.total_cuotas > 1 && (
-              <span className="ml-2 text-xs text-fg-soft">cuota {pago.numero_cuota}/{pago.total_cuotas}</span>
-            )}
-          </p>
-          <p className="text-xs text-fg-soft flex items-center gap-2">
-            <span>Cta. corriente · vence {formatDate(fecha)}</span>
-            {dias < 0 && <span className="text-red-700">({Math.abs(dias)} días vencido)</span>}
-            {dias > 0 && dias <= 7 && <span className="text-amber-700">(en {dias} días)</span>}
-          </p>
+    <div>
+      <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-surface-2/40 transition-colors">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <Receipt className="w-4 h-4 text-blue-700 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-fg truncate">
+              {pago.compra?.proveedor?.nombre
+                ?? pago.compra?.descripcion
+                ?? pago.gasto?.concepto
+                ?? '—'}
+              {pago.gasto?.categoria && !pago.compra && (
+                <span className="ml-2 text-xs text-fg-soft">{pago.gasto.categoria}</span>
+              )}
+              {pago.numero_cuota && pago.total_cuotas && pago.total_cuotas > 1 && (
+                <span className="ml-2 text-xs text-fg-soft">cuota {pago.numero_cuota}/{pago.total_cuotas}</span>
+              )}
+            </p>
+            <p className="text-xs text-fg-soft flex items-center gap-2">
+              <span>Cta. corriente · vence {formatDate(fecha)}</span>
+              {dias < 0 && <span className="text-red-700">({Math.abs(dias)} días vencido)</span>}
+              {dias > 0 && dias <= 7 && <span className="text-amber-700">(en {dias} días)</span>}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <p className="font-mono text-sm text-fg">{formatCurrency(pago.monto, moneda)}</p>
+          {esCompra ? (
+            <Button
+              size="sm"
+              variant="success"
+              onClick={() => setAbierto((v) => !v)}
+              title="Registrar pago (parcial o total) con nota"
+            >
+              <Wallet className="w-3.5 h-3.5" />
+              Pagar
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="success"
+              disabled={isPending}
+              onClick={() => startTransition(async () => { await acreditarCheque(pago.id); onAcreditar() })}
+              title="Marcar como pagado"
+            >
+              {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              Pagar
+            </Button>
+          )}
         </div>
       </div>
-      <div className="flex items-center gap-3 shrink-0">
-        <p className="font-mono text-sm text-fg">{formatCurrency(pago.monto, moneda)}</p>
-        <Button
-          size="sm"
-          variant="success"
-          disabled={isPending}
-          onClick={() => startTransition(async () => { await acreditarCheque(pago.id); onAcreditar() })}
-          title="Marcar como pagado"
+      {esCompra && abierto && (
+        <PagarCtaCteInline
+          pago={pago}
+          cuentas={cuentas}
+          onClose={() => setAbierto(false)}
+          onDone={() => { setAbierto(false); onAcreditar() }}
+        />
+      )}
+    </div>
+  )
+}
+
+function PagarCtaCteInline({ pago, cuentas, onClose, onDone }: { pago: PagoCtaCte; cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]; onClose: () => void; onDone: () => void }) {
+  const moneda = (pago.moneda === 'USD' ? 'USD' : 'ARS') as 'USD' | 'ARS'
+  const restante = Number(pago.monto)
+  const [monto, setMonto] = useState<number>(restante)
+  const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0])
+  const [cuentaId, setCuentaId] = useState('')
+  const [notas, setNotas] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+  const total = monto >= restante - 0.01
+
+  function confirmar() {
+    setError(null)
+    if (!monto || monto <= 0) {
+      setError('Ingresá un monto mayor a cero')
+      return
+    }
+    startTransition(async () => {
+      try {
+        await pagarCtaCteParcial(pago.id, { monto, fecha: fechaPago, cuenta_id: cuentaId || null, notas: notas || null })
+        onDone()
+      } catch (e) {
+        setError((e as Error).message)
+      }
+    })
+  }
+
+  return (
+    <div className="px-4 py-3 bg-surface-2/60 border-t border-border-strong/40 space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-fg-muted">Monto a pagar</label>
+        <button
+          type="button"
+          onClick={() => setMonto(restante)}
+          className="text-xs text-primary hover:text-orange-600"
+          title="Cargar el saldo restante completo"
         >
-          {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-          Pagar
+          Pagar todo ({formatCurrency(restante, moneda)})
+        </button>
+      </div>
+      <input
+        type="number"
+        step="0.01"
+        min="0.01"
+        value={monto || ''}
+        onChange={(e) => setMonto(Number(e.target.value))}
+        placeholder="0,00"
+        className="w-full px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+      />
+      {monto > restante + 0.01 && (
+        <p className="text-xs text-amber-700">El monto supera el saldo restante; se saldará la cuenta corriente.</p>
+      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <input
+          type="date"
+          value={fechaPago}
+          onChange={(e) => setFechaPago(e.target.value)}
+          className="px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+        <select
+          value={cuentaId}
+          onChange={(e) => setCuentaId(e.target.value)}
+          className="px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+        >
+          <option value="">— Cuenta de origen (opcional) —</option>
+          {ordenarCuentas(cuentas).map((c) => <option key={c.id} value={c.id}>{labelCuenta(c)}</option>)}
+        </select>
+      </div>
+      <input
+        type="text"
+        value={notas}
+        onChange={(e) => setNotas(e.target.value)}
+        placeholder="Nota (ej. adelanto, pago parcial…)"
+        className="w-full px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+      />
+      {error && <p className="text-xs text-red-700">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button size="sm" variant="success" onClick={confirmar} disabled={isPending || !monto}>
+          {isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          {total ? 'Saldar' : 'Registrar pago'}
         </Button>
       </div>
     </div>
@@ -752,14 +867,15 @@ function CuotaTcGrupoItem({
 // ─── CuotaPrestamoItem ─────────────────────────────────────────────────────────
 
 function CuotaPrestamoItem({
-  cuota, hoy, onRefetch,
+  cuota, hoy, onPagoParcial,
 }: {
   cuota: CuotaPrestamo
   hoy: string
-  onRefetch: () => void
+  onPagoParcial: (t: PagoTarget) => void
 }) {
-  const [isPending, _startTransition] = useTransition()
-  const [confirmarOpen, setConfirmarOpen] = useState(false)
+  const moneda = (cuota.prestamo?.moneda === 'USD' ? 'USD' : 'ARS') as 'USD' | 'ARS'
+  const saldo = Number(cuota.saldo_pendiente ?? cuota.monto_total)
+  const pagado = Number(cuota.total_pagado ?? 0)
   const dias = (() => {
     const f = new Date(cuota.fecha_vencimiento + 'T00:00:00')
     const h = new Date(hoy + 'T00:00:00')
@@ -784,35 +900,31 @@ function CuotaPrestamoItem({
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-right">
-            <p className="font-mono font-bold text-fg">{formatCurrency(cuota.monto_total)}</p>
-            <p className="text-xs text-fg-soft">Capital {formatCurrency(cuota.capital)} + Int {formatCurrency(cuota.interes)}</p>
+            <p className="font-mono font-bold text-fg">{formatCurrency(saldo, moneda)}</p>
+            {pagado > 0.01
+              ? <p className="text-xs text-fg-soft">de {formatCurrency(cuota.monto_total, moneda)} · pagado {formatCurrency(pagado, moneda)}</p>
+              : <p className="text-xs text-fg-soft">Capital {formatCurrency(cuota.capital, moneda)} + Int {formatCurrency(cuota.interes, moneda)}</p>}
           </div>
           <Button
             size="sm"
             variant="success"
-            disabled={isPending}
-            onClick={() => setConfirmarOpen(true)}
-            title="Marcar la cuota como pagada (pide fecha)"
+            onClick={() => onPagoParcial({
+              tipo_origen: 'PRESTAMO',
+              origen_id: cuota.id,
+              monto_total: Number(cuota.monto_total),
+              saldo_pendiente: saldo,
+              moneda,
+              descripcion: `${cuota.prestamo?.nombre ?? 'Préstamo'} · Cuota ${cuota.cuota_numero}/${cuota.total_cuotas}`,
+              contexto: cuota.prestamo?.acreedor ? `Acreedor: ${cuota.prestamo.acreedor}` : `Vence ${formatDate(cuota.fecha_vencimiento)}`,
+              default_cuenta_id: cuota.prestamo?.cuenta_pago_id ?? null,
+            })}
+            title="Registrar pago (parcial o total) con nota"
           >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Pagada
+            <Wallet className="w-3.5 h-3.5" />
+            Pagar
           </Button>
         </div>
       </div>
-
-      <ConfirmarPagoModal
-        open={confirmarOpen}
-        onOpenChange={setConfirmarOpen}
-        title="Marcar cuota préstamo pagada"
-        descripcion={`${cuota.prestamo?.nombre ?? 'Préstamo'} · Cuota ${cuota.cuota_numero}/${cuota.total_cuotas} · vence ${cuota.fecha_vencimiento}`}
-        monto={cuota.monto_total}
-        defaultFecha={cuota.fecha_vencimiento}
-        onConfirm={async (fecha) => {
-          const { marcarCuotaPrestamoPagada } = await import('@/app/actions/prestamos')
-          await marcarCuotaPrestamoPagada(cuota.id, fecha)
-          onRefetch()
-        }}
-      />
     </div>
   )
 }
@@ -1285,7 +1397,7 @@ export function PendientesClient({
       return <CuotaItem key={key} cuota={it.data as CuotaPendiente} onPagar={refetch} onPagoParcial={abrirPagoParcial} onEditHistorica={setEditCuotaTarget} />
     }
     if (it.tipo === 'pago_cta_cte') {
-      return <PagoCtaCteItem key={key} pago={it.data as PagoCtaCte} hoy={hoy} onAcreditar={refetch} />
+      return <PagoCtaCteItem key={key} pago={it.data as PagoCtaCte} hoy={hoy} cuentas={cuentas} onAcreditar={refetch} />
     }
     if (it.tipo === 'compra_sin_plan') {
       return <CompraSinPlanItem key={key} compra={it.data as CompraSinPlanPago} onPagoParcial={abrirPagoParcial} />
@@ -1300,7 +1412,7 @@ export function PendientesClient({
       return <CuotaPlanAfipItem key={key} cuota={it.data as CuotaPlanAfip} hoy={hoy} onRefetch={refetch} />
     }
     if (it.tipo === 'cuota_prestamo') {
-      return <CuotaPrestamoItem key={key} cuota={it.data as CuotaPrestamo} hoy={hoy} onRefetch={refetch} />
+      return <CuotaPrestamoItem key={key} cuota={it.data as CuotaPrestamo} hoy={hoy} onPagoParcial={abrirPagoParcial} />
     }
     if (it.tipo === 'cuota_tc_grupo') {
       return <CuotaTcGrupoItem key={key} grupo={it.data as CuotaTcGrupo} hoy={hoy} onRefetch={refetch} />
