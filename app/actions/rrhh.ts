@@ -303,6 +303,35 @@ function formatPesos(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
 }
 
+// Lleva el sueldo base de una nómina a la ficha del empleado: registra un evento
+// AJUSTE_SALARIAL (historial) y actualiza sueldo_basico + valor_hora. Solo actúa si
+// el monto difiere del de la ficha. Mismo mecanismo que createAjusteSalarial.
+async function aplicarSueldoAFicha(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  empleado: { id: string; sueldo_basico: number; horas_mensuales: number },
+  nuevoBase: number,
+  mes: string,
+) {
+  if (!nuevoBase || Math.abs(nuevoBase - empleado.sueldo_basico) <= 0.5) return false
+  const horasMensuales = empleado.horas_mensuales || 160
+  const nuevoValorHora = Math.round((nuevoBase / horasMensuales) * 100) / 100
+  const hoy = new Date().toISOString().split('T')[0]
+  await supabase.from('eventos_empleado').insert({
+    empleado_id: empleado.id,
+    tipo: 'AJUSTE_SALARIAL',
+    fecha: hoy,
+    titulo: `Ajuste salarial: ${formatPesos(empleado.sueldo_basico)} → ${formatPesos(nuevoBase)}`,
+    descripcion: `Actualizado desde la nómina de ${mes}`,
+    sueldo_anterior: empleado.sueldo_basico,
+    sueldo_nuevo: nuevoBase,
+  })
+  await supabase
+    .from('empleados')
+    .update({ sueldo_basico: nuevoBase, valor_hora: nuevoValorHora })
+    .eq('id', empleado.id)
+  return true
+}
+
 export async function toggleEmpleadoActivo(id: string, activo: boolean) {
   await requireUser()
   const supabase = await createClient()
@@ -349,6 +378,7 @@ const nominaSchema = z.object({
   aguinaldo: z.coerce.number().min(0),
   asistencia_completa: z.coerce.boolean().default(false),
   presentismo_monto: z.coerce.number().min(0).default(0),
+  aguinaldo_directo: z.coerce.number().min(0).default(0),
   monto_recibo_oficial: z.coerce.number().min(0).default(0),
   adicional_no_registrado: z.coerce.number().min(0).default(0),
   aguinaldo_pagado_de_caja: z.coerce.number().min(0).default(0),
@@ -512,7 +542,7 @@ export async function createNomina(prevState: string | null, formData: FormData)
   // Subtotal = lo que efectivamente se paga al empleado este mes.
   // Bono y descuento_otro son puntuales (no afectan base del aguinaldo).
   const subtotal = basicoEfectivo + horas_extras_monto + d.comida + presentismo
-    + d.aguinaldo_pagado_de_caja + d.adicional_no_registrado - ausenciasDescuento
+    + d.aguinaldo_pagado_de_caja + d.aguinaldo_directo + d.adicional_no_registrado - ausenciasDescuento
     + d.bono_monto - d.descuento_otro_monto
 
   // Aportes patronales (es_patronal=true): cargas sociales que paga la empresa al estado.
@@ -551,6 +581,7 @@ export async function createNomina(prevState: string | null, formData: FormData)
     comida: d.comida,
     aguinaldo: d.aguinaldo_pagado_de_caja,
     aguinaldo_pagado_de_caja: d.aguinaldo_pagado_de_caja,
+    aguinaldo_directo: d.aguinaldo_directo,
     aguinaldo_provisionado: aguinaldoProvisionado,
     asistencia_completa: d.asistencia_completa,
     presentismo_monto: Math.round(presentismo * 100) / 100,
@@ -618,6 +649,11 @@ export async function createNomina(prevState: string | null, formData: FormData)
   // Sincronizar el gasto de aportes patronales (si aportes_patronales > 0)
   if (nominaInserted) {
     await syncGastoAportesPatronales(nominaInserted.id)
+  }
+
+  // Si se confirmó, llevar este sueldo a la ficha del empleado (registra ajuste salarial)
+  if (formData.get('actualizar_sueldo_ficha') === 'true') {
+    await aplicarSueldoAFicha(supabase, empleado, basicoEfectivo, d.mes)
   }
 
   revalidatePath('/rrhh/nomina')
@@ -738,7 +774,7 @@ export async function updateNomina(id: string, prevState: string | null, formDat
     : 0
 
   const subtotal = basicoEfectivo + horas_extras_monto + d.comida + presentismo
-    + d.aguinaldo_pagado_de_caja + d.adicional_no_registrado - ausenciasDescuento
+    + d.aguinaldo_pagado_de_caja + d.aguinaldo_directo + d.adicional_no_registrado - ausenciasDescuento
     + d.bono_monto - d.descuento_otro_monto
 
   // Aportes patronales sobre el bruto del recibo oficial (BLANCO) o el básico negro
@@ -774,6 +810,7 @@ export async function updateNomina(id: string, prevState: string | null, formDat
     comida: d.comida,
     aguinaldo: d.aguinaldo_pagado_de_caja,
     aguinaldo_pagado_de_caja: d.aguinaldo_pagado_de_caja,
+    aguinaldo_directo: d.aguinaldo_directo,
     aguinaldo_provisionado: aguinaldoProvisionado,
     asistencia_completa: d.asistencia_completa,
     presentismo_monto: Math.round(presentismo * 100) / 100,
@@ -813,7 +850,13 @@ export async function updateNomina(id: string, prevState: string | null, formDat
   // Sincronizar el gasto de aportes patronales con el nuevo monto
   await syncGastoAportesPatronales(id)
 
+  // Si se confirmó, llevar este sueldo a la ficha del empleado (registra ajuste salarial)
+  if (formData.get('actualizar_sueldo_ficha') === 'true') {
+    await aplicarSueldoAFicha(supabase, empleado, basicoEfectivo, d.mes)
+  }
+
   revalidatePath('/rrhh/nomina')
+  revalidatePath('/rrhh/empleados')
   revalidatePath('/finanzas/pendientes')
   revalidatePath('/finanzas/gastos')
   revalidatePath('/finanzas/cierre-mes')

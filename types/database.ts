@@ -605,6 +605,8 @@ export interface NominaMensual {
   aguinaldo: number
   aguinaldo_provisionado: number
   aguinaldo_pagado_de_caja: number
+  /** Aguinaldo (SAC) pagado directo este mes, sin provenir de la caja acumulada. */
+  aguinaldo_directo: number
   asistencia_completa: boolean
   presentismo_monto: number
   monto_recibo_oficial: number

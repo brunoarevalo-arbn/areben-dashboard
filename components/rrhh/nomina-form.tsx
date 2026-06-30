@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState, useEffect, useMemo } from 'react'
+import { useActionState, useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { createNomina, updateNomina } from '@/app/actions/rrhh'
 import type { ConfiguracionAporte, HoraExtraRegistro, NominaMensual } from '@/types/database'
 import { Button } from '@/components/ui/button'
@@ -25,6 +25,7 @@ function calcular(args: {
   comida: number
   presentismo: number
   aguinaldo_pagado_de_caja: number
+  aguinaldo_directo: number
   adicional_no_registrado: number
   ausencias_descuento: number
   bono_monto: number
@@ -36,7 +37,7 @@ function calcular(args: {
   const {
     esBlanco, sueldo_basico, monto_recibo_oficial, horas, valor_hora,
     horas_extras, porcentaje_extras, comida, presentismo, aguinaldo_pagado_de_caja,
-    adicional_no_registrado, ausencias_descuento, bono_monto, descuento_otro_monto,
+    aguinaldo_directo, adicional_no_registrado, ausencias_descuento, bono_monto, descuento_otro_monto,
     aportes, tipoEmpleado, aguinaldoProvisionado,
   } = args
 
@@ -45,7 +46,7 @@ function calcular(args: {
 
   // Subtotal: lo que efectivamente se paga al empleado este mes.
   const subtotal = basicoEfectivo + extras_monto + comida
-    + presentismo + aguinaldo_pagado_de_caja + adicional_no_registrado - ausencias_descuento
+    + presentismo + aguinaldo_pagado_de_caja + aguinaldo_directo + adicional_no_registrado - ausencias_descuento
     + bono_monto - descuento_otro_monto
 
   // Aportes patronales (cargas sociales que paga la empresa) sobre el bruto
@@ -124,6 +125,7 @@ export function NominaForm({
     comida: nomina?.comida ?? 0,
     asistencia_completa: nomina?.asistencia_completa ?? false,
     aguinaldo_pagado_de_caja: nomina?.aguinaldo_pagado_de_caja ?? 0,
+    aguinaldo_directo: nomina?.aguinaldo_directo ?? 0,
     monto_recibo_oficial: nomina?.monto_recibo_oficial ?? 0,
     adicional_no_registrado: nomina?.adicional_no_registrado ?? 0,
     ausencias_horas: nomina?.ausencias_horas ?? 0,
@@ -165,6 +167,7 @@ export function NominaForm({
       comida: empleado.tipo_empleado === 'NEGRO' ? empleado.monto_comidas : 0,
       asistencia_completa: false,
       aguinaldo_pagado_de_caja: 0,
+      aguinaldo_directo: 0,
       monto_recibo_oficial: reciboOficial,
       adicional_no_registrado: adicionalTotal,
       ausencias_horas: 0,
@@ -204,6 +207,13 @@ export function NominaForm({
   // Básico efectivo (recibo oficial para BLANCO, sueldo_basico para NEGRO)
   const basicoEfectivoActual = esBlanco && vals.monto_recibo_oficial > 0 ? vals.monto_recibo_oficial : vals.sueldo_basico
 
+  // ¿El sueldo base de esta nómina difiere del de la ficha del empleado?
+  // (para BLANCO la ficha guarda el neto del recibo; para NEGRO el sueldo_basico)
+  const sueldoFichaActual = empleado?.sueldo_basico ?? 0
+  const sueldoNominaBase = esBlanco ? vals.monto_recibo_oficial : vals.sueldo_basico
+  const difiereDeFicha = !!empleado && sueldoNominaBase > 0
+    && Math.abs(sueldoNominaBase - sueldoFichaActual) > 0.5
+
   // Base del aguinaldo = sueldo FIJO mensual (oficial + acuerdo fijo en negro).
   // No incluye horas extras reales ni comida/presentismo.
   const baseAguinaldo = basicoEfectivoActual + vals.adicional_no_registrado
@@ -226,6 +236,7 @@ export function NominaForm({
     comida: vals.comida,
     presentismo: presentismoMonto,
     aguinaldo_pagado_de_caja: vals.aguinaldo_pagado_de_caja,
+    aguinaldo_directo: vals.aguinaldo_directo,
     adicional_no_registrado: vals.adicional_no_registrado,
     ausencias_descuento: vals.ausencias_horas * vals.valor_hora,
     bono_monto: vals.bono_monto,
@@ -248,6 +259,28 @@ export function NominaForm({
     null
   )
 
+  // Confirmación "¿este sueldo pasa a la ficha?" cuando el monto difiere de la ficha.
+  const formRef = useRef<HTMLFormElement>(null)
+  const fichaRef = useRef<HTMLInputElement>(null)
+  const decididoRef = useRef(false)
+  const [preguntarFicha, setPreguntarFicha] = useState(false)
+
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    if (difiereDeFicha && !decididoRef.current) {
+      e.preventDefault()
+      setPreguntarFicha(true)
+      return
+    }
+    decididoRef.current = false
+  }
+
+  function decidirFicha(actualizar: boolean) {
+    if (fichaRef.current) fichaRef.current.value = actualizar ? 'true' : 'false'
+    decididoRef.current = true
+    setPreguntarFicha(false)
+    formRef.current?.requestSubmit()
+  }
+
   if (disponibles.length === 0) {
     return (
       <div className="text-center py-8">
@@ -258,7 +291,8 @@ export function NominaForm({
   }
 
   return (
-    <form action={action} className="space-y-4">
+    <form ref={formRef} action={action} onSubmit={handleSubmit} className="space-y-4">
+      <input ref={fichaRef} type="hidden" name="actualizar_sueldo_ficha" defaultValue="false" />
       <input type="hidden" name="mes" value={mes} />
       <input type="hidden" name="fecha_programada_pago" value={fechaProgramada} />
       <input type="hidden" name="porcentaje_extras" value={vals.porcentaje_extras} />
@@ -268,6 +302,7 @@ export function NominaForm({
       <input type="hidden" name="presentismo_monto" value={presentismoMonto} />
       <input type="hidden" name="aguinaldo" value={vals.aguinaldo_pagado_de_caja} />
       <input type="hidden" name="aguinaldo_pagado_de_caja" value={vals.aguinaldo_pagado_de_caja} />
+      <input type="hidden" name="aguinaldo_directo" value={vals.aguinaldo_directo} />
       {/* sueldo_basico: el input visible solo aparece para NEGRO; para BLANCO mandamos hidden */}
       {esBlanco && <input type="hidden" name="sueldo_basico" value={vals.sueldo_basico} />}
 
@@ -415,6 +450,31 @@ export function NominaForm({
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Aguinaldo (SAC) a pagar directo este mes — no sale de la caja */}
+      {empleado?.corresponde_aguinaldo && (
+        <div className={cn(
+          'border rounded-xl p-4 space-y-2',
+          vals.aguinaldo_directo > 0 ? 'bg-teal-500/10 border-teal-500/40' : 'bg-surface-2/40 border-border-strong/40'
+        )}>
+          <label className="text-sm font-medium text-fg-muted flex items-center gap-2">
+            <PiggyBank className={cn('w-4 h-4', vals.aguinaldo_directo > 0 ? 'text-teal-700' : 'text-fg-soft')} />
+            Aguinaldo (SAC) a pagar este mes
+            <span className="text-xs text-fg-soft font-normal">(se paga ahora, no sale de la caja)</span>
+          </label>
+          <Input
+            label="Monto del aguinaldo"
+            name="aguinaldo_directo_visible"
+            type="number" step="0.01" min="0"
+            value={vals.aguinaldo_directo}
+            onChange={(e) => setVals((v) => ({ ...v, aguinaldo_directo: Math.max(0, Number(e.target.value)) }))}
+            placeholder="0"
+          />
+          <p className="text-[11px] text-fg-soft">
+            Se suma al neto a pagar, genera el gasto de este mes y aparece como concepto propio en el recibo.
+          </p>
         </div>
       )}
 
@@ -640,6 +700,7 @@ export function NominaForm({
           ...(vals.ausencias_horas > 0 ? [{ label: `Faltas (${vals.ausencias_horas} hs)`, value: -(vals.ausencias_horas * vals.valor_hora), color: 'text-red-700' }] : []),
           ...(vals.bono_monto > 0 ? [{ label: vals.bono_concepto ? `${vals.bono_concepto.charAt(0) + vals.bono_concepto.slice(1).toLowerCase()}` : 'Bono', value: vals.bono_monto, color: 'text-green-700' }] : []),
           ...(vals.descuento_otro_monto > 0 ? [{ label: vals.descuento_otro_concepto ? vals.descuento_otro_concepto.replace('_', ' ').toLowerCase() : 'Descuento', value: -vals.descuento_otro_monto, color: 'text-red-700' }] : []),
+          ...(vals.aguinaldo_directo > 0 ? [{ label: 'Aguinaldo (SAC)', value: vals.aguinaldo_directo, color: 'text-teal-700' }] : []),
           { label: 'Neto a pagar', value: calc.neto, color: 'text-green-700 font-semibold text-base' },
           { label: 'Aportes patronales (cargas sociales)', value: calc.aportes_patronales, color: 'text-amber-700' },
           ...(aguinaldoProvisionado > 0
@@ -660,13 +721,33 @@ export function NominaForm({
 
       {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 
-      <div className="flex justify-end gap-3">
-        <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-        <Button type="submit" disabled={isPending}>
-          {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-          {editing ? 'Guardar cambios' : 'Generar nómina'}
-        </Button>
-      </div>
+      {preguntarFicha ? (
+        <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl p-4 space-y-3">
+          <p className="text-sm text-fg-muted">
+            El sueldo de este mes (<strong className="font-mono text-fg">{formatCurrency(sueldoNominaBase)}</strong>)
+            {' '}es distinto al de la ficha del empleado (<strong className="font-mono text-fg">{formatCurrency(sueldoFichaActual)}</strong>).
+          </p>
+          <p className="text-sm font-medium text-fg">
+            ¿Querés que este monto pase a ser el sueldo de ficha del empleado de ahora en más?
+          </p>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => decidirFicha(false)}>
+              No, solo este mes
+            </Button>
+            <Button type="button" variant="success" onClick={() => decidirFicha(true)}>
+              Sí, actualizar ficha
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            {editing ? 'Guardar cambios' : 'Generar nómina'}
+          </Button>
+        </div>
+      )}
     </form>
   )
 }

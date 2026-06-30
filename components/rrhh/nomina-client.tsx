@@ -234,6 +234,7 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
       { label: 'Comida', monto: n.comida },
       { label: 'Presentismo', monto: n.presentismo_monto || 0 },
       { label: 'Aguinaldo (caja)', monto: n.aguinaldo_pagado_de_caja || 0 },
+      { label: 'Aguinaldo (SAC)', monto: n.aguinaldo_directo || 0 },
       ...((n.bono_monto ?? 0) > 0 ? [{
         label: `${(n.bono_concepto ?? 'Bono')[0] + (n.bono_concepto ?? 'Bono').slice(1).toLowerCase()}${n.bono_descripcion ? ` — ${n.bono_descripcion}` : ''}`,
         monto: n.bono_monto ?? 0,
