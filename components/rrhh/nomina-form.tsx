@@ -82,7 +82,6 @@ export function NominaForm({
   mes,
   nominasExistentes,
   horasExtrasMes,
-  cajaAguinaldos,
   nomina,
   onClose,
 }: {
@@ -245,8 +244,6 @@ export function NominaForm({
     tipoEmpleado: empleado?.tipo_empleado ?? 'NEGRO',
     aguinaldoProvisionado,
   })
-
-  const cajaDisponible = cajaAguinaldos[empleadoId] ?? 0
 
   const [error, action, isPending] = useActionState(
     async (prev: string | null, fd: FormData) => {
@@ -419,39 +416,6 @@ export function NominaForm({
           onChange={(e) => setVals((v) => ({ ...v, comida: Number(e.target.value) }))}
         />
       </div>
-
-      {/* Provisión aguinaldo + Caja aguinaldos (info) */}
-      {empleado?.corresponde_aguinaldo && (
-        <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-3 space-y-2 text-xs">
-          <div className="flex items-center gap-2 text-amber-700 text-sm font-medium">
-            <PiggyBank className="w-4 h-4" />
-            Caja Aguinaldos
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-surface-2/40 rounded p-2">
-              <p className="text-fg-soft">Provisión este mes ({empleado.porcentaje_aguinaldo}%)</p>
-              <p className="font-mono text-amber-700">{formatCurrency(aguinaldoProvisionado)}</p>
-            </div>
-            <div className="bg-surface-2/40 rounded p-2">
-              <p className="text-fg-soft">Acumulado disponible</p>
-              <p className="font-mono text-green-700">{formatCurrency(cajaDisponible)}</p>
-            </div>
-            <div>
-              <label className="text-fg-soft block">Pagar de caja en este mes</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                max={cajaDisponible + aguinaldoProvisionado}
-                value={vals.aguinaldo_pagado_de_caja || ''}
-                onChange={(e) => setVals((v) => ({ ...v, aguinaldo_pagado_de_caja: Number(e.target.value) }))}
-                className="w-full mt-0.5 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono focus:outline-none focus:ring-1 focus:ring-primary text-xs"
-                placeholder="0"
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Aguinaldo (SAC) a pagar directo este mes — no sale de la caja */}
       {empleado?.corresponde_aguinaldo && (

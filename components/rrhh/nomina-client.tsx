@@ -209,7 +209,7 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
   function generarRecibo(n: typeof nominas[number], modo: 'COMPLETO' | 'INTERNO_NEGRO') {
     if (!n.empleado) return
     const esBlanco = n.empleado.tipo_empleado === 'BLANCO'
-    const horas_extras_monto = n.horas_extras * n.valor_hora * (1 + (n.porcentaje_extras || 50) / 100)
+    const horas_extras_monto = n.horas_extras * n.valor_hora * (1 + (n.porcentaje_extras ?? 50) / 100)
 
     if (modo === 'INTERNO_NEGRO' && esBlanco) {
       setRecibo({
@@ -230,7 +230,7 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
           : 'Sueldo básico',
         monto: n.sueldo_basico,
       },
-      { label: `Horas extras (${n.horas_extras} hs al ${n.porcentaje_extras || 50}%)`, monto: horas_extras_monto },
+      { label: `Horas extras (${n.horas_extras} hs al ${n.porcentaje_extras ?? 50}%)`, monto: horas_extras_monto },
       { label: 'Comida', monto: n.comida },
       { label: 'Presentismo', monto: n.presentismo_monto || 0 },
       { label: 'Aguinaldo (caja)', monto: n.aguinaldo_pagado_de_caja || 0 },
