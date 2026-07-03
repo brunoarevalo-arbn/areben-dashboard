@@ -242,7 +242,7 @@ function ChequeItem({
       indicador === 'amarillo' && 'border-amber-500 bg-amber-500/5',
       indicador === 'verde' && 'border-transparent hover:bg-surface-2/40',
     )}>
-      <div className="flex items-center justify-between gap-3 px-4 py-3">
+      <div className="flex items-center justify-between gap-3 px-4 py-2">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <FileCheck className={cn(
             'w-4 h-4 shrink-0',
@@ -332,7 +332,7 @@ function CuotaItem({ cuota, onPagar, onPagoParcial, onEditHistorica }: {
   const esHistorica = cuota.origen_tipo === 'MANUAL'
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-surface-2/40 transition-colors">
+    <div className="flex items-center justify-between gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <CreditCard className="w-4 h-4 text-primary shrink-0" />
         <div className="min-w-0">
@@ -405,7 +405,7 @@ function GastoPendItem({ gasto, hoy, cuentas, onPagoParcial }: { gasto: GastoPen
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-surface-2/40 transition-colors">
+      <div className="flex items-center justify-between gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {esSueldo ? (
             <CreditCard className="w-4 h-4 text-purple-700 shrink-0" />
@@ -544,7 +544,7 @@ function PagoCtaCteItem({ pago, hoy, cuentas, onAcreditar }: { pago: PagoCtaCte;
   const esCompra = pago.tipo_origen === 'COMPRA'
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-surface-2/40 transition-colors">
+      <div className="flex items-center justify-between gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <Receipt className="w-4 h-4 text-blue-700 shrink-0" />
           <div className="min-w-0">
@@ -695,7 +695,7 @@ function PagarCtaCteInline({ pago, cuentas, onClose, onDone }: { pago: PagoCtaCt
 function CompraSinPlanItem({ compra, onPagoParcial }: { compra: CompraSinPlanPago; onPagoParcial: (t: PagoTarget) => void }) {
   const moneda = (compra.moneda === 'USD' ? 'USD' : 'ARS') as 'USD' | 'ARS'
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-surface-2/40 transition-colors">
+    <div className="flex items-center justify-between gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
         <div className="min-w-0">
@@ -741,7 +741,7 @@ function CompraSinPlanItem({ compra, onPagoParcial }: { compra: CompraSinPlanPag
 function InstrumentoItem({ inst, hoy }: { inst: InstrumentoProximo; hoy: string }) {
   const dias = inst.fecha_fin ? diasHasta(inst.fecha_fin, hoy) : 0
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-surface-2/40 transition-colors">
+    <div className="flex items-center justify-between gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <PiggyBank className="w-4 h-4 text-purple-700 shrink-0" />
         <div className="min-w-0">
@@ -802,7 +802,7 @@ function CuotaTcGrupoItem({
 
   return (
     <div className={cn('border-l-4', colorBorder, colorBg)}>
-      <div className="flex items-center justify-between px-4 py-3 hover:bg-surface-2/30">
+      <div className="flex items-center justify-between px-4 py-2 hover:bg-surface-2/30">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <button
             type="button"
@@ -885,7 +885,7 @@ function CuotaPrestamoItem({
   const colorBg = dias < 0 ? 'bg-red-500/5' : dias <= 7 ? 'bg-amber-500/5' : ''
   return (
     <div className={cn('border-l-4', colorBorder, colorBg)}>
-      <div className="flex items-center justify-between px-4 py-3 hover:bg-surface-2/30">
+      <div className="flex items-center justify-between px-4 py-2 hover:bg-surface-2/30">
         <div className="flex items-center gap-3 min-w-0">
           <Receipt className="w-5 h-5 text-fg-muted shrink-0" />
           <div className="min-w-0">
@@ -950,7 +950,7 @@ function CuotaPlanAfipItem({
   const nombrePlan = cuota.plan?.nombre ?? 'Plan AFIP'
   return (
     <div className={cn('border-l-4', colorBorder, colorBg)}>
-      <div className="flex items-center justify-between px-4 py-3 hover:bg-surface-2/30">
+      <div className="flex items-center justify-between px-4 py-2 hover:bg-surface-2/30">
         <div className="flex items-center gap-3 min-w-0">
           <FileCheck className="w-5 h-5 text-blue-700 shrink-0" />
           <div className="min-w-0">
@@ -1025,7 +1025,7 @@ function GastoGrupoCargasItem({
   const colorBg = dias < 0 ? 'bg-red-500/5' : dias <= 7 ? 'bg-amber-500/5' : ''
   return (
     <div className={cn('border-l-4', colorBorder, colorBg)}>
-      <div className="flex items-center justify-between px-4 py-3 hover:bg-surface-2/30">
+      <div className="flex items-center justify-between px-4 py-2 hover:bg-surface-2/30">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <button
             type="button"
