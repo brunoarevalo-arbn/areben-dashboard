@@ -296,21 +296,25 @@ function ChequeItem({
           {dias < 0 && Math.abs(dias) > 30 && <span className="text-red-700 font-medium whitespace-nowrap">{Math.abs(dias)}d sin cobrar — revisar</span>}
           {dias === 0 && <span className="text-amber-700 whitespace-nowrap">disponible hoy</span>}
           {dias > 0 && dias <= 7 && <span className="text-amber-700 whitespace-nowrap">en {dias} días</span>}
+          {indicador === 'rojo' && (
+            <span
+              title={`Saldo proyectado al ${formatDate(fechaVenc)}: ${formatCurrency(saldoProyectado, moneda)}`}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full font-medium bg-red-500/15 text-red-700 whitespace-nowrap cursor-help"
+            >
+              <AlertCircle className="w-3 h-3" />Falta {formatCurrency(Math.abs(margen), moneda)}
+            </span>
+          )}
+          {indicador === 'amarillo' && (
+            <span
+              title={`Saldo proyectado al ${formatDate(fechaVenc)}: ${formatCurrency(saldoProyectado, moneda)}`}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full font-medium bg-amber-500/15 text-amber-700 whitespace-nowrap cursor-help"
+            >
+              Margen {formatCurrency(margen, moneda)}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <div className="text-right">
-            <p className="font-mono text-sm text-fg whitespace-nowrap">{formatCurrency(cheque.monto, moneda)}</p>
-            <div className={cn(
-              'inline-flex items-center gap-1 text-[10px] font-medium mt-0.5',
-              indicador === 'rojo' && 'text-red-700',
-              indicador === 'amarillo' && 'text-amber-700',
-              indicador === 'verde' && 'text-green-700',
-            )}>
-              {indicador === 'verde' && <><CheckCircle2 className="w-3 h-3" />Saldo OK</>}
-              {indicador === 'amarillo' && <><AlertTriangle className="w-3 h-3" />Margen ajustado</>}
-              {indicador === 'rojo' && <><AlertCircle className="w-3 h-3" />Saldo insuficiente</>}
-            </div>
-          </div>
+          <p className="font-mono text-sm text-fg whitespace-nowrap">{formatCurrency(cheque.monto, moneda)}</p>
           <Button
             size="sm"
             variant="success"
@@ -323,19 +327,6 @@ function ChequeItem({
           </Button>
         </div>
       </div>
-      {(indicador === 'rojo' || indicador === 'amarillo') && (
-        <div className={cn(
-          'px-4 pb-2 -mt-1 text-xs flex items-center gap-3',
-          indicador === 'rojo' ? 'text-danger' : 'text-amber-800'
-        )}>
-          <span>Saldo proyectado al {formatDate(fechaVenc)}: <span className="font-mono">{formatCurrency(saldoProyectado, moneda)}</span></span>
-          <span>·</span>
-          <span>{indicador === 'rojo'
-            ? <>Faltante: <span className="font-mono font-semibold">{formatCurrency(Math.abs(margen), moneda)}</span></>
-            : <>Margen: <span className="font-mono">{formatCurrency(margen, moneda)} ({(margenPct * 100).toFixed(0)}%)</span></>
-          }</span>
-        </div>
-      )}
     </div>
   )
 }
