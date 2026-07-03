@@ -205,6 +205,40 @@ function calcularSaldoProyectado(
 
 // ─── Item Renderers ────────────────────────────────────────────────────────────
 
+// Chip compacto de estado de vencimiento (rojo vencido / ámbar próximo / nada si falta mucho).
+function EstadoVencimientoChip({ dias }: { dias: number | null }) {
+  if (dias === null || dias > 7) return null
+  const vencido = dias < 0
+  return (
+    <span className={cn(
+      'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap',
+      vencido ? 'bg-red-500/15 text-red-700' : 'bg-amber-500/15 text-amber-700',
+    )}>
+      {vencido && <AlertCircle className="w-3 h-3" />}
+      {vencido ? `${Math.abs(dias)}d venc.` : dias === 0 ? 'vence hoy' : `en ${dias}d`}
+    </span>
+  )
+}
+
+// Barra fina de evolución de pago parcial, para renderizar debajo de la fila.
+function EvolucionPagoBar({ totalPagado, saldo, pct, moneda }: {
+  totalPagado: number
+  saldo: number
+  pct: number
+  moneda?: 'ARS' | 'USD'
+}) {
+  return (
+    <div className="px-4 pb-1.5 pl-11 flex items-center gap-2">
+      <div className="h-1 flex-1 max-w-[240px] bg-surface-2 rounded-full overflow-hidden">
+        <div className="h-full bg-amber-400 transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-[10px] font-mono text-fg-muted whitespace-nowrap">
+        <span className="text-green-700">{formatCurrency(totalPagado, moneda)}</span> pagado · resta <span className="text-amber-700">{formatCurrency(saldo, moneda)}</span>
+      </p>
+    </div>
+  )
+}
+
 function ChequeItem({
   cheque, hoy, saldoActualARS, saldoActualUSD, otrosCheques, cuotas, onAcreditar,
 }: {
@@ -242,42 +276,30 @@ function ChequeItem({
       indicador === 'amarillo' && 'border-amber-500 bg-amber-500/5',
       indicador === 'verde' && 'border-transparent hover:bg-surface-2/40',
     )}>
-      <div className="flex items-center justify-between gap-3 px-4 py-2">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+      <div className="flex items-center gap-3 px-4 py-2">
+        <div className="flex items-center gap-3 min-w-0">
           <FileCheck className={cn(
             'w-4 h-4 shrink-0',
             cheque.instrumento === 'ECHEQ' ? 'text-orange-400' : 'text-amber-700'
           )} />
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-fg truncate">
-              {cheque.compra?.proveedor?.nombre
-                ?? cheque.compra?.descripcion
-                ?? cheque.gasto?.concepto
-                ?? '—'}
-              {cheque.gasto?.categoria && !cheque.compra && (
-                <span className="text-xs text-fg-soft ml-2">{cheque.gasto.categoria}</span>
-              )}
-              {cheque.numero_cheque && (
-                <span className="text-xs text-fg-soft ml-2 font-mono">Nº {cheque.numero_cheque}</span>
-              )}
-            </p>
-            <p className="text-xs text-fg-soft flex items-center gap-2">
-              <span>Acredita {formatDate(fechaVenc)}</span>
-              {/* Cheque pasado fecha pero no acreditado: aún disponible para cobrar (no es deadline rígido) */}
-              {dias < 0 && Math.abs(dias) <= 30 && (
-                <span className="text-fg-muted">(disponible — esperando depósito)</span>
-              )}
-              {dias < 0 && Math.abs(dias) > 30 && (
-                <span className="text-red-700">({Math.abs(dias)} días sin cobrar — revisar)</span>
-              )}
-              {dias === 0 && <span className="text-amber-700">(disponible hoy)</span>}
-              {dias > 0 && dias <= 7 && <span className="text-amber-700">(en {dias} días)</span>}
-            </p>
-          </div>
+          <p className="text-sm font-medium text-fg truncate min-w-0">
+            {cheque.compra?.proveedor?.nombre
+              ?? cheque.compra?.descripcion
+              ?? cheque.gasto?.concepto
+              ?? '—'}
+            <span className="text-fg-soft font-normal"> · {cheque.gasto?.categoria && !cheque.compra ? `${cheque.gasto.categoria} · ` : ''}{cheque.numero_cheque ? `Nº ${cheque.numero_cheque} · ` : ''}acredita {formatDate(fechaVenc)}</span>
+          </p>
+        </div>
+        <div className="flex-1 min-w-0 flex items-center gap-2 text-[11px]">
+          {/* Cheque pasado fecha pero no acreditado: aún disponible para cobrar (no es deadline rígido) */}
+          {dias < 0 && Math.abs(dias) <= 30 && <span className="text-fg-muted whitespace-nowrap">esperando depósito</span>}
+          {dias < 0 && Math.abs(dias) > 30 && <span className="text-red-700 font-medium whitespace-nowrap">{Math.abs(dias)}d sin cobrar — revisar</span>}
+          {dias === 0 && <span className="text-amber-700 whitespace-nowrap">disponible hoy</span>}
+          {dias > 0 && dias <= 7 && <span className="text-amber-700 whitespace-nowrap">en {dias} días</span>}
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-right">
-            <p className="font-mono text-sm text-fg">{formatCurrency(cheque.monto, moneda)}</p>
+            <p className="font-mono text-sm text-fg whitespace-nowrap">{formatCurrency(cheque.monto, moneda)}</p>
             <div className={cn(
               'inline-flex items-center gap-1 text-[10px] font-medium mt-0.5',
               indicador === 'rojo' && 'text-red-700',
@@ -318,8 +340,9 @@ function ChequeItem({
   )
 }
 
-function CuotaItem({ cuota, onPagar, onPagoParcial, onEditHistorica }: {
+function CuotaItem({ cuota, hoy, onPagar, onPagoParcial, onEditHistorica }: {
   cuota: CuotaPendiente
+  hoy: string
   onPagar: () => void
   onPagoParcial: (target: PagoTarget) => void
   onEditHistorica: (cuota: CuotaPendiente) => void
@@ -330,34 +353,24 @@ function CuotaItem({ cuota, onPagar, onPagoParcial, onEditHistorica }: {
   const hayParciales = totalPagado > 0
   const pagadoPct = Number(cuota.monto_cuota) > 0 ? Math.min(100, (totalPagado / Number(cuota.monto_cuota)) * 100) : 0
   const esHistorica = cuota.origen_tipo === 'MANUAL'
+  const dias = diasHasta(fechaCuota(cuota.mes_vencimiento), hoy)
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
-      <div className="flex items-center gap-3 min-w-0 flex-1">
+    <div>
+      <div className="flex items-center gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
+      <div className="flex items-center gap-3 min-w-0">
         <CreditCard className="w-4 h-4 text-primary shrink-0" />
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-fg truncate">
-            {cuota.concepto}
-            {esHistorica && <Badge variant="warning" className="text-[10px] ml-2">histórica</Badge>}
-          </p>
-          <p className="text-xs text-fg-soft truncate">
-            {cuota.tarjeta?.nombre ?? '—'} · vence {formatMonth(cuota.mes_vencimiento)}
-            {cuota.cuotas_total > 1 && <span className="ml-1">({cuota.cuota_numero}/{cuota.cuotas_total})</span>}
-          </p>
-          {hayParciales && (
-            <div className="mt-1 space-y-0.5 max-w-[180px]">
-              <div className="h-1 w-full bg-surface-2 rounded-full overflow-hidden">
-                <div className="h-full bg-amber-400 transition-all" style={{ width: `${pagadoPct}%` }} />
-              </div>
-              <p className="text-[10px] font-mono text-fg-muted">
-                <span className="text-green-700">{formatCurrency(totalPagado)}</span> pagado · resta <span className="text-amber-700">{formatCurrency(saldo)}</span>
-              </p>
-            </div>
-          )}
-        </div>
+        <p className="text-sm font-medium text-fg truncate min-w-0">
+          {cuota.concepto}
+          {esHistorica && <Badge variant="warning" className="text-[10px] ml-2">histórica</Badge>}
+          <span className="text-fg-soft font-normal"> · {cuota.tarjeta?.nombre ?? '—'} · vence {formatMonth(cuota.mes_vencimiento)}{cuota.cuotas_total > 1 ? ` (${cuota.cuota_numero}/${cuota.cuotas_total})` : ''}</span>
+        </p>
+      </div>
+      <div className="flex-1 min-w-0 flex items-center gap-2">
+        <EstadoVencimientoChip dias={dias} />
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <p className="font-mono text-sm text-fg">{formatCurrency(cuota.monto_cuota)}</p>
+        <p className="font-mono text-sm text-fg whitespace-nowrap">{formatCurrency(cuota.monto_cuota)}</p>
         {esHistorica && !hayParciales && (
           <Button size="sm" variant="ghost" onClick={() => onEditHistorica(cuota)} title="Editar cuota histórica">
             <Pencil className="w-3.5 h-3.5" />
@@ -388,6 +401,8 @@ function CuotaItem({ cuota, onPagar, onPagoParcial, onEditHistorica }: {
           {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
         </Button>
       </div>
+      </div>
+      {hayParciales && <EvolucionPagoBar totalPagado={totalPagado} saldo={saldo} pct={pagadoPct} />}
     </div>
   )
 }
@@ -405,43 +420,29 @@ function GastoPendItem({ gasto, hoy, cuentas, onPagoParcial }: { gasto: GastoPen
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+      <div className="flex items-center gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
+        <div className="flex items-center gap-3 min-w-0">
           {esSueldo ? (
             <CreditCard className="w-4 h-4 text-purple-700 shrink-0" />
           ) : (
             <Receipt className="w-4 h-4 text-primary shrink-0" />
           )}
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-fg truncate flex items-center gap-1.5">
-              <span className="truncate">{gasto.concepto}</span>
-              {gasto.recurrente?.notas && (
-                <span
-                  title={gasto.recurrente.notas}
-                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500/15 text-amber-700 text-[10px] font-bold cursor-help shrink-0"
-                >i</span>
-              )}
-            </p>
-            <p className="text-xs text-fg-soft flex items-center gap-2">
-              <span>{gasto.categoria}</span>
-              {fecha && <><span>·</span><span>vence {formatDate(fecha)}</span></>}
-              {dias !== null && dias < 0 && <span className="text-red-700">({Math.abs(dias)} días vencido)</span>}
-              {dias !== null && dias >= 0 && dias <= 7 && <span className="text-amber-700">(en {dias} días)</span>}
-            </p>
-            {hayParciales && (
-              <div className="mt-1 space-y-0.5 max-w-[180px]">
-                <div className="h-1 w-full bg-surface-2 rounded-full overflow-hidden">
-                  <div className="h-full bg-amber-400 transition-all" style={{ width: `${pagadoPct}%` }} />
-                </div>
-                <p className="text-[10px] font-mono text-fg-muted">
-                  <span className="text-green-700">{formatCurrency(totalPagado, moneda)}</span> pagado · resta <span className="text-amber-700">{formatCurrency(saldo, moneda)}</span>
-                </p>
-              </div>
+          <p className="text-sm font-medium text-fg truncate min-w-0">
+            {gasto.concepto}
+            {gasto.recurrente?.notas && (
+              <span
+                title={gasto.recurrente.notas}
+                className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500/15 text-amber-700 text-[10px] font-bold cursor-help align-middle ml-1.5"
+              >i</span>
             )}
-          </div>
+            <span className="text-fg-soft font-normal"> · {gasto.categoria}{fecha ? ` · vence ${formatDate(fecha)}` : ''}</span>
+          </p>
+        </div>
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <EstadoVencimientoChip dias={dias} />
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <p className="font-mono text-sm text-fg">{formatCurrency(gasto.monto, moneda)}</p>
+          <p className="font-mono text-sm text-fg whitespace-nowrap">{formatCurrency(gasto.monto, moneda)}</p>
           <Button
             size="sm"
             variant="ghost"
@@ -469,6 +470,7 @@ function GastoPendItem({ gasto, hoy, cuentas, onPagoParcial }: { gasto: GastoPen
           </Button>
         </div>
       </div>
+      {hayParciales && <EvolucionPagoBar totalPagado={totalPagado} saldo={saldo} pct={pagadoPct} moneda={moneda} />}
       {pagarOpen && (
         <PagarGastoInline
           gasto={gasto}
@@ -544,31 +546,22 @@ function PagoCtaCteItem({ pago, hoy, cuentas, onAcreditar }: { pago: PagoCtaCte;
   const esCompra = pago.tipo_origen === 'COMPRA'
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+      <div className="flex items-center gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
+        <div className="flex items-center gap-3 min-w-0">
           <Receipt className="w-4 h-4 text-blue-700 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-fg truncate">
-              {pago.compra?.proveedor?.nombre
-                ?? pago.compra?.descripcion
-                ?? pago.gasto?.concepto
-                ?? '—'}
-              {pago.gasto?.categoria && !pago.compra && (
-                <span className="ml-2 text-xs text-fg-soft">{pago.gasto.categoria}</span>
-              )}
-              {pago.numero_cuota && pago.total_cuotas && pago.total_cuotas > 1 && (
-                <span className="ml-2 text-xs text-fg-soft">cuota {pago.numero_cuota}/{pago.total_cuotas}</span>
-              )}
-            </p>
-            <p className="text-xs text-fg-soft flex items-center gap-2">
-              <span>Cta. corriente · vence {formatDate(fecha)}</span>
-              {dias < 0 && <span className="text-red-700">({Math.abs(dias)} días vencido)</span>}
-              {dias > 0 && dias <= 7 && <span className="text-amber-700">(en {dias} días)</span>}
-            </p>
-          </div>
+          <p className="text-sm font-medium text-fg truncate min-w-0">
+            {pago.compra?.proveedor?.nombre
+              ?? pago.compra?.descripcion
+              ?? pago.gasto?.concepto
+              ?? '—'}
+            <span className="text-fg-soft font-normal"> · {pago.gasto?.categoria && !pago.compra ? `${pago.gasto.categoria} · ` : ''}Cta. corriente · vence {formatDate(fecha)}{pago.numero_cuota && pago.total_cuotas && pago.total_cuotas > 1 ? ` (cuota ${pago.numero_cuota}/${pago.total_cuotas})` : ''}</span>
+          </p>
+        </div>
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <EstadoVencimientoChip dias={dias} />
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <p className="font-mono text-sm text-fg">{formatCurrency(pago.monto, moneda)}</p>
+          <p className="font-mono text-sm text-fg whitespace-nowrap">{formatCurrency(pago.monto, moneda)}</p>
           {esCompra ? (
             <Button
               size="sm"
@@ -695,21 +688,17 @@ function PagarCtaCteInline({ pago, cuentas, onClose, onDone }: { pago: PagoCtaCt
 function CompraSinPlanItem({ compra, onPagoParcial }: { compra: CompraSinPlanPago; onPagoParcial: (t: PagoTarget) => void }) {
   const moneda = (compra.moneda === 'USD' ? 'USD' : 'ARS') as 'USD' | 'ARS'
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
+    <div className="flex items-center gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-fg truncate">
-            {compra.proveedor?.nombre ?? compra.descripcion}
-          </p>
-          <p className="text-xs text-fg-soft">
-            Compra del {formatDate(compra.fecha)} · sin plan de pago registrado
-          </p>
-        </div>
+        <p className="text-sm font-medium text-fg truncate min-w-0">
+          {compra.proveedor?.nombre ?? compra.descripcion}
+          <span className="text-fg-soft font-normal"> · Compra del {formatDate(compra.fecha)} · sin plan de pago</span>
+        </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <div className="text-right">
-          <p className="font-mono text-sm text-amber-700 font-semibold">{formatCurrency(compra.saldo_pendiente, moneda)}</p>
+          <p className="font-mono text-sm text-amber-700 font-semibold whitespace-nowrap">{formatCurrency(compra.saldo_pendiente, moneda)}</p>
           <p className="text-[10px] text-fg-soft">de {formatCurrency(compra.monto_total, moneda)}</p>
         </div>
         <Button
@@ -741,22 +730,20 @@ function CompraSinPlanItem({ compra, onPagoParcial }: { compra: CompraSinPlanPag
 function InstrumentoItem({ inst, hoy }: { inst: InstrumentoProximo; hoy: string }) {
   const dias = inst.fecha_fin ? diasHasta(inst.fecha_fin, hoy) : 0
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
-      <div className="flex items-center gap-3 min-w-0 flex-1">
+    <div className="flex items-center gap-3 px-4 py-2 hover:bg-surface-2/40 transition-colors">
+      <div className="flex items-center gap-3 min-w-0">
         <PiggyBank className="w-4 h-4 text-purple-700 shrink-0" />
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-fg truncate">
-            {inst.inversor?.nombre ?? '—'}
-            {inst.codigo && <span className="text-xs text-fg-soft ml-2 font-mono">{inst.codigo}</span>}
-          </p>
-          <p className="text-xs text-fg-soft truncate">
-            Vence {inst.fecha_fin && formatDate(inst.fecha_fin)} · {dias} día(s)
-            {inst.capitalizable ? ' · capitalizable' : ' · no capitalizable'}
-          </p>
-        </div>
+        <p className="text-sm font-medium text-fg truncate min-w-0">
+          {inst.inversor?.nombre ?? '—'}
+          {inst.codigo && <span className="text-fg-soft font-normal font-mono ml-2">{inst.codigo}</span>}
+          <span className="text-fg-soft font-normal"> · vence {inst.fecha_fin && formatDate(inst.fecha_fin)}{inst.capitalizable ? ' · capitalizable' : ' · no capitalizable'}</span>
+        </p>
+      </div>
+      <div className="flex-1 min-w-0 flex items-center gap-2">
+        <EstadoVencimientoChip dias={inst.fecha_fin ? dias : null} />
       </div>
       <div className="flex items-center gap-3 shrink-0">
-        <p className="font-mono text-sm text-fg">{formatCurrency(Number(inst.capital_inicial), inst.moneda)}</p>
+        <p className="font-mono text-sm text-fg whitespace-nowrap">{formatCurrency(Number(inst.capital_inicial), inst.moneda)}</p>
         <Link href={`/inversiones/${inst.inversor_id}`}>
           <Button size="sm" variant="ghost" title="Ver detalle del inversor">
             <ChevronRight className="w-3.5 h-3.5" />
@@ -802,8 +789,8 @@ function CuotaTcGrupoItem({
 
   return (
     <div className={cn('border-l-4', colorBorder, colorBg)}>
-      <div className="flex items-center justify-between px-4 py-2 hover:bg-surface-2/30">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+      <div className="flex items-center gap-3 px-4 py-2 hover:bg-surface-2/30">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={() => setExpandido((v) => !v)}
@@ -812,18 +799,17 @@ function CuotaTcGrupoItem({
             {expandido ? <ChevronRight className="w-4 h-4 rotate-90" /> : <ChevronRight className="w-4 h-4" />}
           </button>
           <CreditCard className="w-5 h-5 text-purple-700 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-fg font-medium truncate">
-              Resumen {grupo.tarjeta_nombre}
-              <span className="text-fg-soft text-xs ml-2">({grupo.cantidad} consumo{grupo.cantidad > 1 ? 's' : ''})</span>
-            </p>
-            <p className="text-xs text-fg-soft">
-              Vence {formatMonth(grupo.mes_vencimiento)} · {dias < 0 ? `Vencido hace ${Math.abs(dias)}d` : dias === 0 ? 'Hoy' : `En ${dias}d`}
-            </p>
-          </div>
+          <p className="text-fg font-medium truncate min-w-0">
+            Resumen {grupo.tarjeta_nombre}
+            <span className="text-fg-soft font-normal text-xs ml-2">({grupo.cantidad} consumo{grupo.cantidad > 1 ? 's' : ''})</span>
+            <span className="text-fg-soft font-normal"> · vence {formatMonth(grupo.mes_vencimiento)}</span>
+          </p>
+        </div>
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <EstadoVencimientoChip dias={dias} />
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <p className="font-mono font-bold text-amber-700">{formatCurrency(grupo.totalSaldo)}</p>
+          <p className="font-mono font-bold text-amber-700 whitespace-nowrap">{formatCurrency(grupo.totalSaldo)}</p>
           <Button
             size="sm"
             variant="success"
@@ -885,25 +871,23 @@ function CuotaPrestamoItem({
   const colorBg = dias < 0 ? 'bg-red-500/5' : dias <= 7 ? 'bg-amber-500/5' : ''
   return (
     <div className={cn('border-l-4', colorBorder, colorBg)}>
-      <div className="flex items-center justify-between px-4 py-2 hover:bg-surface-2/30">
+      <div className="flex items-center gap-3 px-4 py-2 hover:bg-surface-2/30">
         <div className="flex items-center gap-3 min-w-0">
           <Receipt className="w-5 h-5 text-fg-muted shrink-0" />
-          <div className="min-w-0">
-            <p className="text-fg font-medium truncate">
-              {cuota.prestamo?.nombre ?? 'Préstamo'} · Cuota {cuota.cuota_numero}/{cuota.total_cuotas}
-              {cuota.prestamo?.acreedor && <span className="text-fg-soft text-xs ml-2">— {cuota.prestamo.acreedor}</span>}
-            </p>
-            <p className="text-xs text-fg-soft">
-              {formatDate(cuota.fecha_vencimiento)} · {dias < 0 ? `Vencido hace ${Math.abs(dias)}d` : dias === 0 ? 'Hoy' : `En ${dias}d`}
-            </p>
-          </div>
+          <p className="text-fg font-medium truncate min-w-0">
+            {cuota.prestamo?.nombre ?? 'Préstamo'} · Cuota {cuota.cuota_numero}/{cuota.total_cuotas}
+            {cuota.prestamo?.acreedor && <span className="text-fg-soft font-normal text-xs ml-2">— {cuota.prestamo.acreedor}</span>}
+            <span className="text-fg-soft font-normal"> · vence {formatDate(cuota.fecha_vencimiento)}</span>
+          </p>
+        </div>
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <EstadoVencimientoChip dias={dias} />
+          <span className="text-[11px] text-fg-soft whitespace-nowrap hidden md:inline">Cap {formatCurrency(cuota.capital, moneda)} + Int {formatCurrency(cuota.interes, moneda)}</span>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-right">
-            <p className="font-mono font-bold text-fg">{formatCurrency(saldo, moneda)}</p>
-            {pagado > 0.01
-              ? <p className="text-xs text-fg-soft">de {formatCurrency(cuota.monto_total, moneda)} · pagado {formatCurrency(pagado, moneda)}</p>
-              : <p className="text-xs text-fg-soft">Capital {formatCurrency(cuota.capital, moneda)} + Int {formatCurrency(cuota.interes, moneda)}</p>}
+            <p className="font-mono font-bold text-fg whitespace-nowrap">{formatCurrency(saldo, moneda)}</p>
+            {pagado > 0.01 && <p className="text-xs text-fg-soft whitespace-nowrap">de {formatCurrency(cuota.monto_total, moneda)} · pagado {formatCurrency(pagado, moneda)}</p>}
           </div>
           <Button
             size="sm"
@@ -925,6 +909,7 @@ function CuotaPrestamoItem({
           </Button>
         </div>
       </div>
+      {pagado > 0.01 && <EvolucionPagoBar totalPagado={pagado} saldo={saldo} pct={Math.min(100, (pagado / Number(cuota.monto_total || 1)) * 100)} moneda={moneda} />}
     </div>
   )
 }
@@ -950,24 +935,21 @@ function CuotaPlanAfipItem({
   const nombrePlan = cuota.plan?.nombre ?? 'Plan AFIP'
   return (
     <div className={cn('border-l-4', colorBorder, colorBg)}>
-      <div className="flex items-center justify-between px-4 py-2 hover:bg-surface-2/30">
+      <div className="flex items-center gap-3 px-4 py-2 hover:bg-surface-2/30">
         <div className="flex items-center gap-3 min-w-0">
           <FileCheck className="w-5 h-5 text-blue-700 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-fg font-medium truncate">
-              {nombrePlan} · Cuota {cuota.cuota_numero}/{cuota.total_cuotas}
-              {cuota.plan?.numero_plan && <span className="text-fg-soft font-mono ml-2">#{cuota.plan.numero_plan}</span>}
-            </p>
-            <p className="text-xs text-fg-soft">
-              Débito automático · {formatDate(cuota.fecha_vencimiento)} · {dias < 0 ? `Vencido hace ${Math.abs(dias)}d` : dias === 0 ? 'Hoy' : `En ${dias}d`}
-            </p>
-          </div>
+          <p className="text-fg font-medium truncate min-w-0">
+            {nombrePlan} · Cuota {cuota.cuota_numero}/{cuota.total_cuotas}
+            {cuota.plan?.numero_plan && <span className="text-fg-soft font-normal font-mono ml-2">#{cuota.plan.numero_plan}</span>}
+            <span className="text-fg-soft font-normal"> · Débito automático · vence {formatDate(cuota.fecha_vencimiento)}</span>
+          </p>
+        </div>
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <EstadoVencimientoChip dias={dias} />
+          <span className="text-[11px] text-fg-soft whitespace-nowrap hidden md:inline">Cap {formatCurrency(cuota.capital)} + Int {formatCurrency(cuota.interes)}</span>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <div className="text-right">
-            <p className="font-mono font-bold text-fg">{formatCurrency(cuota.monto_total)}</p>
-            <p className="text-xs text-fg-soft">Capital {formatCurrency(cuota.capital)} + Int {formatCurrency(cuota.interes)}</p>
-          </div>
+          <p className="font-mono font-bold text-fg whitespace-nowrap">{formatCurrency(cuota.monto_total)}</p>
           <Button
             size="sm"
             variant="success"
@@ -1025,8 +1007,8 @@ function GastoGrupoCargasItem({
   const colorBg = dias < 0 ? 'bg-red-500/5' : dias <= 7 ? 'bg-amber-500/5' : ''
   return (
     <div className={cn('border-l-4', colorBorder, colorBg)}>
-      <div className="flex items-center justify-between px-4 py-2 hover:bg-surface-2/30">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+      <div className="flex items-center gap-3 px-4 py-2 hover:bg-surface-2/30">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={() => setExpandido((v) => !v)}
@@ -1035,18 +1017,17 @@ function GastoGrupoCargasItem({
             {expandido ? <ChevronRight className="w-4 h-4 rotate-90" /> : <ChevronRight className="w-4 h-4" />}
           </button>
           <Receipt className="w-5 h-5 text-purple-700 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-fg font-medium">
-              Cargas Sociales · {formatMonth(grupo.mes)}
-              <span className="text-fg-soft text-xs ml-2">({grupo.cantidad} empleado{grupo.cantidad > 1 ? 's' : ''})</span>
-            </p>
-            <p className="text-xs text-fg-soft">
-              Vence {formatDate(fechaVenc)} · {dias < 0 ? `Vencido hace ${Math.abs(dias)}d` : dias === 0 ? 'Vence hoy' : `En ${dias}d`}
-            </p>
-          </div>
+          <p className="text-fg font-medium truncate min-w-0">
+            Cargas Sociales · {formatMonth(grupo.mes)}
+            <span className="text-fg-soft font-normal text-xs ml-2">({grupo.cantidad} empleado{grupo.cantidad > 1 ? 's' : ''})</span>
+            <span className="text-fg-soft font-normal"> · vence {formatDate(fechaVenc)}</span>
+          </p>
+        </div>
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <EstadoVencimientoChip dias={dias} />
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <p className="font-mono font-bold text-amber-700">{formatCurrency(grupo.totalSaldo)}</p>
+          <p className="font-mono font-bold text-amber-700 whitespace-nowrap">{formatCurrency(grupo.totalSaldo)}</p>
           <Button size="sm" variant="success" onClick={() => setPagarTodoOpen(true)} title="Marcar pagados todos los aportes de este mes">
             <CheckCircle2 className="w-3.5 h-3.5" />
             Pagar todo
@@ -1394,7 +1375,7 @@ export function PendientesClient({
       />
     }
     if (it.tipo === 'cuota') {
-      return <CuotaItem key={key} cuota={it.data as CuotaPendiente} onPagar={refetch} onPagoParcial={abrirPagoParcial} onEditHistorica={setEditCuotaTarget} />
+      return <CuotaItem key={key} cuota={it.data as CuotaPendiente} hoy={hoy} onPagar={refetch} onPagoParcial={abrirPagoParcial} onEditHistorica={setEditCuotaTarget} />
     }
     if (it.tipo === 'pago_cta_cte') {
       return <PagoCtaCteItem key={key} pago={it.data as PagoCtaCte} hoy={hoy} cuentas={cuentas} onAcreditar={refetch} />
