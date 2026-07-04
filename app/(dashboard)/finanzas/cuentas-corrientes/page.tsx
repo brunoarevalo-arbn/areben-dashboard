@@ -1,6 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
 import { CuentasCorrientesClient } from '@/components/finanzas/cuentas-corrientes-client'
 
+// Lista curada de servicios/proveedores que SÍ son cuenta corriente (saldo
+// flexible que se arrastra, sin fecha fija de pago). NO todos los recurrentes
+// son cuenta corriente: alquileres, EPE, impuestos, suscripciones, etc. se
+// pagan en fecha y van a Pendientes, no acá.
+// Se amplía a medida que reconciliamos cada servicio (matchea por concepto del recurrente).
+const CUENTAS_CORRIENTES = new Set<string>([
+  'Abogado - Santiago Gomez',
+  'Contador - Joaquin Bolivar',
+  'TGI - Rioja 1440',
+  'API - Rioja 1440',
+  'Aguas Santafesinas - Rioja 1440',
+])
+
 // Cuentas corrientes = saldo por proveedor/servicio (gastos recurrentes):
 // devengado (lo que se cargó) − pagado (lo que se abonó) = saldo que se debe.
 // A diferencia de "Pendientes", acá no importa la fecha de pago: es el running
@@ -74,9 +87,10 @@ export default async function CuentasCorrientesPage() {
     grp.detalles.push({ id: g.id, mes: g.mes, monto: Number(g.monto), pagado, saldo, estado: g.estado })
   }
 
-  // Solo los que tienen saldo pendiente, ordenados por lo que más se debe.
+  // Solo los servicios marcados como cuenta corriente, con saldo pendiente,
+  // ordenados por lo que más se debe.
   const cuentas = Array.from(grupos.values())
-    .filter((c) => Math.round(c.saldo) > 0)
+    .filter((c) => CUENTAS_CORRIENTES.has(c.nombre) && Math.round(c.saldo) > 0)
     .sort((a, b) => b.saldo - a.saldo)
 
   return <CuentasCorrientesClient cuentas={cuentas} />
