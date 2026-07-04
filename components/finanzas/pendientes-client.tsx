@@ -1407,7 +1407,14 @@ export function PendientesClient({
             Todo lo que requiere acción financiera, ordenado por vencimiento
           </p>
         </div>
-        <div className="relative">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link href="/finanzas/cuentas-corrientes">
+            <Button variant="secondary" title="Saldos por proveedor/servicio: cuánto le debés a cada uno (cuentas corrientes sin fecha fija de pago)">
+              <Wallet className="w-4 h-4" />
+              Cuentas corrientes
+            </Button>
+          </Link>
+          <div className="relative">
           <Button
             variant="secondary"
             onClick={() => setHistoricoMenuOpen((v) => !v)}
@@ -1450,6 +1457,7 @@ export function PendientesClient({
               </div>
             </>
           )}
+          </div>
         </div>
       </div>
 
