@@ -172,14 +172,16 @@ function CuentaRow({
         <div className="flex items-center gap-2">
           <Building2 className="w-3.5 h-3.5 text-fg-soft" />
           <div>
-            <p className="font-medium text-fg text-sm">{cuenta.nombre}</p>
+            <p className="font-semibold text-fg text-base">{cuenta.nombre}</p>
             <p className="text-xs text-fg-soft">{cuenta.banco} · {cuenta.titular?.nombre ?? '—'}</p>
           </div>
         </div>
       </td>
       <td className="px-4 py-3">
-        <Badge variant="default">{cuenta.tipo}</Badge>
-        {!cuenta.activo && <Badge variant="danger" className="ml-1">Inactiva</Badge>}
+        <span className="text-xs text-fg-soft">
+          {TIPOS_CUENTA.find((t) => t.value === cuenta.tipo)?.label ?? cuenta.tipo}
+        </span>
+        {!cuenta.activo && <Badge variant="danger" className="ml-2">Inactiva</Badge>}
       </td>
       <td className="px-4 py-3 text-right">
         {editando ? (
