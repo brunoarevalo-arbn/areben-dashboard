@@ -1,12 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { CuentasCorrientesClient } from '@/components/finanzas/cuentas-corrientes-client'
 
-// Lista curada de servicios/proveedores que SÍ son cuenta corriente (saldo
-// flexible que se arrastra, sin fecha fija de pago). NO todos los recurrentes
-// son cuenta corriente: alquileres, EPE, impuestos, suscripciones, etc. se
-// pagan en fecha y van a Pendientes, no acá.
-// Se amplía a medida que reconciliamos cada servicio (matchea por concepto del recurrente).
-const CUENTAS_CORRIENTES = new Set<string>([
+// Cuentas corrientes = todo lo que se debe SIN fecha fija de pago, de tres fuentes:
+//  1) Servicios recurrentes marcados como CC (lista curada).
+//  2) Proveedores con saldo pendiente sin plan de pago con fecha (cuenta corriente).
+//  3) Gastos sueltos marcados como CC (lista curada, ej. deudas a proveedores de servicios).
+// Lo que tiene fecha fija (cuotas, cheques, cta cte con vencimiento) va a Pendientes, no acá.
+
+const CC_SERVICIOS = new Set<string>([
   'Abogado - Santiago Gomez',
   'Contador - Joaquin Bolivar',
   'TGI - Rioja 1440',
@@ -14,29 +15,50 @@ const CUENTAS_CORRIENTES = new Set<string>([
   'Aguas Santafesinas - Rioja 1440',
 ])
 
-// Cuentas corrientes = saldo por proveedor/servicio (gastos recurrentes):
-// devengado (lo que se cargó) − pagado (lo que se abonó) = saldo que se debe.
-// A diferencia de "Pendientes", acá no importa la fecha de pago: es el running
-// total de cuánto se le debe a cada uno.
+const CC_GASTOS = new Set<string>([
+  'Hangtags - Stunned',
+  'Percheros/Portarrollo - Daniel Herrero',
+])
+
+type Detalle = { label: string; saldo: number }
+type Cuenta = {
+  key: string
+  nombre: string
+  tipo: 'Servicio' | 'Proveedor' | 'Otro'
+  moneda: 'ARS' | 'USD'
+  devengado: number | null
+  pagado: number | null
+  saldo: number
+  ultimoPago: string | null
+  detalles: Detalle[]
+}
+
 export default async function CuentasCorrientesPage() {
   const supabase = await createClient()
 
-  const [{ data: gastos }, { data: pagos }] = await Promise.all([
+  const [{ data: gastos }, { data: pagosGasto }, { data: compras }, { data: pagosCompra }] = await Promise.all([
     supabase
       .from('gastos')
-      .select('id, concepto, monto, mes, estado, moneda, recurrente_id, recurrente:gastos_recurrentes(concepto, activo)')
-      .not('recurrente_id', 'is', null)
-      .order('mes', { ascending: true }),
+      .select('id, concepto, monto, mes, moneda, recurrente_id, recurrente:gastos_recurrentes(concepto)'),
     supabase
       .from('pagos')
       .select('origen_id, monto, fecha_emision')
       .eq('tipo_origen', 'GASTO'),
+    supabase
+      .from('compras')
+      .select('id, descripcion, fecha, saldo_pendiente, moneda, proveedor:proveedores(nombre)')
+      .gt('saldo_pendiente', 0)
+      .neq('estado', 'PAGADO'),
+    supabase
+      .from('pagos')
+      .select('compra_id, fecha_vencimiento, acreditado')
+      .eq('tipo_origen', 'COMPRA'),
   ])
 
-  // Pagos acumulados por gasto + fecha del último pago
+  // Pagos acumulados por gasto + último pago
   const pagadoByGasto = new Map<string, number>()
   const ultimoPagoByGasto = new Map<string, string>()
-  for (const p of pagos ?? []) {
+  for (const p of pagosGasto ?? []) {
     if (!p.origen_id) continue
     pagadoByGasto.set(p.origen_id, (pagadoByGasto.get(p.origen_id) ?? 0) + Number(p.monto))
     if (p.fecha_emision) {
@@ -45,53 +67,83 @@ export default async function CuentasCorrientesPage() {
     }
   }
 
-  type Detalle = { id: string; mes: string; monto: number; pagado: number; saldo: number; estado: string }
-  type Cuenta = {
-    recurrente_id: string
-    nombre: string
-    activo: boolean
-    moneda: 'ARS' | 'USD'
-    devengado: number
-    pagado: number
-    saldo: number
-    ultimoPago: string | null
-    detalles: Detalle[]
-  }
+  const cuentas: Cuenta[] = []
 
-  const grupos = new Map<string, Cuenta>()
+  // 1) Servicios recurrentes (curados) — saldo = devengado − pagado
+  const servMap = new Map<string, Cuenta>()
   for (const g of gastos ?? []) {
-    const rid = g.recurrente_id as string
-    const rec = (Array.isArray(g.recurrente) ? g.recurrente[0] : g.recurrente) as { concepto?: string; activo?: boolean } | null
+    if (!g.recurrente_id) continue
+    const rec = (Array.isArray(g.recurrente) ? g.recurrente[0] : g.recurrente) as { concepto?: string } | null
+    const nombre = rec?.concepto ?? g.concepto
+    if (!CC_SERVICIOS.has(nombre)) continue
     const pagado = pagadoByGasto.get(g.id) ?? 0
     const saldo = Number(g.monto) - pagado
-
-    if (!grupos.has(rid)) {
-      grupos.set(rid, {
-        recurrente_id: rid,
-        nombre: rec?.concepto ?? g.concepto,
-        activo: rec?.activo ?? true,
+    if (!servMap.has(g.recurrente_id)) {
+      servMap.set(g.recurrente_id, {
+        key: `serv-${g.recurrente_id}`, nombre, tipo: 'Servicio',
         moneda: (g.moneda ?? 'ARS') as 'ARS' | 'USD',
-        devengado: 0,
-        pagado: 0,
-        saldo: 0,
-        ultimoPago: null,
-        detalles: [],
+        devengado: 0, pagado: 0, saldo: 0, ultimoPago: null, detalles: [],
       })
     }
-    const grp = grupos.get(rid)!
-    grp.devengado += Number(g.monto)
-    grp.pagado += pagado
-    grp.saldo += saldo
+    const c = servMap.get(g.recurrente_id)!
+    c.devengado! += Number(g.monto)
+    c.pagado! += pagado
+    c.saldo += saldo
     const up = ultimoPagoByGasto.get(g.id)
-    if (up && (!grp.ultimoPago || up > grp.ultimoPago)) grp.ultimoPago = up
-    grp.detalles.push({ id: g.id, mes: g.mes, monto: Number(g.monto), pagado, saldo, estado: g.estado })
+    if (up && (!c.ultimoPago || up > c.ultimoPago)) c.ultimoPago = up
+    c.detalles.push({ label: g.mes, saldo })
   }
+  cuentas.push(...servMap.values())
 
-  // Solo los servicios marcados como cuenta corriente, con saldo pendiente,
-  // ordenados por lo que más se debe.
-  const cuentas = Array.from(grupos.values())
-    .filter((c) => CUENTAS_CORRIENTES.has(c.nombre) && Math.round(c.saldo) > 0)
+  // 2) Gastos sueltos marcados CC (curados)
+  const otrosMap = new Map<string, Cuenta>()
+  for (const g of gastos ?? []) {
+    if (g.recurrente_id) continue
+    if (!CC_GASTOS.has(g.concepto)) continue
+    const pagado = pagadoByGasto.get(g.id) ?? 0
+    const saldo = Number(g.monto) - pagado
+    const key = `otro-${g.concepto}`
+    if (!otrosMap.has(key)) {
+      otrosMap.set(key, {
+        key, nombre: g.concepto, tipo: 'Otro',
+        moneda: (g.moneda ?? 'ARS') as 'ARS' | 'USD',
+        devengado: null, pagado: null, saldo: 0,
+        ultimoPago: ultimoPagoByGasto.get(g.id) ?? null, detalles: [],
+      })
+    }
+    const c = otrosMap.get(key)!
+    c.saldo += saldo
+    c.detalles.push({ label: g.mes, saldo })
+  }
+  cuentas.push(...otrosMap.values())
+
+  // 3) Proveedores con saldo pendiente SIN fecha de pago (sin pago programado con vencimiento)
+  const comprasConFecha = new Set<string>()
+  for (const p of pagosCompra ?? []) {
+    if (p.compra_id && !p.acreditado && p.fecha_vencimiento) comprasConFecha.add(p.compra_id)
+  }
+  const provMap = new Map<string, Cuenta>()
+  for (const c of compras ?? []) {
+    if (comprasConFecha.has(c.id)) continue // tiene fecha → va a Pendientes
+    const prov = (Array.isArray(c.proveedor) ? c.proveedor[0] : c.proveedor) as { nombre?: string } | null
+    const nombre = prov?.nombre ?? 'Proveedor s/d'
+    const key = `prov-${nombre}`
+    if (!provMap.has(key)) {
+      provMap.set(key, {
+        key, nombre, tipo: 'Proveedor',
+        moneda: (c.moneda ?? 'ARS') as 'ARS' | 'USD',
+        devengado: null, pagado: null, saldo: 0, ultimoPago: null, detalles: [],
+      })
+    }
+    const cc = provMap.get(key)!
+    cc.saldo += Number(c.saldo_pendiente)
+    cc.detalles.push({ label: c.descripcion ?? 'Compra', saldo: Number(c.saldo_pendiente) })
+  }
+  cuentas.push(...provMap.values())
+
+  const visibles = cuentas
+    .filter((c) => Math.round(c.saldo) > 0)
     .sort((a, b) => b.saldo - a.saldo)
 
-  return <CuentasCorrientesClient cuentas={cuentas} />
+  return <CuentasCorrientesClient cuentas={visibles} />
 }
