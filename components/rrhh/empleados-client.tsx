@@ -606,6 +606,19 @@ function HoraExtraForm({ empleado, onClose }: { empleado: Empleado; onClose: () 
             </button>
           ))}
         </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-fg-soft">Otro valor:</span>
+          <input
+            type="number"
+            min="0"
+            max="200"
+            step="1"
+            value={porcentaje}
+            onChange={(e) => setPorcentaje(Number(e.target.value))}
+            className="w-24 px-2 py-1 bg-surface-2 border border-border-strong rounded text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <span className="text-xs text-fg-soft">% (podés escribir cualquiera, ej: 75, 150, 200)</span>
+        </div>
       </div>
 
       <Textarea label="Notas (opcional)" name="notas" placeholder="Detalle del trabajo realizado" rows={2} />

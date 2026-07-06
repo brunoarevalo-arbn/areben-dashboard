@@ -110,9 +110,13 @@ export function NominaForm({
     if (!empleado) return { cantidad: 0, registros: [], porcentajePromedio: 50 }
     const hs = horasExtrasMes.filter((h) => h.empleado_id === empleado.id)
     const cantidad = hs.reduce((s, h) => s + Number(h.cantidad), 0)
-    const total = hs.length || 1
-    const pctProm = hs.reduce((s, h) => s + Number(h.porcentaje), 0) / total
-    return { cantidad, registros: hs, porcentajePromedio: Math.round(pctProm) }
+    // Promedio PONDERADO por horas: con % distintos (ej. unas al 50% y otras al 100%),
+    // aplicar este promedio al total de horas da el monto EXACTO, aunque la nómina
+    // guarde un solo porcentaje. (Un promedio simple daría mal.)
+    const pctProm = cantidad > 0
+      ? hs.reduce((s, h) => s + Number(h.cantidad) * Number(h.porcentaje), 0) / cantidad
+      : 50
+    return { cantidad, registros: hs, porcentajePromedio: Math.round(pctProm * 100) / 100 }
   }, [empleado, horasExtrasMes])
 
   const [vals, setVals] = useState({
