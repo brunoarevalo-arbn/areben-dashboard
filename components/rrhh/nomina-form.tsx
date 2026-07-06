@@ -511,7 +511,7 @@ export function NominaForm({
             return (
               <div key={idx} className="flex items-center gap-2 flex-wrap bg-surface-2/40 rounded-lg p-2">
                 <input
-                  type="number" step="0.5" min="0"
+                  type="number" step="any" min="0"
                   value={linea.cantidad || ''}
                   onChange={(e) => setLinea({ cantidad: Number(e.target.value) })}
                   placeholder="hs"

@@ -584,7 +584,7 @@ function HoraExtraForm({ empleado, onClose }: { empleado: Empleado; onClose: () 
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Input label="Fecha" name="fecha" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
-        <Input label="Cantidad de horas" name="cantidad" type="number" step="0.5" min="0.5" required placeholder="Ej: 2.5" />
+        <Input label="Cantidad de horas" name="cantidad" type="number" step="any" min="0" required placeholder="Ej: 5.17" />
       </div>
 
       <div className="space-y-2">
