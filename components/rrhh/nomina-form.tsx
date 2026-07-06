@@ -130,10 +130,19 @@ export function NominaForm({
     )
   }, [empleado, registrosExtras, editing, nomina])
 
+  // Líneas iniciales: desde los registros; si es una nómina vieja en edición (tiene horas extras
+  // pero sin registros individuales), sembrar una línea con el agregado para no perderlas.
+  const lineasIniciales = (): { id: string | null; cantidad: number; porcentaje: number }[] => {
+    const desdeRegistros = registrosDelEmpleado.map((r) => ({ id: r.id, cantidad: Number(r.cantidad), porcentaje: Number(r.porcentaje) }))
+    if (desdeRegistros.length > 0) return desdeRegistros
+    if (editing && (nomina?.horas_extras ?? 0) > 0) {
+      return [{ id: null, cantidad: Number(nomina!.horas_extras), porcentaje: Number(nomina!.porcentaje_extras ?? 50) }]
+    }
+    return []
+  }
+
   // Líneas de horas extras editables (cada una hs + %). Al guardar se reconcilian con los registros.
-  const [extrasLineas, setExtrasLineas] = useState<{ id: string | null; cantidad: number; porcentaje: number }[]>(
-    () => registrosDelEmpleado.map((r) => ({ id: r.id, cantidad: Number(r.cantidad), porcentaje: Number(r.porcentaje) }))
-  )
+  const [extrasLineas, setExtrasLineas] = useState<{ id: string | null; cantidad: number; porcentaje: number }[]>(lineasIniciales)
   const extrasTotalHoras = extrasLineas.reduce((s, l) => s + (Number(l.cantidad) || 0), 0)
   const extrasPctPonderado = extrasTotalHoras > 0
     ? Math.round((extrasLineas.reduce((s, l) => s + (Number(l.cantidad) || 0) * (Number(l.porcentaje) || 0), 0) / extrasTotalHoras) * 100) / 100
@@ -205,9 +214,9 @@ export function NominaForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empleadoId, horasExtrasEmp.cantidad])
 
-  // Re-inicializar las líneas de horas extras al cambiar de empleado (desde sus registros).
+  // Re-inicializar las líneas de horas extras al cambiar de empleado (desde sus registros o el agregado).
   useEffect(() => {
-    setExtrasLineas(registrosDelEmpleado.map((r) => ({ id: r.id, cantidad: Number(r.cantidad), porcentaje: Number(r.porcentaje) })))
+    setExtrasLineas(lineasIniciales())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empleadoId])
 
