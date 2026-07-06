@@ -374,6 +374,8 @@ const nominaSchema = z.object({
   valor_hora: z.coerce.number().min(0),
   horas_extras: z.coerce.number().min(0),
   porcentaje_extras: z.coerce.number().min(0).max(200).default(50),
+  // JSON con las líneas de horas extras [{id, cantidad, porcentaje}] para reconciliar los registros
+  extras_lineas: z.string().optional(),
   comida: z.coerce.number().min(0),
   aguinaldo: z.coerce.number().min(0),
   asistencia_completa: z.coerce.boolean().default(false),
@@ -478,6 +480,65 @@ async function syncGastoAportesPatronales(nominaId: string) {
   }
 }
 
+// Reconcilia los registros de horas extras del empleado/mes contra las líneas cargadas en la
+// liquidación. Actualiza por id, da de alta las nuevas y borra las que se quitaron. Devuelve el
+// agregado (total de horas + promedio ponderado) que guarda la nómina.
+async function reconciliarHorasExtras(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  empleadoId: string,
+  nominaId: string,
+  mes: string,
+  extrasLineasRaw: string | undefined,
+): Promise<{ total: number; porcentaje: number }> {
+  let lineas: { id: string | null; cantidad: number; porcentaje: number }[] = []
+  try {
+    const parsed = extrasLineasRaw ? JSON.parse(extrasLineasRaw) : []
+    if (Array.isArray(parsed)) {
+      lineas = parsed
+        .map((l) => ({ id: (l?.id as string) ?? null, cantidad: Number(l?.cantidad) || 0, porcentaje: Number(l?.porcentaje) || 0 }))
+        .filter((l) => l.cantidad > 0 && l.porcentaje >= 0 && l.porcentaje <= 200)
+    }
+  } catch { lineas = [] }
+
+  const desdeMes = `${mes}-01`
+  const fIni = new Date(desdeMes + 'T00:00:00')
+  const ultimoDia = new Date(fIni.getFullYear(), fIni.getMonth() + 1, 0).toISOString().split('T')[0]
+
+  // Candidatos: registros del empleado/mes ya vinculados a esta nómina + los aún sin vincular.
+  const { data: actuales } = await supabase
+    .from('horas_extras_registros')
+    .select('id')
+    .eq('empleado_id', empleadoId)
+    .gte('fecha', desdeMes)
+    .lte('fecha', ultimoDia)
+    .or(`incluido_en_nomina_id.eq.${nominaId},incluido_en_nomina_id.is.null`)
+
+  const idsActuales = new Set((actuales ?? []).map((r) => r.id as string))
+  const idsEnLineas = new Set(lineas.map((l) => l.id).filter((id): id is string => !!id))
+
+  const aBorrar = [...idsActuales].filter((id) => !idsEnLineas.has(id))
+  if (aBorrar.length) await supabase.from('horas_extras_registros').delete().in('id', aBorrar)
+
+  for (const l of lineas) {
+    if (l.id && idsActuales.has(l.id)) {
+      await supabase.from('horas_extras_registros')
+        .update({ cantidad: l.cantidad, porcentaje: l.porcentaje, incluido_en_nomina_id: nominaId })
+        .eq('id', l.id)
+    } else {
+      await supabase.from('horas_extras_registros').insert({
+        empleado_id: empleadoId, fecha: ultimoDia, cantidad: l.cantidad, porcentaje: l.porcentaje,
+        incluido_en_nomina_id: nominaId, notas: 'Cargada en liquidación',
+      })
+    }
+  }
+
+  const total = lineas.reduce((s, l) => s + l.cantidad, 0)
+  const porcentaje = total > 0
+    ? Math.round((lineas.reduce((s, l) => s + l.cantidad * l.porcentaje, 0) / total) * 100) / 100
+    : 0
+  return { total, porcentaje }
+}
+
 export async function createNomina(prevState: string | null, formData: FormData) {
   await requireUser()
   const raw = {
@@ -528,9 +589,6 @@ export async function createNomina(prevState: string | null, formData: FormData)
 
   const ausenciasDescuento = Math.round(d.ausencias_horas * d.valor_hora * 100) / 100
   const ausenciasHoras = d.ausencias_horas
-  const desdeMes = `${d.mes}-01`
-  const fIni = new Date(desdeMes + 'T00:00:00')
-  const hastaMes = new Date(fIni.getFullYear(), fIni.getMonth() + 1, 0).toISOString().split('T')[0]
 
   // Base del aguinaldo = sueldo FIJO mensual (oficial + acuerdo fijo en negro).
   // No incluye horas extras reales (variables) ni comida/presentismo/aguinaldo de caja.
@@ -607,15 +665,10 @@ export async function createNomina(prevState: string | null, formData: FormData)
   }).select('id').single()
   if (error) return error.message
 
-  // Marcar horas extras del mes como incluidas en esta nómina
-  if (nominaInserted && d.horas_extras > 0) {
-    await supabase
-      .from('horas_extras_registros')
-      .update({ incluido_en_nomina_id: nominaInserted.id })
-      .eq('empleado_id', d.empleado_id)
-      .gte('fecha', desdeMes)
-      .lte('fecha', hastaMes)
-      .is('incluido_en_nomina_id', null)
+  // Reconciliar los registros de horas extras contra las líneas cargadas en la liquidación
+  // (crea/actualiza/borra según corresponda y las vincula a esta nómina).
+  if (nominaInserted) {
+    await reconciliarHorasExtras(supabase, d.empleado_id, nominaInserted.id, d.mes, d.extras_lineas)
   }
 
   // Crear gasto pendiente vinculado para que aparezca en /finanzas/pendientes y en el cierre
@@ -834,6 +887,9 @@ export async function updateNomina(id: string, prevState: string | null, formDat
     descuento_otro_descripcion: d.descuento_otro_descripcion || null,
   }).eq('id', id)
   if (error) return error.message
+
+  // Reconciliar los registros de horas extras contra las líneas de la liquidación
+  await reconciliarHorasExtras(supabase, d.empleado_id, id, d.mes, d.extras_lineas)
 
   // Sincronizar el gasto vinculado con el nuevo neto
   if (nominaActual.gasto_pendiente_id) {

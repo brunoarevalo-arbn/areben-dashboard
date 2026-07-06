@@ -544,6 +544,7 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
           mes={mes}
           nominasExistentes={nominasExistentes}
           horasExtrasMes={horasExtrasMes}
+          registrosExtras={registrosExtras}
           cajaAguinaldos={cajaAguinaldos}
           nomina={editNomina ?? undefined}
           onClose={() => { setModalOpen(false); setEditNomina(null) }}

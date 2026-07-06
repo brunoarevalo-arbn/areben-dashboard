@@ -5,10 +5,9 @@ import { createNomina, updateNomina } from '@/app/actions/rrhh'
 import type { ConfiguracionAporte, HoraExtraRegistro, NominaMensual } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { formatCurrency, cn } from '@/lib/utils'
 import {
-  Loader2, Calculator, Receipt, Clock, PiggyBank, BadgeCheck, CalendarX,
+  Loader2, Calculator, Receipt, Clock, PiggyBank, BadgeCheck, CalendarX, Trash2, Plus,
 } from 'lucide-react'
 import type { EmpleadoBasico } from './nomina-client'
 
@@ -82,6 +81,7 @@ export function NominaForm({
   mes,
   nominasExistentes,
   horasExtrasMes,
+  registrosExtras,
   nomina,
   onClose,
 }: {
@@ -90,6 +90,7 @@ export function NominaForm({
   mes: string
   nominasExistentes: string[]
   horasExtrasMes: HoraExtraRegistro[]
+  registrosExtras: HoraExtraRegistro[]
   cajaAguinaldos: Record<string, number>
   /** Si se pasa, el form opera en modo EDICIÓN sobre esta nómina */
   nomina?: NominaMensual
@@ -118,6 +119,25 @@ export function NominaForm({
       : 50
     return { cantidad, registros: hs, porcentajePromedio: Math.round(pctProm * 100) / 100 }
   }, [empleado, horasExtrasMes])
+
+  // Registros de horas extras del empleado para esta nómina: en edición = los ya vinculados a esta
+  // nómina; en alta = los del mes aún sin vincular. Son la fuente de las líneas editables.
+  const registrosDelEmpleado = useMemo(() => {
+    if (!empleado) return [] as HoraExtraRegistro[]
+    return registrosExtras.filter((r) =>
+      r.empleado_id === empleado.id &&
+      (editing ? r.incluido_en_nomina_id === nomina!.id : r.incluido_en_nomina_id == null)
+    )
+  }, [empleado, registrosExtras, editing, nomina])
+
+  // Líneas de horas extras editables (cada una hs + %). Al guardar se reconcilian con los registros.
+  const [extrasLineas, setExtrasLineas] = useState<{ id: string | null; cantidad: number; porcentaje: number }[]>(
+    () => registrosDelEmpleado.map((r) => ({ id: r.id, cantidad: Number(r.cantidad), porcentaje: Number(r.porcentaje) }))
+  )
+  const extrasTotalHoras = extrasLineas.reduce((s, l) => s + (Number(l.cantidad) || 0), 0)
+  const extrasPctPonderado = extrasTotalHoras > 0
+    ? Math.round((extrasLineas.reduce((s, l) => s + (Number(l.cantidad) || 0) * (Number(l.porcentaje) || 0), 0) / extrasTotalHoras) * 100) / 100
+    : 0
 
   const [vals, setVals] = useState({
     sueldo_basico: nomina?.sueldo_basico ?? empleado?.sueldo_basico ?? 0,
@@ -184,6 +204,18 @@ export function NominaForm({
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empleadoId, horasExtrasEmp.cantidad])
+
+  // Re-inicializar las líneas de horas extras al cambiar de empleado (desde sus registros).
+  useEffect(() => {
+    setExtrasLineas(registrosDelEmpleado.map((r) => ({ id: r.id, cantidad: Number(r.cantidad), porcentaje: Number(r.porcentaje) })))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empleadoId])
+
+  // Mantener el agregado (horas_extras + porcentaje_extras ponderado) en sync con las líneas.
+  useEffect(() => {
+    setVals((v) => ({ ...v, horas_extras: extrasTotalHoras, porcentaje_extras: extrasPctPonderado || v.porcentaje_extras }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extrasTotalHoras, extrasPctPonderado])
 
   // Recomputa valor_hora y adicional_no_registrado a partir del oficial/básico/horas.
   // Se llama desde los onChange para mantener todo sincronizado en cascada.
@@ -446,54 +478,93 @@ export function NominaForm({
         </div>
       )}
 
-      {/* Horas extras con porcentaje */}
+      {/* Horas extras — varias líneas, cada una con su propio % */}
       <div className="bg-surface-2/60 border border-border-strong/60 rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between">
           <label className="text-sm font-medium text-fg-muted flex items-center gap-2">
             <Clock className="w-4 h-4" />
             Horas extras
-            {horasExtrasEmp.cantidad > 0 && (
-              <Badge variant="info" className="text-[10px]">
-                {horasExtrasEmp.registros.length} reg. del mes
-              </Badge>
-            )}
           </label>
-          <div className="flex items-center gap-1">
-            {PORCENTAJES_EXTRAS.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setVals((v) => ({ ...v, porcentaje_extras: p }))}
-                className={cn(
-                  'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors',
-                  vals.porcentaje_extras === p
-                    ? 'bg-orange-500/20 text-orange-600 border border-orange-500/40'
-                    : 'bg-surface-2 text-fg-muted border border-[#c8c0b0] hover:text-fg-muted'
-                )}
-              >
-                {p}%
-              </button>
-            ))}
-          </div>
+          {extrasTotalHoras > 0 && (
+            <span className="text-xs text-fg-soft">{extrasTotalHoras} hs · prom. {extrasPctPonderado}%</span>
+          )}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Input
-            label="Cantidad de horas"
-            name="horas_extras"
-            type="number" step="0.5"
-            value={vals.horas_extras}
-            onChange={(e) => setVals((v) => ({ ...v, horas_extras: Number(e.target.value) }))}
-          />
-          <div className="bg-surface-2/40 rounded-lg p-3 flex flex-col justify-between">
-            <span className="text-xs text-fg-muted">
-              {vals.horas_extras} hs × {formatCurrency(vals.valor_hora)} × {1 + vals.porcentaje_extras / 100}
-            </span>
-            <span className="font-mono text-base text-amber-700 font-semibold">
-              {formatCurrency(calc.extras_monto)}
-            </span>
-          </div>
+
+        {extrasLineas.length === 0 && (
+          <p className="text-xs text-fg-soft">Sin horas extras. Agregá una línea si corresponde (podés poner varias a distinto %).</p>
+        )}
+
+        <div className="space-y-2">
+          {extrasLineas.map((linea, idx) => {
+            const setLinea = (patch: Partial<typeof linea>) =>
+              setExtrasLineas((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)))
+            const montoLinea = (Number(linea.cantidad) || 0) * vals.valor_hora * (1 + (Number(linea.porcentaje) || 0) / 100)
+            return (
+              <div key={idx} className="flex items-center gap-2 flex-wrap bg-surface-2/40 rounded-lg p-2">
+                <input
+                  type="number" step="0.5" min="0"
+                  value={linea.cantidad || ''}
+                  onChange={(e) => setLinea({ cantidad: Number(e.target.value) })}
+                  placeholder="hs"
+                  className="w-20 px-2 py-1 bg-surface-2 border border-border-strong rounded text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <span className="text-xs text-fg-soft">hs al</span>
+                <div className="flex items-center gap-1 flex-wrap">
+                  {PORCENTAJES_EXTRAS.map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setLinea({ porcentaje: p })}
+                      className={cn(
+                        'px-2 py-1 rounded text-xs font-medium transition-colors',
+                        Number(linea.porcentaje) === p
+                          ? 'bg-orange-500/20 text-orange-600 border border-orange-500/40'
+                          : 'bg-surface-2 text-fg-muted border border-[#c8c0b0]'
+                      )}
+                    >
+                      {p}%
+                    </button>
+                  ))}
+                  <input
+                    type="number" min="0" max="200"
+                    value={linea.porcentaje}
+                    onChange={(e) => setLinea({ porcentaje: Number(e.target.value) })}
+                    className="w-16 px-2 py-1 bg-surface-2 border border-border-strong rounded text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    title="Podés escribir cualquier porcentaje"
+                  />
+                  <span className="text-xs text-fg-soft">%</span>
+                </div>
+                <span className="ml-auto font-mono text-sm text-amber-700">{formatCurrency(montoLinea)}</span>
+                <button
+                  type="button"
+                  onClick={() => setExtrasLineas((ls) => ls.filter((_, i) => i !== idx))}
+                  className="text-red-700 hover:text-red-800 p-1"
+                  title="Quitar línea"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="flex items-center justify-between pt-1">
+          <button
+            type="button"
+            onClick={() => setExtrasLineas((ls) => [...ls, { id: null, cantidad: 0, porcentaje: 50 }])}
+            className="text-xs font-medium text-orange-600 hover:text-orange-700 flex items-center gap-1"
+          >
+            <Plus className="w-3.5 h-3.5" /> Agregar línea
+          </button>
+          {extrasTotalHoras > 0 && (
+            <span className="font-mono text-base text-amber-700 font-semibold">{formatCurrency(calc.extras_monto)}</span>
+          )}
         </div>
       </div>
+
+      {/* Detalle de líneas para reconciliar los registros en el server */}
+      <input type="hidden" name="horas_extras" value={extrasTotalHoras} />
+      <input type="hidden" name="extras_lineas" value={JSON.stringify(extrasLineas)} />
 
       {/* Faltas / ausencias — input directo */}
       {empleado && (
