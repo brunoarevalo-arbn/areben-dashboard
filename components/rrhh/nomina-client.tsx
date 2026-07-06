@@ -50,7 +50,8 @@ function ReciboModal({ data, onClose }: { data: ReciboData; onClose: () => void 
   const ref = useRef<HTMLDivElement>(null)
   const esNegroPuro = data.empleado.tipo_empleado === 'NEGRO' && !data.esRecboNegroDeBlanco
   // Para NEGRO puro: sin firmas, sin banner "RECIBO INTERNO", labels distintos
-  const ocultarFirmas = esNegroPuro
+  // El recibo INTERNO (adicional de un BLANCO) tampoco lleva firmas.
+  const ocultarFirmas = esNegroPuro || data.esRecboNegroDeBlanco
   const ocultarBannerInterno = esNegroPuro
   const labelTotal = esNegroPuro ? 'Total' : 'Total a pagar'
   const labelEmpleado = esNegroPuro ? 'Nombre' : 'Empleado'
@@ -165,16 +166,17 @@ function ReciboModal({ data, onClose }: { data: ReciboData; onClose: () => void 
 // ─── NominaClient ─────────────────────────────────────────────────────────────
 
 interface NominaClientProps {
-  nominas: (NominaMensual & { empleado: { nombre: string; apellido: string; dni?: string; tipo_empleado: string } | null })[]
+  nominas: (NominaMensual & { empleado: { nombre: string; apellido: string; dni?: string; tipo_empleado: string; horas_acuerdo_negro?: number; plus_negro_tipo?: 'MONTO' | 'PORCENTAJE' | null; plus_negro_valor?: number | null } | null })[]
   empleados: EmpleadoBasico[]
   aportes: ConfiguracionAporte[]
   mes: string
   horasExtrasMes: HoraExtraRegistro[]
+  registrosExtras: HoraExtraRegistro[]
   cajaAguinaldos: Record<string, number>
   cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
 }
 
-export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes, cajaAguinaldos, cuentas }: NominaClientProps) {
+export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes, registrosExtras, cajaAguinaldos, cuentas }: NominaClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [modalOpen, setModalOpen] = useState(false)
@@ -206,41 +208,43 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
   const totalPagadoParcial = nominas.reduce((s, n) => s + (n.total_pagado ?? 0), 0)
   const totalCaja = Object.values(cajaAguinaldos).reduce((s, v) => s + v, 0)
 
-  function generarRecibo(n: typeof nominas[number], modo: 'COMPLETO' | 'INTERNO_NEGRO') {
-    if (!n.empleado) return
-    const esBlanco = n.empleado.tipo_empleado === 'BLANCO'
-    const horas_extras_monto = n.horas_extras * n.valor_hora * (1 + (n.porcentaje_extras ?? 50) / 100)
-
-    if (modo === 'INTERNO_NEGRO' && esBlanco) {
-      setRecibo({
-        empleado: n.empleado,
-        mes: n.mes,
-        esRecboNegroDeBlanco: true,
-        conceptos: [{ label: 'Adicional no registrado', monto: n.adicional_no_registrado }],
-        descuentos: [],
-        total: n.adicional_no_registrado,
-      })
-      return
+  // Renglones de horas extras SEPARADOS por porcentaje (desde los registros vinculados a la nómina).
+  // Si no hay registros vinculados (extras cargadas a mano), cae al renglón único con el promedio guardado.
+  function lineasHorasExtras(n: typeof nominas[number]): { label: string; monto: number }[] {
+    const vh = n.valor_hora
+    const regs = registrosExtras.filter((r) => r.incluido_en_nomina_id === n.id)
+    if (regs.length > 0) {
+      const porPct = new Map<number, number>()
+      for (const r of regs) {
+        const pct = Number(r.porcentaje)
+        porPct.set(pct, (porPct.get(pct) ?? 0) + Number(r.cantidad))
+      }
+      return Array.from(porPct.entries())
+        .sort((a, b) => a[0] - b[0])
+        .map(([pct, hs]) => ({
+          label: `Horas extras (${hs} hs al ${pct}%)`,
+          monto: hs * vh * (1 + pct / 100),
+        }))
     }
+    if ((n.horas_extras ?? 0) > 0) {
+      return [{
+        label: `Horas extras (${n.horas_extras} hs al ${n.porcentaje_extras ?? 50}%)`,
+        monto: n.horas_extras * vh * (1 + (n.porcentaje_extras ?? 50) / 100),
+      }]
+    }
+    return []
+  }
 
-    const conceptos = [
-      {
-        label: esBlanco
-          ? `Sueldo básico (${n.horas_trabajadas} hs × ${formatCurrency(n.valor_hora)})`
-          : 'Sueldo básico',
-        monto: n.sueldo_basico,
-      },
-      { label: `Horas extras (${n.horas_extras} hs al ${n.porcentaje_extras ?? 50}%)`, monto: horas_extras_monto },
-      { label: 'Comida', monto: n.comida },
-      { label: 'Presentismo', monto: n.presentismo_monto || 0 },
-      { label: 'Aguinaldo (caja)', monto: n.aguinaldo_pagado_de_caja || 0 },
-      { label: 'Aguinaldo (SAC)', monto: n.aguinaldo_directo || 0 },
-      ...((n.bono_monto ?? 0) > 0 ? [{
-        label: `${(n.bono_concepto ?? 'Bono')[0] + (n.bono_concepto ?? 'Bono').slice(1).toLowerCase()}${n.bono_descripcion ? ` — ${n.bono_descripcion}` : ''}`,
-        monto: n.bono_monto ?? 0,
-      }] : []),
-    ]
+  function bonoLinea(n: typeof nominas[number]): { label: string; monto: number }[] {
+    if ((n.bono_monto ?? 0) <= 0) return []
+    const c = n.bono_concepto ?? 'Bono'
+    return [{
+      label: `${c[0] + c.slice(1).toLowerCase()}${n.bono_descripcion ? ` — ${n.bono_descripcion}` : ''}`,
+      monto: n.bono_monto ?? 0,
+    }]
+  }
 
+  function construirDescuentos(n: typeof nominas[number]): { label: string; monto: number }[] {
     const descuentos: { label: string; monto: number }[] = []
     if ((n.ausencias_descuento ?? 0) > 0) {
       const horas = n.ausencias_horas ?? 0
@@ -258,6 +262,69 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
         monto: n.descuento_otro_monto ?? 0,
       })
     }
+    return descuentos
+  }
+
+  function generarRecibo(n: typeof nominas[number], modo: 'COMPLETO' | 'INTERNO_NEGRO') {
+    if (!n.empleado) return
+    const esBlanco = n.empleado.tipo_empleado === 'BLANCO'
+
+    // Recibo INTERNO del adicional no registrado (empleado BLANCO): desglosado por concepto.
+    if (modo === 'INTERNO_NEGRO' && esBlanco) {
+      const emp = n.empleado
+      const vh = n.valor_hora
+      const acuerdoHoras = (emp.horas_acuerdo_negro ?? 0) * vh
+      const plusV = emp.plus_negro_valor ?? 0
+      const plus = emp.plus_negro_tipo === 'MONTO'
+        ? plusV
+        : emp.plus_negro_tipo === 'PORCENTAJE'
+          ? (n.monto_recibo_oficial * plusV) / 100
+          : 0
+      // Ajuste = remanente entre el adicional cargado y (acuerdo + plus). Garantiza que el desglose sume exacto.
+      const ajuste = Math.round((n.adicional_no_registrado - acuerdoHoras - plus) * 100) / 100
+
+      const conceptos = [
+        { label: `Acuerdo de horas${(emp.horas_acuerdo_negro ?? 0) > 0 ? ` (${emp.horas_acuerdo_negro} hs)` : ''}`, monto: acuerdoHoras },
+        { label: 'Plus salarial', monto: plus },
+        ...(ajuste > 0 ? [{ label: 'Ajuste', monto: ajuste }] : []),
+        ...lineasHorasExtras(n),
+        { label: 'Comida', monto: n.comida || 0 },
+        ...bonoLinea(n),
+      ]
+
+      const descuentos = construirDescuentos(n)
+      if (ajuste < 0) descuentos.push({ label: 'Ajuste', monto: -ajuste })
+
+      const totalConceptos = conceptos.reduce((s, c) => s + c.monto, 0)
+      const totalDesc = descuentos.reduce((s, d) => s + d.monto, 0)
+
+      setRecibo({
+        empleado: n.empleado,
+        mes: n.mes,
+        esRecboNegroDeBlanco: true,
+        conceptos,
+        descuentos,
+        total: totalConceptos - totalDesc,
+      })
+      return
+    }
+
+    const conceptos = [
+      {
+        label: esBlanco
+          ? `Sueldo básico (${n.horas_trabajadas} hs × ${formatCurrency(n.valor_hora)})`
+          : 'Sueldo básico',
+        monto: n.sueldo_basico,
+      },
+      ...lineasHorasExtras(n),
+      { label: 'Comida', monto: n.comida },
+      { label: 'Presentismo', monto: n.presentismo_monto || 0 },
+      { label: 'Aguinaldo (caja)', monto: n.aguinaldo_pagado_de_caja || 0 },
+      { label: 'Aguinaldo (SAC)', monto: n.aguinaldo_directo || 0 },
+      ...bonoLinea(n),
+    ]
+
+    const descuentos = construirDescuentos(n)
 
     setRecibo({
       empleado: n.empleado,

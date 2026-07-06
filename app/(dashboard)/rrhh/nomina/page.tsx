@@ -18,10 +18,10 @@ export default async function NominaPage({
   const f = new Date(desde + 'T00:00:00')
   const hasta = new Date(f.getFullYear(), f.getMonth() + 1, 0).toISOString().split('T')[0]
 
-  const [{ data: nominas }, { data: empleados }, { data: aportes }, { data: horasExtrasMes }, { data: nominasHist }, { data: cuentas }] = await Promise.all([
+  const [{ data: nominas }, { data: empleados }, { data: aportes }, { data: horasExtrasMes }, { data: nominasHist }, { data: cuentas }, { data: registrosExtras }] = await Promise.all([
     supabase
       .from('nomina_mensual')
-      .select('*, empleado:empleados(nombre, apellido, dni, tipo_empleado)')
+      .select('*, empleado:empleados(nombre, apellido, dni, tipo_empleado, horas_acuerdo_negro, plus_negro_tipo, plus_negro_valor)')
       .eq('mes', mes)
       .order('created_at', { ascending: false }),
     supabase
@@ -49,6 +49,12 @@ export default async function NominaPage({
       .select('id, nombre, banco, titular:cuentas_titulares(nombre)')
       .eq('activo', true)
       .order('banco'),
+    // Todos los registros de horas extras del mes (incluidos y no) — para separar por % en los recibos
+    supabase
+      .from('horas_extras_registros')
+      .select('*')
+      .gte('fecha', desde)
+      .lte('fecha', hasta),
   ])
 
   // Pagos parciales de las nóminas del mes desde el ledger unificado
@@ -119,6 +125,7 @@ export default async function NominaPage({
       aportes={aportes ?? []}
       mes={mes}
       horasExtrasMes={horasExtrasMes ?? []}
+      registrosExtras={registrosExtras ?? []}
       cajaAguinaldos={cajaAguinaldosObj}
       cuentas={(cuentas ?? []) as unknown as Parameters<typeof NominaClient>[0]['cuentas']}
     />
