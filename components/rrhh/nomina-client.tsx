@@ -87,12 +87,6 @@ function ReciboModal({ data, onClose }: { data: ReciboData; onClose: () => void 
     <div className="space-y-4">
       <div ref={ref}>
         <div className="recibo bg-surface text-black p-6 rounded">
-          {data.esRecboNegroDeBlanco && (
-            <div className="interno bg-amber-50 border-l-4 border-amber-500 px-3 py-2 text-xs text-amber-900 mb-3">
-              <strong>RECIBO INTERNO</strong> — Este documento NO reemplaza al recibo de sueldo oficial.
-              Corresponde únicamente al adicional no registrado pagado al empleado.
-            </div>
-          )}
           {!ocultarBannerInterno && !data.esRecboNegroDeBlanco && data.empleado.tipo_empleado === 'NEGRO' && null}
 
           <div className="header border-b-2 border-black pb-3 mb-4">
