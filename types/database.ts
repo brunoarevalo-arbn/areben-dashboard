@@ -1,6 +1,6 @@
 export type Marca = 'BDI' | 'ZATTIA' | 'STUNNED' | 'GENERAL'
 export type TipoEmpleado = 'BLANCO' | 'NEGRO'
-export type EstadoGasto = 'PENDIENTE' | 'PAGADO' | 'VENCIDO'
+export type EstadoGasto = 'PENDIENTE' | 'PAGADO' | 'VENCIDO' | 'DEVENGADO'
 export type EstadoNomina = 'PENDIENTE' | 'PAGADO'
 export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA'
 export type TipoAporte = 'PORCENTAJE' | 'MONTO_FIJO'

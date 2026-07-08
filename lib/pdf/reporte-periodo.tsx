@@ -45,7 +45,7 @@ export interface ReportePeriodoData {
     monto_origen: number | null
     moneda_origen: 'ARS' | 'USD' | null
     tipo_cambio_aplicado: number | null
-    estado: 'PENDIENTE' | 'PAGADO' | 'VENCIDO'
+    estado: 'PENDIENTE' | 'PAGADO' | 'VENCIDO' | 'DEVENGADO'
   } | null
   /** Tasa que se aplicó en el período */
   tasa_aplicada: number

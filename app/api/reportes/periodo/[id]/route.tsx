@@ -100,7 +100,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           monto_origen: gasto.monto_origen !== null ? Number(gasto.monto_origen) : null,
           moneda_origen: (gasto.moneda_origen ?? null) as 'ARS' | 'USD' | null,
           tipo_cambio_aplicado: gasto.tipo_cambio_aplicado !== null ? Number(gasto.tipo_cambio_aplicado) : null,
-          estado: gasto.estado as 'PENDIENTE' | 'PAGADO' | 'VENCIDO',
+          estado: gasto.estado as 'PENDIENTE' | 'PAGADO' | 'VENCIDO' | 'DEVENGADO',
         }
       : null,
     tasa_aplicada: tasaAplicada,

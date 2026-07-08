@@ -18,6 +18,7 @@ export default async function SaldosAcumuladosPage() {
       .from('gastos')
       .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, estado, recurrente_id, medio_pago')
       .neq('estado', 'PAGADO')
+      .neq('estado', 'DEVENGADO')
       .not('recurrente_id', 'is', null)
       .gte('mes', desdeMes)
       .order('mes', { ascending: true })

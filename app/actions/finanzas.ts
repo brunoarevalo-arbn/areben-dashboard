@@ -38,7 +38,7 @@ const gastoSchema = z.object({
   porcentaje_iva: z.coerce.number().min(0).max(100).optional().default(21),
   negocio: z.enum(['BDI', 'ZATTIA', 'STUNNED', 'GENERAL']),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato YYYY-MM-DD'),
-  estado: z.enum(['PENDIENTE', 'PAGADO', 'VENCIDO']),
+  estado: z.enum(['PENDIENTE', 'PAGADO', 'VENCIDO', 'DEVENGADO']),
   fecha_pago: z.string().optional().nullable(),
   notas: z.string().optional().nullable(),
   medio_pago: z.string().optional().nullable(),

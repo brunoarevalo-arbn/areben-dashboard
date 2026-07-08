@@ -32,6 +32,7 @@ export function EstadoBadge({ estado }: { estado: string }) {
     PAGADO: { label: 'Pagado', variant: 'success' },
     PENDIENTE: { label: 'Pendiente', variant: 'warning' },
     VENCIDO: { label: 'Vencido', variant: 'danger' },
+    DEVENGADO: { label: 'Devengado', variant: 'default' },
   }
   const config = map[estado] ?? { label: estado, variant: 'default' }
   return <Badge variant={config.variant}>{config.label}</Badge>

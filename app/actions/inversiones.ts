@@ -727,7 +727,10 @@ export async function cerrarPeriodoYCrearGasto(periodoId: string): Promise<Cerra
     negocio: 'GENERAL',
     mes: periodo.mes,
     fecha: fechaGasto,
-    estado: 'PENDIENTE',
+    // Costo devengado, NO salida de caja: el interés nunca se paga como tal
+    // (la caja se mueve solo cuando el inversor retira capital). Por eso nace
+    // DEVENGADO y no PENDIENTE, para no ensuciar Tesorería con "por pagar" fantasma.
+    estado: 'DEVENGADO',
     confirmado: true,
     prorrateo,
     instrumento_id: inst.id,

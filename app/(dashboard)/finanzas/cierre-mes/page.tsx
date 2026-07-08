@@ -60,6 +60,7 @@ export default async function CierreMesPage({
         .from('gastos')
         .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, medio_pago, tarjeta_id')
         .neq('estado', 'PAGADO')
+        .neq('estado', 'DEVENGADO')
         .gte('mes', desdeMes)
         .order('fecha_pago', { ascending: true, nullsFirst: false })
         .limit(500)

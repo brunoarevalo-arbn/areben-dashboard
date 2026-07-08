@@ -28,6 +28,7 @@ export default async function PendientesPage() {
       .from('gastos')
       .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, estado, cuenta_id, medio_pago, recurrente:gastos_recurrentes(notas)')
       .neq('estado', 'PAGADO')
+      .neq('estado', 'DEVENGADO')
       .or('medio_pago.is.null,medio_pago.neq.TARJETA')
       .gte('mes', (() => {
         const d = new Date()
