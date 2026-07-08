@@ -37,6 +37,7 @@ interface CalcArgs {
   hasta: string // YYYY-MM
   movimientosByMes?: Record<string, number>
   tramos: TramoEntrada[] // ordenados ASC por fecha_desde
+  plazoDias?: number | null // plazo contractual del ciclo (para el modelo plano)
 }
 
 const round = (n: number) => Math.round(n * 100) / 100
@@ -163,13 +164,124 @@ function calcularInteresMes(
   return { interes: round(interes), intInicio: round(intInicio), intFin: round(intFin), segmentos, tasaPromedio }
 }
 
+function daysBetween(a: Date, b: Date): number {
+  return Math.round((b.getTime() - a.getTime()) / 86400000)
+}
+
+// Suma meses de calendario manteniendo el día (ajusta al último día si no existe, ej. 31).
+function addMonthsDate(d: Date, meses: number): Date {
+  const dia = d.getDate()
+  const target = new Date(d.getFullYear(), d.getMonth() + meses, 1)
+  const ultimoDia = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+  target.setDate(Math.min(dia, ultimoDia))
+  return target
+}
+
 export function generarPeriodos(args: CalcArgs): PeriodoCalc[] {
-  const { capitalInicial, fechaInicio, fechaFin, capitalizable, hasta, movimientosByMes = {}, tramos } = args
+  if (args.tramos.length === 0) return []
+  const start = parseDate(args.fechaInicio)
+  const fin = args.fechaFin ? parseDate(args.fechaFin) : null
 
-  if (tramos.length === 0) return []
+  // PF NO capitalizables con vencimiento → modelo PLANO (1,75% por mes completo,
+  // repartido proporcional por días). Capitalizables o sin vencimiento → compuesto histórico.
+  if (!args.capitalizable && fin) {
+    return generarPeriodosPlano(args, start, fin)
+  }
+  return generarPeriodosCompuesto(args, start, fin)
+}
 
-  const start = parseDate(fechaInicio)
-  const fin = fechaFin ? parseDate(fechaFin) : null
+/**
+ * MODELO PLANO — PF no capitalizables con vencimiento.
+ * El ciclo [fechaInicio, fechaFin) rinde interés PLANO = capital × tasa × mesesDelPlazo.
+ * Ese total se reparte entre los meses de calendario PROPORCIONAL a los días activos.
+ * El día del vencimiento (fechaFin) NO cuenta: arranca el ciclo siguiente (fin exclusivo).
+ * Si el ciclo se corta antes del plazo (retiro anticipado), se prorratea real (días/30).
+ */
+function generarPeriodosPlano(args: CalcArgs, start: Date, fin: Date): PeriodoCalc[] {
+  const { capitalInicial, hasta, movimientosByMes = {}, tramos, plazoDias } = args
+  const [yHasta, mHasta] = hasta.split('-').map(Number)
+
+  const diasCiclo = daysBetween(start, fin) // fin exclusivo
+  if (diasCiclo <= 0) return []
+
+  const diasPlan = plazoDias && plazoDias > 0 ? plazoDias : diasCiclo
+  const mesesPlan = Math.max(1, Math.round(diasPlan / 30))
+  // ¿Se cumplió el plazo o se cortó antes (retiro anticipado)?
+  // Se compara por FECHA de vencimiento esperada (inicio + mesesPlan), NO por días:
+  // así febrero (mes corto de 28 días) sigue contando como un mes completo.
+  const vencimientoEsperado = addMonthsDate(start, mesesPlan)
+  const completo = fin.getTime() >= vencimientoEsperado.getTime() - 86400000 // 1 día de tolerancia
+
+  // Tasa promedio ponderada por día del ciclo (soporta tramos de tasa)
+  let sumaTasa = 0
+  for (let t = 0; t < diasCiclo; t++) {
+    sumaTasa += tasaEnFecha(tramos, new Date(start.getTime() + t * 86400000))
+  }
+  const tasaProm = sumaTasa / diasCiclo
+
+  // Interés total del ciclo: plano si se cumplió; prorrateado real si se cortó antes
+  const interesTotalCiclo = completo
+    ? round(capitalInicial * tasaProm * mesesPlan)
+    : round(capitalInicial * tasaProm * (diasCiclo / 30))
+
+  // Meses de calendario que toca el ciclo, con sus días activos
+  const filas: { mes: string; dias: number; activoStart: Date; primeroDelMes: boolean; ultimoDelCiclo: boolean }[] = []
+  let cy = start.getFullYear()
+  let cm = start.getMonth() + 1
+  while (cy < yHasta || (cy === yHasta && cm <= mHasta)) {
+    const monthStart = new Date(cy, cm - 1, 1)
+    const monthStartNext = new Date(cy, cm, 1)
+    const activoStart = start > monthStart ? start : monthStart
+    const activoEndExcl = fin < monthStartNext ? fin : monthStartNext
+    const dias = Math.max(0, daysBetween(activoStart, activoEndExcl))
+    if (dias > 0) {
+      filas.push({
+        mes: mesKey(cy, cm),
+        dias,
+        activoStart,
+        primeroDelMes: activoStart.getTime() === monthStart.getTime(),
+        ultimoDelCiclo: activoEndExcl.getTime() === fin.getTime(),
+      })
+    }
+    if (monthStartNext >= fin) break
+    ;[cy, cm] = nextMonth(cy, cm)
+  }
+
+  // Reparto proporcional por días. Si el ciclo entero quedó generado, el último mes
+  // absorbe el residuo de redondeo para que la suma sea exacta = interesTotalCiclo.
+  const totalDiasGen = filas.reduce((s, f) => s + f.dias, 0)
+  const cicloCompletoGenerado = totalDiasGen >= diasCiclo
+  const shares = filas.map((f) => round(interesTotalCiclo * f.dias / diasCiclo))
+  if (cicloCompletoGenerado && shares.length > 0) {
+    const suma = shares.reduce((a, b) => a + b, 0)
+    shares[shares.length - 1] = round(shares[shares.length - 1] + (interesTotalCiclo - suma))
+  }
+
+  return filas.map((f, idx) => {
+    let sumaTasaMes = 0
+    for (let t = 0; t < f.dias; t++) sumaTasaMes += tasaEnFecha(tramos, new Date(f.activoStart.getTime() + t * 86400000))
+    const tasaMes = f.dias > 0 ? sumaTasaMes / f.dias : 0
+    const movimiento = movimientosByMes[f.mes] ?? 0
+    return {
+      mes: f.mes,
+      saldo_inicio: round(capitalInicial),
+      interes_devengado: shares[idx],
+      int_inicio_prorrateado: idx === 0 && !f.primeroDelMes ? shares[idx] : 0,
+      int_fin_prorrateado: idx === filas.length - 1 && f.ultimoDelCiclo ? shares[idx] : 0,
+      movimiento: round(movimiento),
+      saldo_cierre: round(capitalInicial + movimiento),
+      tasa_aplicada: round(tasaMes * 1000000) / 1000000,
+      segmentos: [],
+    }
+  })
+}
+
+/**
+ * MODELO COMPUESTO (histórico) — capitalizables o instrumentos sin vencimiento.
+ * Interés por mes de calendario, prorrateado por días, con capitalización mensual.
+ */
+function generarPeriodosCompuesto(args: CalcArgs, start: Date, fin: Date | null): PeriodoCalc[] {
+  const { capitalInicial, capitalizable, hasta, movimientosByMes = {}, tramos } = args
   const [yHasta, mHasta] = hasta.split('-').map(Number)
 
   const periodos: PeriodoCalc[] = []

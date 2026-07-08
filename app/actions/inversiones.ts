@@ -144,6 +144,7 @@ async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createCli
     hasta,
     movimientosByMes: movs,
     tramos: tramosArr,
+    plazoDias: inst.plazo_dias,
   })
 
   // Borrar abiertos y reinsertar (los cerrados nunca se tocan)
