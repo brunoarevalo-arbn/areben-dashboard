@@ -2,7 +2,8 @@
 
 import { useState, useTransition, useMemo } from 'react'
 import Link from 'next/link'
-import { deleteInstrumento, regenerarPeriodos, deleteTramoTasa, renovarInstrumento } from '@/app/actions/inversiones'
+import { useRouter } from 'next/navigation'
+import { deleteInstrumento, regenerarPeriodos, deleteTramoTasa } from '@/app/actions/inversiones'
 import type { Inversor, Instrumento, PeriodoInstrumento, TramoTasa } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,7 @@ import { formatMonth, formatDate } from '@/lib/utils'
 import { InstrumentoForm } from './instrumento-form'
 import { CambiarTasaForm } from './cambiar-tasa-form'
 import { SimuladorMovimiento } from './simulador'
+import { RenovarModal } from './renovar-modal'
 import {
   ChevronLeft, Plus, Pencil, Trash2, RotateCw, FileText, Lock, Unlock,
   TrendingUp, Calendar, User, Briefcase, Percent, ArrowRight, RefreshCw,
@@ -29,8 +31,10 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
   const [modal, setModal] = useState(false)
   const [editInstr, setEditInstr] = useState<Instrumento | undefined>()
   const [tasaModal, setTasaModal] = useState<Instrumento | undefined>()
+  const [renovarModal, setRenovarModal] = useState<{ instr: Instrumento; saldo: number } | undefined>()
   const [selectedInstr, setSelectedInstr] = useState<Instrumento | undefined>(instrumentos[0])
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   const periodosByInstr = useMemo(() => {
     const map = new Map<string, PeriodoInstrumento[]>()
@@ -190,19 +194,12 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={async (e) => {
+                    onClick={(e) => {
                       e.stopPropagation()
-                      const nombre = i.codigo ?? i.id.substring(0, 8)
-                      if (!confirm(`¿Renovar el instrumento "${nombre}"?\n\nCalcula el saldo final del ciclo actual (capital + intereses devengados) y abre un nuevo ciclo con la misma duración (${i.plazo_dias ?? '?'} días) y misma tasa.\n\nRequiere que TODOS los períodos del instrumento estén cerrados.`)) return
-                      const result = await renovarInstrumento(i.id)
-                      if (!result.ok) {
-                        alert(`No se pudo renovar:\n\n${result.error}`)
-                      } else {
-                        alert(`✓ Renovado correctamente.\n\nCapital anterior: $${result.capitalAnterior.toLocaleString('es-AR', { minimumFractionDigits: 2 })}\nCapital nuevo: $${result.capitalNuevo.toLocaleString('es-AR', { minimumFractionDigits: 2 })}\nNuevo período: ${result.fechaInicio} → ${result.fechaFin}`)
-                      }
+                      setRenovarModal({ instr: i, saldo: saldoActual })
                     }}
                     disabled={isPending}
-                    title="Renovar instrumento (avanzar al siguiente ciclo con el saldo final)"
+                    title="Renovar instrumento (elegir plazo y abrir el nuevo ciclo con el saldo final)"
                   >
                     <RefreshCw className="w-3 h-3" />
                   </Button>
@@ -403,6 +400,25 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
             instrumento={tasaModal}
             tasaActual={tasaModal.id === selectedInstr?.id ? tasaActualSelected : Number(tasaModal.tasa_mensual)}
             onClose={() => setTasaModal(undefined)}
+          />
+        </Modal>
+      )}
+
+      {renovarModal && (
+        <Modal
+          open={!!renovarModal}
+          onOpenChange={(o) => { if (!o) setRenovarModal(undefined) }}
+          title={`Renovar ${renovarModal.instr.codigo ?? 'instrumento'}`}
+          className="max-w-lg"
+        >
+          <RenovarModal
+            instrumento={renovarModal.instr}
+            saldoActual={renovarModal.saldo}
+            onDone={(r) => {
+              if (r.kind === 'error') alert(`No se pudo renovar:\n\n${r.message}`)
+              else { alert(`✓ ${r.message}\n\n${r.detail ?? ''}`); router.refresh() }
+            }}
+            onClose={() => setRenovarModal(undefined)}
           />
         </Modal>
       )}

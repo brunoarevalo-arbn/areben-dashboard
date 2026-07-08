@@ -268,7 +268,10 @@ export type RenovarResult =
  *
  * Requiere que NO haya períodos abiertos (todos cerrados).
  */
-export async function renovarInstrumento(instrumentoId: string): Promise<RenovarResult> {
+export async function renovarInstrumento(
+  instrumentoId: string,
+  nuevaFechaFinCustom?: string,
+): Promise<RenovarResult> {
   await requireUser()
   const supabase = await createClient()
 
@@ -290,8 +293,8 @@ export async function renovarInstrumento(instrumentoId: string): Promise<Renovar
   if (!inst.fecha_fin) {
     return { ok: false, error: 'El instrumento no tiene fecha de vencimiento. Configurala antes de renovar.' }
   }
-  if (!inst.plazo_dias) {
-    return { ok: false, error: 'El instrumento no tiene plazo en días (plazo_dias). Configuralo antes de renovar.' }
+  if (!inst.plazo_dias && !nuevaFechaFinCustom) {
+    return { ok: false, error: 'El instrumento no tiene plazo definido. Configuralo antes de renovar, o elegí una fecha de vencimiento al renovar.' }
   }
 
   // 3. Verificar que NO haya períodos abiertos
@@ -348,10 +351,26 @@ export async function renovarInstrumento(instrumentoId: string): Promise<Renovar
 
   // 5. Calcular nuevas fechas
   const nuevaFechaInicio = inst.fecha_fin // YYYY-MM-DD
-  const fechaInicioDate = new Date(`${nuevaFechaInicio}T00:00:00Z`)
-  const nuevaFechaFinDate = new Date(fechaInicioDate)
-  nuevaFechaFinDate.setUTCDate(nuevaFechaFinDate.getUTCDate() + Number(inst.plazo_dias))
-  const nuevaFechaFin = nuevaFechaFinDate.toISOString().substring(0, 10)
+  let nuevaFechaFin: string
+  let nuevoPlazoDias = inst.plazo_dias ? Number(inst.plazo_dias) : null
+  if (nuevaFechaFinCustom) {
+    // Renovación con vencimiento elegido a mano (ej: 3 meses exactos → 18-jun a 18-sep)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(nuevaFechaFinCustom)) {
+      return { ok: false, error: 'Fecha de vencimiento inválida (formato YYYY-MM-DD).' }
+    }
+    if (nuevaFechaFinCustom <= nuevaFechaInicio) {
+      return { ok: false, error: `El vencimiento (${nuevaFechaFinCustom}) debe ser posterior al inicio del nuevo ciclo (${nuevaFechaInicio}).` }
+    }
+    nuevaFechaFin = nuevaFechaFinCustom
+    // Recalcular plazo_dias según las fechas elegidas (queda de referencia para la próxima)
+    const diffMs = new Date(`${nuevaFechaFin}T00:00:00Z`).getTime() - new Date(`${nuevaFechaInicio}T00:00:00Z`).getTime()
+    nuevoPlazoDias = Math.round(diffMs / 86_400_000)
+  } else {
+    const fechaInicioDate = new Date(`${nuevaFechaInicio}T00:00:00Z`)
+    const nuevaFechaFinDate = new Date(fechaInicioDate)
+    nuevaFechaFinDate.setUTCDate(nuevaFechaFinDate.getUTCDate() + Number(inst.plazo_dias))
+    nuevaFechaFin = nuevaFechaFinDate.toISOString().substring(0, 10)
+  }
 
   // 6. Update instrumento
   const hoyISO = new Date().toISOString().substring(0, 10)
@@ -364,6 +383,7 @@ export async function renovarInstrumento(instrumentoId: string): Promise<Renovar
       capital_inicial: capitalNuevo,
       fecha_inicio: nuevaFechaInicio,
       fecha_fin: nuevaFechaFin,
+      plazo_dias: nuevoPlazoDias,
       notas: nuevasNotas,
     })
     .eq('id', instrumentoId)

@@ -2,18 +2,20 @@
 
 import { useActionState, useState, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createInversor, updateInversor, toggleInversorActivo } from '@/app/actions/inversiones'
 import type { Inversor, Instrumento, EstadoInstrumento } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { RenovarModal } from './renovar-modal'
 import { formatMoneda } from '@/lib/inversiones-calc'
+import { formatDate, cn } from '@/lib/utils'
 import {
   Plus, Pencil, Power, Loader2, PiggyBank, TrendingUp, ChevronRight,
-  Briefcase, User, Filter,
+  Briefcase, User, Filter, Calendar, RefreshCw,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 interface Props {
   inversores: Inversor[]
@@ -86,8 +88,10 @@ function InversorForm({ inv, onClose }: { inv?: Inversor; onClose: () => void })
 }
 
 export function InversoresClient({ inversores, instrumentos, periodos }: Props) {
+  const router = useRouter()
   const [modal, setModal] = useState(false)
   const [editInv, setEditInv] = useState<Inversor | undefined>()
+  const [renovarModal, setRenovarModal] = useState<{ instr: Instrumento; saldo: number } | undefined>()
   const [filtroMoneda, setFiltroMoneda] = useState<'TODOS' | 'USD' | 'ARS'>('TODOS')
   const [filtroEstado, setFiltroEstado] = useState<'TODOS' | EstadoInstrumento>('TODOS')
   const [filtroCap, setFiltroCap] = useState<'TODOS' | 'CAPITALIZABLE' | 'NO_CAPITALIZABLE'>('TODOS')
@@ -287,23 +291,51 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
                     </div>
 
                     <div className="space-y-1.5">
-                      {insts.map((i) => (
-                        <div key={i.id} className="flex items-center justify-between bg-surface-2/30 rounded-lg px-3 py-2 text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs text-fg-muted">{i.codigo ?? i.id.substring(0, 8)}</span>
-                            <Badge variant={i.moneda === 'USD' ? 'success' : 'info'}>{i.moneda}</Badge>
-                            <Badge variant={i.capitalizable ? 'purple' : 'default'}>
-                              {i.capitalizable ? 'Capitalizable' : 'No cap.'}
-                            </Badge>
-                            <Badge variant={i.estado === 'activo' ? 'success' : i.estado === 'cerrado' ? 'danger' : 'warning'}>
-                              {i.estado}
-                            </Badge>
+                      {insts.map((i) => {
+                        const saldoInstr = ultimoSaldo.get(i.id) ?? Number(i.capital_inicial)
+                        const dias = i.fecha_fin
+                          ? Math.ceil((new Date(`${i.fecha_fin}T00:00:00`).getTime() - Date.now()) / 86_400_000)
+                          : null
+                        const vencColor = dias === null ? 'text-fg-muted'
+                          : dias < 0 ? 'text-red-700 font-medium'
+                          : dias <= 7 ? 'text-amber-700 font-medium'
+                          : 'text-fg-muted'
+                        return (
+                          <div key={i.id} className="flex items-center justify-between gap-2 bg-surface-2/30 rounded-lg px-3 py-2 text-sm">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono text-xs text-fg-muted">{i.codigo ?? i.id.substring(0, 8)}</span>
+                              <Badge variant={i.moneda === 'USD' ? 'success' : 'info'}>{i.moneda}</Badge>
+                              <Badge variant={i.capitalizable ? 'purple' : 'default'}>
+                                {i.capitalizable ? 'Capitalizable' : 'No cap.'}
+                              </Badge>
+                              <Badge variant={i.estado === 'activo' ? 'success' : i.estado === 'cerrado' ? 'danger' : 'warning'}>
+                                {i.estado}
+                              </Badge>
+                              {i.fecha_fin && (
+                                <span className={cn('inline-flex items-center gap-1 text-xs', vencColor)}>
+                                  <Calendar className="w-3 h-3" />
+                                  Vence {formatDate(i.fecha_fin)}
+                                  {dias !== null && dias < 0 && ' · vencido'}
+                                  {dias !== null && dias >= 0 && dias <= 7 && ` · en ${dias}d`}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="font-mono text-fg-muted">{formatMoneda(saldoInstr, i.moneda)}</span>
+                              {i.estado === 'activo' && i.fecha_fin && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  title="Renovar"
+                                  onClick={() => setRenovarModal({ instr: i, saldo: saldoInstr })}
+                                >
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          <span className="font-mono text-fg-muted">
-                            {formatMoneda(ultimoSaldo.get(i.id) ?? Number(i.capital_inicial), i.moneda)}
-                          </span>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </>
                 )}
@@ -316,6 +348,25 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
       <Modal open={modal} onOpenChange={setModal} title={editInv ? 'Editar inversor' : 'Nuevo inversor'} className="max-w-2xl">
         <InversorForm inv={editInv} onClose={() => setModal(false)} />
       </Modal>
+
+      {renovarModal && (
+        <Modal
+          open={!!renovarModal}
+          onOpenChange={(o) => { if (!o) setRenovarModal(undefined) }}
+          title={`Renovar ${renovarModal.instr.codigo ?? 'instrumento'}`}
+          className="max-w-lg"
+        >
+          <RenovarModal
+            instrumento={renovarModal.instr}
+            saldoActual={renovarModal.saldo}
+            onDone={(r) => {
+              if (r.kind === 'error') alert(`No se pudo renovar:\n\n${r.message}`)
+              else { alert(`✓ ${r.message}\n\n${r.detail ?? ''}`); router.refresh() }
+            }}
+            onClose={() => setRenovarModal(undefined)}
+          />
+        </Modal>
+      )}
     </div>
   )
 }

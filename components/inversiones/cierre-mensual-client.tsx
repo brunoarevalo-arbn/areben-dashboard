@@ -6,13 +6,14 @@ import {
   actualizarMovimientoPeriodo,
   cerrarPeriodoYCrearGasto,
   reabrirPeriodos,
-  renovarInstrumento,
   type CerrarPeriodoResult,
 } from '@/app/actions/inversiones'
 import type { PeriodoInstrumento, Instrumento, Inversor } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Modal } from '@/components/ui/modal'
+import { RenovarModal } from './renovar-modal'
 import { formatMoneda } from '@/lib/inversiones-calc'
 import { formatMonth, getMonthOptions, formatCurrency } from '@/lib/utils'
 import {
@@ -117,8 +118,8 @@ function CerrarPeriodoButton({
 
   const handleClick = () => {
     const confirmMsg = moneda === 'USD'
-      ? `¿Cerrar período de ${nombre}?\n\nInterés: ${formatMoneda(interes, 'USD')}\nSe convertirá a ARS al TC del mes y se creará un gasto financiero PENDIENTE.`
-      : `¿Cerrar período de ${nombre}?\n\nInterés: ${formatMoneda(interes, 'ARS')}\nSe creará un gasto financiero PENDIENTE.`
+      ? `¿Cerrar período de ${nombre}?\n\nInterés: ${formatMoneda(interes, 'USD')}\nSe convertirá a ARS al TC del mes y se registrará como gasto financiero devengado.`
+      : `¿Cerrar período de ${nombre}?\n\nInterés: ${formatMoneda(interes, 'ARS')}\nSe registrará como gasto financiero devengado.`
     if (!confirm(confirmMsg)) return
 
     startTransition(async () => {
@@ -155,48 +156,46 @@ function CerrarPeriodoButton({
 
 function RenovarInstrumentoButton({
   instrumento,
+  saldoActual,
   onDone,
 }: {
   instrumento: Instrumento & { inversor?: Inversor }
+  saldoActual: number
   onDone: (t: ToastResult) => void
 }) {
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
-
-  function handleClick() {
-    const nombre = instrumento.codigo ?? instrumento.id.substring(0, 8)
-    const inversor = instrumento.inversor?.nombre ?? ''
-    if (!confirm(
-      `¿Renovar el instrumento "${nombre}" (${inversor})?\n\n` +
-      `Calcula el saldo final del ciclo actual (capital + intereses devengados) y abre un nuevo ciclo de ${instrumento.plazo_dias} días con la misma tasa.\n\n` +
-      `Requiere que TODOS los períodos del instrumento estén cerrados (no solo el del mes actual).`,
-    )) return
-    startTransition(async () => {
-      const result = await renovarInstrumento(instrumento.id)
-      if (!result.ok) {
-        onDone({ kind: 'error', message: result.error })
-        return
-      }
-      onDone({
-        kind: 'success',
-        message: `Instrumento ${nombre} renovado`,
-        detail: `Capital $${result.capitalAnterior.toFixed(2)} → $${result.capitalNuevo.toFixed(2)} · Período ${result.fechaInicio} → ${result.fechaFin}`,
-      })
-      router.refresh()
-    })
-  }
+  const [open, setOpen] = useState(false)
 
   return (
-    <Button
-      variant="secondary"
-      disabled={isPending}
-      onClick={handleClick}
-      title="Renovar instrumento (avanzar al siguiente ciclo con el saldo final)"
-      className="text-xs"
-    >
-      {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-      Renovar
-    </Button>
+    <>
+      <Button
+        variant="secondary"
+        onClick={() => setOpen(true)}
+        title="Renovar instrumento (elegir plazo y abrir el nuevo ciclo con el saldo final)"
+        className="text-xs"
+      >
+        <RefreshCw className="w-3.5 h-3.5" />
+        Renovar
+      </Button>
+      {open && (
+        <Modal
+          open={open}
+          onOpenChange={setOpen}
+          title={`Renovar ${instrumento.codigo ?? 'instrumento'}`}
+          className="max-w-lg"
+        >
+          <RenovarModal
+            instrumento={instrumento}
+            saldoActual={saldoActual}
+            onDone={(r) => {
+              onDone(r)
+              if (r.kind === 'success') router.refresh()
+            }}
+            onClose={() => setOpen(false)}
+          />
+        </Modal>
+      )}
+    </>
   )
 }
 
@@ -419,8 +418,8 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                         {!p.cerrado && (
                           <CerrarPeriodoButton p={p} onDone={setToast} />
                         )}
-                        {p.cerrado && i.fecha_fin && i.plazo_dias && (
-                          <RenovarInstrumentoButton instrumento={i} onDone={setToast} />
+                        {p.cerrado && i.fecha_fin && (
+                          <RenovarInstrumentoButton instrumento={i} saldoActual={Number(p.saldo_cierre)} onDone={setToast} />
                         )}
                         <a
                           href={`/api/reportes/periodo/${p.id}`}
