@@ -1,32 +1,38 @@
 import { createClient } from '@/lib/supabase/server'
+import { getMesActivo } from '@/lib/mes-activo'
 import { KpiCard } from '@/components/dashboard/kpi-card'
-import { formatCurrency, getCurrentMonth, formatMonth } from '@/lib/utils'
-import { TrendingDown, Users, AlertTriangle, Wallet, CreditCard, Boxes } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { formatCurrency, formatMonth } from '@/lib/utils'
+import { TrendingDown, Users, AlertTriangle, Wallet, CreditCard, Boxes, FileCheck } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import type { CierreMensual } from '@/types/database'
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mes?: string }>
+}) {
   const supabase = await createClient()
-  const mes = getCurrentMonth()
+  const mes = (await searchParams).mes ?? (await getMesActivo())
 
   const [
     { data: gastosMes },
-    { data: saldoActual },
+    { data: saldosCuentas },
+    { data: cierre },
     { data: gastosVencidos },
     { data: nominaPendiente },
     { data: empleadosActivos },
     { data: cuentasInventario },
     { data: saldosInventario },
   ] = await Promise.all([
+    supabase.from('gastos').select('monto, estado').eq('mes', mes),
+    // Fuente viva de saldos (el resto de la app ya no usa saldos_mensuales)
     supabase
-      .from('gastos')
-      .select('monto, estado')
+      .from('saldos_cuentas')
+      .select('saldo_ars, saldo_usd, cuenta:cuentas_bancarias(activo)')
       .eq('mes', mes),
-    supabase
-      .from('saldos_mensuales')
-      .select('*')
-      .eq('mes', mes)
-      .maybeSingle(),
+    supabase.from('cierres_mensuales').select('*').eq('mes', mes).maybeSingle(),
     supabase
       .from('gastos')
       .select('id, concepto, monto, negocio, mes')
@@ -38,25 +44,34 @@ export default async function DashboardPage() {
       .select('neto, empleado_nombre, empleado_apellido')
       .eq('mes', mes)
       .eq('estado', 'PENDIENTE'),
-    supabase
-      .from('empleados')
-      .select('id')
-      .eq('activo', true),
+    supabase.from('empleados').select('id').eq('activo', true),
     supabase
       .from('cuentas_patrimoniales')
       .select('*')
       .eq('tipo', 'INVENTARIO')
       .eq('activo', true)
       .order('orden'),
-    supabase
-      .from('saldos_cuentas_patrim')
-      .select('cuenta_id, saldo_cierre')
-      .eq('mes', mes),
+    supabase.from('saldos_cuentas_patrim').select('cuenta_id, saldo_cierre').eq('mes', mes),
   ])
+
+  const cierreMes = cierre as CierreMensual | null
 
   const totalGastosMes = gastosMes?.reduce((sum, g) => sum + g.monto, 0) ?? 0
   const gastosPagados = gastosMes?.filter((g) => g.estado === 'PAGADO').reduce((sum, g) => sum + g.monto, 0) ?? 0
-  const saldoTotal = (saldoActual?.saldo_pesos ?? 0) + (saldoActual?.caja_pesos ?? 0)
+
+  // Saldo total del mes = saldos de cuentas activas + caja del cierre (reactivo al mes)
+  const cuentasActivas = (saldosCuentas ?? []).filter((s) => {
+    const c = (s.cuenta ?? null) as unknown as { activo: boolean } | null
+    return c?.activo !== false
+  })
+  const cuentasArs = cuentasActivas.reduce((s, x) => s + Number(x.saldo_ars ?? 0), 0)
+  const cuentasUsd = cuentasActivas.reduce((s, x) => s + Number(x.saldo_usd ?? 0), 0)
+  const cajaArs = cierreMes?.caja_ars ?? 0
+  const cajaUsd = cierreMes?.caja_usd ?? 0
+  const saldoTotalArs = cuentasArs + cajaArs
+  const saldoUsd = cuentasUsd + cajaUsd
+  const hayDatosSaldo = cuentasActivas.length > 0 || cierreMes != null
+
   const nominaPendienteTotal = nominaPendiente?.reduce((sum, n) => sum + n.neto, 0) ?? 0
   const cantidadEmpleados = empleadosActivos?.length ?? 0
 
@@ -70,11 +85,11 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           title="Saldo Total (ARS)"
-          value={formatCurrency(saldoTotal)}
+          value={formatCurrency(saldoTotalArs)}
           subtitle="Cuentas + Caja"
           icon={Wallet}
           iconColor="bg-orange-500/15"
-          variant={saldoTotal < 0 ? 'danger' : 'default'}
+          variant={saldoTotalArs < 0 ? 'danger' : 'default'}
         />
         <KpiCard
           title="Gastos del Mes"
@@ -100,34 +115,79 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {saldoActual && (
+      {hayDatosSaldo && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-surface border border-border rounded-xl p-4">
-            <p className="text-xs text-fg-muted mb-1">Cuenta Bancaria (ARS)</p>
-            <p className="text-xl font-bold text-fg">{formatCurrency(saldoActual.saldo_pesos)}</p>
+            <p className="text-xs text-fg-muted mb-1">Cuentas Bancarias (ARS)</p>
+            <p className="text-xl font-bold text-fg">{formatCurrency(cuentasArs)}</p>
           </div>
           <div className="bg-surface border border-border rounded-xl p-4">
             <p className="text-xs text-fg-muted mb-1">Caja (ARS)</p>
-            <p className="text-xl font-bold text-fg">{formatCurrency(saldoActual.caja_pesos)}</p>
+            <p className="text-xl font-bold text-fg">{formatCurrency(cajaArs)}</p>
           </div>
           <div className="bg-surface border border-border rounded-xl p-4">
             <p className="text-xs text-fg-muted mb-1">USD</p>
-            <p className="text-xl font-bold text-fg">{formatCurrency(saldoActual.saldo_usd + saldoActual.caja_usd, 'USD')}</p>
+            <p className="text-xl font-bold text-fg">{formatCurrency(saldoUsd, 'USD')}</p>
           </div>
         </div>
       )}
 
-      {!saldoActual && (
+      {!hayDatosSaldo && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0" />
           <div>
-            <p className="text-sm font-medium text-amber-900">Sin saldo cargado para este mes</p>
+            <p className="text-sm font-medium text-amber-900">Sin saldo cargado para {formatMonth(mes)}</p>
             <p className="text-xs text-amber-800 mt-0.5">
-              <Link href="/finanzas/saldos" className="underline">Cargá el saldo actual</Link> para ver los KPIs completos.
+              <Link href={`/finanzas/saldos?mes=${mes}`} className="underline">Cargá los saldos del mes</Link> para ver los KPIs completos.
             </p>
           </div>
         </div>
       )}
+
+      {/* Resumen del cierre del mes */}
+      <div className="bg-surface border border-primary/20 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+          <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
+            <FileCheck className="w-4 h-4 text-primary" />
+            Resumen de cierre — {formatMonth(mes)}
+            {cierreMes?.cerrado ? (
+              <Badge variant="success">Cerrado</Badge>
+            ) : cierreMes ? (
+              <Badge variant="warning">Borrador</Badge>
+            ) : null}
+          </h2>
+          <Link href={`/finanzas/cierre-mes?mes=${mes}`} className="text-xs text-primary hover:text-orange-600">
+            Ver cierre
+          </Link>
+        </div>
+        {cierreMes ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-lg border border-border bg-surface-2/40 p-3">
+              <p className="text-[10px] uppercase text-fg-muted mb-1">Activos</p>
+              <p className="text-lg font-mono font-bold text-fg">{formatCurrency(cierreMes.total_activos_ars)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-surface-2/40 p-3">
+              <p className="text-[10px] uppercase text-fg-muted mb-1">Pasivos</p>
+              <p className="text-lg font-mono font-bold text-red-700">{formatCurrency(cierreMes.total_pasivos_ars)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-surface-2/40 p-3">
+              <p className="text-[10px] uppercase text-fg-muted mb-1">Patrimonio Neto</p>
+              <p className="text-lg font-mono font-bold text-fg">{formatCurrency(cierreMes.pn_ars)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-surface-2/40 p-3">
+              <p className="text-[10px] uppercase text-fg-muted mb-1">Resultado</p>
+              <p className={cn('text-lg font-mono font-bold', cierreMes.resultado_ars >= 0 ? 'text-success' : 'text-red-700')}>
+                {formatCurrency(cierreMes.resultado_ars)}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-fg-soft">
+            Todavía no hay cierre para este mes.{' '}
+            <Link href={`/finanzas/cierre-mes?mes=${mes}`} className="underline">Armalo en Cierre de mes</Link>.
+          </p>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {gastosVencidos && gastosVencidos.length > 0 && (
@@ -257,7 +317,7 @@ export default async function DashboardPage() {
           {[
             { label: 'Cargar gasto', href: '/finanzas/gastos', color: 'text-danger' },
             { label: 'Nueva nómina', href: '/rrhh/nomina', color: 'text-amber-800' },
-            { label: 'Registrar retiro', href: '/finanzas/retiros', color: 'text-primary' },
+            { label: 'Registrar retiro', href: '/finanzas/cuenta-socios?tab=movimientos', color: 'text-primary' },
             { label: 'Ver análisis', href: '/analisis/pl-marca', color: 'text-success' },
           ].map((item) => (
             <Link
