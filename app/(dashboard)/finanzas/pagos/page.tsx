@@ -1,4 +1,4 @@
-import { Tabs, type TabItem } from '@/components/ui/tabs'
+import { type TabItem } from '@/components/ui/tabs'
 import { PagosPanel } from '@/components/finanzas/pagos-panel'
 import { PendientesPanel } from '@/components/finanzas/pendientes-panel'
 import { CuentasCorrientesPanel } from '@/components/finanzas/cuentas-corrientes-panel'
@@ -19,7 +19,6 @@ export default async function PagosYDeudaPage({
 
   return (
     <div className="space-y-6">
-      <Tabs items={TABS} activeKey={tab} />
       {tab === 'pagos' ? (
         <PagosPanel params={params} />
       ) : tab === 'pendientes' ? (

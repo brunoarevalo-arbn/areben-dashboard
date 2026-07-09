@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import {
@@ -31,6 +31,7 @@ import {
   ArrowDownCircle,
   FileCheck,
   PiggyBank,
+  Clock,
 } from 'lucide-react'
 
 interface NavItem {
@@ -50,13 +51,50 @@ const navItems: NavItem[] = [
     label: 'Finanzas',
     icon: DollarSign,
     children: [
-      { label: 'Gastos', href: '/finanzas/gastos', icon: TrendingDown },
-      { label: 'Pagos y deuda', href: '/finanzas/pagos', icon: Wallet },
+      {
+        label: 'Gastos',
+        icon: TrendingDown,
+        children: [
+          { label: 'Del mes', href: '/finanzas/gastos', icon: TrendingDown },
+          { label: 'Fijos', href: '/finanzas/gastos?tab=fijos', icon: Receipt },
+        ],
+      },
+      {
+        label: 'Pagos y deuda',
+        icon: Wallet,
+        children: [
+          { label: 'Pagos del mes', href: '/finanzas/pagos', icon: Wallet },
+          { label: 'Pendientes', href: '/finanzas/pagos?tab=pendientes', icon: Clock },
+          { label: 'Cuentas corrientes', href: '/finanzas/pagos?tab=cuentas-corrientes', icon: Receipt },
+        ],
+      },
       { label: 'Tarjetas', href: '/finanzas/tarjetas', icon: CreditCard },
-      { label: 'Patrimonio', href: '/finanzas/cuentas-patrimoniales', icon: Boxes },
+      {
+        label: 'Patrimonio',
+        icon: Boxes,
+        children: [
+          { label: 'Por tipo', href: '/finanzas/cuentas-patrimoniales', icon: Boxes },
+          { label: 'Impositivos', href: '/finanzas/cuentas-patrimoniales?tab=impositivos', icon: Receipt },
+          { label: 'Bienes de uso', href: '/finanzas/cuentas-patrimoniales?tab=bienes', icon: Boxes },
+        ],
+      },
       { label: 'Tesorería', href: '/finanzas/saldos', icon: Wallet },
-      { label: 'Socios', href: '/finanzas/cuenta-socios', icon: Users },
-      { label: 'AFIP', href: '/finanzas/afip', icon: Receipt },
+      {
+        label: 'Socios',
+        icon: Users,
+        children: [
+          { label: 'Movimientos', href: '/finanzas/cuenta-socios', icon: CreditCard },
+          { label: 'Estado de cuenta', href: '/finanzas/cuenta-socios?tab=estado', icon: Users },
+        ],
+      },
+      {
+        label: 'AFIP',
+        icon: Receipt,
+        children: [
+          { label: 'Facturación', href: '/finanzas/afip', icon: Receipt },
+          { label: 'Planes de pago', href: '/finanzas/afip?tab=planes', icon: FileText },
+        ],
+      },
       { label: 'Préstamos bancarios', href: '/finanzas/prestamos', icon: TrendingDown },
       { label: 'Cierre de mes', href: '/finanzas/cierre-mes', icon: FileCheck },
     ],
@@ -124,23 +162,28 @@ const navItems: NavItem[] = [
 
 function isAnyDescendantActive(item: NavItem, pathname: string): boolean {
   if (item.href) {
-    if (pathname === item.href) return true
-    if (item.href !== '/' && pathname.startsWith(item.href + '/')) return true
+    const path = item.href.split('?')[0] // ignorar query (?tab=) para expandir el grupo
+    if (pathname === path) return true
+    if (path !== '/' && pathname.startsWith(path + '/')) return true
   }
   return item.children?.some((c) => isAnyDescendantActive(c, pathname)) ?? false
 }
 
 function NavGroup({ item, level = 0 }: { item: NavItem; level?: number }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const hasChildren = !!item.children?.length
   const childActive = hasChildren && (item.children?.some((c) => isAnyDescendantActive(c, pathname)) ?? false)
   const [open, setOpen] = useState(childActive)
 
   // Hoja: link directo
   if (!hasChildren) {
-    const isActive = item.href
-      ? pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'))
-      : false
+    const [path, query] = (item.href ?? '').split('?')
+    const pathMatches = !!item.href && (pathname === path || (path !== '/' && pathname.startsWith(path + '/')))
+    const hrefTab = query ? new URLSearchParams(query).get('tab') : null
+    const currentTab = searchParams.get('tab')
+    // Con ?tab= → activo si coincide la pestaña; sin tab (default) → activo si no hay tab en la URL
+    const isActive = pathMatches && (hrefTab ? currentTab === hrefTab : !currentTab)
 
     // Estilos por nivel: top level usa el del menú principal, children usan el más chico
     const baseLeaf = level === 0

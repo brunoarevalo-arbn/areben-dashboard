@@ -1,4 +1,4 @@
-import { Tabs, type TabItem } from '@/components/ui/tabs'
+import { type TabItem } from '@/components/ui/tabs'
 import { PatrimonioPanel } from '@/components/finanzas/patrimonio-panel'
 import { SaldosImpositivosPanel } from '@/components/finanzas/saldos-impositivos-panel'
 import { BienesPanel } from '@/components/finanzas/bienes-panel'
@@ -19,7 +19,6 @@ export default async function PatrimonioPage({
 
   return (
     <div className="space-y-6">
-      <Tabs items={TABS} activeKey={tab} />
       {tab === 'tipo' ? (
         <PatrimonioPanel mes={params.mes} />
       ) : tab === 'impositivos' ? (

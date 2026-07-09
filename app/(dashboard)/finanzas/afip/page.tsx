@@ -1,4 +1,4 @@
-import { Tabs, type TabItem } from '@/components/ui/tabs'
+import { type TabItem } from '@/components/ui/tabs'
 import { AfipFacturacionPanel } from '@/components/finanzas/afip-facturacion-panel'
 import { PlanesAfipPanel } from '@/components/finanzas/planes-afip-panel'
 
@@ -19,7 +19,6 @@ export default async function AfipPage({
 
   return (
     <div className="space-y-6">
-      <Tabs items={TABS} activeKey={activo} />
       {activo === 'facturacion' ? <AfipFacturacionPanel /> : <PlanesAfipPanel />}
     </div>
   )

@@ -1,4 +1,4 @@
-import { Tabs, type TabItem } from '@/components/ui/tabs'
+import { type TabItem } from '@/components/ui/tabs'
 import { RetirosPanel } from '@/components/finanzas/retiros-panel'
 import { CuentaSociosPanel } from '@/components/finanzas/cuenta-socios-panel'
 
@@ -17,7 +17,6 @@ export default async function SociosPage({
 
   return (
     <div className="space-y-6">
-      <Tabs items={TABS} activeKey={tab} />
       {tab === 'movimientos' ? <RetirosPanel /> : <CuentaSociosPanel socioInicial={params.socio} />}
     </div>
   )

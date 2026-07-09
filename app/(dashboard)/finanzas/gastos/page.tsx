@@ -1,4 +1,4 @@
-import { Tabs, type TabItem } from '@/components/ui/tabs'
+import { type TabItem } from '@/components/ui/tabs'
 import { GastosPanel } from '@/components/finanzas/gastos-panel'
 import { RecurrentesPanel } from '@/components/finanzas/recurrentes-panel'
 
@@ -17,7 +17,6 @@ export default async function GastosPage({
 
   return (
     <div className="space-y-6">
-      <Tabs items={TABS} activeKey={tab} />
       {tab === 'mes' ? <GastosPanel params={params} /> : <RecurrentesPanel mes={params.mes} />}
     </div>
   )
