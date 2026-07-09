@@ -9,7 +9,7 @@ export interface Sector {
 }
 
 export const SECTORES: Sector[] = [
-  { key: 'saldos-impositivos', label: 'Saldos impositivos', ruta: '/finanzas/saldos-impositivos' },
+  { key: 'saldos-impositivos', label: 'Saldos impositivos', ruta: '/finanzas/cuentas-patrimoniales?tab=impositivos' },
   // Sumar acá: tesoreria, gastos, nomina, compras, etc.
 ]
 

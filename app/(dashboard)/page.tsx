@@ -7,6 +7,7 @@ import { TrendingDown, Users, AlertTriangle, Wallet, CreditCard, Boxes, FileChec
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import type { CierreMensual } from '@/types/database'
+import { EstadoMesPanel } from '@/components/dashboard/estado-mes-panel'
 
 export default async function DashboardPage({
   searchParams,
@@ -188,6 +189,8 @@ export default async function DashboardPage({
           </p>
         )}
       </div>
+
+      <EstadoMesPanel mes={mes} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {gastosVencidos && gastosVencidos.length > 0 && (
