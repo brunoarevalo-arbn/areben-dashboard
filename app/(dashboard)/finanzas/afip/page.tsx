@@ -19,13 +19,7 @@ export default async function AfipPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-fg">AFIP</h1>
-        <p className="text-sm text-fg-muted mt-0.5">Facturación pendiente y planes de pago</p>
-      </div>
-
       <Tabs items={TABS} activeKey={activo} />
-
       {activo === 'facturacion' ? <AfipFacturacionPanel /> : <PlanesAfipPanel />}
     </div>
   )

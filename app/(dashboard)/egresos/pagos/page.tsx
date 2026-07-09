@@ -1,14 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
-import { PagosClient } from '@/components/egresos/pagos-client'
+import { redirect } from 'next/navigation'
 
-export default async function PagosPage() {
-  const supabase = await createClient()
-
-  const { data: pagos } = await supabase
-    .from('pagos')
-    .select('*, compra:compras(descripcion, monto_total, proveedor:proveedores(nombre))')
-    .order('fecha_emision', { ascending: false })
-    .limit(500)
-
-  return <PagosClient pagos={pagos ?? []} />
+// Duplicado del ledger de pagos → unificado en Finanzas › Pagos y deuda.
+export default function EgresosPagosPage() {
+  redirect('/finanzas/pagos')
 }

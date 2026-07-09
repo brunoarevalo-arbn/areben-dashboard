@@ -1,34 +1,24 @@
-import { createClient } from '@/lib/supabase/server'
-import { CuentaSociosClient } from '@/components/finanzas/cuenta-socios-client'
-import type { Socio, RetiroSocio, CategoriaRetiro } from '@/types/database'
+import { Tabs, type TabItem } from '@/components/ui/tabs'
+import { RetirosPanel } from '@/components/finanzas/retiros-panel'
+import { CuentaSociosPanel } from '@/components/finanzas/cuenta-socios-panel'
 
-export default async function CuentaSociosPage({
+const TABS: TabItem[] = [
+  { key: 'movimientos', label: 'Movimientos' },
+  { key: 'estado', label: 'Estado de cuenta' },
+]
+
+export default async function SociosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ socio?: string }>
+  searchParams: Promise<{ tab?: string; socio?: string }>
 }) {
   const params = await searchParams
-  const supabase = await createClient()
-
-  const [
-    { data: socios },
-    { data: retiros },
-    { data: categorias },
-  ] = await Promise.all([
-    supabase.from('socios').select('*').eq('activo', true).order('nombre'),
-    supabase
-      .from('retiros_socios')
-      .select('*, categoria:categorias_retiro(*)')
-      .order('fecha', { ascending: false }),
-    supabase.from('categorias_retiro').select('*').eq('activo', true).order('orden'),
-  ])
+  const tab = TABS.some((t) => t.key === params.tab) ? (params.tab as string) : TABS[0].key
 
   return (
-    <CuentaSociosClient
-      socios={(socios ?? []) as Socio[]}
-      retiros={(retiros ?? []) as RetiroSocio[]}
-      categorias={(categorias ?? []) as CategoriaRetiro[]}
-      socioInicial={params.socio ?? null}
-    />
+    <div className="space-y-6">
+      <Tabs items={TABS} activeKey={tab} />
+      {tab === 'movimientos' ? <RetirosPanel /> : <CuentaSociosPanel socioInicial={params.socio} />}
+    </div>
   )
 }

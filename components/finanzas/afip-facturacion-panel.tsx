@@ -14,6 +14,8 @@ export async function AfipFacturacionPanel() {
 
   return (
     <div className="space-y-4">
+      <h1 className="text-2xl font-bold text-fg">Facturación</h1>
+
       <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
         <p className="text-sm text-amber-800 font-medium">Pendiente total: {formatCurrency(totalPendiente)}</p>
       </div>
