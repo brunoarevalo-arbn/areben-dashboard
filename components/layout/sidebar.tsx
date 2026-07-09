@@ -53,6 +53,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Tesorería', href: '/finanzas/saldos', icon: Wallet },
       { label: 'Cuentas patrimoniales', href: '/finanzas/cuentas-patrimoniales', icon: Boxes },
+      { label: 'Saldos impositivos', href: '/finanzas/saldos-impositivos', icon: Receipt },
       { label: 'Gastos', href: '/finanzas/gastos', icon: TrendingDown },
       { label: 'Recurrentes', href: '/finanzas/recurrentes', icon: Receipt },
       { label: 'Tarjetas', href: '/finanzas/tarjetas', icon: CreditCard },

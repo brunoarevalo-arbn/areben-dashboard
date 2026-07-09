@@ -2039,6 +2039,74 @@ export async function upsertSaldoCuentaPatrim(args: {
   revalidatePath('/finanzas/cierre-mes')
 }
 
+// ============ SALDOS IMPOSITIVOS ============
+// Vista amigable sobre cuentas_patrimoniales (tipo IMPOSITIVO) + saldos_cuentas_patrim.
+// Cada impuesto se guarda con signo_pn = 1 fijo; la POSICIÓN del mes (a favor / a pagar)
+// se expresa con el signo del saldo_cierre: positivo = a favor (activo), negativo = a pagar (pasivo).
+// Así el motor del cierre de mes (aporte = signo_pn × saldo) lo clasifica solo.
+
+export async function createImpuesto(nombre: string) {
+  await requireUser()
+  if (!nombre?.trim()) return 'El nombre es obligatorio'
+  const supabase = await createClient()
+  const { error } = await supabase.from('cuentas_patrimoniales').insert({
+    nombre: nombre.trim(),
+    tipo: 'IMPOSITIVO',
+    signo_pn: 1,
+    moneda: 'ARS',
+    activo: true,
+  })
+  if (error) return error.message
+  revalidatePath('/finanzas/saldos-impositivos')
+  revalidatePath('/finanzas/cierre-mes')
+  return null
+}
+
+export async function renameImpuesto(id: string, nombre: string) {
+  await requireUser()
+  if (!nombre?.trim()) throw new Error('El nombre es obligatorio')
+  const supabase = await createClient()
+  const { error } = await supabase.from('cuentas_patrimoniales').update({ nombre: nombre.trim() }).eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/saldos-impositivos')
+  revalidatePath('/finanzas/cierre-mes')
+}
+
+export async function deleteImpuesto(id: string) {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase.from('cuentas_patrimoniales').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/saldos-impositivos')
+  revalidatePath('/finanzas/cierre-mes')
+}
+
+/** Fija la posición de un impuesto en un mes. monto siempre positivo; posicion define el signo. */
+export async function setSaldoImpositivo(args: {
+  cuentaId: string
+  mes: string
+  posicion: 'favor' | 'pagar'
+  monto: number
+}) {
+  await requireUser()
+  const supabase = await createClient()
+  const abs = Math.abs(Number(args.monto) || 0)
+  const signed = args.posicion === 'pagar' ? -abs : abs
+  const { error } = await supabase.from('saldos_cuentas_patrim').upsert(
+    {
+      cuenta_id: args.cuentaId,
+      mes: args.mes,
+      saldo_inicio: 0,
+      movimiento: signed,
+      saldo_cierre: signed,
+    },
+    { onConflict: 'cuenta_id,mes' },
+  )
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/saldos-impositivos')
+  revalidatePath('/finanzas/cierre-mes')
+}
+
 /**
  * Sugiere el movimiento de una cuenta INVENTARIO de una marca específica para el mes:
  * movimiento = SUM(compras.monto_total WHERE negocio=marca, mes) − datos_ventas_gn.cmv
