@@ -163,14 +163,19 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
     const ccMap = new Map((ccRows ?? []).map((r) => [r.nombre, r.tipo as string]))
     const esFacturable = (nombre: string) => ccMap.get((nombre || '').trim()) === 'areben'
 
+    // Comisiones: % configurable por medio de pago (GN no las expone).
+    const { data: comRows } = await supabase.from('comision_medio_pago').select('medio, porcentaje')
+    const comMap = new Map((comRows ?? []).map((r) => [r.medio, Number(r.porcentaje)]))
+    const pctComision = (medio: string) => (comMap.get((medio || '').trim()) ?? 0) / 100
+
     // Desglose estilo P&L de GN, por marca: bruto (con IVA), IVA débito (solo blanco),
     // envíos, descuentos, CMV, y el split blanco/negro de las ventas netas.
-    type Agg = { brutas: number; iva: number; envios: number; descuentos: number; cmv: number; cantidad: number; netasBlanco: number; netasNegro: number }
+    type Agg = { brutas: number; iva: number; envios: number; descuentos: number; cmv: number; comisiones: number; cantidad: number; netasBlanco: number; netasNegro: number }
     const acc = new Map<string, Agg>()
     const add = (m: string, p: Partial<Agg>) => {
-      const a = acc.get(m) ?? { brutas: 0, iva: 0, envios: 0, descuentos: 0, cmv: 0, cantidad: 0, netasBlanco: 0, netasNegro: 0 }
+      const a = acc.get(m) ?? { brutas: 0, iva: 0, envios: 0, descuentos: 0, cmv: 0, comisiones: 0, cantidad: 0, netasBlanco: 0, netasNegro: 0 }
       a.brutas += p.brutas ?? 0; a.iva += p.iva ?? 0; a.envios += p.envios ?? 0; a.descuentos += p.descuentos ?? 0
-      a.cmv += p.cmv ?? 0; a.cantidad += p.cantidad ?? 0; a.netasBlanco += p.netasBlanco ?? 0; a.netasNegro += p.netasNegro ?? 0
+      a.cmv += p.cmv ?? 0; a.comisiones += p.comisiones ?? 0; a.cantidad += p.cantidad ?? 0; a.netasBlanco += p.netasBlanco ?? 0; a.netasNegro += p.netasNegro ?? 0
       acc.set(m, a)
     }
 
@@ -199,6 +204,8 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
         const discount = Number(v.discount) || 0
         const shipping = Number(v.shipping_cost) || 0
         const cost = Number(v.total_cost) || 0
+        // Comisión de la venta = % del medio de pago sobre el total cobrado (con IVA).
+        const comVenta = (pesoTotal - discount + shipping) * pctComision(v.payment_method)
 
         for (const [m, pm] of peso) {
           const frac = pm / pesoTotal
@@ -212,6 +219,7 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
             envios: env,
             descuentos: desc,
             cmv: cost * frac,
+            comisiones: comVenta * frac,
             cantidad: qty.get(m) ?? 0,
             netasBlanco: facturable ? neta : 0,
             netasNegro: facturable ? 0 : neta,
@@ -245,7 +253,7 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
         margen_pesos,
         margen_porcentaje: netas > 0 ? round2((margen_pesos / netas) * 100) : 0,
         cantidad_vendida: Math.round(a.cantidad),
-        comisiones: 0,
+        comisiones: round2(a.comisiones),
         fecha_sincronizacion: new Date().toISOString(),
         sincronizado_por: user?.email ?? 'gn-sync',
       }

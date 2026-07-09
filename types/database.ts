@@ -786,9 +786,18 @@ export interface DatosVentasGN {
   margen_porcentaje: number
   cantidad_vendida: number
   comisiones: number
+  comisiones_override: number | null
   fecha_sincronizacion: string
   sincronizado_por: string
   created_at: string
+}
+
+export interface ComisionMedioPago {
+  id: string
+  medio: string
+  porcentaje: number
+  activo: boolean
+  updated_at: string
 }
 
 export interface EstadoSectorMes {
