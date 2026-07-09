@@ -8,8 +8,8 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { MarcaBadge } from '@/components/ui/badge'
-import { formatCurrency, formatMonth, getMonthOptions } from '@/lib/utils'
-import { Plus, RefreshCw, TrendingUp, Loader2 } from 'lucide-react'
+import { formatCurrency, formatMonth, getMonthOptions, cn } from '@/lib/utils'
+import { Plus, Loader2 } from 'lucide-react'
 
 const MARCAS: Marca[] = ['BDI', 'ZATTIA', 'STUNNED']
 
@@ -62,10 +62,88 @@ function VentaForm({ mes, onClose }: { mes: string; onClose: () => void }) {
   )
 }
 
+// Una columna del cuadro (una marca o el total), con la cascada estilo P&L de GN.
+interface Col {
+  label: string
+  brutas: number
+  iva: number
+  netoIva: number
+  envios: number
+  descuentos: number
+  netas: number
+  blanco: number
+  negro: number
+  cmv: number
+  margen: number
+  margenPct: number
+  cantidad: number
+  vacia: boolean
+}
+
+function colDesde(label: string, v: DatosVentasGN | undefined): Col {
+  const brutas = v?.ventas_brutas ?? 0
+  const iva = v?.iva_debito ?? 0
+  const envios = v?.envios ?? 0
+  const descuentos = v?.descuentos ?? 0
+  const netas = v?.ventas_netas ?? 0
+  const cmv = v?.cmv ?? 0
+  return {
+    label,
+    brutas, iva, netoIva: brutas - iva, envios, descuentos, netas,
+    blanco: v?.ventas_netas_blanco ?? 0,
+    negro: v?.ventas_netas_negro ?? 0,
+    cmv, margen: netas - cmv,
+    margenPct: netas > 0 ? ((netas - cmv) / netas) * 100 : 0,
+    cantidad: v?.cantidad_vendida ?? 0,
+    vacia: !v,
+  }
+}
+
 export function VentasClient({ ventas, mes }: { ventas: DatosVentasGN[]; mes: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [modalOpen, setModalOpen] = useState(false)
+
+  const cols = MARCAS.map((m) => colDesde(m, ventas.find((x) => x.marca === m)))
+  const sum = (f: (c: Col) => number) => cols.reduce((s, c) => s + f(c), 0)
+  const total: Col = {
+    label: 'TOTAL',
+    brutas: sum((c) => c.brutas), iva: sum((c) => c.iva), netoIva: sum((c) => c.netoIva),
+    envios: sum((c) => c.envios), descuentos: sum((c) => c.descuentos), netas: sum((c) => c.netas),
+    blanco: sum((c) => c.blanco), negro: sum((c) => c.negro), cmv: sum((c) => c.cmv),
+    margen: sum((c) => c.margen), margenPct: sum((c) => c.netas) > 0 ? (sum((c) => c.margen) / sum((c) => c.netas)) * 100 : 0,
+    cantidad: sum((c) => c.cantidad), vacia: ventas.length === 0,
+  }
+  const allCols = [...cols, total]
+
+  // Una fila de la cascada: etiqueta + valor por columna, con estilos.
+  // Función plana (no componente) para evitar react-hooks/static-components.
+  type RowCfg = {
+    label: string
+    get: (c: Col) => number
+    tone?: 'muted' | 'fg' | 'red' | 'green' | 'amber'
+    bold?: boolean
+    indent?: boolean
+    sub?: boolean   // fila subtotal (línea arriba)
+    pct?: boolean
+    int?: boolean
+    signo?: '+' | '−'
+  }
+  const row = ({ label, get, tone = 'muted', bold, indent, sub, pct, int, signo }: RowCfg) => {
+    const toneCls = { muted: 'text-fg-muted', fg: 'text-fg', red: 'text-red-700', green: 'text-green-700', amber: 'text-amber-700' }[tone]
+    return (
+      <tr key={label} className={cn('border-b border-border/50', sub && 'border-t border-border-strong/60 bg-surface-2/30', bold && 'bg-surface-2/40')}>
+        <td className={cn('px-4 py-2 text-sm', indent ? 'pl-8 text-fg-soft' : 'text-fg-muted', bold && 'font-semibold text-fg')}>
+          {signo && <span className="text-fg-soft mr-1">{signo}</span>}{label}
+        </td>
+        {allCols.map((c) => (
+          <td key={c.label} className={cn('px-4 py-2 text-right font-mono', bold ? 'font-semibold' : '', pct ? 'text-fg-muted' : toneCls, c.vacia && 'text-fg-soft')}>
+            {c.vacia ? '—' : pct ? `${get(c).toFixed(1)}%` : int ? get(c).toLocaleString('es-AR') : (signo === '−' ? '-' : '') + formatCurrency(get(c)).replace('-', '')}
+          </td>
+        ))}
+      </tr>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -92,51 +170,35 @@ export function VentasClient({ ventas, mes }: { ventas: DatosVentasGN[]; mes: st
       <div className="bg-surface border border-border rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border">
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Marca</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Ventas brutas</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Dev.</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Ventas netas</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">CMV</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Margen</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Margen %</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Unidades</th>
+            <tr className="border-b border-border-strong">
+              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Concepto</th>
+              {cols.map((c) => (
+                <th key={c.label} className="px-4 py-3"><div className="flex justify-end"><MarcaBadge marca={c.label as Marca} /></div></th>
+              ))}
+              <th className="text-right px-4 py-3 text-xs font-semibold text-fg-muted uppercase">Total</th>
             </tr>
           </thead>
           <tbody>
-            {MARCAS.map((marca) => {
-              const v = ventas.find((x) => x.marca === marca)
-              return (
-                <tr key={marca} className="border-b border-border/60 hover:bg-surface-2/30">
-                  <td className="px-4 py-3"><MarcaBadge marca={marca} /></td>
-                  <td className="px-4 py-3 text-right font-mono text-fg-muted">{v ? formatCurrency(v.ventas_brutas) : '—'}</td>
-                  <td className="px-4 py-3 text-right font-mono text-red-700">{v ? formatCurrency(v.devoluciones) : '—'}</td>
-                  <td className="px-4 py-3 text-right font-mono text-fg">{v ? formatCurrency(v.ventas_netas) : '—'}</td>
-                  <td className="px-4 py-3 text-right font-mono text-red-700">{v ? formatCurrency(v.cmv) : '—'}</td>
-                  <td className={`px-4 py-3 text-right font-mono font-medium ${v ? (v.margen_pesos >= 0 ? 'text-green-700' : 'text-red-700') : 'text-fg-soft'}`}>
-                    {v ? formatCurrency(v.margen_pesos) : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-right text-fg-muted">
-                    {v ? `${Number(v.margen_porcentaje).toFixed(1)}%` : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-right text-fg-muted">{v ? v.cantidad_vendida : '—'}</td>
-                </tr>
-              )
-            })}
+            {row({ label: 'Ventas (con IVA)', get: (c) => c.brutas, tone: 'fg' })}
+            {row({ label: 'IVA débito fiscal (blanco)', get: (c) => c.iva, tone: 'red', signo: '−' })}
+            {row({ label: 'Ventas (neto de IVA)', get: (c) => c.netoIva, sub: true })}
+            {row({ label: 'Envíos', get: (c) => c.envios, tone: 'green', signo: '+' })}
+            {row({ label: 'Descuentos', get: (c) => c.descuentos, tone: 'red', signo: '−' })}
+            {row({ label: 'Ingresos variables (ventas netas)', get: (c) => c.netas, bold: true, sub: true })}
+            {row({ label: 'En blanco (facturado)', get: (c) => c.blanco, indent: true, tone: 'green' })}
+            {row({ label: 'En negro (efectivo/propias)', get: (c) => c.negro, indent: true, tone: 'amber' })}
+            {row({ label: 'CMV (costo del producto)', get: (c) => c.cmv, tone: 'red', signo: '−' })}
+            {row({ label: 'Margen de contribución', get: (c) => c.margen, bold: true, sub: true, tone: 'green' })}
+            {row({ label: 'Margen %', get: (c) => c.margenPct, pct: true })}
+            {row({ label: 'Unidades', get: (c) => c.cantidad, int: true })}
           </tbody>
-          <tfoot>
-            <tr className="border-t border-border-strong bg-surface-2/50">
-              <td className="px-4 py-3 font-semibold text-fg-muted">TOTAL</td>
-              <td className="px-4 py-3 text-right font-mono font-semibold text-fg-muted">{formatCurrency(ventas.reduce((s, v) => s + v.ventas_brutas, 0))}</td>
-              <td className="px-4 py-3 text-right font-mono text-red-700">{formatCurrency(ventas.reduce((s, v) => s + v.devoluciones, 0))}</td>
-              <td className="px-4 py-3 text-right font-mono font-semibold text-fg-muted">{formatCurrency(ventas.reduce((s, v) => s + v.ventas_netas, 0))}</td>
-              <td className="px-4 py-3 text-right font-mono text-red-700">{formatCurrency(ventas.reduce((s, v) => s + v.cmv, 0))}</td>
-              <td className="px-4 py-3 text-right font-mono font-semibold text-green-700">{formatCurrency(ventas.reduce((s, v) => s + v.margen_pesos, 0))}</td>
-              <td colSpan={2} />
-            </tr>
-          </tfoot>
         </table>
       </div>
+
+      <p className="text-xs text-fg-soft">
+        En blanco = ventas cobradas en cuentas de Areben (se facturan, pagan IVA). En negro = efectivo/cuentas propias (sin IVA).
+        El IVA se descuenta solo de las de blanco. Comisiones y gastos operativos se restan en el resultado del mes.
+      </p>
 
       <Modal open={modalOpen} onOpenChange={setModalOpen} title="Cargar datos de ventas" description="Ingresá los datos de Gestión Nube manualmente">
         <VentaForm mes={mes} onClose={() => setModalOpen(false)} />

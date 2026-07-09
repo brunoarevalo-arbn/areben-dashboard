@@ -776,6 +776,11 @@ export interface DatosVentasGN {
   ventas_brutas: number
   devoluciones: number
   ventas_netas: number
+  iva_debito: number
+  envios: number
+  descuentos: number
+  ventas_netas_blanco: number
+  ventas_netas_negro: number
   cmv: number
   margen_pesos: number
   margen_porcentaje: number

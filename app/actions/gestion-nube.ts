@@ -163,11 +163,14 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
     const ccMap = new Map((ccRows ?? []).map((r) => [r.nombre, r.tipo as string]))
     const esFacturable = (nombre: string) => ccMap.get((nombre || '').trim()) === 'areben'
 
-    type Agg = { brutas: number; netas: number; cmv: number; cantidad: number }
+    // Desglose estilo P&L de GN, por marca: bruto (con IVA), IVA débito (solo blanco),
+    // envíos, descuentos, CMV, y el split blanco/negro de las ventas netas.
+    type Agg = { brutas: number; iva: number; envios: number; descuentos: number; cmv: number; cantidad: number; netasBlanco: number; netasNegro: number }
     const acc = new Map<string, Agg>()
-    const add = (m: string, brutas: number, netas: number, cmv: number, cantidad: number) => {
-      const a = acc.get(m) ?? { brutas: 0, netas: 0, cmv: 0, cantidad: 0 }
-      a.brutas += brutas; a.netas += netas; a.cmv += cmv; a.cantidad += cantidad
+    const add = (m: string, p: Partial<Agg>) => {
+      const a = acc.get(m) ?? { brutas: 0, iva: 0, envios: 0, descuentos: 0, cmv: 0, cantidad: 0, netasBlanco: 0, netasNegro: 0 }
+      a.brutas += p.brutas ?? 0; a.iva += p.iva ?? 0; a.envios += p.envios ?? 0; a.descuentos += p.descuentos ?? 0
+      a.cmv += p.cmv ?? 0; a.cantidad += p.cantidad ?? 0; a.netasBlanco += p.netasBlanco ?? 0; a.netasNegro += p.netasNegro ?? 0
       acc.set(m, a)
     }
 
@@ -189,14 +192,30 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
         }
         const pesoTotal = [...peso.values()].reduce((s, x) => s + x, 0) || 1
 
-        // Ingreso con IVA de la venta = Σ line.total − descuentos + envíos.
-        // Neto: si la cuenta de cobro es Areben → se factura → se saca el IVA (÷1,21); si no, entero.
-        const ingresoConIva = pesoTotal - (Number(v.discount) || 0) + (Number(v.shipping_cost) || 0)
-        const netoVenta = esFacturable(v.account_display) ? ingresoConIva / 1.21 : ingresoConIva
+        // La venta es blanco (Areben → se factura, lleva IVA) o negro (efectivo/propias → entera).
+        // IVA débito = 21% del bruto (÷1,21) solo si es facturable; envíos/descuentos se prorratean
+        // por marca. Ventas netas = bruto − IVA + envíos − descuentos.
+        const facturable = esFacturable(v.account_display)
+        const discount = Number(v.discount) || 0
+        const shipping = Number(v.shipping_cost) || 0
+        const cost = Number(v.total_cost) || 0
 
         for (const [m, pm] of peso) {
           const frac = pm / pesoTotal
-          add(m, pm, netoVenta * frac, (Number(v.total_cost) || 0) * frac, qty.get(m) ?? 0)
+          const iva = facturable ? (pm * 0.21) / 1.21 : 0
+          const env = shipping * frac
+          const desc = discount * frac
+          const neta = pm - iva + env - desc
+          add(m, {
+            brutas: pm,
+            iva,
+            envios: env,
+            descuentos: desc,
+            cmv: cost * frac,
+            cantidad: qty.get(m) ?? 0,
+            netasBlanco: facturable ? neta : 0,
+            netasNegro: facturable ? 0 : neta,
+          })
         }
       }
       if (!hayMas) break
@@ -208,7 +227,7 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
 
     const { data: { user } } = await supabase.auth.getUser()
     const filas = [...acc.entries()].map(([marca, a]) => {
-      const netas = round2(a.netas)
+      const netas = round2(a.netasBlanco + a.netasNegro)
       const cmv = round2(a.cmv)
       const margen_pesos = round2(netas - cmv)
       return {
@@ -217,6 +236,11 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
         ventas_brutas: round2(a.brutas),
         devoluciones: 0,
         ventas_netas: netas,
+        iva_debito: round2(a.iva),
+        envios: round2(a.envios),
+        descuentos: round2(a.descuentos),
+        ventas_netas_blanco: round2(a.netasBlanco),
+        ventas_netas_negro: round2(a.netasNegro),
         cmv,
         margen_pesos,
         margen_porcentaje: netas > 0 ? round2((margen_pesos / netas) * 100) : 0,
