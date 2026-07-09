@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { upsertDatosGN } from '@/app/actions/compras'
-import { setComisionOverride } from '@/app/actions/comisiones'
+import { setComisionOverride, setCostoEnviosOverride } from '@/app/actions/comisiones'
 import type { DatosVentasGN, Marca } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
@@ -78,7 +78,10 @@ interface Col {
   comEst: number        // comisión estimada (por % de medio de pago)
   comEf: number         // comisión efectiva = override ?? estimada
   esOverride: boolean
-  margen: number        // = netas − cmv − comEf
+  costoEnvEst: number    // costo de envío estimado (= envío cobrado, pass-through)
+  costoEnvEf: number     // costo de envío efectivo = override ?? estimado
+  esOverrideEnv: boolean
+  margen: number        // = netas − cmv − comEf − costoEnvEf
   margenPct: number
   cantidad: number
   vacia: boolean
@@ -93,13 +96,16 @@ function colDesde(marca: string, v: DatosVentasGN | undefined): Col {
   const cmv = v?.cmv ?? 0
   const comEst = v?.comisiones ?? 0
   const comEf = v?.comisiones_override ?? comEst
-  const margen = netas - cmv - comEf
+  const costoEnvEst = envios
+  const costoEnvEf = v?.costo_envios_override ?? costoEnvEst
+  const margen = netas - cmv - comEf - costoEnvEf
   return {
     marca,
     brutas, iva, netoIva: brutas - iva, envios, descuentos, netas,
     blanco: v?.ventas_netas_blanco ?? 0,
     negro: v?.ventas_netas_negro ?? 0,
     cmv, comEst, comEf, esOverride: v?.comisiones_override != null,
+    costoEnvEst, costoEnvEf, esOverrideEnv: v?.costo_envios_override != null,
     margen, margenPct: netas > 0 ? (margen / netas) * 100 : 0,
     cantidad: v?.cantidad_vendida ?? 0,
     vacia: !v,
@@ -119,20 +125,21 @@ export function VentasClient({ ventas, mes }: { ventas: DatosVentasGN[]; mes: st
     envios: sum((c) => c.envios), descuentos: sum((c) => c.descuentos), netas: sum((c) => c.netas),
     blanco: sum((c) => c.blanco), negro: sum((c) => c.negro), cmv: sum((c) => c.cmv),
     comEst: sum((c) => c.comEst), comEf: sum((c) => c.comEf), esOverride: cols.some((c) => c.esOverride),
+    costoEnvEst: sum((c) => c.costoEnvEst), costoEnvEf: sum((c) => c.costoEnvEf), esOverrideEnv: cols.some((c) => c.esOverrideEnv),
     margen: sum((c) => c.margen), margenPct: sum((c) => c.netas) > 0 ? (sum((c) => c.margen) / sum((c) => c.netas)) * 100 : 0,
     cantidad: sum((c) => c.cantidad), vacia: ventas.length === 0,
   }
   const allCols = [...cols, total]
 
-  // Override manual de comisiones por marca (pisa el estimado). Vacío = usar estimado.
-  const [savingCom, startCom] = useTransition()
-  const commitComision = (c: Col, raw: string) => {
-    const inicial = c.esOverride ? String(c.comEf) : ''
+  // Override manual por marca (pisa el estimado). Vacío = usar estimado.
+  const [saving, startSave] = useTransition()
+  const commitOverride = (c: Col, raw: string, actual: number, esOv: boolean, fn: (m: string, marca: Marca, v: number | null) => Promise<string | null>) => {
+    const inicial = esOv ? String(Math.round(actual)) : ''
     if (raw.trim() === inicial.trim()) return
     const val = raw.trim() === '' ? null : Number(raw)
     if (val !== null && !Number.isFinite(val)) return
-    startCom(async () => {
-      const err = await setComisionOverride(mes, c.marca as Marca, val)
+    startSave(async () => {
+      const err = await fn(mes, c.marca as Marca, val)
       if (err) alert(err)
       else router.refresh()
     })
@@ -166,6 +173,46 @@ export function VentasClient({ ventas, mes }: { ventas: DatosVentasGN[]; mes: st
       </tr>
     )
   }
+
+  // Fila de costo variable editable (override manual sobre un estimado). Función plana.
+  const overrideRow = ({ label, est, ef, esOv, fn }: {
+    label: string
+    est: (c: Col) => number
+    ef: (c: Col) => number
+    esOv: (c: Col) => boolean
+    fn: (m: string, marca: Marca, v: number | null) => Promise<string | null>
+  }) => (
+    <tr key={label} className="border-b border-border/50">
+      <td className="px-4 py-2 text-sm text-fg-muted"><span className="text-fg-soft mr-1">−</span>{label}</td>
+      {cols.map((c) => (
+        <td key={c.marca} className="px-3 py-1.5 text-right">
+          {c.vacia ? (
+            <span className="font-mono text-fg-soft">—</span>
+          ) : (
+            <input
+              key={`${mes}-${c.marca}`}
+              type="number"
+              step="1"
+              inputMode="decimal"
+              defaultValue={esOv(c) ? String(Math.round(ef(c))) : ''}
+              placeholder={Math.round(est(c)).toLocaleString('es-AR')}
+              disabled={saving}
+              onBlur={(e) => commitOverride(c, e.target.value, ef(c), esOv(c), fn)}
+              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+              title={esOv(c) ? 'Override manual — vaciar para volver al estimado' : `Estimado ${formatCurrency(est(c))} — escribí el real para pisarlo`}
+              className={cn(
+                'w-28 text-right px-2 py-1 rounded border font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60',
+                esOv(c) ? 'border-amber-500/50 bg-amber-500/5 text-amber-700' : 'border-border-strong bg-surface-2 text-red-700',
+              )}
+            />
+          )}
+        </td>
+      ))}
+      <td className="px-4 py-2 text-right font-mono text-red-700">
+        {total.vacia ? '—' : '-' + formatCurrency(ef(total)).replace('-', '')}
+      </td>
+    </tr>
+  )
 
   return (
     <div className="space-y-6">
@@ -210,39 +257,8 @@ export function VentasClient({ ventas, mes }: { ventas: DatosVentasGN[]; mes: st
             {row({ label: 'En blanco (facturado)', get: (c) => c.blanco, indent: true, tone: 'green' })}
             {row({ label: 'En negro (efectivo/propias)', get: (c) => c.negro, indent: true, tone: 'amber' })}
             {row({ label: 'CMV (costo del producto)', get: (c) => c.cmv, tone: 'red', signo: '−' })}
-            {/* Comisiones — editable por marca (override manual sobre el estimado) */}
-            <tr className="border-b border-border/50">
-              <td className="px-4 py-2 text-sm text-fg-muted">
-                <span className="text-fg-soft mr-1">−</span>Comisiones (costos comerciales)
-              </td>
-              {cols.map((c) => (
-                <td key={c.marca} className="px-3 py-1.5 text-right">
-                  {c.vacia ? (
-                    <span className="font-mono text-fg-soft">—</span>
-                  ) : (
-                    <input
-                      key={`${mes}-${c.marca}`}
-                      type="number"
-                      step="1"
-                      inputMode="decimal"
-                      defaultValue={c.esOverride ? String(Math.round(c.comEf)) : ''}
-                      placeholder={Math.round(c.comEst).toLocaleString('es-AR')}
-                      disabled={savingCom}
-                      onBlur={(e) => commitComision(c, e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-                      title={c.esOverride ? 'Override manual — vaciar para volver al estimado' : `Estimado ${formatCurrency(c.comEst)} — escribí el real para pisarlo`}
-                      className={cn(
-                        'w-28 text-right px-2 py-1 rounded border font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60',
-                        c.esOverride ? 'border-amber-500/50 bg-amber-500/5 text-amber-700' : 'border-border-strong bg-surface-2 text-red-700',
-                      )}
-                    />
-                  )}
-                </td>
-              ))}
-              <td className="px-4 py-2 text-right font-mono text-red-700">
-                {total.vacia ? '—' : '-' + formatCurrency(total.comEf).replace('-', '')}
-              </td>
-            </tr>
+            {overrideRow({ label: 'Comisiones (costos comerciales)', est: (c) => c.comEst, ef: (c) => c.comEf, esOv: (c) => c.esOverride, fn: setComisionOverride })}
+            {overrideRow({ label: 'Costo de envíos', est: (c) => c.costoEnvEst, ef: (c) => c.costoEnvEf, esOv: (c) => c.esOverrideEnv, fn: setCostoEnviosOverride })}
             {row({ label: 'Margen de contribución', get: (c) => c.margen, bold: true, sub: true, tone: 'green' })}
             {row({ label: 'Margen %', get: (c) => c.margenPct, pct: true })}
             {row({ label: 'Unidades', get: (c) => c.cantidad, int: true })}
@@ -252,9 +268,10 @@ export function VentasClient({ ventas, mes }: { ventas: DatosVentasGN[]; mes: st
 
       <p className="text-xs text-fg-soft">
         <b>Blanco</b> = ventas cobradas en cuentas de Areben (se facturan, pagan IVA); <b>negro</b> = efectivo/cuentas propias (sin IVA).
-        El IVA se descuenta solo del blanco. <b>Comisiones</b>: se estiman con el % por medio de pago (Configuración → Comisiones);
-        podés pisar el número real por marca escribiéndolo en la fila (queda en ámbar). El <b>margen de contribución</b> ya resta
-        CMV y comisiones; los gastos operativos se restan después, en el resultado del mes.
+        El IVA se descuenta solo del blanco. <b>Comisiones</b>: se estiman con el % por medio de pago (Configuración → Comisiones).
+        <b>Costo de envíos</b>: por defecto = envío cobrado (queda neteado, no infla el margen). En ambas filas podés pisar el
+        número real por marca escribiéndolo (queda en ámbar). El <b>margen de contribución</b> ya resta CMV, comisiones y envíos;
+        los gastos operativos se restan después, en el resultado del mes.
       </p>
 
       <Modal open={modalOpen} onOpenChange={setModalOpen} title="Cargar datos de ventas" description="Ingresá los datos de Gestión Nube manualmente">

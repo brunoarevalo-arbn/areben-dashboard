@@ -787,6 +787,7 @@ export interface DatosVentasGN {
   cantidad_vendida: number
   comisiones: number
   comisiones_override: number | null
+  costo_envios_override: number | null
   fecha_sincronizacion: string
   sincronizado_por: string
   created_at: string

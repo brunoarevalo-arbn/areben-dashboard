@@ -39,6 +39,23 @@ export async function setComisionOverride(mes: string, marca: Marca, monto: numb
 }
 
 /**
+ * Override manual del costo de envíos de un mes/marca (costo real del correo).
+ * null = usar el default (= envíos cobrados, neto 0). El sync no toca este campo.
+ */
+export async function setCostoEnviosOverride(mes: string, marca: Marca, monto: number | null): Promise<string | null> {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('datos_ventas_gn')
+    .update({ costo_envios_override: monto })
+    .eq('mes', mes)
+    .eq('marca', marca)
+  if (error) return error.message
+  revalidatePath('/analisis/ventas')
+  return null
+}
+
+/**
  * Detecta medios de pago (payment_method) nuevos mirando las ventas de GN de los
  * últimos ~3 meses (todas las cuentas). Inserta solo los que faltan, con 0% por
  * defecto (el usuario carga el %). No pisa los ya configurados.
