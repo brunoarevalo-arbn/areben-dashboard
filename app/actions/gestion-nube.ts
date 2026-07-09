@@ -1,0 +1,217 @@
+'use server'
+
+import { createClient, requireUser } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
+import type { CuentaGN } from '@/types/database'
+import {
+  tokenParaCuenta,
+  buscarProductos,
+  paginaInventario,
+  paginaVentas,
+  GestionNubeError,
+} from '@/lib/gestion-nube/client'
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const MAX_PAGINAS = 200 // backstop anti loop; si se corta, se avisa
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+async function getCuenta(alias: string): Promise<CuentaGN | null> {
+  const supabase = await createClient()
+  const { data } = await supabase.from('cuentas_gn').select('*').eq('alias', alias).maybeSingle()
+  return (data as CuentaGN) ?? null
+}
+
+/**
+ * ¿La cuenta necesita separar STUNNED? (cubre varias marcas, una de ellas STUNNED).
+ * Devuelve { marcaBase, stunnedIds } — marcaBase = la marca por defecto (ej. ZATTIA);
+ * stunnedIds = product_id cuyo provider es STUNNED (vía /productos/obtener?q=stunned).
+ */
+async function resolverMarcas(cuenta: CuentaGN, token: string) {
+  const marcaBase = cuenta.marcas.find((m) => m.toUpperCase() !== 'STUNNED') ?? cuenta.marcas[0]
+  const tieneStunned = cuenta.marcas.length > 1 && cuenta.marcas.some((m) => m.toUpperCase() === 'STUNNED')
+  const stunnedIds = new Set<number>()
+  if (tieneStunned) {
+    for (let page = 1; page <= 20; page++) {
+      const { data, hayMas } = await buscarProductos(token, 'stunned', page)
+      for (const p of data) if ((p.provider || '').toLowerCase().includes('stunned')) stunnedIds.add(p.id)
+      if (!hayMas) break
+      await sleep(700)
+    }
+  }
+  const marcaDe = (productId: number) => (stunnedIds.has(productId) ? 'STUNNED' : marcaBase)
+  return { marcaBase, marcaDe }
+}
+
+/** Verifica que el token de la cuenta funcione (una llamada liviana) y actualiza estado. */
+export async function probarCuentaGN(alias: string): Promise<string | null> {
+  await requireUser()
+  const cuenta = await getCuenta(alias)
+  if (!cuenta) return 'Cuenta GN desconocida'
+
+  const supabase = await createClient()
+  try {
+    const token = tokenParaCuenta(alias)
+    await paginaInventario(token, 1) // si el token es inválido, tira 401/403
+    await supabase
+      .from('cuentas_gn')
+      .update({ estado: 'OK', fecha_ultimo_test: new Date().toISOString() })
+      .eq('id', cuenta.id)
+    return null
+  } catch (e) {
+    const msg = e instanceof GestionNubeError ? e.message : (e as Error).message
+    await supabase
+      .from('cuentas_gn')
+      .update({ estado: 'ERROR', fecha_ultimo_test: new Date().toISOString(), notas: msg })
+      .eq('id', cuenta.id)
+    return msg
+  }
+}
+
+/**
+ * Sincroniza el STOCK REAL de una cuenta GN hacia existencias_marca (por marca/mes).
+ * Suma available_quantity de inventario/obtener, clasificando cada producto a su marca
+ * (STUNNED por provider dentro de la cuenta ZATTIA). NO toca el saldo contable de inventario.
+ */
+export async function sincronizarStockGN(alias: string, mes: string): Promise<string | null> {
+  await requireUser()
+  if (!/^\d{4}-\d{2}$/.test(mes)) return 'Mes inválido'
+
+  const cuenta = await getCuenta(alias)
+  if (!cuenta) return 'Cuenta GN desconocida'
+  if (!cuenta.marcas?.length) return 'La cuenta no tiene marcas configuradas'
+
+  try {
+    const token = tokenParaCuenta(alias)
+    const { marcaDe } = await resolverMarcas(cuenta, token)
+
+    const unidades = new Map<string, number>()
+    for (let page = 1; page <= MAX_PAGINAS; page++) {
+      const { data, hayMas } = await paginaInventario(token, page)
+      for (const row of data) {
+        const marca = row.product_id != null ? marcaDe(row.product_id) : cuenta.marcas[0]
+        unidades.set(marca, (unidades.get(marca) ?? 0) + (Number(row.available_quantity) || 0))
+      }
+      if (!hayMas) break
+      if (page === MAX_PAGINAS) console.warn(`[GN] inventario truncado en ${MAX_PAGINAS} páginas`)
+      await sleep(700)
+    }
+
+    const supabase = await createClient()
+    const filas = [...unidades.entries()].map(([marca, u]) => ({
+      mes,
+      marca,
+      unidades: Math.round(u),
+      cuenta_gn_id: cuenta.id,
+      fecha_sincronizacion: new Date().toISOString(),
+    }))
+    if (!filas.length) return 'No se encontró inventario'
+    const { error } = await supabase.from('existencias_marca').upsert(filas, { onConflict: 'mes,marca' })
+    if (error) return error.message
+
+    revalidatePath('/')
+    return null
+  } catch (e) {
+    return e instanceof GestionNubeError ? e.message : (e as Error).message
+  }
+}
+
+/**
+ * Sincroniza VENTAS/CMV de una cuenta GN hacia datos_ventas_gn (por marca/mes).
+ * Toma cada venta del mes (activa, no archivada, no presupuesto — los cambios entran
+ * como ventas aparte con su signo y se netean solos), y aprovecha que las líneas traen
+ * revenue por línea para PARTIR la venta por marca (STUNNED vs ZATTIA) proporcional al
+ * peso de cada marca en la venta. Usa los totales autoritativos de GN (net_price,
+ * total_price, total_cost) apportionados por ese peso.
+ *
+ * devoluciones=0 (muy pocas; los cambios ya se netean). comisiones=0 por ahora:
+ * viven a nivel "cuenta de cobro", que requiere el endpoint accounts (no implementado aún).
+ */
+export async function sincronizarVentasGN(alias: string, mes: string): Promise<string | null> {
+  await requireUser()
+  if (!/^\d{4}-\d{2}$/.test(mes)) return 'Mes inválido'
+
+  const cuenta = await getCuenta(alias)
+  if (!cuenta) return 'Cuenta GN desconocida'
+  if (!cuenta.marcas?.length) return 'La cuenta no tiene marcas configuradas'
+
+  try {
+    const token = tokenParaCuenta(alias)
+    const { marcaDe } = await resolverMarcas(cuenta, token)
+    const desde = `${mes}-01`
+
+    type Agg = { brutas: number; netas: number; cmv: number; cantidad: number }
+    const acc = new Map<string, Agg>()
+    const add = (m: string, brutas: number, netas: number, cmv: number, cantidad: number) => {
+      const a = acc.get(m) ?? { brutas: 0, netas: 0, cmv: 0, cantidad: 0 }
+      a.brutas += brutas; a.netas += netas; a.cmv += cmv; a.cantidad += cantidad
+      acc.set(m, a)
+    }
+
+    for (let page = 1; page <= MAX_PAGINAS; page++) {
+      const { data, hayMas } = await paginaVentas(token, desde, page)
+      for (const v of data) {
+        if (!(v.date_sale || '').startsWith(mes)) continue
+        if (!v.active || v.archived || v.budget) continue
+        const lineas = v.items ?? v.detalles ?? []
+        if (!lineas.length) continue
+
+        // Bruto con IVA por marca = Σ subtotal de líneas de esa marca; cantidad por marca.
+        // El IVA, descuentos, envíos y CMV son a nivel venta → se apportionan por ese peso.
+        const bruto = new Map<string, number>()
+        const qty = new Map<string, number>()
+        for (const l of lineas) {
+          const m = marcaDe(l.product_id)
+          bruto.set(m, (bruto.get(m) ?? 0) + (Number(l.subtotal) || 0))
+          qty.set(m, (qty.get(m) ?? 0) + (Number(l.quantity) || 0))
+        }
+        const brutoTotal = [...bruto.values()].reduce((s, x) => s + x, 0) || 1
+        for (const [m, brutoM] of bruto) {
+          const frac = brutoM / brutoTotal
+          const iva = (Number(v.vat_amount) || 0) * frac
+          const desc = (Number(v.discount) || 0) * frac
+          const envio = (Number(v.shipping_cost) || 0) * frac
+          const cmv = (Number(v.total_cost) || 0) * frac
+          // ventas_netas = "Ingresos Variables": neto de IVA − descuentos + envíos
+          const netas = brutoM - iva - desc + envio
+          add(m, brutoM, netas, cmv, qty.get(m) ?? 0)
+        }
+      }
+      if (!hayMas) break
+      if (page === MAX_PAGINAS) console.warn(`[GN] ventas truncadas en ${MAX_PAGINAS} páginas`)
+      await sleep(700)
+    }
+
+    if (!acc.size) return 'No se encontraron ventas para ese mes'
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const filas = [...acc.entries()].map(([marca, a]) => {
+      const netas = round2(a.netas)
+      const cmv = round2(a.cmv)
+      const margen_pesos = round2(netas - cmv)
+      return {
+        mes,
+        marca,
+        ventas_brutas: round2(a.brutas),
+        devoluciones: 0,
+        ventas_netas: netas,
+        cmv,
+        margen_pesos,
+        margen_porcentaje: netas > 0 ? round2((margen_pesos / netas) * 100) : 0,
+        cantidad_vendida: Math.round(a.cantidad),
+        comisiones: 0,
+        fecha_sincronizacion: new Date().toISOString(),
+        sincronizado_por: user?.email ?? 'gn-sync',
+      }
+    })
+    const { error } = await supabase.from('datos_ventas_gn').upsert(filas, { onConflict: 'mes,marca' })
+    if (error) return error.message
+
+    revalidatePath('/analisis/ventas')
+    revalidatePath('/analisis/pl-marca')
+    revalidatePath('/')
+    return null
+  } catch (e) {
+    return e instanceof GestionNubeError ? e.message : (e as Error).message
+  }
+}
