@@ -786,6 +786,43 @@ export interface DatosVentasGN {
   created_at: string
 }
 
+export interface EstadoSectorMes {
+  id: string
+  mes: string
+  sector: string
+  listo: boolean
+  marcado_por: string | null
+  marcado_at: string | null
+  notas: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CuentaGN {
+  id: string
+  alias: string
+  nombre: string | null
+  marcas: string[]
+  activo: boolean
+  estado: string
+  fecha_ultimo_test: string | null
+  notas: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ExistenciaMarca {
+  id: string
+  mes: string
+  marca: Marca
+  unidades: number
+  valuacion: number
+  cuenta_gn_id: string | null
+  fecha_sincronizacion: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
