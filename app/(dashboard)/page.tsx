@@ -26,6 +26,7 @@ export default async function DashboardPage({
     { data: empleadosActivos },
     { data: cuentasInventario },
     { data: saldosInventario },
+    { data: existencias },
   ] = await Promise.all([
     supabase.from('gastos').select('monto, estado').eq('mes', mes),
     // Fuente viva de saldos (el resto de la app ya no usa saldos_mensuales)
@@ -53,6 +54,7 @@ export default async function DashboardPage({
       .eq('activo', true)
       .order('orden'),
     supabase.from('saldos_cuentas_patrim').select('cuenta_id, saldo_cierre').eq('mes', mes),
+    supabase.from('existencias_marca').select('marca, unidades').eq('mes', mes),
   ])
 
   const cierreMes = cierre as CierreMensual | null
@@ -258,6 +260,8 @@ export default async function DashboardPage({
       {cuentasInventario && cuentasInventario.length > 0 && (() => {
         const saldosMap = new Map<string, number>()
         for (const s of saldosInventario ?? []) saldosMap.set(s.cuenta_id, Number(s.saldo_cierre))
+        const stockMap = new Map<string, number>()
+        for (const e of existencias ?? []) stockMap.set(e.marca, Number(e.unidades))
         return (
           <div className="bg-surface border border-teal-500/20 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
@@ -303,6 +307,11 @@ export default async function DashboardPage({
                     )}>
                       {positivo ? '+' : negativo ? '−' : ''}{formatCurrency(Math.abs(saldo))}
                     </p>
+                    {c.marca && stockMap.has(c.marca) && (
+                      <p className="text-[11px] text-fg-soft mt-1">
+                        Stock real (GN): {stockMap.get(c.marca)!.toLocaleString('es-AR')} u.
+                      </p>
+                    )}
                   </div>
                 )
               })}
