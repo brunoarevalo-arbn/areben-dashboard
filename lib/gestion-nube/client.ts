@@ -65,8 +65,29 @@ export interface GnInventarioRow {
   available_quantity: number
 }
 
-export interface GnVentaLinea { product_id: number; quantity: number; size?: string; size_info?: { name?: string } }
-export interface GnVenta { date_sale: string; items?: GnVentaLinea[]; detalles?: GnVentaLinea[] }
+export interface GnVentaLinea {
+  product_id: number
+  quantity: number
+  total: number      // revenue neto de la línea (excl IVA), post-descuento
+  subtotal?: number
+  size?: string
+  size_info?: { name?: string }
+}
+export interface GnVenta {
+  id: number
+  date_sale: string
+  net_price: number     // ventas netas (sin IVA) de toda la venta
+  total_price: number   // total (con IVA/envío)
+  total_cost: number    // CMV de la venta
+  vat_amount: number
+  total_payment: number // cobrado
+  total_due: number     // falta cobrar
+  active: boolean
+  archived: boolean
+  budget: boolean
+  items?: GnVentaLinea[]
+  detalles?: GnVentaLinea[]
+}
 
 /** Una página del catálogo de productos (incluye `provider`). */
 export async function paginaProductos(
@@ -75,6 +96,19 @@ export async function paginaProductos(
 ): Promise<{ data: GnProducto[]; hayMas: boolean; total: number }> {
   const d = await gnGet<Paginado<GnProducto>>(token, `/productos/obtener?per_page=50&page=${page}`)
   return { data: d.data || [], hayMas: !!d.meta?.has_more_pages, total: d.meta?.total ?? 0 }
+}
+
+/** Busca productos por texto (matchea nombre/código/proveedor). Una página. */
+export async function buscarProductos(
+  token: string,
+  q: string,
+  page: number,
+): Promise<{ data: GnProducto[]; hayMas: boolean }> {
+  const d = await gnGet<Paginado<GnProducto>>(
+    token,
+    `/productos/obtener?q=${encodeURIComponent(q)}&per_page=50&page=${page}`,
+  )
+  return { data: d.data || [], hayMas: !!d.meta?.has_more_pages }
 }
 
 /** Una página de inventario (stock por talle/tienda). */
