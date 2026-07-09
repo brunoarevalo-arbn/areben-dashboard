@@ -13,6 +13,12 @@ const CC_SERVICIOS = new Set<string>([
   'TGI - Rioja 1440',
   'API - Rioja 1440',
   'Aguas Santafesinas - Rioja 1440',
+  // Aportes personales de los socios (monotributo/autónomo/IIBB) — deuda estilo cuenta corriente
+  'Monotributo - Dario Arevalo',
+  'Autonomo - Dario Arevalo',
+  'IIBB - Dario Arevalo',
+  'Monotributo - Bruno Arevalo',
+  'IIBB - Bruno Arevalo',
 ])
 
 const CC_GASTOS = new Set<string>([
