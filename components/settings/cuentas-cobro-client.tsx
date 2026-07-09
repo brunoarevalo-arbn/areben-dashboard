@@ -14,7 +14,7 @@ const TIPOS = [
   { value: 'efectivo', label: 'Efectivo' },
 ]
 
-export function CuentasCobroClient({ cuentas }: { cuentas: CuentaCobroGN[] }) {
+export function CuentasCobroClient({ cuentas, origenPorCuenta }: { cuentas: CuentaCobroGN[]; origenPorCuenta: Record<string, string[]> }) {
   const [pending, start] = useTransition()
   const [detecting, setDetecting] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -57,7 +57,12 @@ export function CuentasCobroClient({ cuentas }: { cuentas: CuentaCobroGN[] }) {
       <div className="bg-surface border border-border rounded-xl overflow-hidden divide-y divide-border/60">
         {cuentas.map((c) => (
           <div key={c.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-            <span className="text-sm text-fg">{c.nombre}</span>
+            <div className="flex items-center gap-2 min-w-0 flex-wrap">
+              <span className="text-sm text-fg">{c.nombre}</span>
+              {(origenPorCuenta[c.nombre] ?? []).map((o) => (
+                <span key={o} className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-surface-2 text-fg-muted">GN {o}</span>
+              ))}
+            </div>
             <Select
               value={c.tipo}
               onChange={(e) => cambiar(c.id, e.target.value as TipoCuentaCobro)}
