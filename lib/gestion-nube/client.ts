@@ -86,6 +86,8 @@ export interface GnVenta {
   total_payment: number // cobrado
   total_due: number     // falta cobrar
   account_display: string   // cuenta de cobro (define si se factura)
+  channel: string           // canal de venta (Tienda Nube / local / ML)
+  sale_type: string         // minorista / mayorista
   bill_number: string       // nro de comprobante (vacío = no facturada)
   invoice_number: string | null
   active: boolean

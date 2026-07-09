@@ -141,6 +141,7 @@ const navItems: NavItem[] = [
     label: 'Análisis',
     icon: BarChart3,
     children: [
+      { label: 'Inteligencia', href: '/analisis/gn', icon: BarChart3 },
       { label: 'Ventas', href: '/analisis/ventas', icon: TrendingUp },
       { label: 'P&L por Marca', href: '/analisis/pl-marca', icon: PieChart },
       { label: 'Cash Flow', href: '/analisis/cash-flow', icon: BarChart3 },
