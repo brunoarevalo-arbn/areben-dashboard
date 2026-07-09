@@ -54,7 +54,7 @@ export default async function DashboardPage({
       .eq('activo', true)
       .order('orden'),
     supabase.from('saldos_cuentas_patrim').select('cuenta_id, saldo_cierre').eq('mes', mes),
-    supabase.from('existencias_marca').select('marca, unidades').eq('mes', mes),
+    supabase.from('existencias_marca').select('marca, unidades, valuacion').eq('mes', mes),
   ])
 
   const cierreMes = cierre as CierreMensual | null
@@ -260,8 +260,8 @@ export default async function DashboardPage({
       {cuentasInventario && cuentasInventario.length > 0 && (() => {
         const saldosMap = new Map<string, number>()
         for (const s of saldosInventario ?? []) saldosMap.set(s.cuenta_id, Number(s.saldo_cierre))
-        const stockMap = new Map<string, number>()
-        for (const e of existencias ?? []) stockMap.set(e.marca, Number(e.unidades))
+        const stockMap = new Map<string, { u: number; v: number }>()
+        for (const e of existencias ?? []) stockMap.set(e.marca, { u: Number(e.unidades), v: Number(e.valuacion) })
         return (
           <div className="bg-surface border border-teal-500/20 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
@@ -309,7 +309,7 @@ export default async function DashboardPage({
                     </p>
                     {c.marca && stockMap.has(c.marca) && (
                       <p className="text-[11px] text-fg-soft mt-1">
-                        Stock real (GN): {stockMap.get(c.marca)!.toLocaleString('es-AR')} u.
+                        Stock real: {stockMap.get(c.marca)!.u.toLocaleString('es-AR')} u. · {formatCurrency(stockMap.get(c.marca)!.v)}
                       </p>
                     )}
                   </div>

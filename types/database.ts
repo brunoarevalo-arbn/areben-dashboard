@@ -838,6 +838,7 @@ export interface FacturacionMes {
   id: string
   mes: string
   cuenta: string
+  cuenta_gn: string
   cobrado: number
   facturado: number
   pendiente: number

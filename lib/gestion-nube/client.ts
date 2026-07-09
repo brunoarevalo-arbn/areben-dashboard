@@ -53,6 +53,7 @@ export interface GnProducto {
   name: string
   category: string
   provider: string // proveedor — clave para separar STUNNED dentro de la cuenta ZATTIA
+  unit_cost?: string | number // costo unitario — para valorizar el stock
 }
 interface Paginado<T> { data: T[]; meta?: { has_more_pages?: boolean; total?: number } }
 

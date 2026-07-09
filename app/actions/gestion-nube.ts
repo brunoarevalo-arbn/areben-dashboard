@@ -6,6 +6,7 @@ import type { CuentaGN } from '@/types/database'
 import {
   tokenParaCuenta,
   buscarProductos,
+  paginaProductos,
   paginaInventario,
   paginaVentas,
   GestionNubeError,
@@ -82,14 +83,30 @@ export async function sincronizarStockGN(alias: string, mes: string): Promise<st
 
   try {
     const token = tokenParaCuenta(alias)
-    const { marcaDe } = await resolverMarcas(cuenta, token)
+    // Catálogo product_id -> { provider (marca), costo } para clasificar y valorizar.
+    const catalogo = new Map<number, { provider: string; costo: number }>()
+    for (let page = 1; page <= MAX_PAGINAS; page++) {
+      const { data, hayMas } = await paginaProductos(token, page)
+      for (const p of data) catalogo.set(p.id, { provider: (p.provider || '').toLowerCase(), costo: Number(p.unit_cost) || 0 })
+      if (!hayMas) break
+      if (page === MAX_PAGINAS) console.warn(`[GN] catálogo truncado en ${MAX_PAGINAS} páginas`)
+      await sleep(700)
+    }
+    const tieneStunned = cuenta.marcas.length > 1 && cuenta.marcas.some((m) => m.toUpperCase() === 'STUNNED')
+    const marcaBase = cuenta.marcas.find((m) => m.toUpperCase() !== 'STUNNED') ?? cuenta.marcas[0]
+    const clasificar = (pid: number) => (tieneStunned && (catalogo.get(pid)?.provider || '').includes('stunned') ? 'STUNNED' : marcaBase)
 
-    const unidades = new Map<string, number>()
+    const agg = new Map<string, { unidades: number; valuacion: number }>()
     for (let page = 1; page <= MAX_PAGINAS; page++) {
       const { data, hayMas } = await paginaInventario(token, page)
       for (const row of data) {
-        const marca = row.product_id != null ? marcaDe(row.product_id) : cuenta.marcas[0]
-        unidades.set(marca, (unidades.get(marca) ?? 0) + (Number(row.available_quantity) || 0))
+        const pid = row.product_id
+        const marca = pid != null ? clasificar(pid) : cuenta.marcas[0]
+        const q = Number(row.available_quantity) || 0
+        const a = agg.get(marca) ?? { unidades: 0, valuacion: 0 }
+        a.unidades += q
+        a.valuacion += q * (pid != null ? catalogo.get(pid)?.costo ?? 0 : 0)
+        agg.set(marca, a)
       }
       if (!hayMas) break
       if (page === MAX_PAGINAS) console.warn(`[GN] inventario truncado en ${MAX_PAGINAS} páginas`)
@@ -97,10 +114,11 @@ export async function sincronizarStockGN(alias: string, mes: string): Promise<st
     }
 
     const supabase = await createClient()
-    const filas = [...unidades.entries()].map(([marca, u]) => ({
+    const filas = [...agg.entries()].map(([marca, a]) => ({
       mes,
       marca,
-      unidades: Math.round(u),
+      unidades: Math.round(a.unidades),
+      valuacion: round2(a.valuacion),
       cuenta_gn_id: cuenta.id,
       fecha_sincronizacion: new Date().toISOString(),
     }))
@@ -237,7 +255,8 @@ export async function sincronizarFacturacionGN(mes: string): Promise<string | nu
 
   try {
     const desde = `${mes}-01`
-    const acc = new Map<string, { cobrado: number; facturado: number; n: number; nSin: number }>()
+    type Agg = { cuenta: string; cuenta_gn: string; cobrado: number; facturado: number; n: number; nSin: number }
+    const acc = new Map<string, Agg>()
     for (const c of cuentasGn ?? []) {
       const token = tokenParaCuenta(c.alias)
       for (let page = 1; page <= MAX_PAGINAS; page++) {
@@ -247,14 +266,15 @@ export async function sincronizarFacturacionGN(mes: string): Promise<string | nu
           if (!v.active || v.archived || v.budget) continue
           const cuenta = (v.account_display || '').trim()
           if (!arebenSet.has(cuenta)) continue // solo cuentas Areben (facturables)
+          const key = `${c.alias}::${cuenta}`
           const monto = Number(v.total_price) || 0
           const facturada = !!(String(v.bill_number || '').trim() || v.invoice_number)
-          const a = acc.get(cuenta) ?? { cobrado: 0, facturado: 0, n: 0, nSin: 0 }
+          const a = acc.get(key) ?? { cuenta, cuenta_gn: c.alias, cobrado: 0, facturado: 0, n: 0, nSin: 0 }
           a.cobrado += monto
           if (facturada) a.facturado += monto
           else a.nSin++
           a.n++
-          acc.set(cuenta, a)
+          acc.set(key, a)
         }
         if (!hayMas) break
         await sleep(700)
@@ -262,9 +282,10 @@ export async function sincronizarFacturacionGN(mes: string): Promise<string | nu
     }
 
     if (!acc.size) return 'No hay ventas en cuentas Areben para ese mes'
-    const filas = [...acc.entries()].map(([cuenta, a]) => ({
+    const filas = [...acc.values()].map((a) => ({
       mes,
-      cuenta,
+      cuenta: a.cuenta,
+      cuenta_gn: a.cuenta_gn,
       cobrado: round2(a.cobrado),
       facturado: round2(a.facturado),
       pendiente: round2(a.cobrado - a.facturado),
@@ -272,7 +293,7 @@ export async function sincronizarFacturacionGN(mes: string): Promise<string | nu
       cantidad_sin_facturar: a.nSin,
       fecha_sincronizacion: new Date().toISOString(),
     }))
-    const { error } = await supabase.from('facturacion_mes').upsert(filas, { onConflict: 'mes,cuenta' })
+    const { error } = await supabase.from('facturacion_mes').upsert(filas, { onConflict: 'mes,cuenta,cuenta_gn' })
     if (error) return error.message
 
     revalidatePath('/finanzas/afip')

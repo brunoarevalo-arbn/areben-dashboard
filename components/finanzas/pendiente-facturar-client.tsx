@@ -74,6 +74,7 @@ export function PendienteFacturarClient({ facturacion, mes }: { facturacion: Fac
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Cuenta de cobro</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Origen</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Cobrado</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Facturado</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Pendiente</th>
@@ -84,6 +85,9 @@ export function PendienteFacturarClient({ facturacion, mes }: { facturacion: Fac
               {facturacion.map((f) => (
                 <tr key={f.id} className="border-b border-border/60 hover:bg-surface-2/30">
                   <td className="px-4 py-3 text-fg">{f.cuenta}</td>
+                  <td className="px-4 py-3">
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-surface-2 text-fg-muted">GN {f.cuenta_gn}</span>
+                  </td>
                   <td className="px-4 py-3 text-right font-mono text-fg">{formatCurrency(f.cobrado)}</td>
                   <td className="px-4 py-3 text-right font-mono text-green-700">{formatCurrency(f.facturado)}</td>
                   <td className="px-4 py-3 text-right font-mono font-semibold text-amber-700">{formatCurrency(f.pendiente)}</td>
