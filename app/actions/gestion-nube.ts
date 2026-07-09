@@ -139,6 +139,12 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
     const { marcaDe } = await resolverMarcas(cuenta, token)
     const desde = `${mes}-01`
 
+    // Clasificación de cuentas de cobro: solo 'areben' se factura → lleva IVA (÷1,21).
+    const supabase = await createClient()
+    const { data: ccRows } = await supabase.from('cuentas_cobro_gn').select('nombre, tipo')
+    const ccMap = new Map((ccRows ?? []).map((r) => [r.nombre, r.tipo as string]))
+    const esFacturable = (nombre: string) => ccMap.get((nombre || '').trim()) === 'areben'
+
     type Agg = { brutas: number; netas: number; cmv: number; cantidad: number }
     const acc = new Map<string, Agg>()
     const add = (m: string, brutas: number, netas: number, cmv: number, cantidad: number) => {
@@ -155,25 +161,24 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
         const lineas = v.items ?? v.detalles ?? []
         if (!lineas.length) continue
 
-        // Bruto con IVA por marca = Σ subtotal de líneas de esa marca; cantidad por marca.
-        // El IVA, descuentos, envíos y CMV son a nivel venta → se apportionan por ese peso.
-        const bruto = new Map<string, number>()
+        // Peso por marca = Σ line.total (con IVA, neto del descuento de línea); cantidad por marca.
+        const peso = new Map<string, number>()
         const qty = new Map<string, number>()
         for (const l of lineas) {
           const m = marcaDe(l.product_id)
-          bruto.set(m, (bruto.get(m) ?? 0) + (Number(l.subtotal) || 0))
+          peso.set(m, (peso.get(m) ?? 0) + (Number(l.total) || 0))
           qty.set(m, (qty.get(m) ?? 0) + (Number(l.quantity) || 0))
         }
-        const brutoTotal = [...bruto.values()].reduce((s, x) => s + x, 0) || 1
-        for (const [m, brutoM] of bruto) {
-          const frac = brutoM / brutoTotal
-          const iva = (Number(v.vat_amount) || 0) * frac
-          const desc = (Number(v.discount) || 0) * frac
-          const envio = (Number(v.shipping_cost) || 0) * frac
-          const cmv = (Number(v.total_cost) || 0) * frac
-          // ventas_netas = "Ingresos Variables": neto de IVA − descuentos + envíos
-          const netas = brutoM - iva - desc + envio
-          add(m, brutoM, netas, cmv, qty.get(m) ?? 0)
+        const pesoTotal = [...peso.values()].reduce((s, x) => s + x, 0) || 1
+
+        // Ingreso con IVA de la venta = Σ line.total − descuentos + envíos.
+        // Neto: si la cuenta de cobro es Areben → se factura → se saca el IVA (÷1,21); si no, entero.
+        const ingresoConIva = pesoTotal - (Number(v.discount) || 0) + (Number(v.shipping_cost) || 0)
+        const netoVenta = esFacturable(v.account_display) ? ingresoConIva / 1.21 : ingresoConIva
+
+        for (const [m, pm] of peso) {
+          const frac = pm / pesoTotal
+          add(m, pm, netoVenta * frac, (Number(v.total_cost) || 0) * frac, qty.get(m) ?? 0)
         }
       }
       if (!hayMas) break
@@ -183,7 +188,6 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
 
     if (!acc.size) return 'No se encontraron ventas para ese mes'
 
-    const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     const filas = [...acc.entries()].map(([marca, a]) => {
       const netas = round2(a.netas)
