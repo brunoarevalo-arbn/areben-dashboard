@@ -31,7 +31,6 @@ import {
   ArrowDownCircle,
   FileCheck,
   PiggyBank,
-  Clock,
 } from 'lucide-react'
 
 interface NavItem {
@@ -51,32 +50,26 @@ const navItems: NavItem[] = [
     label: 'Finanzas',
     icon: DollarSign,
     children: [
-      { label: 'Tesorería', href: '/finanzas/saldos', icon: Wallet },
-      { label: 'Cuentas patrimoniales', href: '/finanzas/cuentas-patrimoniales', icon: Boxes },
-      { label: 'Saldos impositivos', href: '/finanzas/saldos-impositivos', icon: Receipt },
       { label: 'Gastos', href: '/finanzas/gastos', icon: TrendingDown },
-      { label: 'Recurrentes', href: '/finanzas/recurrentes', icon: Receipt },
+      { label: 'Pagos y deuda', href: '/finanzas/pagos', icon: Wallet },
       { label: 'Tarjetas', href: '/finanzas/tarjetas', icon: CreditCard },
-      { label: 'Retiros', href: '/finanzas/retiros', icon: CreditCard },
-      { label: 'Cuenta de socios', href: '/finanzas/cuenta-socios', icon: Users },
+      { label: 'Patrimonio', href: '/finanzas/cuentas-patrimoniales', icon: Boxes },
+      { label: 'Tesorería', href: '/finanzas/saldos', icon: Wallet },
+      { label: 'Socios', href: '/finanzas/cuenta-socios', icon: Users },
       { label: 'AFIP', href: '/finanzas/afip', icon: Receipt },
-      { label: 'Bienes de Uso', href: '/finanzas/bienes', icon: Boxes },
-      { label: 'Pendientes', href: '/finanzas/pendientes', icon: Clock },
-      { label: 'Saldos acumulados', href: '/finanzas/saldos-acumulados', icon: Receipt },
-      { label: 'Planes AFIP', href: '/finanzas/planes-afip', icon: FileText },
-      { label: 'Préstamos', href: '/finanzas/prestamos', icon: TrendingDown },
-      { label: 'Pagos del mes', href: '/finanzas/pagos', icon: Wallet },
+      { label: 'Préstamos bancarios', href: '/finanzas/prestamos', icon: TrendingDown },
       { label: 'Cierre de mes', href: '/finanzas/cierre-mes', icon: FileCheck },
-      {
-        label: 'Inversiones',
-        icon: PiggyBank,
-        children: [
-          { label: 'Inversores', href: '/inversiones', icon: Users },
-          { label: 'Préstamos', href: '/inversiones/prestamos', icon: TrendingUp },
-          { label: 'Cierre mensual', href: '/inversiones/cierre', icon: FileCheck },
-          { label: 'Gastos financieros', href: '/inversiones/gastos', icon: TrendingUp },
-        ],
-      },
+    ],
+  },
+  {
+    label: 'Inversiones',
+    icon: PiggyBank,
+    children: [
+      { label: 'Inversores', href: '/inversiones', icon: Users },
+      { label: 'Capital de inversores', href: '/inversiones/prestamos', icon: TrendingUp },
+      { label: 'Cierre mensual', href: '/inversiones/cierre', icon: FileCheck },
+      { label: 'Gastos financieros', href: '/inversiones/gastos', icon: TrendingUp },
+      { label: 'Reporte', href: '/inversiones/reporte', icon: PieChart },
     ],
   },
   {
