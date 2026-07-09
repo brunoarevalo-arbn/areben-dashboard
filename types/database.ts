@@ -823,6 +823,17 @@ export interface ExistenciaMarca {
   updated_at: string
 }
 
+export type TipoCuentaCobro = 'areben' | 'propia' | 'efectivo'
+
+export interface CuentaCobroGN {
+  id: string
+  nombre: string
+  tipo: TipoCuentaCobro
+  notas: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {

@@ -84,6 +84,9 @@ export interface GnVenta {
   shipping_cost: number // envíos
   total_payment: number // cobrado
   total_due: number     // falta cobrar
+  account_display: string   // cuenta de cobro (define si se factura)
+  bill_number: string       // nro de comprobante (vacío = no facturada)
+  invoice_number: string | null
   active: boolean
   archived: boolean
   budget: boolean

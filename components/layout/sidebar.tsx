@@ -156,6 +156,7 @@ const navItems: NavItem[] = [
       { label: 'Aportes', href: '/settings/aportes', icon: Sliders },
       { label: 'Depreciación', href: '/settings/depreciacion', icon: Calculator },
       { label: 'API Gestión Nube', href: '/settings/api-gestion-nube', icon: Plug },
+      { label: 'Cuentas de cobro', href: '/settings/cuentas-cobro', icon: Wallet },
     ],
   },
 ]
