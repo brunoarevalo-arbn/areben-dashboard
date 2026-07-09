@@ -155,24 +155,25 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
         const lineas = v.items ?? v.detalles ?? []
         if (!lineas.length) continue
 
-        // Peso (revenue de línea) y cantidad por marca dentro de esta venta
-        const peso = new Map<string, number>()
+        // Bruto con IVA por marca = Σ subtotal de líneas de esa marca; cantidad por marca.
+        // El IVA, descuentos, envíos y CMV son a nivel venta → se apportionan por ese peso.
+        const bruto = new Map<string, number>()
         const qty = new Map<string, number>()
         for (const l of lineas) {
           const m = marcaDe(l.product_id)
-          peso.set(m, (peso.get(m) ?? 0) + (Number(l.total) || 0))
+          bruto.set(m, (bruto.get(m) ?? 0) + (Number(l.subtotal) || 0))
           qty.set(m, (qty.get(m) ?? 0) + (Number(l.quantity) || 0))
         }
-        const pesoTotal = [...peso.values()].reduce((s, x) => s + x, 0) || 1
-        for (const [m, w] of peso) {
-          const frac = w / pesoTotal
-          add(
-            m,
-            (Number(v.total_price) || 0) * frac,
-            (Number(v.net_price) || 0) * frac,
-            (Number(v.total_cost) || 0) * frac,
-            qty.get(m) ?? 0,
-          )
+        const brutoTotal = [...bruto.values()].reduce((s, x) => s + x, 0) || 1
+        for (const [m, brutoM] of bruto) {
+          const frac = brutoM / brutoTotal
+          const iva = (Number(v.vat_amount) || 0) * frac
+          const desc = (Number(v.discount) || 0) * frac
+          const envio = (Number(v.shipping_cost) || 0) * frac
+          const cmv = (Number(v.total_cost) || 0) * frac
+          // ventas_netas = "Ingresos Variables": neto de IVA − descuentos + envíos
+          const netas = brutoM - iva - desc + envio
+          add(m, brutoM, netas, cmv, qty.get(m) ?? 0)
         }
       }
       if (!hayMas) break

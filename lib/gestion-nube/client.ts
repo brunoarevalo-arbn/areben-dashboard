@@ -79,7 +79,9 @@ export interface GnVenta {
   net_price: number     // ventas netas (sin IVA) de toda la venta
   total_price: number   // total (con IVA/envío)
   total_cost: number    // CMV de la venta
-  vat_amount: number
+  vat_amount: number    // IVA débito fiscal
+  discount: number      // descuentos de la venta
+  shipping_cost: number // envíos
   total_payment: number // cobrado
   total_due: number     // falta cobrar
   active: boolean
