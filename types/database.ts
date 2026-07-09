@@ -834,6 +834,20 @@ export interface CuentaCobroGN {
   updated_at: string
 }
 
+export interface FacturacionMes {
+  id: string
+  mes: string
+  cuenta: string
+  cobrado: number
+  facturado: number
+  pendiente: number
+  cantidad: number
+  cantidad_sin_facturar: number
+  fecha_sincronizacion: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {

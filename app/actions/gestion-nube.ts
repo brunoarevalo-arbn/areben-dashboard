@@ -219,3 +219,66 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
     return e instanceof GestionNubeError ? e.message : (e as Error).message
   }
 }
+
+/**
+ * Pendiente de facturar: por cada cuenta de cobro Areben (las que se facturan), suma lo
+ * cobrado y lo ya facturado (ventas con comprobante) en el mes, para todas las cuentas GN.
+ * pendiente = cobrado − facturado. Escribe a facturacion_mes.
+ */
+export async function sincronizarFacturacionGN(mes: string): Promise<string | null> {
+  await requireUser()
+  if (!/^\d{4}-\d{2}$/.test(mes)) return 'Mes inválido'
+
+  const supabase = await createClient()
+  const { data: cuentasGn } = await supabase.from('cuentas_gn').select('alias')
+  const { data: ccRows } = await supabase.from('cuentas_cobro_gn').select('nombre, tipo')
+  const arebenSet = new Set((ccRows ?? []).filter((r) => r.tipo === 'areben').map((r) => r.nombre))
+  if (!arebenSet.size) return 'No hay cuentas de cobro tipo Areben configuradas'
+
+  try {
+    const desde = `${mes}-01`
+    const acc = new Map<string, { cobrado: number; facturado: number; n: number; nSin: number }>()
+    for (const c of cuentasGn ?? []) {
+      const token = tokenParaCuenta(c.alias)
+      for (let page = 1; page <= MAX_PAGINAS; page++) {
+        const { data, hayMas } = await paginaVentas(token, desde, page)
+        for (const v of data) {
+          if (!(v.date_sale || '').startsWith(mes)) continue
+          if (!v.active || v.archived || v.budget) continue
+          const cuenta = (v.account_display || '').trim()
+          if (!arebenSet.has(cuenta)) continue // solo cuentas Areben (facturables)
+          const monto = Number(v.total_price) || 0
+          const facturada = !!(String(v.bill_number || '').trim() || v.invoice_number)
+          const a = acc.get(cuenta) ?? { cobrado: 0, facturado: 0, n: 0, nSin: 0 }
+          a.cobrado += monto
+          if (facturada) a.facturado += monto
+          else a.nSin++
+          a.n++
+          acc.set(cuenta, a)
+        }
+        if (!hayMas) break
+        await sleep(700)
+      }
+    }
+
+    if (!acc.size) return 'No hay ventas en cuentas Areben para ese mes'
+    const filas = [...acc.entries()].map(([cuenta, a]) => ({
+      mes,
+      cuenta,
+      cobrado: round2(a.cobrado),
+      facturado: round2(a.facturado),
+      pendiente: round2(a.cobrado - a.facturado),
+      cantidad: a.n,
+      cantidad_sin_facturar: a.nSin,
+      fecha_sincronizacion: new Date().toISOString(),
+    }))
+    const { error } = await supabase.from('facturacion_mes').upsert(filas, { onConflict: 'mes,cuenta' })
+    if (error) return error.message
+
+    revalidatePath('/finanzas/afip')
+    revalidatePath('/')
+    return null
+  } catch (e) {
+    return e instanceof GestionNubeError ? e.message : (e as Error).message
+  }
+}
