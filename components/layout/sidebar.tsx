@@ -66,7 +66,8 @@ const navItems: NavItem[] = [
         children: [
           { label: 'Pagos del mes', href: '/finanzas/pagos', icon: Wallet },
           { label: 'Pendientes', href: '/finanzas/pagos?tab=pendientes', icon: Clock },
-          { label: 'Cuentas corrientes', href: '/finanzas/pagos?tab=cuentas-corrientes', icon: Receipt },
+          { label: 'Cuentas corrientes', href: '/finanzas/cuentas-corrientes', icon: Wallet },
+          { label: 'CC servicios/proveedores', href: '/finanzas/pagos?tab=cuentas-corrientes', icon: Receipt },
         ],
       },
       { label: 'Tarjetas', href: '/finanzas/tarjetas', icon: CreditCard },
