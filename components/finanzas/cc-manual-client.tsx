@@ -55,6 +55,8 @@ function calcSaldo(movs: CcMovimiento[]): number {
 }
 
 export function CcManualClient({ cuentas, movimientos, tcMes }: Props) {
+  const hoy = new Date().toISOString().slice(0, 10)
+  const [corte, setCorte] = useState(hoy)
   const [dir, setDir] = useState<'TODAS' | 'COBRAR' | 'PAGAR'>('TODAS')
   const [estado, setEstado] = useState<'CON_SALDO' | 'TODAS'>('CON_SALDO')
   const [cat, setCat] = useState<'TODAS' | 'CLIENTE' | 'PROVEEDOR' | 'SERVICIO' | 'OTRO'>('TODAS')
@@ -63,15 +65,17 @@ export function CcManualClient({ cuentas, movimientos, tcMes }: Props) {
   const [editCuenta, setEditCuenta] = useState<CcCuenta | undefined>()
   const [expandida, setExpandida] = useState<string | null>(null)
 
+  // Saldos "a la fecha de corte": solo cuentan los movimientos hasta esa fecha.
   const movsByCuenta = useMemo(() => {
     const m = new Map<string, CcMovimiento[]>()
     for (const mv of movimientos) {
+      if (mv.fecha > corte) continue
       if (!m.has(mv.cuenta_id)) m.set(mv.cuenta_id, [])
       m.get(mv.cuenta_id)!.push(mv)
     }
     for (const arr of m.values()) arr.sort((a, b) => b.fecha.localeCompare(a.fecha))
     return m
-  }, [movimientos])
+  }, [movimientos, corte])
 
   const saldos = useMemo(() => {
     const m = new Map<string, number>()
@@ -121,10 +125,20 @@ export function CcManualClient({ cuentas, movimientos, tcMes }: Props) {
             Deudas y pagos por cliente/proveedor, sin depender de una compra. Los USD se pesifican al TC del mes.
           </p>
         </div>
-        <Button onClick={() => { setEditCuenta(undefined); setModalCuenta(true) }}>
-          <Plus className="w-4 h-4" /> Nueva cuenta
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-fg-soft uppercase tracking-wide whitespace-nowrap">Saldo al</span>
+            <input type="date" value={corte} onChange={(e) => setCorte(e.target.value || hoy)}
+              className="px-2.5 py-1.5 bg-surface-2 border border-border-strong rounded-lg text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+          <Button onClick={() => { setEditCuenta(undefined); setModalCuenta(true) }}>
+            <Plus className="w-4 h-4" /> Nueva cuenta
+          </Button>
+        </div>
       </div>
+      {corte !== hoy && (
+        <p className="text-xs text-amber-700">Mostrando saldos al <b>{corte}</b> (no incluye movimientos posteriores).</p>
+      )}
 
       {/* Totales */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
