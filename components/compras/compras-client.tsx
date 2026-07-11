@@ -557,7 +557,7 @@ export function ComprasClient({
         case 'proveedor': return ((c.proveedor as { nombre: string } | null)?.nombre ?? '').toLowerCase()
         case 'descripcion': return (c.descripcion ?? '').toLowerCase()
         case 'monto_total': return Number(c.monto_total ?? 0)
-        case 'monto_neto': return Number(c.monto_neto ?? 0)
+        case 'monto_neto': return Number(c.monto_total) - Number(c.iva)
         case 'iva': return Number(c.iva ?? 0)
         case 'saldo': return Number(c.saldo_pendiente ?? c.monto_total ?? 0)
       }
@@ -570,7 +570,8 @@ export function ComprasClient({
   })
 
   const totalMonto = comprasFiltradas.reduce((s, c) => s + c.monto_total, 0)
-  const totalNeto = comprasFiltradas.reduce((s, c) => s + c.monto_neto, 0)
+  // Neto sin IVA = bruto − IVA (NO usar monto_neto: con facturación parcial subvalúa)
+  const totalNeto = comprasFiltradas.reduce((s, c) => s + (c.monto_total - c.iva), 0)
   const totalIVA = comprasFiltradas.reduce((s, c) => s + c.iva, 0)
   const totalSaldo = comprasFiltradas.reduce((s, c) => s + (c.saldo_pendiente ?? c.monto_total), 0)
 
@@ -791,7 +792,7 @@ export function ComprasClient({
                       )}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-green-700">
-                      {c.monto_neto > 0 ? formatCurrency(c.monto_neto) : '—'}
+                      {formatCurrency(c.monto_total - c.iva)}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-amber-700">
                       {c.iva > 0 ? formatCurrency(c.iva) : '—'}
