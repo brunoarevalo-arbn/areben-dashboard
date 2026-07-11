@@ -14,8 +14,8 @@ export default async function CierreMesPage({
   const [y, m] = mes.split('-').map(Number)
   const prevDate = new Date(y, m - 2, 1)
   const mesAnterior = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
-  // Último día del mes del cierre (para no traer datos de meses posteriores)
-  const mesFin = `${mes}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`
+  // Último día del mes del cierre — fecha de corte por fecha (producción, cheques, pagos a plazo)
+  const mesFin = `${mes}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}` // ej '2026-05-31'
 
   const supabase = await createClient()
 
@@ -88,14 +88,18 @@ export default async function CierreMesPage({
       .from('pagos')
       .select('id, monto, moneda, fecha_emision, fecha_vencimiento, instrumento, numero_cheque, banco_emisor, compra:compras(descripcion, proveedor:proveedores(nombre))')
       .in('instrumento', ['CHEQUE_FISICO', 'ECHEQ'])
-      .eq('acreditado', false)
+      // Pasivo del mes = emitido ≤ fin de mes y no cobrado a esa fecha (por fecha, no por el tilde de HOY)
+      .lte('fecha_emision', mesFin)
+      .or(`acreditado.eq.false,fecha_acreditacion.gt.${mesFin}`)
       .order('fecha_vencimiento', { ascending: true }),
     // Pagos a plazo (cta cte / transferencia) no efectivizados
     supabase
       .from('pagos')
       .select('id, monto, moneda, fecha_emision, fecha_vencimiento, instrumento, compra:compras(descripcion, proveedor:proveedores(nombre))')
       .in('instrumento', ['CUENTA_CORRIENTE', 'TRANSFERENCIA'])
-      .eq('acreditado', false)
+      // Mismo criterio por fecha que los cheques (no por el tilde de HOY)
+      .lte('fecha_emision', mesFin)
+      .or(`acreditado.eq.false,fecha_acreditacion.gt.${mesFin}`)
       .not('fecha_vencimiento', 'is', null)
       .order('fecha_vencimiento', { ascending: true }),
     // Inversiones de terceros activas (deuda con inversores)
