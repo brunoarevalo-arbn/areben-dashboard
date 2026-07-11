@@ -14,6 +14,8 @@ export default async function CierreMesPage({
   const [y, m] = mes.split('-').map(Number)
   const prevDate = new Date(y, m - 2, 1)
   const mesAnterior = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
+  // Último día del mes del cierre (para no traer datos de meses posteriores)
+  const mesFin = `${mes}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`
 
   const supabase = await createClient()
 
@@ -108,7 +110,8 @@ export default async function CierreMesPage({
       .from('compras')
       .select('id, descripcion, monto_total, iva, moneda, categoria_produccion, proveedor:proveedores(nombre)')
       .eq('negocio', 'PRODUCCION')
-      .is('fecha_pasaje', null),
+      .lte('fecha', mesFin)                                    // comprada hasta fin de mes
+      .or(`fecha_pasaje.is.null,fecha_pasaje.gt.${mesFin}`),   // sin pasar, o pasada después del cierre
   ])
 
   // ──────────────────────────────────────────────────────────────
