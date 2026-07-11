@@ -2177,9 +2177,10 @@ export async function sugerirMovimientoInventario(args: {
   }
 }
 
-// ── Pendiente de reposición (modelo de Bruno: CMV − compras) ──────────────
-// Activo que sube con las ventas (CMV) y baja con las compras netas. Grupos:
-// BDI solo; ZATTIA+STUNNED unificados (mismo sistema de stock/CMV).
+// ── Valor de inventario (contable): arranque + Σ(compras netas − CMV) ──────
+// Activo que SUBE por compra (repone stock) y BAJA por CMV (venta). Es la valuación
+// contable del inventario (de compras/CMV), distinta del stock físico valorizado.
+// Grupos: BDI solo; ZATTIA+STUNNED unificados (mismo sistema de stock/CMV).
 const GRUPOS_REPOSICION: Record<'BDI' | 'ZATTIA_STUNNED', ('BDI' | 'ZATTIA' | 'STUNNED')[]> = {
   BDI: ['BDI'],
   ZATTIA_STUNNED: ['ZATTIA', 'STUNNED'],
@@ -2199,10 +2200,11 @@ function siguienteMes(mes: string): string {
 }
 
 /**
- * reposicion(grupo, mes) = arranqueAbril + Σ(mayo..mes) [ CMV_mes − comprasNetas_mes ]
- *   comprasNetas = Σ(monto_total − iva) de compras del grupo (por `negocio`) en el mes.
- *   CMV          = Σ datos_ventas_gn.cmv del grupo en el mes.
+ * saldo(grupo, mes) = arranqueAbril + Σ(mayo..mes) [ comprasNetas_mes − CMV_mes ]
+ *   comprasNetas = Σ(monto_total − iva) de compras del grupo (por `negocio`) en el mes → SUBE el inventario.
+ *   CMV          = Σ datos_ventas_gn.cmv del grupo en el mes → BAJA el inventario (venta).
  * Producción en proceso (negocio='PRODUCCION') NO entra: el filtro por marca la excluye sola.
+ * Devuelve los acumulados (compras/CMV) para mostrar el movimiento de la cuenta.
  */
 export async function calcularReposicion(grupo: 'BDI' | 'ZATTIA_STUNNED', mes: string) {
   await requireUser()
@@ -2215,7 +2217,7 @@ export async function calcularReposicion(grupo: 'BDI' | 'ZATTIA_STUNNED', mes: s
   let cur = siguienteMes(MES_ARRANQUE_REPOSICION)
   while (cur <= mes) { meses.push(cur); cur = siguienteMes(cur) }
 
-  let acum = 0
+  let totalCompras = 0, totalCmv = 0
   const detalle: { mes: string; cmv: number; comprasNetas: number }[] = []
   for (const mm of meses) {
     const [year, m] = mm.split('-').map(Number)
@@ -2234,11 +2236,14 @@ export async function calcularReposicion(grupo: 'BDI' | 'ZATTIA_STUNNED', mes: s
       .in('marca', marcas)
       .eq('mes', mm)
     const cmv = (ventas ?? []).reduce((s, v) => s + Number(v.cmv), 0)
-    acum += cmv - comprasNetas
+    totalCompras += comprasNetas
+    totalCmv += cmv
     detalle.push({ mes: mm, cmv: r2(cmv), comprasNetas: r2(comprasNetas) })
   }
 
-  return { grupo, arranque: r2(arranque), reposicion: r2(arranque + acum), detalle }
+  // Inventario contable: sube por compra, baja por CMV
+  const saldo = r2(arranque + totalCompras - totalCmv)
+  return { grupo, arranque: r2(arranque), comprasNetas: r2(totalCompras), cmv: r2(totalCmv), saldo, detalle }
 }
 
 /**

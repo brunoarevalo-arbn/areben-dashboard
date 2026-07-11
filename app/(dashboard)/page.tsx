@@ -56,14 +56,14 @@ export default async function DashboardPage({
     supabase.from('existencias_marca').select('marca, unidades, valuacion').eq('mes', mes),
   ])
 
-  // Valor de reposición (CMV − compras) en vivo — misma fuente que el cierre (nada guardado).
+  // Valor de inventario (arranque + compras − CMV) en vivo — misma fuente que el cierre (nada guardado).
   const repoValores = (cuentasInventario?.length ?? 0) > 0
     ? await Promise.all([calcularReposicion('BDI', mes), calcularReposicion('ZATTIA_STUNNED', mes)])
     : null
-  const repoPorMarca = (marca: string | null) =>
-    marca === 'BDI' ? (repoValores?.[0].reposicion ?? 0)
-      : marca === 'ZATTIA' ? (repoValores?.[1].reposicion ?? 0)
-        : 0 // STUNNED consolidado en ZATTIA
+  const repoData = (marca: string | null) =>
+    marca === 'BDI' ? repoValores?.[0]
+      : marca === 'ZATTIA' ? repoValores?.[1]
+        : null // STUNNED consolidado en ZATTIA
 
   const cierreMes = cierre as CierreMensual | null
 
@@ -273,7 +273,7 @@ export default async function DashboardPage({
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
                 <Boxes className="w-4 h-4 text-success" />
-                Valor de reposición — {formatMonth(mes)}
+                Valor de inventario — {formatMonth(mes)}
               </h2>
               <Link href="/finanzas/cuentas-patrimoniales" className="text-xs text-primary hover:text-orange-600">
                 Editar saldos
@@ -281,7 +281,12 @@ export default async function DashboardPage({
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {cuentasInventario.map((c) => {
-                const saldo = repoPorMarca(c.marca)
+                const rd = repoData(c.marca)
+                const saldo = rd?.saldo ?? 0
+                const mm = rd?.detalle.find((d) => d.mes === mes)
+                const comprasMes = mm?.comprasNetas ?? 0
+                const cmvMes = mm?.cmv ?? 0
+                const saldoInicial = saldo - (comprasMes - cmvMes)
                 const positivo = saldo > 0
                 const negativo = saldo < 0
                 return (
@@ -302,7 +307,7 @@ export default async function DashboardPage({
                         negativo && 'bg-amber-500/15 text-amber-800',
                         !positivo && !negativo && 'bg-surface-2 text-fg-muted',
                       )}>
-                        {positivo ? 'Activo · Reposición' : negativo ? 'A favor' : 'Equilibrado'}
+                        {positivo ? 'Activo' : negativo ? 'Negativo' : '—'}
                       </span>
                     </div>
                     <p className={cn(
@@ -313,6 +318,11 @@ export default async function DashboardPage({
                     )}>
                       {positivo ? '+' : negativo ? '−' : ''}{formatCurrency(Math.abs(saldo))}
                     </p>
+                    {rd && (comprasMes || cmvMes) ? (
+                      <p className="text-[10px] text-fg-soft font-mono mt-1">
+                        Inicial {formatCurrency(saldoInicial)} · <span className="text-success">+ compras {formatCurrency(comprasMes)}</span> · <span className="text-amber-700">− CMV {formatCurrency(cmvMes)}</span>
+                      </p>
+                    ) : null}
                     {c.marca && stockMap.has(c.marca) && (
                       <p className="text-[11px] text-fg-soft mt-1">
                         Stock real: {stockMap.get(c.marca)!.u.toLocaleString('es-AR')} u. · {formatCurrency(stockMap.get(c.marca)!.v)}
@@ -323,7 +333,7 @@ export default async function DashboardPage({
               })}
             </div>
             <p className="text-[10px] text-fg-soft italic mt-3">
-              Valor de reposición = arranque + Σ(CMV − compras netas). Sube al vender, baja al comprar. No es stock físico. ZATTIA incluye STUNNED.
+              Valor de inventario = arranque + Σ(compras netas − CMV). Sube por compra, baja por venta (CMV). Es la valuación contable, no el stock físico. ZATTIA incluye STUNNED.
             </p>
           </div>
         )

@@ -116,6 +116,7 @@ interface Props {
   activosManuales: ActivoManual[]
   cuentasPatrim: CuentaPatrimonial[]
   saldosPatrim: SaldoCuentaPatrim[]
+  movimientoInv?: Record<string, { saldoInicial: number; compras: number; cmv: number }>
   chequesPendientes: ChequePend[]
   pagosCtaCtePendientes: PagoCtaCtePend[]
   instrumentosActivos: InstrumentoActivo[]
@@ -551,7 +552,7 @@ export function CierreMesClient(props: Props) {
         {/* Cuentas patrimoniales agrupadas por tipo */}
         {props.cuentasPatrim.length > 0 && (() => {
           const tipoLabels: Record<string, string> = {
-            INVENTARIO: 'Valor de reposición',
+            INVENTARIO: 'Valor de inventario',
             INVERSION: 'Inversión',
             PROVISION: 'Provisión',
             CTA_CTE_MARCA: 'Cta. Cte. Marcas',
@@ -583,14 +584,22 @@ export function CierreMesClient(props: Props) {
                   {cs.map((c) => {
                     const saldo = saldosPatrimMap.get(c.id) ?? 0
                     const aporte = c.tipo === 'INVENTARIO' ? saldo : c.signo_pn * saldo
+                    const mov = c.tipo === 'INVENTARIO' ? props.movimientoInv?.[c.id] : undefined
+                    const tieneMov = mov && (mov.saldoInicial || mov.compras || mov.cmv)
                     return (
                       <div key={c.id} className="px-4 py-1.5 flex items-center justify-between text-xs">
                         <div>
                           <p className="text-fg-muted">{c.nombre}</p>
-                          <p className="text-fg-soft text-[10px]">
-                            {c.signo_pn > 0 ? '↑ suma al PN' : '↓ resta del PN'}
-                            {c.marca && <> · {c.marca}</>}
-                          </p>
+                          {tieneMov ? (
+                            <p className="text-fg-soft text-[10px] font-mono">
+                              Inicial {formatCurrency(mov!.saldoInicial)} · <span className="text-primary">+ compras {formatCurrency(mov!.compras)}</span> · <span className="text-amber-700">− CMV {formatCurrency(mov!.cmv)}</span>
+                            </p>
+                          ) : (
+                            <p className="text-fg-soft text-[10px]">
+                              {c.signo_pn > 0 ? '↑ suma al PN' : '↓ resta del PN'}
+                              {c.marca && <> · {c.marca}</>}
+                            </p>
+                          )}
                         </div>
                         <div className="text-right">
                           <p className="font-mono text-fg-muted">{formatCurrency(saldo, c.moneda)}</p>

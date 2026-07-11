@@ -233,23 +233,31 @@ export default async function CierreMesPage({
     })
     .filter((g) => Number(g.monto) > 0.01)
 
-  // ── Pendiente de reposición (modelo CMV − compras) inyectado en las cuentas INVENTARIO ──
+  // ── Valor de inventario (arranque + compras − CMV) inyectado en las cuentas INVENTARIO ──
   // BDI → INV-BDI; ZATTIA+STUNNED unificados en la cuenta de ZATTIA; STUNNED consolidado → 0.
   const invCuentas = (cuentasPatrim ?? []).filter((c) => c.tipo === 'INVENTARIO')
   let saldosPatrimFinal = saldosPatrim ?? []
+  const movimientoInv: Record<string, { saldoInicial: number; compras: number; cmv: number }> = {}
   if (invCuentas.length) {
     const [repoBDI, repoZS] = await Promise.all([
       calcularReposicion('BDI', mes),
       calcularReposicion('ZATTIA_STUNNED', mes),
     ])
-    const saldoInvPorMarca = (marca: string | null) =>
-      marca === 'BDI' ? repoBDI.reposicion : marca === 'ZATTIA' ? repoZS.reposicion : 0
+    const cero = { arranque: 0, comprasNetas: 0, cmv: 0, saldo: 0, detalle: [] as { mes: string; cmv: number; comprasNetas: number }[] }
+    const repoPorMarca = (marca: string | null) =>
+      marca === 'BDI' ? repoBDI : marca === 'ZATTIA' ? repoZS : cero
     const byId = new Map(saldosPatrimFinal.map((s) => [s.cuenta_id, { ...s }]))
     for (const c of invCuentas) {
-      const val = saldoInvPorMarca(c.marca ?? null)
+      const r = repoPorMarca(c.marca ?? null)
+      // Movimiento DEL MES (saldo inicial = cierre del mes anterior)
+      const mm = r.detalle.find((d) => d.mes === mes)
+      const comprasMes = mm?.comprasNetas ?? 0
+      const cmvMes = mm?.cmv ?? 0
+      const saldoInicial = Math.round((r.saldo - (comprasMes - cmvMes)) * 100) / 100
+      movimientoInv[c.id] = { saldoInicial, compras: comprasMes, cmv: cmvMes }
       const row = byId.get(c.id)
-      if (row) row.saldo_cierre = val
-      else byId.set(c.id, { cuenta_id: c.id, mes, saldo_inicio: 0, movimiento: 0, saldo_cierre: val } as (typeof saldosPatrimFinal)[number])
+      if (row) { row.saldo_cierre = r.saldo; row.saldo_inicio = saldoInicial; row.movimiento = comprasMes - cmvMes }
+      else byId.set(c.id, { cuenta_id: c.id, mes, saldo_inicio: saldoInicial, movimiento: comprasMes - cmvMes, saldo_cierre: r.saldo } as (typeof saldosPatrimFinal)[number])
     }
     saldosPatrimFinal = [...byId.values()]
   }
@@ -273,6 +281,7 @@ export default async function CierreMesPage({
       activosManuales={(activosManuales ?? []) as Parameters<typeof CierreMesClient>[0]['activosManuales']}
       cuentasPatrim={cuentasPatrim ?? []}
       saldosPatrim={saldosPatrimFinal}
+      movimientoInv={movimientoInv}
       chequesPendientes={(chequesPendientes ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['chequesPendientes']}
       pagosCtaCtePendientes={(pagosCtaCtePendientes ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['pagosCtaCtePendientes']}
       instrumentosActivos={(instrumentosActivos ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['instrumentosActivos']}
