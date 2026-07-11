@@ -1,30 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { CuentasCorrientesClient } from '@/components/finanzas/cuentas-corrientes-client'
+import { CC_SERVICIOS, CC_GASTOS } from '@/lib/cuentas-corrientes'
 
 // Cuentas corrientes = todo lo que se debe SIN fecha fija de pago, de tres fuentes:
-//  1) Servicios recurrentes marcados como CC (lista curada).
+//  1) Servicios recurrentes marcados como CC (lista curada — ver lib/cuentas-corrientes).
 //  2) Proveedores con saldo pendiente sin plan de pago con fecha (cuenta corriente).
 //  3) Gastos sueltos marcados como CC (lista curada, ej. deudas a proveedores de servicios).
 // Lo que tiene fecha fija (cuotas, cheques, cta cte con vencimiento) va a Pendientes, no acá.
-
-const CC_SERVICIOS = new Set<string>([
-  'Abogado - Santiago Gomez',
-  'Contador - Joaquin Bolivar',
-  'TGI - Rioja 1440',
-  'API - Rioja 1440',
-  'Aguas Santafesinas - Rioja 1440',
-  // Aportes personales de los socios (monotributo/autónomo/IIBB) — deuda estilo cuenta corriente
-  'Monotributo - Dario Arevalo',
-  'Autonomo - Dario Arevalo',
-  'IIBB - Dario Arevalo',
-  'Monotributo - Bruno Arevalo',
-  'IIBB - Bruno Arevalo',
-])
-
-const CC_GASTOS = new Set<string>([
-  'Hangtags - Stunned',
-  'Percheros/Portarrollo - Daniel Herrero',
-])
 
 type Detalle = { label: string; saldo: number }
 type Cuenta = {

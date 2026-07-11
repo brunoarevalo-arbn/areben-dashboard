@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentMonth } from '@/lib/utils'
 import { PendientesClient } from '@/components/finanzas/pendientes-client'
+import { esCuentaCorriente } from '@/lib/cuentas-corrientes'
 
 export async function PendientesPanel() {
   const supabase = await createClient()
@@ -26,7 +27,7 @@ export async function PendientesPanel() {
     // consolidado, no acá. Esta vista es de tesorería, no contable.
     supabase
       .from('gastos')
-      .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, estado, cuenta_id, medio_pago, recurrente:gastos_recurrentes(notas)')
+      .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, estado, cuenta_id, medio_pago, recurrente_id, recurrente:gastos_recurrentes(notas, concepto)')
       .neq('estado', 'PAGADO')
       .neq('estado', 'DEVENGADO')
       .or('medio_pago.is.null,medio_pago.neq.TARJETA')
@@ -214,8 +215,18 @@ export async function PendientesPanel() {
     }
   }
 
-  // Enriquecer con saldos pendientes y filtrar los que quedaron en 0
+  // Enriquecer con saldos pendientes y filtrar los que quedaron en 0.
+  // Excluye los conceptos que ya son Cuenta Corriente: viven en esa pestaña, no acá,
+  // para no mostrarlos duplicados (ver lib/cuentas-corrientes).
   const gastosConSaldo = (gastosPendientes ?? [])
+    .filter((g) => !esCuentaCorriente({
+      concepto: g.concepto,
+      recurrente_id: (g as unknown as { recurrente_id?: string | null }).recurrente_id,
+      recurrenteConcepto: (() => {
+        const r = (g as unknown as { recurrente?: { concepto: string | null }[] }).recurrente
+        return Array.isArray(r) && r.length > 0 ? r[0]?.concepto ?? null : null
+      })(),
+    }))
     .map((g) => {
       const pagado = pagosByGasto.get(g.id) ?? 0
       const saldo = Math.max(0, Number(g.monto) - pagado)
