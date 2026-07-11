@@ -106,7 +106,7 @@ export default async function CierreMesPage({
     // Producción en proceso (activo): compras de producción todavía no pasadas a stock
     supabase
       .from('compras')
-      .select('id, descripcion, monto_total, monto_neto, moneda, categoria_produccion, proveedor:proveedores(nombre)')
+      .select('id, descripcion, monto_total, iva, moneda, categoria_produccion, proveedor:proveedores(nombre)')
       .eq('negocio', 'PRODUCCION')
       .is('fecha_pasaje', null),
   ])
