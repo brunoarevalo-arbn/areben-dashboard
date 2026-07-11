@@ -2177,6 +2177,70 @@ export async function sugerirMovimientoInventario(args: {
   }
 }
 
+// ── Pendiente de reposición (modelo de Bruno: CMV − compras) ──────────────
+// Activo que sube con las ventas (CMV) y baja con las compras netas. Grupos:
+// BDI solo; ZATTIA+STUNNED unificados (mismo sistema de stock/CMV).
+const GRUPOS_REPOSICION: Record<'BDI' | 'ZATTIA_STUNNED', ('BDI' | 'ZATTIA' | 'STUNNED')[]> = {
+  BDI: ['BDI'],
+  ZATTIA_STUNNED: ['ZATTIA', 'STUNNED'],
+}
+// Arranque = cierre de abril 2026 (se acumula desde mayo). En constante para no
+// escribir en la DB compartida mientras esto vive en rama.
+const ARRANQUE_REPOSICION: Record<'BDI' | 'ZATTIA_STUNNED', number> = {
+  BDI: 27687627.89,
+  ZATTIA_STUNNED: 62592664.99,
+}
+const MES_ARRANQUE_REPOSICION = '2026-04'
+
+function siguienteMes(mes: string): string {
+  const [y, m] = mes.split('-').map(Number)
+  const d = new Date(y, m, 1) // m (1-index) como índice 0-based = mes siguiente
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+/**
+ * reposicion(grupo, mes) = arranqueAbril + Σ(mayo..mes) [ CMV_mes − comprasNetas_mes ]
+ *   comprasNetas = Σ(monto_total − iva) de compras del grupo (por `negocio`) en el mes.
+ *   CMV          = Σ datos_ventas_gn.cmv del grupo en el mes.
+ * Producción en proceso (negocio='PRODUCCION') NO entra: el filtro por marca la excluye sola.
+ */
+export async function calcularReposicion(grupo: 'BDI' | 'ZATTIA_STUNNED', mes: string) {
+  await requireUser()
+  const supabase = await createClient()
+  const marcas = GRUPOS_REPOSICION[grupo]
+  const arranque = ARRANQUE_REPOSICION[grupo] ?? 0
+  const r2 = (n: number) => Math.round(n * 100) / 100
+
+  const meses: string[] = []
+  let cur = siguienteMes(MES_ARRANQUE_REPOSICION)
+  while (cur <= mes) { meses.push(cur); cur = siguienteMes(cur) }
+
+  let acum = 0
+  const detalle: { mes: string; cmv: number; comprasNetas: number }[] = []
+  for (const mm of meses) {
+    const [year, m] = mm.split('-').map(Number)
+    const desde = `${mm}-01`
+    const hasta = new Date(year, m, 0).toISOString().split('T')[0]
+    const { data: compras } = await supabase
+      .from('compras')
+      .select('monto_total, iva')
+      .in('negocio', marcas)
+      .gte('fecha', desde)
+      .lte('fecha', hasta)
+    const comprasNetas = (compras ?? []).reduce((s, c) => s + (Number(c.monto_total) - Number(c.iva)), 0)
+    const { data: ventas } = await supabase
+      .from('datos_ventas_gn')
+      .select('cmv')
+      .in('marca', marcas)
+      .eq('mes', mm)
+    const cmv = (ventas ?? []).reduce((s, v) => s + Number(v.cmv), 0)
+    acum += cmv - comprasNetas
+    detalle.push({ mes: mm, cmv: r2(cmv), comprasNetas: r2(comprasNetas) })
+  }
+
+  return { grupo, arranque: r2(arranque), reposicion: r2(arranque + acum), detalle }
+}
+
 /**
  * Arrastra los saldos del mes anterior:
  * para cada cuenta activa, crea o actualiza el saldo del mes destino con

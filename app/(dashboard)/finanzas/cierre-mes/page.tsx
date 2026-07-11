@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getMesActivo } from '@/lib/mes-activo'
+import { calcularReposicion } from '@/app/actions/finanzas'
 import { CierreMesClient } from '@/components/finanzas/cierre-mes-client'
 
 export default async function CierreMesPage({
@@ -232,6 +233,27 @@ export default async function CierreMesPage({
     })
     .filter((g) => Number(g.monto) > 0.01)
 
+  // ── Pendiente de reposición (modelo CMV − compras) inyectado en las cuentas INVENTARIO ──
+  // BDI → INV-BDI; ZATTIA+STUNNED unificados en la cuenta de ZATTIA; STUNNED consolidado → 0.
+  const invCuentas = (cuentasPatrim ?? []).filter((c) => c.tipo === 'INVENTARIO')
+  let saldosPatrimFinal = saldosPatrim ?? []
+  if (invCuentas.length) {
+    const [repoBDI, repoZS] = await Promise.all([
+      calcularReposicion('BDI', mes),
+      calcularReposicion('ZATTIA_STUNNED', mes),
+    ])
+    const saldoInvPorMarca = (marca: string | null) =>
+      marca === 'BDI' ? repoBDI.reposicion : marca === 'ZATTIA' ? repoZS.reposicion : 0
+    const byId = new Map(saldosPatrimFinal.map((s) => [s.cuenta_id, { ...s }]))
+    for (const c of invCuentas) {
+      const val = saldoInvPorMarca(c.marca ?? null)
+      const row = byId.get(c.id)
+      if (row) row.saldo_cierre = val
+      else byId.set(c.id, { cuenta_id: c.id, mes, saldo_inicio: 0, movimiento: 0, saldo_cierre: val } as (typeof saldosPatrimFinal)[number])
+    }
+    saldosPatrimFinal = [...byId.values()]
+  }
+
   return (
     <CierreMesClient
       mes={mes}
@@ -250,7 +272,7 @@ export default async function CierreMesPage({
       categorias={categorias ?? []}
       activosManuales={(activosManuales ?? []) as Parameters<typeof CierreMesClient>[0]['activosManuales']}
       cuentasPatrim={cuentasPatrim ?? []}
-      saldosPatrim={saldosPatrim ?? []}
+      saldosPatrim={saldosPatrimFinal}
       chequesPendientes={(chequesPendientes ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['chequesPendientes']}
       pagosCtaCtePendientes={(pagosCtaCtePendientes ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['pagosCtaCtePendientes']}
       instrumentosActivos={(instrumentosActivos ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['instrumentosActivos']}
