@@ -551,7 +551,7 @@ export function CierreMesClient(props: Props) {
         {/* Cuentas patrimoniales agrupadas por tipo */}
         {props.cuentasPatrim.length > 0 && (() => {
           const tipoLabels: Record<string, string> = {
-            INVENTARIO: 'Inventario por marca',
+            INVENTARIO: 'Valor de reposición',
             INVERSION: 'Inversión',
             PROVISION: 'Provisión',
             CTA_CTE_MARCA: 'Cta. Cte. Marcas',

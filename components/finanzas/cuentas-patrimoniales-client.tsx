@@ -4,7 +4,7 @@ import { useActionState, useState, useTransition, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   createCuentaPatrim, updateCuentaPatrim, deleteCuentaPatrim, toggleCuentaPatrimActiva,
-  upsertSaldoCuentaPatrim, arrastrarSaldosPatrim, sugerirMovimientoInventario,
+  upsertSaldoCuentaPatrim, arrastrarSaldosPatrim,
 } from '@/app/actions/finanzas'
 import type { CuentaPatrimonial, SaldoCuentaPatrim, TipoCuentaPatrim } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
@@ -15,7 +15,7 @@ import { formatCurrency, formatMonth, getMonthOptions } from '@/lib/utils'
 import {
   Plus, Pencil, Trash2, Loader2, RotateCw, Power, Save, X,
   TrendingUp, ArrowDownCircle, Briefcase, Receipt, Building2, ShieldAlert,
-  ChevronDown, ChevronUp, Boxes, Wand2,
+  ChevronDown, ChevronUp, Boxes,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -196,31 +196,13 @@ function SaldoRow({
   const [movimiento, setMovimiento] = useState<number>(Number(saldo?.movimiento ?? 0))
   const [saldoInicio, setSaldoInicio] = useState<number>(Number(saldo?.saldo_inicio ?? 0))
   const [isPending, startTransition] = useTransition()
-  const [isSugiriendo, setIsSugiriendo] = useState(false)
 
   const saldoCierre = saldoInicio + movimiento
   // INVENTARIO: el signo es el del propio saldo (dinámico). Otros tipos: signo fijo × saldo
   const esInventario = cuenta.tipo === 'INVENTARIO'
   const aporta = esInventario ? saldoCierre : cuenta.signo_pn * saldoCierre
-
-  async function sugerir() {
-    if (!cuenta.marca || !esInventario) return
-    setIsSugiriendo(true)
-    try {
-      const r = await sugerirMovimientoInventario({
-        cuentaId: cuenta.id,
-        marca: cuenta.marca as 'BDI' | 'ZATTIA' | 'STUNNED',
-        mes,
-      })
-      setSaldoInicio(r.saldoInicio)
-      setMovimiento(r.movimiento)
-      setEditing(true)
-    } catch (e) {
-      alert((e as Error).message)
-    } finally {
-      setIsSugiriendo(false)
-    }
-  }
+  // Nota: el "Valor de reposición" (INVENTARIO) ahora se calcula automático en el cierre/dashboard
+  // (CMV − compras). Ya no se sugiere/guarda a mano acá para no tener dos números.
 
   function guardar() {
     startTransition(async () => {
@@ -321,16 +303,6 @@ function SaldoRow({
             </>
           ) : (
             <>
-              {esInventario && cuenta.marca && (
-                <button
-                  onClick={sugerir}
-                  disabled={isSugiriendo}
-                  title="Sugerir movimiento (Compras − CMV del mes)"
-                  className="p-1 rounded hover:bg-surface-2 text-success"
-                >
-                  {isSugiriendo ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-                </button>
-              )}
               <button onClick={() => setEditing(true)} title="Editar saldo del mes" className="p-1 rounded hover:bg-surface-2 text-fg-muted">
                 <Pencil className="w-3 h-3" />
               </button>

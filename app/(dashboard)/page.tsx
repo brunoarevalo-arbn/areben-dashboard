@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getMesActivo } from '@/lib/mes-activo'
+import { calcularReposicion } from '@/app/actions/finanzas'
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatMonth } from '@/lib/utils'
@@ -25,7 +26,6 @@ export default async function DashboardPage({
     { data: nominaPendiente },
     { data: empleadosActivos },
     { data: cuentasInventario },
-    { data: saldosInventario },
     { data: existencias },
   ] = await Promise.all([
     supabase.from('gastos').select('monto, estado').eq('mes', mes),
@@ -53,9 +53,17 @@ export default async function DashboardPage({
       .eq('tipo', 'INVENTARIO')
       .eq('activo', true)
       .order('orden'),
-    supabase.from('saldos_cuentas_patrim').select('cuenta_id, saldo_cierre').eq('mes', mes),
     supabase.from('existencias_marca').select('marca, unidades, valuacion').eq('mes', mes),
   ])
+
+  // Valor de reposición (CMV − compras) en vivo — misma fuente que el cierre (nada guardado).
+  const repoValores = (cuentasInventario?.length ?? 0) > 0
+    ? await Promise.all([calcularReposicion('BDI', mes), calcularReposicion('ZATTIA_STUNNED', mes)])
+    : null
+  const repoPorMarca = (marca: string | null) =>
+    marca === 'BDI' ? (repoValores?.[0].reposicion ?? 0)
+      : marca === 'ZATTIA' ? (repoValores?.[1].reposicion ?? 0)
+        : 0 // STUNNED consolidado en ZATTIA
 
   const cierreMes = cierre as CierreMensual | null
 
@@ -258,8 +266,6 @@ export default async function DashboardPage({
 
       {/* Posición de inventario por marca */}
       {cuentasInventario && cuentasInventario.length > 0 && (() => {
-        const saldosMap = new Map<string, number>()
-        for (const s of saldosInventario ?? []) saldosMap.set(s.cuenta_id, Number(s.saldo_cierre))
         const stockMap = new Map<string, { u: number; v: number }>()
         for (const e of existencias ?? []) stockMap.set(e.marca, { u: Number(e.unidades), v: Number(e.valuacion) })
         return (
@@ -267,7 +273,7 @@ export default async function DashboardPage({
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
                 <Boxes className="w-4 h-4 text-success" />
-                Inventario por marca — {formatMonth(mes)}
+                Valor de reposición — {formatMonth(mes)}
               </h2>
               <Link href="/finanzas/cuentas-patrimoniales" className="text-xs text-primary hover:text-orange-600">
                 Editar saldos
@@ -275,7 +281,7 @@ export default async function DashboardPage({
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {cuentasInventario.map((c) => {
-                const saldo = saldosMap.get(c.id) ?? 0
+                const saldo = repoPorMarca(c.marca)
                 const positivo = saldo > 0
                 const negativo = saldo < 0
                 return (
@@ -296,7 +302,7 @@ export default async function DashboardPage({
                         negativo && 'bg-amber-500/15 text-amber-800',
                         !positivo && !negativo && 'bg-surface-2 text-fg-muted',
                       )}>
-                        {positivo ? 'Activo · Stock' : negativo ? 'Pasivo · Reposición' : 'Equilibrado'}
+                        {positivo ? 'Activo · Reposición' : negativo ? 'A favor' : 'Equilibrado'}
                       </span>
                     </div>
                     <p className={cn(
@@ -317,7 +323,7 @@ export default async function DashboardPage({
               })}
             </div>
             <p className="text-[10px] text-fg-soft italic mt-3">
-              Saldo = Compras acumuladas − CMV. Positivo = stock disponible · Negativo = deuda de reposición.
+              Valor de reposición = arranque + Σ(CMV − compras netas). Sube al vender, baja al comprar. No es stock físico. ZATTIA incluye STUNNED.
             </p>
           </div>
         )
