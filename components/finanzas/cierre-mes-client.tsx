@@ -32,6 +32,15 @@ interface ComprasPendiente {
   proveedor?: { nombre: string } | null
 }
 
+interface ProduccionItem {
+  id: string
+  descripcion: string
+  monto_total: number
+  moneda: string
+  categoria_produccion?: string | null
+  proveedor?: { nombre: string } | null
+}
+
 interface GastoPendiente {
   id: string
   concepto: string
@@ -95,6 +104,7 @@ interface Props {
   saldosMes: { cuenta_id: string; saldo_ars: number; saldo_usd: number }[]
   tcMesGlobal: number | null
   comprasPendientes: ComprasPendiente[]
+  produccionEnProceso: ProduccionItem[]
   gastosPendientes: GastoPendiente[]
   cuotasPendientes: CuotaPend[]
   retirosMes: (RetiroSocio & { categoria?: CategoriaRetiro | null })[]
@@ -192,8 +202,16 @@ export function CierreMesClient(props: Props) {
     return { activosArs, activosUsd, pasivosArs, pasivosUsd, porTipo }
   }, [props.cuentasPatrim, saldosPatrimMap])
 
-  const totalActivosArs = totalCuentasArs + cajaArs + totalActivosManualesArs + patrimAportes.activosArs
-  const totalActivosUsd = totalCuentasUsd + cajaUsd + totalActivosManualesUsd + patrimAportes.activosUsd
+  // Producción en proceso (activo): compensa la deuda/caja que consumieron esas compras
+  const produccionArs = props.produccionEnProceso
+    .filter((p) => p.moneda !== 'USD')
+    .reduce((s, p) => s + Number(p.monto_total), 0)
+  const produccionUsd = props.produccionEnProceso
+    .filter((p) => p.moneda === 'USD')
+    .reduce((s, p) => s + Number(p.monto_total), 0)
+
+  const totalActivosArs = totalCuentasArs + cajaArs + totalActivosManualesArs + patrimAportes.activosArs + produccionArs
+  const totalActivosUsd = totalCuentasUsd + cajaUsd + totalActivosManualesUsd + patrimAportes.activosUsd + produccionUsd
 
   // ─── PASIVOS ────────────────────────────────────────────────────────
   // Anti-duplicación: gastos pagados con tarjeta + cuotas → mostrar solo cuotas
@@ -613,6 +631,43 @@ export function CierreMesClient(props: Props) {
             </div>
           </div>
         )}
+
+        {/* Producción en proceso (activo) */}
+        {props.produccionEnProceso.length > 0 && (() => {
+          const catLabels: Record<string, string> = {
+            MANO_DE_OBRA: 'Mano de obra', INSUMO: 'Insumos', AVIO: 'Avíos', OTRO: 'Otros',
+          }
+          const porCat = new Map<string, number>()
+          for (const p of props.produccionEnProceso) {
+            const k = p.categoria_produccion ?? 'OTRO'
+            porCat.set(k, (porCat.get(k) ?? 0) + Number(p.monto_total))
+          }
+          return (
+            <div className="bg-surface-2/40 rounded-lg overflow-hidden">
+              <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
+                <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2">
+                  <Building2 className="w-3.5 h-3.5 text-orange-600" />
+                  Producción en proceso
+                </h3>
+                <div className="flex items-center gap-3 text-xs">
+                  {produccionArs > 0 && <span className="font-mono text-primary">{formatCurrency(produccionArs)}</span>}
+                  {produccionUsd > 0 && <span className="font-mono text-green-700">{formatCurrency(produccionUsd, 'USD')}</span>}
+                </div>
+              </div>
+              <div className="divide-y divide-slate-700/30">
+                {Array.from(porCat.entries()).map(([cat, total]) => (
+                  <div key={cat} className="px-4 py-1.5 flex items-center justify-between text-xs">
+                    <p className="text-fg-muted">{catLabels[cat] ?? cat}</p>
+                    <span className="font-mono text-fg-muted">{formatCurrency(total)}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="px-4 py-1.5 text-[10px] text-fg-soft border-t border-border-strong/30">
+                Insumos y mano de obra pagados por mercadería sin terminar. Compensa la deuda que generaron.
+              </p>
+            </div>
+          )
+        })()}
 
         <div className="bg-surface border border-orange-500/30 rounded-lg p-3 flex items-center justify-between">
           <span className="text-sm font-medium text-fg-muted">TOTAL ACTIVOS</span>

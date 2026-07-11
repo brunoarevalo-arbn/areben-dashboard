@@ -127,6 +127,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Proveedores', href: '/compras/proveedores', icon: Truck },
       { label: 'Compras', href: '/compras/lista', icon: Package },
+      { label: 'Producción', href: '/compras/produccion', icon: Boxes },
       { label: 'Costeo Importación', href: '/compras/costeo', icon: Calculator },
       { label: 'Proyecciones', href: '/compras/proyecciones', icon: TrendingUp },
     ],

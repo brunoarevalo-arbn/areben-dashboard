@@ -96,7 +96,12 @@ const compraSchema = z.object({
   tipo_cambio: z.coerce.number().optional().nullable(),
   estado: z.enum(['PENDIENTE', 'PAGADO', 'VENCIDO']),
   fecha_pago: z.string().optional().nullable(),
-  negocio: z.enum(['BDI', 'ZATTIA', 'STUNNED', 'GENERAL']),
+  negocio: z.enum(['BDI', 'ZATTIA', 'STUNNED', 'GENERAL', 'PRODUCCION']),
+  // Solo producción: origen del gasto. '' (o ausente) → null para no ensuciar compras normales.
+  categoria_produccion: z.preprocess(
+    (v) => (v === '' || v == null ? null : v),
+    z.enum(['MANO_DE_OBRA', 'INSUMO', 'AVIO', 'OTRO']).nullable(),
+  ).optional(),
   notas: z.string().optional().nullable(),
 })
 
@@ -271,6 +276,35 @@ export async function deleteCompra(id: string) {
   revalidatePath('/egresos/cheques')
   revalidatePath('/egresos/pagos')
   revalidatePath('/finanzas/tarjetas')
+}
+
+// ============ PRODUCCIÓN ============
+// Pasaje etapa 1→2: la tanda deja de contar como "Producción en proceso".
+// Solo marca fecha_pasaje; NO crea otra compra ni toca pagos (el costo ya está
+// capturado en estas compras). El valor debe reflejarse en el inventario de la
+// marca (saldo que se mantiene aparte) para que el PN no cambie con el pasaje.
+export async function marcarProduccionPasada(ids: string[], fecha: string) {
+  await requireUser()
+  if (!ids?.length) return 'No hay compras seleccionadas'
+  if (!fecha) return 'Falta la fecha de pasaje'
+  const supabase = await createClient()
+  const { error } = await supabase.from('compras').update({ fecha_pasaje: fecha }).in('id', ids)
+  if (error) return error.message
+  revalidatePath('/compras/produccion')
+  revalidatePath('/finanzas/cierre-mes')
+  return null
+}
+
+// Revertir el pasaje: vuelve a "en proceso".
+export async function revertirProduccionPasada(ids: string[]) {
+  await requireUser()
+  if (!ids?.length) return 'No hay compras seleccionadas'
+  const supabase = await createClient()
+  const { error } = await supabase.from('compras').update({ fecha_pasaje: null }).in('id', ids)
+  if (error) return error.message
+  revalidatePath('/compras/produccion')
+  revalidatePath('/finanzas/cierre-mes')
+  return null
 }
 
 // ============ PAGOS ============

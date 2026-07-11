@@ -46,6 +46,8 @@ export interface Compra {
   estado: string
   saldo_pendiente: number
   notas?: string | null
+  categoria_produccion?: string | null
+  fecha_pasaje?: string | null
   proveedor?: { nombre: string } | null
   pagos?: Pago[]
 }

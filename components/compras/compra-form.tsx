@@ -28,7 +28,14 @@ interface CuotaRow {
   instrumento?: Instrumento
 }
 
-const MARCAS = ['BDI', 'ZATTIA', 'STUNNED', 'GENERAL']
+const MARCAS = ['BDI', 'ZATTIA', 'STUNNED', 'GENERAL', 'PRODUCCION']
+
+const CATEGORIAS_PRODUCCION = [
+  { value: 'MANO_DE_OBRA', label: 'Mano de obra (costureras, taller)' },
+  { value: 'INSUMO', label: 'Insumo (telas, hilos)' },
+  { value: 'AVIO', label: 'Avío (cierres, elásticos, etiquetas)' },
+  { value: 'OTRO', label: 'Otro' },
+]
 
 const INSTRUMENTO_ICONS: Record<string, React.ReactNode> = {
   EFECTIVO: <Banknote className="w-3.5 h-3.5" />,
@@ -164,6 +171,8 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
     fd.set('iva', String(desglosarIVA ? iva : 0))
     fd.set('precio_unitario', String(montoTotal))
     fd.set('cantidad', '1')
+    // Categoría solo aplica a producción; en otras marcas se manda '' → el server la deja en null
+    fd.set('categoria_produccion', esProduccion ? categoriaProduccion : '')
 
     if (formaPago !== 'DESPUES') {
       fd.set('registrar_pago', 'true')
@@ -206,6 +215,8 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
   // Negocio controlado para filtrar proveedores según marca
   const [negocioActual, setNegocioActual] = useState<string>(compra?.negocio ?? initialNegocio ?? 'GENERAL')
   const [proveedorActualId, setProveedorActualId] = useState<string>(compra?.proveedor_id ?? '')
+  const [categoriaProduccion, setCategoriaProduccion] = useState<string>(compra?.categoria_produccion ?? 'INSUMO')
+  const esProduccion = negocioActual === 'PRODUCCION'
 
   // Proveedor aparece si: no tiene marcas asignadas (genérico) o incluye la marca elegida
   const proveedoresFiltrados = proveedores.filter((p) => {
@@ -245,6 +256,20 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
           required
         />
       </div>
+
+      {esProduccion && (
+        <div className="bg-orange-500/5 border border-orange-500/20 rounded-xl p-3 space-y-2">
+          <Select
+            label="Tipo de gasto de producción"
+            value={categoriaProduccion}
+            onChange={(e) => setCategoriaProduccion(e.target.value)}
+            options={CATEGORIAS_PRODUCCION}
+          />
+          <p className="text-xs text-fg-soft">
+            Producción en proceso: suma como activo hasta que la mercadería se termina y pasa al stock de la marca.
+          </p>
+        </div>
+      )}
 
       <Input label="Descripción" name="descripcion" defaultValue={compra?.descripcion ?? ''} placeholder="Qué se compró" required />
 

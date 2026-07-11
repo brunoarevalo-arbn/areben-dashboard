@@ -36,6 +36,7 @@ export default async function CierreMesPage({
     { data: pagosCtaCtePendientes },
     { data: instrumentosActivos },
     { data: saldosInversiones },
+    { data: produccionEnProceso },
   ] = await Promise.all([
     supabase.from('cierres_mensuales').select('*').eq('mes', mes).maybeSingle(),
     supabase.from('cierres_mensuales').select('*').eq('mes', mesAnterior).maybeSingle(),
@@ -102,6 +103,12 @@ export default async function CierreMesPage({
       .eq('estado', 'activo'),
     // Saldo de cierre del mes para esos instrumentos
     supabase.from('periodos_instrumento').select('instrumento_id, saldo_cierre').eq('mes', mes),
+    // Producción en proceso (activo): compras de producción todavía no pasadas a stock
+    supabase
+      .from('compras')
+      .select('id, descripcion, monto_total, moneda, categoria_produccion, proveedor:proveedores(nombre)')
+      .eq('negocio', 'PRODUCCION')
+      .is('fecha_pasaje', null),
   ])
 
   // ──────────────────────────────────────────────────────────────
@@ -152,6 +159,11 @@ export default async function CierreMesPage({
 
   // Normalizar el campo proveedor (Supabase a veces devuelve array para joins)
   const comprasNorm = (comprasPendientes ?? []).map((c) => ({
+    ...c,
+    proveedor: Array.isArray(c.proveedor) ? c.proveedor[0] ?? null : c.proveedor,
+  }))
+
+  const produccionNorm = (produccionEnProceso ?? []).map((c) => ({
     ...c,
     proveedor: Array.isArray(c.proveedor) ? c.proveedor[0] ?? null : c.proveedor,
   }))
@@ -224,6 +236,7 @@ export default async function CierreMesPage({
       saldosMes={saldosMes ?? []}
       tcMesGlobal={tcMes?.tipo_cambio ?? null}
       comprasPendientes={comprasNorm as Parameters<typeof CierreMesClient>[0]['comprasPendientes']}
+      produccionEnProceso={produccionNorm as Parameters<typeof CierreMesClient>[0]['produccionEnProceso']}
       gastosPendientes={gastosNetos}
       cuotasPendientes={(cuotasPendientes ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['cuotasPendientes']}
       retirosMes={(retirosMes ?? []) as Parameters<typeof CierreMesClient>[0]['retirosMes']}
