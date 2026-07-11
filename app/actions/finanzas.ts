@@ -2109,7 +2109,8 @@ export async function setSaldoImpositivo(args: {
 
 /**
  * Sugiere el movimiento de una cuenta INVENTARIO de una marca específica para el mes:
- * movimiento = SUM(compras.monto_total WHERE negocio=marca, mes) − datos_ventas_gn.cmv
+ * movimiento = SUM(compras netas WHERE negocio=marca, mes) − datos_ventas_gn.cmv
+ * Neto = bruto − IVA (el CMV es neto; el IVA es crédito fiscal, vive en impositivos).
  */
 export async function sugerirMovimientoInventario(args: {
   cuentaId: string
@@ -2126,12 +2127,13 @@ export async function sugerirMovimientoInventario(args: {
 
   const { data: compras } = await supabase
     .from('compras')
-    .select('monto_total')
+    .select('monto_total, iva')
     .eq('negocio', args.marca)
     .gte('fecha', desde)
     .lte('fecha', hasta)
 
-  const totalCompras = (compras ?? []).reduce((s, c) => s + Number(c.monto_total), 0)
+  // Neto de IVA = bruto − iva (la parte no facturada, sin IVA, queda entera)
+  const totalCompras = (compras ?? []).reduce((s, c) => s + (Number(c.monto_total) - Number(c.iva)), 0)
 
   // CMV de la marca en el mes
   const { data: ventas } = await supabase
