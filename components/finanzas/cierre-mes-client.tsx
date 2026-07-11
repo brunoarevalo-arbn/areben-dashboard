@@ -36,6 +36,7 @@ interface ProduccionItem {
   id: string
   descripcion: string
   monto_total: number
+  monto_neto: number
   moneda: string
   categoria_produccion?: string | null
   proveedor?: { nombre: string } | null
@@ -202,13 +203,14 @@ export function CierreMesClient(props: Props) {
     return { activosArs, activosUsd, pasivosArs, pasivosUsd, porTipo }
   }, [props.cuentasPatrim, saldosPatrimMap])
 
-  // Producción en proceso (activo): compensa la deuda/caja que consumieron esas compras
+  // Producción en proceso (activo): se valúa al NETO (sin IVA — el IVA es crédito fiscal,
+  // vive en impositivos). La deuda/pago va por el bruto (compra o cheque).
   const produccionArs = props.produccionEnProceso
     .filter((p) => p.moneda !== 'USD')
-    .reduce((s, p) => s + Number(p.monto_total), 0)
+    .reduce((s, p) => s + Number(p.monto_neto), 0)
   const produccionUsd = props.produccionEnProceso
     .filter((p) => p.moneda === 'USD')
-    .reduce((s, p) => s + Number(p.monto_total), 0)
+    .reduce((s, p) => s + Number(p.monto_neto), 0)
 
   const totalActivosArs = totalCuentasArs + cajaArs + totalActivosManualesArs + patrimAportes.activosArs + produccionArs
   const totalActivosUsd = totalCuentasUsd + cajaUsd + totalActivosManualesUsd + patrimAportes.activosUsd + produccionUsd
@@ -640,7 +642,7 @@ export function CierreMesClient(props: Props) {
           const porCat = new Map<string, number>()
           for (const p of props.produccionEnProceso) {
             const k = p.categoria_produccion ?? 'OTRO'
-            porCat.set(k, (porCat.get(k) ?? 0) + Number(p.monto_total))
+            porCat.set(k, (porCat.get(k) ?? 0) + Number(p.monto_neto))
           }
           return (
             <div className="bg-surface-2/40 rounded-lg overflow-hidden">

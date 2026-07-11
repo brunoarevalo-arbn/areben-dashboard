@@ -39,8 +39,8 @@ export function ProduccionClient({
   const enProceso = useMemo(() => compras.filter((c) => !c.fecha_pasaje), [compras])
   const pasadas = useMemo(() => compras.filter((c) => c.fecha_pasaje), [compras])
 
-  const totalEnProceso = enProceso.reduce((s, c) => s + Number(c.monto_total), 0)
-  const totalPasadas = pasadas.reduce((s, c) => s + Number(c.monto_total), 0)
+  const totalEnProceso = enProceso.reduce((s, c) => s + Number(c.monto_neto), 0)
+  const totalPasadas = pasadas.reduce((s, c) => s + Number(c.monto_neto), 0)
 
   // Agrupar "en proceso" por categoría
   const porCategoria = useMemo(() => {
@@ -115,7 +115,7 @@ export function ProduccionClient({
         <div className="bg-surface border border-orange-500/30 rounded-xl p-4">
           <p className="text-xs text-fg-soft uppercase tracking-wide">Producción en proceso (activo)</p>
           <p className="text-2xl font-bold font-mono text-primary mt-1">{formatCurrency(totalEnProceso)}</p>
-          <p className="text-xs text-fg-soft mt-1">{enProceso.length} ítems sin terminar</p>
+          <p className="text-xs text-fg-soft mt-1">{enProceso.length} ítems sin terminar · montos netos (sin IVA)</p>
         </div>
         <div className="bg-surface border border-border rounded-xl p-4">
           <p className="text-xs text-fg-soft uppercase tracking-wide">Ya pasado a stock</p>
@@ -128,7 +128,7 @@ export function ProduccionClient({
       {sel.size > 0 && (
         <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 flex items-center justify-between flex-wrap gap-3 sticky top-2 z-10">
           <span className="text-sm text-fg-muted">
-            {sel.size} seleccionada{sel.size > 1 ? 's' : ''} · {formatCurrency(enProceso.filter((c) => sel.has(c.id)).reduce((s, c) => s + Number(c.monto_total), 0))}
+            {sel.size} seleccionada{sel.size > 1 ? 's' : ''} · {formatCurrency(enProceso.filter((c) => sel.has(c.id)).reduce((s, c) => s + Number(c.monto_neto), 0))}
           </span>
           <div className="flex items-center gap-2">
             <label className="text-xs text-fg-soft">Fecha de pasaje</label>
@@ -155,7 +155,7 @@ export function ProduccionClient({
       ) : (
         <div className="space-y-4">
           {Array.from(porCategoria.entries()).map(([cat, items]) => {
-            const subtotal = items.reduce((s, c) => s + Number(c.monto_total), 0)
+            const subtotal = items.reduce((s, c) => s + Number(c.monto_neto), 0)
             return (
               <div key={cat} className="bg-surface border border-border rounded-xl overflow-hidden">
                 <div className="px-4 py-2.5 bg-surface-2/50 border-b border-border flex items-center justify-between">
@@ -180,7 +180,7 @@ export function ProduccionClient({
                             : <span className="text-green-700"> · pagada</span>}
                         </p>
                       </div>
-                      <span className="font-mono text-fg-muted shrink-0">{formatCurrency(Number(c.monto_total))}</span>
+                      <span className="font-mono text-fg-muted shrink-0">{formatCurrency(Number(c.monto_neto))}</span>
                       <button onClick={() => setEditTarget(c)} className="p-1.5 rounded hover:bg-surface-2 text-fg-soft" title="Editar">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
@@ -212,7 +212,7 @@ export function ProduccionClient({
                     {CAT_LABELS[c.categoria_produccion ?? 'OTRO'] ?? c.categoria_produccion} · {c.proveedor?.nombre ?? '—'} · pasó el {formatDate(c.fecha_pasaje!)}
                   </p>
                 </div>
-                <span className="font-mono text-fg-soft shrink-0">{formatCurrency(Number(c.monto_total))}</span>
+                <span className="font-mono text-fg-soft shrink-0">{formatCurrency(Number(c.monto_neto))}</span>
                 <button
                   onClick={() => handleRevertir(c.id)}
                   disabled={isPending}
