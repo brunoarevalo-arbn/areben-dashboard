@@ -56,7 +56,7 @@ export default async function DashboardPage({
     supabase.from('existencias_marca').select('marca, unidades, valuacion').eq('mes', mes),
   ])
 
-  // Valor de inventario (arranque + compras − CMV) en vivo — misma fuente que el cierre (nada guardado).
+  // Posición de mercadería (arranque negativo + compras − CMV) en vivo — misma fuente que el cierre.
   const repoValores = (cuentasInventario?.length ?? 0) > 0
     ? await Promise.all([calcularReposicion('BDI', mes), calcularReposicion('ZATTIA_STUNNED', mes)])
     : null
@@ -273,7 +273,7 @@ export default async function DashboardPage({
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
                 <Boxes className="w-4 h-4 text-success" />
-                Valor de inventario — {formatMonth(mes)}
+                Posición de mercadería — {formatMonth(mes)}
               </h2>
               <Link href="/finanzas/cuentas-patrimoniales" className="text-xs text-primary hover:text-orange-600">
                 Editar saldos
@@ -307,7 +307,7 @@ export default async function DashboardPage({
                         negativo && 'bg-amber-500/15 text-amber-800',
                         !positivo && !negativo && 'bg-surface-2 text-fg-muted',
                       )}>
-                        {positivo ? 'Activo' : negativo ? 'Negativo' : '—'}
+                        {negativo ? 'Pasivo · a reponer' : positivo ? 'A favor' : '—'}
                       </span>
                     </div>
                     <p className={cn(
@@ -333,7 +333,7 @@ export default async function DashboardPage({
               })}
             </div>
             <p className="text-[10px] text-fg-soft italic mt-3">
-              Valor de inventario = arranque + Σ(compras netas − CMV). Sube por compra, baja por venta (CMV). Es la valuación contable, no el stock físico. ZATTIA incluye STUNNED.
+              Posición de mercadería = arranque + Σ(compras netas − CMV). Es un pasivo (pendiente de reposición): baja por venta (CMV) y sube por compra. No es el stock físico. ZATTIA incluye STUNNED.
             </p>
           </div>
         )

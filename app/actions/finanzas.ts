@@ -2177,19 +2177,18 @@ export async function sugerirMovimientoInventario(args: {
   }
 }
 
-// ── Valor de inventario (contable): arranque + Σ(compras netas − CMV) ──────
-// Activo que SUBE por compra (repone stock) y BAJA por CMV (venta). Es la valuación
-// contable del inventario (de compras/CMV), distinta del stock físico valorizado.
-// Grupos: BDI solo; ZATTIA+STUNNED unificados (mismo sistema de stock/CMV).
+// ── Posición de mercadería: arranque + Σ(compras netas − CMV) ──────────────
+// Contra-asiento de compras/CMV (no se trackea el inventario físico real). El arranque va
+// NEGATIVO (pasivo/pendiente de reposición): vender (CMV) lo hace más negativo, comprar lo
+// hace menos negativo. Como pasivo, el resultado del mes = margen. Grupos: BDI; ZATTIA+STUNNED.
 const GRUPOS_REPOSICION: Record<'BDI' | 'ZATTIA_STUNNED', ('BDI' | 'ZATTIA' | 'STUNNED')[]> = {
   BDI: ['BDI'],
   ZATTIA_STUNNED: ['ZATTIA', 'STUNNED'],
 }
-// Arranque = cierre de abril 2026 (se acumula desde mayo). En constante para no
-// escribir en la DB compartida mientras esto vive en rama.
+// Arranque = cierre de abril 2026 (se acumula desde mayo), NEGATIVO (es un pendiente de reposición).
 const ARRANQUE_REPOSICION: Record<'BDI' | 'ZATTIA_STUNNED', number> = {
-  BDI: 27687627.89,
-  ZATTIA_STUNNED: 62592664.99,
+  BDI: -27687627.89,
+  ZATTIA_STUNNED: -62592664.99,
 }
 const MES_ARRANQUE_REPOSICION = '2026-04'
 
