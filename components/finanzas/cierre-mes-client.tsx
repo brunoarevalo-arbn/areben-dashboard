@@ -558,7 +558,7 @@ export function CierreMesClient(props: Props) {
         {props.cuentasPatrim.length > 0 && (() => {
           const tipoLabels: Record<string, string> = {
             INVENTARIO: 'Posición de mercadería',
-            INVERSION: 'Resultados Acumulados',
+            INVERSION: 'Inversiones y activo fijo',
             PROVISION: 'Provisión',
             CTA_CTE_MARCA: 'Cta. Cte. Marcas',
             PASIVO_ROTATIVO: 'Pasivo rotativo',
