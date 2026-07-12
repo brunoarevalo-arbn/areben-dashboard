@@ -17,6 +17,10 @@ export default async function CierreMesPage({
   const mesAnterior = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
   // Último día del mes del cierre — fecha de corte por fecha (producción, cheques, pagos a plazo)
   const mesFin = `${mes}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}` // ej '2026-05-31'
+  // Piso para traer compras/gastos a evaluar al corte (18 meses atrás — acota volumen; lo más viejo se asume saldado)
+  const floorDate = new Date(y, m - 1 - 18, 1)
+  const comprasDesde = `${floorDate.getFullYear()}-${String(floorDate.getMonth() + 1).padStart(2, '0')}-01`
+  const gastosDesde = `${floorDate.getFullYear()}-${String(floorDate.getMonth() + 1).padStart(2, '0')}`
 
   const supabase = await createClient()
 
@@ -40,6 +44,8 @@ export default async function CierreMesPage({
     { data: instrumentosActivos },
     { data: saldosInversiones },
     { data: produccionEnProceso },
+    { data: ccCuentas },
+    { data: ccMovimientos },
   ] = await Promise.all([
     supabase.from('cierres_mensuales').select('*').eq('mes', mes).maybeSingle(),
     supabase.from('cierres_mensuales').select('*').eq('mes', mesAnterior).maybeSingle(),
@@ -51,30 +57,34 @@ export default async function CierreMesPage({
       .order('banco'),
     supabase.from('saldos_cuentas').select('cuenta_id, saldo_ars, saldo_usd').eq('mes', mes),
     supabase.from('tipos_cambio_mes').select('tipo_cambio').eq('mes', mes).maybeSingle(),
+    // Compras hasta el corte (con su saldo de hoy para saber si siguen impagas). El saldo AL CORTE
+    // se calcula después con los pagos ≤ mesFin; solo cuentan las con evidencia de estar impagas al corte.
     supabase
       .from('compras')
       .select('id, descripcion, fecha, monto_total, saldo_pendiente, moneda, proveedor:proveedores(nombre)')
-      .gt('saldo_pendiente', 0)
-      .neq('estado', 'PAGADO'),
-    // Gastos no pagados — últimos 12 meses para no traer históricos infinitos
-    (() => {
-      const d = new Date(); d.setMonth(d.getMonth() - 12)
-      const desdeMes = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      return supabase
-        .from('gastos')
-        .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, medio_pago, tarjeta_id')
-        .neq('estado', 'PAGADO')
-        .neq('estado', 'DEVENGADO')
-        .gte('mes', desdeMes)
-        .order('fecha_pago', { ascending: true, nullsFirst: false })
-        .limit(500)
-    })(),
-    // Todas las cuotas tarjeta no pagadas con vencimiento ≤ mes del cierre
+      .lte('fecha', mesFin)
+      .gte('fecha', comprasDesde)
+      .order('fecha', { ascending: false })
+      .limit(2000),
+    // Gastos hasta el corte que NO estaban saldados al corte. DEVENGADO (provisión) se excluye.
+    // Un PAGADO recién sale si su fecha_pago ≤ mesFin (pagado hasta el corte); si se pagó DESPUÉS,
+    // sigue siendo pasivo del mes. Los parcialmente pagados por el ledger se netean después (≤ mesFin).
+    supabase
+      .from('gastos')
+      .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, medio_pago, tarjeta_id')
+      .neq('estado', 'DEVENGADO')
+      .gte('mes', gastosDesde)
+      .lte('mes', mes)
+      .or(`estado.neq.PAGADO,fecha_pago.gt.${mesFin}`)
+      .order('mes', { ascending: false })
+      .limit(1500),
+    // Cuotas de tarjeta: pasivo del mes en que se CONSUMIÓ (mes_cierre), si no estaba pagada al corte.
+    // (No por mes_vencimiento ni por el tilde de hoy: el consumo de mayo que se paga en junio es pasivo de mayo.)
     supabase
       .from('cuotas_tarjeta')
-      .select('id, concepto, monto_cuota, mes_vencimiento, origen_tipo, origen_id, tarjeta:tarjetas_credito(nombre, banco)')
-      .eq('pagada', false)
-      .lte('mes_vencimiento', mes)
+      .select('id, concepto, monto_cuota, mes_cierre, mes_vencimiento, origen_tipo, origen_id, tarjeta:tarjetas_credito(nombre, banco)')
+      .lte('mes_cierre', mes)
+      .or(`pagada.eq.false,fecha_pago.gt.${mesFin}`)
       .order('mes_vencimiento'),
     supabase
       .from('retiros_socios')
@@ -117,6 +127,9 @@ export default async function CierreMesPage({
       .eq('negocio', 'PRODUCCION')
       .lte('fecha', mesFin)                                    // comprada hasta fin de mes
       .or(`fecha_pasaje.is.null,fecha_pasaje.gt.${mesFin}`),   // sin pasar, o pasada después del cierre
+    // Cuentas corrientes manuales (activas) + sus movimientos hasta el corte (foto al 31)
+    supabase.from('cc_cuentas').select('id, nombre, naturaleza, moneda').eq('activo', true).order('nombre'),
+    supabase.from('cc_movimientos').select('cuenta_id, fecha, tipo, monto').lte('fecha', mesFin),
   ])
 
   // ──────────────────────────────────────────────────────────────
@@ -165,11 +178,38 @@ export default async function CierreMesPage({
     capitalPendienteCreditos,
   }
 
-  // Normalizar el campo proveedor (Supabase a veces devuelve array para joins)
-  const comprasNorm = (comprasPendientes ?? []).map((c) => ({
-    ...c,
-    proveedor: Array.isArray(c.proveedor) ? c.proveedor[0] ?? null : c.proveedor,
-  }))
+  // Saldo de cada compra AL CORTE. Muchas compras se saldan sin dejar un pago en el ledger (no hay
+  // fecha de pago), así que NO se puede reconstruir "cuándo se pagó" sólo con pagos. Criterio:
+  //   pasivo al corte = monto_total − Σ pagos(fecha_emision ≤ mesFin), PERO sólo si hay evidencia de que
+  //   seguía impaga al corte: (a) todavía debe hoy (saldo_pendiente > 0), o (b) hubo un pago DESPUÉS del corte.
+  // Así no contamos como deuda las que ya estaban pagadas al corte pero sin rastro de pago.
+  const compraIds = (comprasPendientes ?? []).map((c) => c.id)
+  const pagadoCorte = new Map<string, number>()
+  const tuvoPagoDespues = new Set<string>()
+  if (compraIds.length > 0) {
+    for (let i = 0; i < compraIds.length; i += 300) {
+      const { data: pagosCompra } = await supabase
+        .from('pagos')
+        .select('compra_id, monto, fecha_emision')
+        .in('compra_id', compraIds.slice(i, i + 300))
+      for (const p of pagosCompra ?? []) {
+        if (!p.compra_id) continue
+        if ((p.fecha_emision ?? '') <= mesFin) pagadoCorte.set(p.compra_id, (pagadoCorte.get(p.compra_id) ?? 0) + Number(p.monto))
+        else tuvoPagoDespues.add(p.compra_id)
+      }
+    }
+  }
+  const comprasNorm = (comprasPendientes ?? [])
+    .map((c) => {
+      const saldoCorte = Math.round((Number(c.monto_total) - (pagadoCorte.get(c.id) ?? 0)) * 100) / 100
+      const impagaAlCorte = Number(c.saldo_pendiente) > 0.01 || tuvoPagoDespues.has(c.id)
+      return {
+        ...c,
+        saldo_pendiente: impagaAlCorte ? saldoCorte : 0,
+        proveedor: Array.isArray(c.proveedor) ? c.proveedor[0] ?? null : c.proveedor,
+      }
+    })
+    .filter((c) => c.saldo_pendiente > 0.01)
 
   const produccionNorm = (produccionEnProceso ?? []).map((c) => ({
     ...c,
@@ -192,6 +232,7 @@ export default async function CierreMesPage({
       .select('origen_id, monto')
       .eq('tipo_origen', 'GASTO')
       .in('origen_id', gastoIds)
+      .lte('fecha_emision', mesFin)
     for (const p of pagosGasto ?? []) {
       if (!p.origen_id) continue
       pagosParcialesByGasto.set(p.origen_id, (pagosParcialesByGasto.get(p.origen_id) ?? 0) + Number(p.monto))
@@ -213,6 +254,7 @@ export default async function CierreMesPage({
         .select('origen_id, monto')
         .eq('tipo_origen', 'NOMINA')
         .in('origen_id', nominaIds)
+        .lte('fecha_emision', mesFin)
       for (const p of pagosNomina ?? []) {
         if (!p.origen_id) continue
         const gid = gastoByNomina.get(p.origen_id)
@@ -262,6 +304,27 @@ export default async function CierreMesPage({
     saldosPatrimFinal = [...byId.values()]
   }
 
+  // ── Cuentas corrientes manuales: saldo a la fecha de corte (Σ DEUDA − Σ PAGO con fecha ≤ mesFin) ──
+  // Clasificar en activo/pasivo × ARS/USD. naturaleza COBRAR=nos deben, PAGAR=les debemos; el signo del
+  // saldo puede invertir la clasificación (si pagaron/cobraron de más).
+  const ccSaldoPorCuenta = new Map<string, number>()
+  for (const mv of ccMovimientos ?? []) {
+    const delta = mv.tipo === 'DEUDA' ? Number(mv.monto) : -Number(mv.monto)
+    ccSaldoPorCuenta.set(mv.cuenta_id, (ccSaldoPorCuenta.get(mv.cuenta_id) ?? 0) + delta)
+  }
+  let ccActivosArs = 0, ccActivosUsd = 0, ccPasivosArs = 0, ccPasivosUsd = 0
+  const ccDetalle: { nombre: string; naturaleza: string; moneda: string; monto: number; esActivo: boolean }[] = []
+  for (const c of ccCuentas ?? []) {
+    const saldo = Math.round((ccSaldoPorCuenta.get(c.id) ?? 0) * 100) / 100
+    if (Math.abs(saldo) < 0.01) continue
+    const esActivo = (c.naturaleza === 'COBRAR') === (saldo >= 0)
+    const monto = Math.abs(saldo)
+    const usd = c.moneda === 'USD'
+    if (esActivo) { if (usd) ccActivosUsd += monto; else ccActivosArs += monto }
+    else { if (usd) ccPasivosUsd += monto; else ccPasivosArs += monto }
+    ccDetalle.push({ nombre: c.nombre, naturaleza: c.naturaleza, moneda: c.moneda, monto, esActivo })
+  }
+
   return (
     <CierreMesClient
       mes={mes}
@@ -287,6 +350,11 @@ export default async function CierreMesPage({
       instrumentosActivos={(instrumentosActivos ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['instrumentosActivos']}
       saldosInversiones={saldosInversiones ?? []}
       resumenGastosFinancieros={resumenGastosFinancieros}
+      ccActivosArs={ccActivosArs}
+      ccActivosUsd={ccActivosUsd}
+      ccPasivosArs={ccPasivosArs}
+      ccPasivosUsd={ccPasivosUsd}
+      ccDetalle={ccDetalle}
     />
   )
 }

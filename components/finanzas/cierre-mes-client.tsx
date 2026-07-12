@@ -126,6 +126,11 @@ interface Props {
     total: number
     capitalPendienteCreditos: number
   }
+  ccActivosArs?: number
+  ccActivosUsd?: number
+  ccPasivosArs?: number
+  ccPasivosUsd?: number
+  ccDetalle?: { nombre: string; naturaleza: string; moneda: string; monto: number; esActivo: boolean }[]
 }
 
 export function CierreMesClient(props: Props) {
@@ -216,8 +221,8 @@ export function CierreMesClient(props: Props) {
     .filter((p) => p.moneda === 'USD')
     .reduce((s, p) => s + costoNetoProd(p), 0)
 
-  const totalActivosArs = totalCuentasArs + cajaArs + totalActivosManualesArs + patrimAportes.activosArs + produccionArs
-  const totalActivosUsd = totalCuentasUsd + cajaUsd + totalActivosManualesUsd + patrimAportes.activosUsd + produccionUsd
+  const totalActivosArs = totalCuentasArs + cajaArs + totalActivosManualesArs + patrimAportes.activosArs + produccionArs + (props.ccActivosArs ?? 0)
+  const totalActivosUsd = totalCuentasUsd + cajaUsd + totalActivosManualesUsd + patrimAportes.activosUsd + produccionUsd + (props.ccActivosUsd ?? 0)
 
   // ─── PASIVOS ────────────────────────────────────────────────────────
   // Anti-duplicación: gastos pagados con tarjeta + cuotas → mostrar solo cuotas
@@ -278,10 +283,10 @@ export function CierreMesClient(props: Props) {
 
   const totalPasivosArs = pasivosCompras + pasivosGastos + pasivosCuotas
     + pasivosCheques + pasivosCtaCte + pasivosInversionesArs
-    + pasivosManArs + patrimAportes.pasivosArs
+    + pasivosManArs + patrimAportes.pasivosArs + (props.ccPasivosArs ?? 0)
   const totalPasivosUsd = pasivosComprasUsd + pasivosGastosUsd
     + pasivosChequesUsd + pasivosCtaCteUsd + pasivosInversionesUsd
-    + pasivosManUsd + patrimAportes.pasivosUsd
+    + pasivosManUsd + patrimAportes.pasivosUsd + (props.ccPasivosUsd ?? 0)
 
   // ─── PATRIMONIO NETO ────────────────────────────────────────────────
   // PN convertido a ARS usando TC: ARS + (USD * TC)
@@ -683,6 +688,30 @@ export function CierreMesClient(props: Props) {
           )
         })()}
 
+        {/* Cuentas corrientes — a cobrar (activo) */}
+        {(props.ccDetalle ?? []).some((c) => c.esActivo) && (
+          <div className="bg-surface-2/40 rounded-lg overflow-hidden">
+            <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
+              <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2">
+                <Wallet className="w-3.5 h-3.5 text-primary" />
+                Cuentas corrientes (a cobrar)
+              </h3>
+              <div className="flex items-center gap-3 text-xs">
+                {(props.ccActivosArs ?? 0) > 0 && <span className="font-mono text-primary">{formatCurrency(props.ccActivosArs ?? 0)}</span>}
+                {(props.ccActivosUsd ?? 0) > 0 && <span className="font-mono text-green-700">{formatCurrency(props.ccActivosUsd ?? 0, 'USD')}</span>}
+              </div>
+            </div>
+            <div className="divide-y divide-slate-700/30">
+              {(props.ccDetalle ?? []).filter((c) => c.esActivo).map((c, i) => (
+                <div key={i} className="px-4 py-1.5 flex items-center justify-between text-xs">
+                  <p className="text-fg-muted">{c.nombre}</p>
+                  <span className="font-mono text-fg-muted">{formatCurrency(c.monto, c.moneda as 'ARS' | 'USD')}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="bg-surface border border-orange-500/30 rounded-lg p-3 flex items-center justify-between">
           <span className="text-sm font-medium text-fg-muted">TOTAL ACTIVOS</span>
           <div className="flex items-center gap-4">
@@ -863,6 +892,30 @@ export function CierreMesClient(props: Props) {
             </table>
           )}
         </div>
+
+        {/* Cuentas corrientes — a pagar (pasivo) */}
+        {(props.ccDetalle ?? []).some((c) => !c.esActivo) && (
+          <div className="bg-surface-2/40 rounded-lg overflow-hidden">
+            <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
+              <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2">
+                <ArrowDownCircle className="w-3.5 h-3.5 text-amber-700" />
+                Cuentas corrientes (a pagar)
+              </h3>
+              <div className="flex items-center gap-3 text-xs">
+                {(props.ccPasivosArs ?? 0) > 0 && <span className="font-mono text-amber-700">{formatCurrency(props.ccPasivosArs ?? 0)}</span>}
+                {(props.ccPasivosUsd ?? 0) > 0 && <span className="font-mono text-amber-800">{formatCurrency(props.ccPasivosUsd ?? 0, 'USD')}</span>}
+              </div>
+            </div>
+            <div className="divide-y divide-slate-700/30">
+              {(props.ccDetalle ?? []).filter((c) => !c.esActivo).map((c, i) => (
+                <div key={i} className="px-4 py-1.5 flex items-center justify-between text-xs">
+                  <p className="text-fg-muted">{c.nombre}</p>
+                  <span className="font-mono text-fg-muted">{formatCurrency(c.monto, c.moneda as 'ARS' | 'USD')}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="bg-surface border border-amber-500/30 rounded-lg p-3 flex items-center justify-between">
           <span className="text-sm font-medium text-fg-muted">TOTAL PASIVOS</span>
