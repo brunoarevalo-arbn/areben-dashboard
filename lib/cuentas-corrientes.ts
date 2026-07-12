@@ -22,6 +22,7 @@ export const CC_SERVICIOS = new Set<string>([
 export const CC_GASTOS = new Set<string>([
   'Hangtags - Stunned',
   'Percheros/Portarrollo - Daniel Herrero',
+  'Honorarios abogado Santiago Gómez - litigio laboral',
 ])
 
 // ¿Un gasto es cuenta corriente? Los recurrentes se matchean por el concepto del
