@@ -310,6 +310,37 @@ export default async function CierreMesPage({
     saldosPatrimFinal = [...byId.values()]
   }
 
+  // ── Cuentas de inversión (activo fijo): saldo = arranque (saldo_inicial) + Σ gastos categoría "Inversiones" ──
+  // Mismo mecanismo que socios: un gasto-inversión es capex (no gasto operativo). Al crecer el activo por su
+  // monto, es PN-neutro (caja↓/pasivo↑ + activo↑) y NO reduce el resultado. Se asume una sola cuenta INVERSION
+  // acumuladora de capex.
+  const invFijoCuentas = (cuentasPatrim ?? []).filter((c) => c.tipo === 'INVERSION')
+  if (invFijoCuentas.length) {
+    const { data: gastosInv } = await supabase
+      .from('gastos')
+      .select('mes, monto')
+      .eq('categoria', 'Inversiones')
+      .lte('mes', mes)
+    const byId = new Map(saldosPatrimFinal.map((s) => [s.cuenta_id, { ...s }]))
+    for (const c of invFijoCuentas) {
+      const arranque = Number(c.saldo_inicial ?? 0)
+      const mesIni = c.mes_inicial ?? ''
+      let acum = 0, mov = 0
+      for (const g of gastosInv ?? []) {
+        if (mesIni && g.mes <= mesIni) continue // ya incluido en el arranque
+        const m = Number(g.monto)
+        acum += m
+        if (g.mes === mes) mov += m
+      }
+      const saldoCierre = Math.round((arranque + acum) * 100) / 100
+      const saldoInicial = Math.round((saldoCierre - mov) * 100) / 100
+      const row = byId.get(c.id)
+      if (row) { row.saldo_cierre = saldoCierre; row.saldo_inicio = saldoInicial; row.movimiento = mov }
+      else byId.set(c.id, { cuenta_id: c.id, mes, saldo_inicio: saldoInicial, movimiento: mov, saldo_cierre: saldoCierre } as (typeof saldosPatrimFinal)[number])
+    }
+    saldosPatrimFinal = [...byId.values()]
+  }
+
   // ── Cuentas corrientes manuales: saldo a la fecha de corte (Σ DEUDA − Σ PAGO con fecha ≤ mesFin) ──
   // Clasificar en activo/pasivo × ARS/USD. naturaleza COBRAR=nos deben, PAGAR=les debemos; el signo del
   // saldo puede invertir la clasificación (si pagaron/cobraron de más).
