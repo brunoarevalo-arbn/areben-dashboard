@@ -4,10 +4,10 @@ import { calcularReposicion } from '@/app/actions/finanzas'
 import { CierreMesClient } from '@/components/finanzas/cierre-mes-client'
 
 // Corte "ledger limpio": desde este mes en adelante todo pago queda con fecha en el ledger,
-// así que el pasivo de compras se netea puro por fecha_emision. Los meses ANTERIORES (histórico
-// ya reportado) conservan el guardarraíl de "evidencia" para no alterar cierres pasados.
+// así que el pasivo de compras se netea puro por fecha_emision. Los meses ANTERIORES (mayo y
+// previos, ya cerrados) conservan el guardarraíl de "evidencia" para no alterar cierres pasados.
 // ⚠️ Ajustar si cambia el mes desde el que la carga de pagos con fecha es confiable.
-const CORTE_LEDGER_LIMPIO = '2026-07-01'
+const CORTE_LEDGER_LIMPIO = '2026-06-01'
 
 export default async function CierreMesPage({
   searchParams,
