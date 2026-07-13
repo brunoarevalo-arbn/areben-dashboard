@@ -46,6 +46,8 @@ export default async function CierreMesPage({
     { data: produccionEnProceso },
     { data: ccCuentas },
     { data: ccMovimientos },
+    { data: prestamos },
+    { data: planesAfip },
   ] = await Promise.all([
     supabase.from('cierres_mensuales').select('*').eq('mes', mes).maybeSingle(),
     supabase.from('cierres_mensuales').select('*').eq('mes', mesAnterior).maybeSingle(),
@@ -130,6 +132,9 @@ export default async function CierreMesPage({
     // Cuentas corrientes manuales (activas) + sus movimientos hasta el corte (foto al 31)
     supabase.from('cc_cuentas').select('id, nombre, naturaleza, moneda').eq('activo', true).order('nombre'),
     supabase.from('cc_movimientos').select('cuenta_id, fecha, tipo, monto').lte('fecha', mesFin),
+    // Préstamos bancarios y planes AFIP existentes al corte (el capital pendiente = pasivo del cierre)
+    supabase.from('prestamos').select('id, nombre, acreedor, moneda').lte('fecha_inicio', mesFin),
+    supabase.from('planes_afip').select('id, nombre').lte('fecha_inicio', mesFin),
   ])
 
   // ──────────────────────────────────────────────────────────────
@@ -325,6 +330,40 @@ export default async function CierreMesPage({
     ccDetalle.push({ nombre: c.nombre, naturaleza: c.naturaleza, moneda: c.moneda, monto, esActivo })
   }
 
+  // ── Préstamos bancarios: capital pendiente al corte (cuotas no pagadas al 31), por moneda ──
+  const prestamoIds = (prestamos ?? []).map((p) => p.id)
+  const capPorPrestamo = new Map<string, number>()
+  if (prestamoIds.length) {
+    const { data: cuotasPr } = await supabase
+      .from('prestamo_cuotas')
+      .select('prestamo_id, capital, pagada, fecha_pago')
+      .in('prestamo_id', prestamoIds)
+    for (const c of cuotasPr ?? []) {
+      const impaga = !c.pagada || (!!c.fecha_pago && c.fecha_pago > mesFin)
+      if (impaga) capPorPrestamo.set(c.prestamo_id, (capPorPrestamo.get(c.prestamo_id) ?? 0) + Number(c.capital))
+    }
+  }
+  const prestamosBancarios = (prestamos ?? [])
+    .map((p) => ({ nombre: p.nombre, acreedor: p.acreedor, moneda: p.moneda, capital: Math.round((capPorPrestamo.get(p.id) ?? 0) * 100) / 100 }))
+    .filter((p) => p.capital > 0.01)
+
+  // ── Planes de pago AFIP: capital financiado pendiente al corte (ARS) ──
+  const planIds = (planesAfip ?? []).map((p) => p.id)
+  const capPorPlan = new Map<string, number>()
+  if (planIds.length) {
+    const { data: cuotasAfip } = await supabase
+      .from('plan_afip_cuotas')
+      .select('plan_afip_id, capital, pagada, fecha_pago')
+      .in('plan_afip_id', planIds)
+    for (const c of cuotasAfip ?? []) {
+      const impaga = !c.pagada || (!!c.fecha_pago && c.fecha_pago > mesFin)
+      if (impaga) capPorPlan.set(c.plan_afip_id, (capPorPlan.get(c.plan_afip_id) ?? 0) + Number(c.capital))
+    }
+  }
+  const planesAfipPend = (planesAfip ?? [])
+    .map((p) => ({ nombre: p.nombre, capital: Math.round((capPorPlan.get(p.id) ?? 0) * 100) / 100 }))
+    .filter((p) => p.capital > 0.01)
+
   return (
     <CierreMesClient
       mes={mes}
@@ -355,6 +394,8 @@ export default async function CierreMesPage({
       ccPasivosArs={ccPasivosArs}
       ccPasivosUsd={ccPasivosUsd}
       ccDetalle={ccDetalle}
+      prestamosBancarios={prestamosBancarios}
+      planesAfip={planesAfipPend}
     />
   )
 }

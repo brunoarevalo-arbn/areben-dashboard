@@ -131,6 +131,8 @@ interface Props {
   ccPasivosArs?: number
   ccPasivosUsd?: number
   ccDetalle?: { nombre: string; naturaleza: string; moneda: string; monto: number; esActivo: boolean }[]
+  prestamosBancarios?: { nombre: string; acreedor: string; moneda: string; capital: number }[]
+  planesAfip?: { nombre: string; capital: number }[]
 }
 
 export function CierreMesClient(props: Props) {
@@ -281,12 +283,19 @@ export function CierreMesClient(props: Props) {
   const pasivosManArs = pasivosManuales.filter((p) => p.moneda !== 'USD').reduce((s, p) => s + Number(p.monto), 0)
   const pasivosManUsd = pasivosManuales.filter((p) => p.moneda === 'USD').reduce((s, p) => s + Number(p.monto), 0)
 
+  // Préstamos bancarios y planes AFIP: capital pendiente al corte (pasivo)
+  const pasivosPrestamosArs = (props.prestamosBancarios ?? []).filter((p) => p.moneda !== 'USD').reduce((s, p) => s + Number(p.capital), 0)
+  const pasivosPrestamosUsd = (props.prestamosBancarios ?? []).filter((p) => p.moneda === 'USD').reduce((s, p) => s + Number(p.capital), 0)
+  const pasivosAfip = (props.planesAfip ?? []).reduce((s, p) => s + Number(p.capital), 0)
+
   const totalPasivosArs = pasivosCompras + pasivosGastos + pasivosCuotas
     + pasivosCheques + pasivosCtaCte + pasivosInversionesArs
     + pasivosManArs + patrimAportes.pasivosArs + (props.ccPasivosArs ?? 0)
+    + pasivosPrestamosArs + pasivosAfip
   const totalPasivosUsd = pasivosComprasUsd + pasivosGastosUsd
     + pasivosChequesUsd + pasivosCtaCteUsd + pasivosInversionesUsd
     + pasivosManUsd + patrimAportes.pasivosUsd + (props.ccPasivosUsd ?? 0)
+    + pasivosPrestamosUsd
 
   // ─── PATRIMONIO NETO ────────────────────────────────────────────────
   // PN convertido a ARS usando TC: ARS + (USD * TC)
@@ -798,6 +807,32 @@ export function CierreMesClient(props: Props) {
               detalle: `${i.codigo ?? ''} · Capital inicial ${i.moneda === 'USD' ? 'U$S' : '$'} ${formatCurrency(Number(i.capital_inicial), i.moneda).replace(/\$\s?|U\$S\s?/g, '')}`,
               monto: i.saldoCierre,
               moneda: i.moneda,
+            }))}
+          />
+        )}
+        {/* 7. Préstamos bancarios (capital pendiente al corte) */}
+        {(props.prestamosBancarios ?? []).length > 0 && (
+          <PasivoBlock
+            title="Préstamos bancarios"
+            icon={TrendingDown}
+            items={(props.prestamosBancarios ?? []).map((p) => ({
+              label: p.acreedor || p.nombre,
+              detalle: `${p.nombre} · capital pendiente al corte`,
+              monto: p.capital,
+              moneda: p.moneda,
+            }))}
+          />
+        )}
+        {/* 8. Planes de pago AFIP (capital financiado pendiente) */}
+        {(props.planesAfip ?? []).length > 0 && (
+          <PasivoBlock
+            title="Planes de pago AFIP"
+            icon={Receipt}
+            items={(props.planesAfip ?? []).map((p) => ({
+              label: p.nombre,
+              detalle: 'Capital financiado pendiente al corte',
+              monto: p.capital,
+              moneda: 'ARS',
             }))}
           />
         )}
