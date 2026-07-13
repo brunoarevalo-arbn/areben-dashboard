@@ -25,7 +25,6 @@ const CATEGORIAS_COMUNES = [
 const MARCAS = ['BDI', 'ZATTIA', 'STUNNED', 'GENERAL']
 const ESTADOS = ['PENDIENTE', 'PAGADO', 'VENCIDO']
 const MEDIOS_PAGO = [
-  { value: '', label: '— Sin asignar —' },
   { value: 'TRANSFERENCIA', label: 'Transferencia' },
   { value: 'EFECTIVO', label: 'Efectivo' },
   { value: 'TARJETA', label: 'Tarjeta' },
@@ -93,7 +92,7 @@ function GastoForm({
         : prorrateosDefault.find((p) => p.es_default)?.porcentajes
           ?? { BDI: 33.33, ZATTIA: 33.33, STUNNED: 33.34 })
   )
-  const [medioPago, setMedioPago] = useState(gasto?.medio_pago ?? '')
+  const [medioPago, setMedioPago] = useState(gasto?.medio_pago || 'TRANSFERENCIA')
 
   const factorIva = 1 + porcentajeIva / 100
   const montoNetoCalc = ivaIncluido && factorIva > 0 ? monto / factorIva : monto
@@ -217,11 +216,12 @@ function GastoForm({
       <div className="bg-surface-2/40 border border-border-strong/40 rounded-xl p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Select
-            label="Medio de pago"
+            label="Medio de pago *"
             name="medio_pago"
             value={medioPago}
             onChange={(e) => setMedioPago(e.target.value)}
             options={MEDIOS_PAGO}
+            required
           />
           {medioPago === 'TARJETA' ? (
             <Select
