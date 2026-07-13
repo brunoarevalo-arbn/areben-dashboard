@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { getMesActivo } from '@/lib/mes-activo'
+import { sintetizarSaldosPatrim } from '@/app/actions/composicion-cierre'
 import { CuentasPatrimonialesClient } from '@/components/finanzas/cuentas-patrimoniales-client'
+import type { CuentaPatrimonial, SaldoCuentaPatrim } from '@/types/database'
 
 // Panel "Por tipo" del módulo Patrimonio (todas las cuentas patrimoniales).
 export async function PatrimonioPanel({ mes: mesParam }: { mes?: string }) {
@@ -13,5 +15,13 @@ export async function PatrimonioPanel({ mes: mesParam }: { mes?: string }) {
     supabase.from('socios').select('id, nombre').eq('activo', true).order('nombre'),
   ])
 
-  return <CuentasPatrimonialesClient mes={mes} cuentas={cuentas ?? []} saldos={saldos ?? []} socios={socios ?? []} />
+  // Sintetizar los saldos de las cuentas que no se cargan a mano (inventario, socios, inversión),
+  // así la lista muestra el saldo real y no 0 (mismo cálculo que el cierre).
+  const { saldosPatrimFinal } = await sintetizarSaldosPatrim(
+    (cuentas ?? []) as CuentaPatrimonial[],
+    (saldos ?? []) as SaldoCuentaPatrim[],
+    mes,
+  )
+
+  return <CuentasPatrimonialesClient mes={mes} cuentas={cuentas ?? []} saldos={saldosPatrimFinal} socios={socios ?? []} />
 }

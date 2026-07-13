@@ -220,7 +220,8 @@ function SaldoRow({
   const esSocio = !!cuenta.socio_id
   // Cuenta de inversión/activo fijo: se sintetiza en el cierre (arranque + gastos categoría "Inversiones").
   const esInversion = cuenta.tipo === 'INVERSION'
-  const esSintetizada = esSocio || esInversion
+  // INVENTARIO también se sintetiza (posición de mercadería: arranque + compras − CMV).
+  const esSintetizada = esSocio || esInversion || esInventario
   const aporta = esInventario ? saldoCierre : cuenta.signo_pn * saldoCierre
   // Nota: el "Valor de reposición" (INVENTARIO) ahora se calcula automático en el cierre/dashboard
   // (CMV − compras). Ya no se sugiere/guarda a mano acá para no tener dos números.
@@ -255,6 +256,9 @@ function SaldoRow({
         )}
         {esInversion && (
           <p className="text-[10px] text-purple-700 mt-0.5">↺ sintetizada en el cierre: arranque + gastos categoría "Inversiones"</p>
+        )}
+        {esInventario && (
+          <p className="text-[10px] text-purple-700 mt-0.5">↺ sintetizada en el cierre: arranque + compras − CMV</p>
         )}
       </td>
       <td className="px-3 py-2 text-right">
