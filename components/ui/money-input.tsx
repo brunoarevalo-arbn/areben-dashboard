@@ -41,6 +41,11 @@ export const MoneyInput = forwardRef<HTMLInputElement, Props>(function MoneyInpu
   const [text, setText] = useState<string>(value > 0 ? formatear(value) : '')
   const [focused, setFocused] = useState(false)
 
+  // El prefijo va posicionado absoluto en left-3; el padding izquierdo del input tiene que
+  // dejarle lugar según su ancho. "$" (1 char) entra en pl-8; "U$S" (3 chars) necesita más.
+  const padLeftByLen: Record<number, string> = { 1: 'pl-8', 2: 'pl-10', 3: 'pl-12', 4: 'pl-14' }
+  const padLeft = padLeftByLen[Math.min(prefix.length, 4)] ?? 'pl-8'
+
   // Sincronizar cuando el value externo cambia (ej: defaults, recálculos)
   useEffect(() => {
     if (!focused) {
@@ -84,7 +89,8 @@ export const MoneyInput = forwardRef<HTMLInputElement, Props>(function MoneyInpu
           disabled={disabled}
           required={required}
           className={cn(
-            'w-full pl-8 pr-3.5 py-2.5 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm',
+            'w-full pr-3.5 py-2.5 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm',
+            padLeft,
             disabled && 'opacity-60 cursor-not-allowed',
             className,
           )}
