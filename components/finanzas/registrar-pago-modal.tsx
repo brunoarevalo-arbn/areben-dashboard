@@ -34,6 +34,8 @@ export interface PagoHistorialItem {
   numero_cheque?: string | null
   banco_emisor?: string | null
   notas?: string | null
+  acreditado?: boolean
+  fecha_acreditacion?: string | null
 }
 
 const INSTRUMENTOS: { value: InstrumentoPago; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -235,6 +237,13 @@ export function RegistrarPagoModal({
                           {cuenta ? ` · ${cuenta.banco} ${cuenta.nombre}` : ''}
                           {p.notas ? ` · ${p.notas}` : ''}
                         </p>
+                        {p.acreditado
+                          ? p.fecha_acreditacion && (
+                            <p className="text-[10px] text-green-700 mt-0.5">✓ Acreditado {formatDate(p.fecha_acreditacion)}</p>
+                          )
+                          : p.acreditado === false && (
+                            <p className="text-[10px] text-amber-700 mt-0.5">● Programado — sin acreditar</p>
+                          )}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <button

@@ -68,12 +68,14 @@ export default async function NominaPage({
     instrumento: string
     cuenta_id: string | null
     notas: string | null
+    acreditado: boolean | null
+    fecha_acreditacion: string | null
   }
   let pagosLedger: PagoLedger[] = []
   if (nominaIds.length > 0) {
     const { data } = await supabase
       .from('pagos')
-      .select('id, origen_id, fecha_emision, monto, moneda, instrumento, cuenta_id, notas')
+      .select('id, origen_id, fecha_emision, monto, moneda, instrumento, cuenta_id, notas, acreditado, fecha_acreditacion')
       .eq('tipo_origen', 'NOMINA')
       .in('origen_id', nominaIds)
       .order('fecha_emision', { ascending: true })
@@ -94,6 +96,8 @@ export default async function NominaPage({
       medio_pago: p.instrumento,
       cuenta_id: p.cuenta_id,
       notas: p.notas,
+      acreditado: p.acreditado ?? undefined,
+      fecha_acreditacion: p.fecha_acreditacion ?? undefined,
     } as PagoParcialNomina)
     pagosByNomina.set(p.origen_id, arr)
   }
