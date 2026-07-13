@@ -534,17 +534,15 @@ export function CierreMesClient(props: Props) {
           const totalArsTitular = cs.reduce((s, c) => s + (saldosMap.get(c.id)?.ars ?? 0), 0)
           const totalUsdTitular = cs.reduce((s, c) => s + (saldosMap.get(c.id)?.usd ?? 0), 0)
           return (
-            <div key={titular.id} className="bg-surface-2/40 rounded-lg overflow-hidden">
-              <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
-                <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2">
-                  <Building2 className="w-3.5 h-3.5 text-fg-muted" />
-                  {titular.nombre}
-                </h3>
-                <div className="flex items-center gap-3 text-xs">
-                  <span className="text-primary font-mono">{formatCurrency(totalArsTitular)}</span>
-                  {totalUsdTitular > 0 && <span className="text-green-700 font-mono">{formatCurrency(totalUsdTitular, 'USD')}</span>}
-                </div>
-              </div>
+            <SubBlock
+              key={titular.id}
+              title={titular.nombre}
+              icon={Building2}
+              headerRight={<>
+                <span className="text-primary font-mono">{formatCurrency(totalArsTitular)}</span>
+                {totalUsdTitular > 0 && <span className="text-green-700 font-mono">{formatCurrency(totalUsdTitular, 'USD')}</span>}
+              </>}
+            >
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border-strong/40">
@@ -568,7 +566,7 @@ export function CierreMesClient(props: Props) {
                   })}
                 </tbody>
               </table>
-            </div>
+            </SubBlock>
           )
         })}
 
@@ -587,22 +585,18 @@ export function CierreMesClient(props: Props) {
           return Array.from(patrimAportes.porTipo.entries()).map(([tipo, totales]) => {
             const cs = props.cuentasPatrim.filter((c) => c.tipo === tipo)
             return (
-              <div key={tipo} className="bg-surface-2/40 rounded-lg overflow-hidden">
-                <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-fg-muted">{tipoLabels[tipo] ?? tipo}</h3>
-                  <div className="flex items-center gap-3 text-xs">
-                    {totales.ars !== 0 && (
-                      <span className={cn('font-mono', totales.ars >= 0 ? 'text-primary' : 'text-amber-700')}>
-                        {totales.ars >= 0 ? '+' : ''}{formatCurrency(totales.ars)}
-                      </span>
-                    )}
-                    {totales.usd !== 0 && (
-                      <span className={cn('font-mono', totales.usd >= 0 ? 'text-green-700' : 'text-amber-700')}>
-                        {totales.usd >= 0 ? '+' : ''}{formatCurrency(totales.usd, 'USD')}
-                      </span>
-                    )}
-                  </div>
-                </div>
+              <SubBlock key={tipo} title={tipoLabels[tipo] ?? tipo} headerRight={<>
+                {totales.ars !== 0 && (
+                  <span className={cn('font-mono', totales.ars >= 0 ? 'text-primary' : 'text-amber-700')}>
+                    {totales.ars >= 0 ? '+' : ''}{formatCurrency(totales.ars)}
+                  </span>
+                )}
+                {totales.usd !== 0 && (
+                  <span className={cn('font-mono', totales.usd >= 0 ? 'text-green-700' : 'text-amber-700')}>
+                    {totales.usd >= 0 ? '+' : ''}{formatCurrency(totales.usd, 'USD')}
+                  </span>
+                )}
+              </>}>
                 <div className="divide-y divide-slate-700/30">
                   {cs.map((c) => {
                     const saldo = saldosPatrimMap.get(c.id) ?? 0
@@ -634,24 +628,17 @@ export function CierreMesClient(props: Props) {
                     )
                   })}
                 </div>
-              </div>
+              </SubBlock>
             )
           })
         })()}
 
         {/* Otros activos manuales */}
         {props.activosManuales.length > 0 && (
-          <div className="bg-surface-2/40 rounded-lg overflow-hidden">
-            <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2">
-                <TrendingUp className="w-3.5 h-3.5 text-purple-700" />
-                Otros activos
-              </h3>
-              <div className="flex items-center gap-3 text-xs">
-                {totalActivosManualesArs > 0 && <span className="font-mono text-purple-700">{formatCurrency(totalActivosManualesArs)}</span>}
-                {totalActivosManualesUsd > 0 && <span className="font-mono text-green-700">{formatCurrency(totalActivosManualesUsd, 'USD')}</span>}
-              </div>
-            </div>
+          <SubBlock title="Otros activos" icon={TrendingUp} iconColor="text-purple-700" headerRight={<>
+            {totalActivosManualesArs > 0 && <span className="font-mono text-purple-700">{formatCurrency(totalActivosManualesArs)}</span>}
+            {totalActivosManualesUsd > 0 && <span className="font-mono text-green-700">{formatCurrency(totalActivosManualesUsd, 'USD')}</span>}
+          </>}>
             <div className="divide-y divide-slate-700/30">
               {props.activosManuales.map((a) => (
                 <div key={a.id} className="px-4 py-1.5 flex items-center justify-between text-xs">
@@ -666,7 +653,7 @@ export function CierreMesClient(props: Props) {
                 </div>
               ))}
             </div>
-          </div>
+          </SubBlock>
         )}
 
         {/* Producción en proceso (activo) */}
@@ -680,17 +667,10 @@ export function CierreMesClient(props: Props) {
             porCat.set(k, (porCat.get(k) ?? 0) + costoNetoProd(p))
           }
           return (
-            <div className="bg-surface-2/40 rounded-lg overflow-hidden">
-              <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
-                <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2">
-                  <Building2 className="w-3.5 h-3.5 text-orange-600" />
-                  Producción en proceso
-                </h3>
-                <div className="flex items-center gap-3 text-xs">
-                  {produccionArs > 0 && <span className="font-mono text-primary">{formatCurrency(produccionArs)}</span>}
-                  {produccionUsd > 0 && <span className="font-mono text-green-700">{formatCurrency(produccionUsd, 'USD')}</span>}
-                </div>
-              </div>
+            <SubBlock title="Producción en proceso" icon={Building2} iconColor="text-orange-600" headerRight={<>
+              {produccionArs > 0 && <span className="font-mono text-primary">{formatCurrency(produccionArs)}</span>}
+              {produccionUsd > 0 && <span className="font-mono text-green-700">{formatCurrency(produccionUsd, 'USD')}</span>}
+            </>}>
               <div className="divide-y divide-slate-700/30">
                 {Array.from(porCat.entries()).map(([cat, total]) => (
                   <div key={cat} className="px-4 py-1.5 flex items-center justify-between text-xs">
@@ -702,23 +682,16 @@ export function CierreMesClient(props: Props) {
               <p className="px-4 py-1.5 text-[10px] text-fg-soft border-t border-border-strong/30">
                 Insumos y mano de obra pagados por mercadería sin terminar. Compensa la deuda que generaron.
               </p>
-            </div>
+            </SubBlock>
           )
         })()}
 
         {/* Cuentas corrientes — a cobrar (activo) */}
         {(props.ccDetalle ?? []).some((c) => c.esActivo) && (
-          <div className="bg-surface-2/40 rounded-lg overflow-hidden">
-            <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2">
-                <Wallet className="w-3.5 h-3.5 text-primary" />
-                Cuentas corrientes (a cobrar)
-              </h3>
-              <div className="flex items-center gap-3 text-xs">
-                {(props.ccActivosArs ?? 0) > 0 && <span className="font-mono text-primary">{formatCurrency(props.ccActivosArs ?? 0)}</span>}
-                {(props.ccActivosUsd ?? 0) > 0 && <span className="font-mono text-green-700">{formatCurrency(props.ccActivosUsd ?? 0, 'USD')}</span>}
-              </div>
-            </div>
+          <SubBlock title="Cuentas corrientes (a cobrar)" icon={Wallet} iconColor="text-primary" headerRight={<>
+            {(props.ccActivosArs ?? 0) > 0 && <span className="font-mono text-primary">{formatCurrency(props.ccActivosArs ?? 0)}</span>}
+            {(props.ccActivosUsd ?? 0) > 0 && <span className="font-mono text-green-700">{formatCurrency(props.ccActivosUsd ?? 0, 'USD')}</span>}
+          </>}>
             <div className="divide-y divide-slate-700/30">
               {(props.ccDetalle ?? []).filter((c) => c.esActivo).map((c, i) => (
                 <div key={i} className="px-4 py-1.5 flex items-center justify-between text-xs">
@@ -727,7 +700,7 @@ export function CierreMesClient(props: Props) {
                 </div>
               ))}
             </div>
-          </div>
+          </SubBlock>
         )}
 
         <div className="bg-surface border border-orange-500/30 rounded-lg p-3 flex items-center justify-between">
@@ -803,6 +776,7 @@ export function CierreMesClient(props: Props) {
               detalle: `${g.categoria}${g.fecha_pago ? ` · Vence ${formatDate(g.fecha_pago)}` : ''}`,
               monto: Number(g.monto),
               moneda: g.moneda,
+              grupo: g.categoria || 'Sin categoría',
             }))}
           />
         )}
@@ -847,19 +821,18 @@ export function CierreMesClient(props: Props) {
         )}
 
         {/* Pasivos manuales */}
-        <div className="bg-surface-2/40 rounded-lg overflow-hidden">
-          <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
-            <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2">
-              <Plus className="w-3.5 h-3.5 text-amber-700" />
-              Pasivos manuales (préstamos, deudas no registradas)
-            </h3>
-            {!cerrado && (
-              <Button size="sm" variant="ghost" onClick={agregarPasivo} title="Agregar pasivo manual">
-                <Plus className="w-3.5 h-3.5" />
-                Agregar
-              </Button>
-            )}
-          </div>
+        <SubBlock
+          title="Pasivos manuales (préstamos, deudas no registradas)"
+          icon={Plus}
+          iconColor="text-amber-700"
+          defaultOpen={!cerrado || pasivosManuales.length > 0}
+          headerRight={!cerrado ? (
+            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); agregarPasivo() }} title="Agregar pasivo manual">
+              <Plus className="w-3.5 h-3.5" />
+              Agregar
+            </Button>
+          ) : undefined}
+        >
           {pasivosManuales.length === 0 ? (
             <p className="px-4 py-3 text-xs text-fg-soft">Sin pasivos manuales cargados</p>
           ) : (
@@ -935,21 +908,14 @@ export function CierreMesClient(props: Props) {
               </tbody>
             </table>
           )}
-        </div>
+        </SubBlock>
 
         {/* Cuentas corrientes — a pagar (pasivo) */}
         {(props.ccDetalle ?? []).some((c) => !c.esActivo) && (
-          <div className="bg-surface-2/40 rounded-lg overflow-hidden">
-            <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2">
-                <ArrowDownCircle className="w-3.5 h-3.5 text-amber-700" />
-                Cuentas corrientes (a pagar)
-              </h3>
-              <div className="flex items-center gap-3 text-xs">
-                {(props.ccPasivosArs ?? 0) > 0 && <span className="font-mono text-amber-700">{formatCurrency(props.ccPasivosArs ?? 0)}</span>}
-                {(props.ccPasivosUsd ?? 0) > 0 && <span className="font-mono text-amber-800">{formatCurrency(props.ccPasivosUsd ?? 0, 'USD')}</span>}
-              </div>
-            </div>
+          <SubBlock title="Cuentas corrientes (a pagar)" icon={ArrowDownCircle} iconColor="text-amber-700" headerRight={<>
+            {(props.ccPasivosArs ?? 0) > 0 && <span className="font-mono text-amber-700">{formatCurrency(props.ccPasivosArs ?? 0)}</span>}
+            {(props.ccPasivosUsd ?? 0) > 0 && <span className="font-mono text-amber-800">{formatCurrency(props.ccPasivosUsd ?? 0, 'USD')}</span>}
+          </>}>
             <div className="divide-y divide-slate-700/30">
               {(props.ccDetalle ?? []).filter((c) => !c.esActivo).map((c, i) => (
                 <div key={i} className="px-4 py-1.5 flex items-center justify-between text-xs">
@@ -958,7 +924,7 @@ export function CierreMesClient(props: Props) {
                 </div>
               ))}
             </div>
-          </div>
+          </SubBlock>
         )}
 
         <div className="bg-surface border border-amber-500/30 rounded-lg p-3 flex items-center justify-between">
@@ -1157,36 +1123,89 @@ function Section({ title, subtitle, icon: Icon, color, total, defaultOpen = fals
   )
 }
 
+// Sub-bloque plegable reutilizable (2º nivel de acordeón dentro de Activos/Pasivos).
+// El header es un <div> clickeable (no <button>) para poder anidar controles
+// interactivos (ej. el "Agregar" de pasivos manuales) sin <button> dentro de <button>.
+function SubBlock({ title, icon: Icon, iconColor = 'text-fg-muted', headerRight, defaultOpen = false, children }: {
+  title: React.ReactNode
+  icon?: React.ElementType
+  iconColor?: string
+  headerRight?: React.ReactNode
+  defaultOpen?: boolean
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="bg-surface-2/40 rounded-lg overflow-hidden">
+      <div
+        onClick={() => setOpen((o) => !o)}
+        className="px-4 py-2 flex items-center justify-between gap-2 cursor-pointer select-none hover:bg-surface-2/60 transition-colors"
+      >
+        <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2 min-w-0">
+          <ChevronDown className={cn('w-3.5 h-3.5 text-fg-soft shrink-0 transition-transform', open ? '' : '-rotate-90')} />
+          {Icon && <Icon className={cn('w-3.5 h-3.5 shrink-0', iconColor)} />}
+          <span className="truncate">{title}</span>
+        </h3>
+        {headerRight != null && <div className="flex items-center gap-3 text-xs shrink-0">{headerRight}</div>}
+      </div>
+      {open && <div className="border-t border-border-strong/50">{children}</div>}
+    </div>
+  )
+}
+
 function PasivoBlock({ title, icon: Icon, items }: {
   title: string
   icon: React.ElementType
-  items: { label: string; detalle: string; monto: number; moneda: string }[]
+  items: { label: string; detalle: string; monto: number; moneda: string; grupo?: string }[]
 }) {
   const totalArs = items.filter((i) => i.moneda !== 'USD').reduce((s, i) => s + i.monto, 0)
   const totalUsd = items.filter((i) => i.moneda === 'USD').reduce((s, i) => s + i.monto, 0)
-  return (
-    <div className="bg-surface-2/40 rounded-lg overflow-hidden">
-      <div className="px-4 py-2 border-b border-border-strong/50 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-fg-muted flex items-center gap-2">
-          <Icon className="w-3.5 h-3.5 text-fg-muted" />
-          {title}
-        </h3>
-        <div className="flex items-center gap-3 text-xs">
-          {totalArs > 0 && <span className="font-mono text-amber-700">{formatCurrency(totalArs)}</span>}
-          {totalUsd > 0 && <span className="font-mono text-amber-800">{formatCurrency(totalUsd, 'USD')}</span>}
-        </div>
+  const headerRight = (
+    <>
+      {totalArs > 0 && <span className="font-mono text-amber-700">{formatCurrency(totalArs)}</span>}
+      {totalUsd > 0 && <span className="font-mono text-amber-800">{formatCurrency(totalUsd, 'USD')}</span>}
+    </>
+  )
+  const renderItem = (it: typeof items[number], i: number) => (
+    <div key={i} className="px-4 py-1.5 flex items-center justify-between text-xs">
+      <div>
+        <p className="text-fg-muted">{it.label}</p>
+        <p className="text-fg-soft text-[10px]">{it.detalle}</p>
       </div>
-      <div className="divide-y divide-slate-700/30">
-        {items.map((it, i) => (
-          <div key={i} className="px-4 py-1.5 flex items-center justify-between text-xs">
-            <div>
-              <p className="text-fg-muted">{it.label}</p>
-              <p className="text-fg-soft text-[10px]">{it.detalle}</p>
-            </div>
-            <span className="font-mono text-fg-muted">{formatCurrency(it.monto, it.moneda as 'ARS' | 'USD')}</span>
-          </div>
-        ))}
-      </div>
+      <span className="font-mono text-fg-muted">{formatCurrency(it.monto, it.moneda as 'ARS' | 'USD')}</span>
     </div>
+  )
+  // Agrupación opcional por categoría (preserva el orden de aparición de los grupos)
+  const hayGrupos = items.some((i) => i.grupo)
+  const grupos = new Map<string, typeof items>()
+  for (const it of items) {
+    const k = it.grupo ?? ''
+    if (!grupos.has(k)) grupos.set(k, [])
+    grupos.get(k)!.push(it)
+  }
+  return (
+    <SubBlock title={title} icon={Icon} headerRight={headerRight}>
+      {hayGrupos ? (
+        <div className="divide-y divide-slate-700/40">
+          {Array.from(grupos.entries()).map(([grupo, its]) => {
+            const subArs = its.filter((i) => i.moneda !== 'USD').reduce((s, i) => s + i.monto, 0)
+            const subUsd = its.filter((i) => i.moneda === 'USD').reduce((s, i) => s + i.monto, 0)
+            return (
+              <div key={grupo}>
+                <div className="px-4 py-1 flex items-center justify-between bg-surface-2/50">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-fg-soft">{grupo || 'Sin categoría'}</span>
+                  <span className="font-mono text-[10px] text-fg-soft">
+                    {subArs > 0 && formatCurrency(subArs)}{subUsd > 0 && `${subArs > 0 ? ' · ' : ''}${formatCurrency(subUsd, 'USD')}`}
+                  </span>
+                </div>
+                <div className="divide-y divide-slate-700/30">{its.map(renderItem)}</div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="divide-y divide-slate-700/30">{items.map(renderItem)}</div>
+      )}
+    </SubBlock>
   )
 }
