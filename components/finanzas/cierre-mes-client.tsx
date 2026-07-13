@@ -18,7 +18,7 @@ import { formatCurrency, formatMonth, formatDate, getMonthOptions } from '@/lib/
 import {
   Lock, Unlock, Loader2, Save, Plus, Trash2, Wallet, Banknote, Receipt,
   CreditCard, AlertCircle, TrendingUp, TrendingDown, Building2,
-  ArrowDownCircle, FileText, DollarSign,
+  ArrowDownCircle, FileText, DollarSign, ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -486,37 +486,46 @@ export function CierreMesClient(props: Props) {
         </div>
       </div>
 
-      {/* TC */}
-      <div className="bg-surface border border-amber-500/30 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2 text-sm text-fg-muted">
-          <DollarSign className="w-4 h-4 text-amber-700" />
-          <span className="font-medium">Tipo de cambio de referencia para el cierre</span>
-          <span className="text-xs text-fg-soft">(USD → ARS para cálculo de PN consolidado)</span>
+      {/* Resumen del cierre — los números clave arriba de todo */}
+      <div className="bg-gradient-to-br from-slate-900 to-slate-900/40 border border-orange-500/30 rounded-xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div>
+          <p className="text-[10px] uppercase text-fg-soft">Activos</p>
+          <p className="font-mono font-bold text-primary text-lg">{formatCurrency(totalActivosArs + totalActivosUsd * tipoCambio)}</p>
         </div>
-        <div className="w-44">
-          <MoneyInput
-            value={tipoCambio}
-            onChange={setTipoCambio}
-            prefix=""
-            disabled={cerrado}
-            placeholder="0,00"
-          />
+        <div>
+          <p className="text-[10px] uppercase text-fg-soft">Pasivos</p>
+          <p className="font-mono font-bold text-amber-700 text-lg">{formatCurrency(totalPasivosArs + totalPasivosUsd * tipoCambio)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase text-fg-soft">Patrimonio neto</p>
+          <p className="font-mono font-bold text-fg text-lg">{formatCurrency(pnArs)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase text-fg-soft">Resultado del mes</p>
+          <p className={cn('font-mono font-bold text-lg', resultado >= 0 ? 'text-emerald-400' : 'text-rose-400')}>{formatCurrency(resultado)}</p>
+          <p className="text-[10px] text-fg-soft">PN ant. {formatCurrency(pnAnteriorArs)} · Δ {formatCurrency(variacionPN)}</p>
         </div>
       </div>
 
-      {/* SECCIÓN ACTIVOS */}
-      <Section title="Activos" subtitle="Lo que tengo (efectivo + saldos en cuentas)" icon={Wallet} color="indigo">
-        {/* Cajas */}
-        <div className="bg-surface-2/40 rounded-lg p-4 space-y-3">
-          <p className="text-xs font-medium text-fg-muted uppercase tracking-wide flex items-center gap-1.5">
-            <Banknote className="w-3.5 h-3.5" />
-            Efectivo (cajas)
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <MoneyInput label="Caja ARS" value={cajaArs} onChange={setCajaArs} disabled={cerrado} prefix="$" />
-            <MoneyInput label="Caja USD" value={cajaUsd} onChange={setCajaUsd} disabled={cerrado} prefix="U$S" />
-          </div>
+      {/* Datos del mes: TC + cajas (editables, siempre a mano) */}
+      <div className="bg-surface border border-amber-500/30 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label className="text-xs font-medium text-fg-muted flex items-center gap-1.5 mb-1"><DollarSign className="w-3.5 h-3.5 text-amber-700" />Tipo de cambio (USD→ARS)</label>
+          <MoneyInput value={tipoCambio} onChange={setTipoCambio} prefix="" disabled={cerrado} placeholder="0,00" />
         </div>
+        <MoneyInput label="Caja ARS" value={cajaArs} onChange={setCajaArs} disabled={cerrado} prefix="$" />
+        <MoneyInput label="Caja USD" value={cajaUsd} onChange={setCajaUsd} disabled={cerrado} prefix="U$S" />
+      </div>
+
+      {/* SECCIÓN ACTIVOS */}
+      <Section title="Activos" subtitle="Lo que tengo (efectivo + saldos en cuentas)" icon={Wallet} color="indigo" total={<span className="text-primary">{formatCurrency(totalActivosArs + totalActivosUsd * tipoCambio)}</span>}>
+        {/* Efectivo (cajas) — se edita arriba en "Datos del mes" */}
+        {(cajaArs > 0 || cajaUsd > 0) && (
+          <div className="bg-surface-2/40 rounded-lg px-4 py-2 flex items-center justify-between text-xs">
+            <span className="text-fg-muted flex items-center gap-1.5"><Banknote className="w-3.5 h-3.5" />Efectivo (cajas)</span>
+            <span className="font-mono text-fg-muted">{formatCurrency(cajaArs)}{cajaUsd > 0 && ` · ${formatCurrency(cajaUsd, 'USD')}`}</span>
+          </div>
+        )}
 
         {/* Cuentas por titular */}
         {props.titulares.map((titular) => {
@@ -731,7 +740,7 @@ export function CierreMesClient(props: Props) {
       </Section>
 
       {/* SECCIÓN PASIVOS */}
-      <Section title="Pasivos" subtitle="Detalle de todo lo que la empresa debe al cierre del mes" icon={ArrowDownCircle} color="amber">
+      <Section title="Pasivos" subtitle="Detalle de todo lo que la empresa debe al cierre del mes" icon={ArrowDownCircle} color="amber" total={<span className="text-amber-700">{formatCurrency(totalPasivosArs + totalPasivosUsd * tipoCambio)}</span>}>
         {/* 1. Compras pendientes (sin pago aún) */}
         {props.comprasPendientes.length > 0 && (
           <PasivoBlock
@@ -962,7 +971,7 @@ export function CierreMesClient(props: Props) {
       </Section>
 
       {/* SECCIÓN RETIROS */}
-      <Section title="Retiros del mes" subtitle="Detraídos por los socios — se suman al resultado" icon={ArrowDownCircle} color="purple">
+      <Section title="Retiros del mes" subtitle="Detraídos por los socios — se suman al resultado" icon={ArrowDownCircle} color="purple" total={<span className="text-purple-700">{formatCurrency(totalRetirosArs + totalRetirosUsd * tipoCambio)}</span>}>
         {retirosPorSocio.length === 0 ? (
           <p className="px-4 py-6 text-sm text-fg-soft text-center">Sin retiros registrados en {formatMonth(props.mes)}</p>
         ) : (
@@ -1004,13 +1013,8 @@ export function CierreMesClient(props: Props) {
 
       {/* GASTOS FINANCIEROS DEL MES (mig 033 + 034) */}
       {props.resumenGastosFinancieros && (props.resumenGastosFinancieros.total > 0 || props.resumenGastosFinancieros.capitalPendienteCreditos > 0) && (
-        <div className="bg-surface border border-amber-500/30 rounded-xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-border flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-amber-700" />
-            <h2 className="text-base font-semibold text-fg">Gastos financieros del mes</h2>
-            <span className="text-xs text-fg-soft ml-2">(auto-generados desde cierres de inversiones)</span>
-          </div>
-          <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Section title="Gastos financieros del mes" subtitle="Auto-generados desde cierres de inversiones" icon={TrendingUp} color="amber" total={<span className="text-amber-700">{formatCurrency(props.resumenGastosFinancieros.total)}</span>}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {props.resumenGastosFinancieros.porSubcategoria.map((sub) => (
               <div key={sub.slug} className="border border-amber-500/20 rounded-lg p-4">
                 <p className="text-xs text-fg-muted mb-1">{sub.nombre}</p>
@@ -1031,16 +1035,12 @@ export function CierreMesClient(props: Props) {
               </div>
             )}
           </div>
-        </div>
+        </Section>
       )}
 
-      {/* RESUMEN PATRIMONIAL */}
-      <div className="bg-gradient-to-br from-slate-900 to-slate-900/40 border border-orange-500/30 rounded-xl overflow-x-auto">
-        <div className="px-5 py-3 border-b border-border flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-primary" />
-          <h2 className="text-base font-semibold text-fg">Variación patrimonial</h2>
-        </div>
-        <div className="p-5 grid grid-cols-2 gap-4">
+      {/* RESUMEN PATRIMONIAL — colapsable (el resultado clave ya está en el resumen de arriba) */}
+      <Section title="Variación patrimonial" subtitle="Cómo se compone el resultado del mes (detalle)" icon={TrendingUp} color="indigo" total={<span className={resultado >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{formatCurrency(resultado)}</span>}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-fg-muted">PN al cierre del mes anterior</span>
@@ -1093,7 +1093,7 @@ export function CierreMesClient(props: Props) {
             <p className="font-mono text-fg font-medium">{formatCurrency(totalActivosUsd - totalPasivosUsd, 'USD')}</p>
           </div>
         </div>
-      </div>
+      </Section>
 
       {/* Notas */}
       <div className="bg-surface border border-border rounded-xl p-4">
@@ -1113,13 +1113,16 @@ export function CierreMesClient(props: Props) {
 
 // ─── Helpers de UI ─────────────────────────────────────────────────────
 
-function Section({ title, subtitle, icon: Icon, color, children }: {
+function Section({ title, subtitle, icon: Icon, color, total, defaultOpen = false, children }: {
   title: string
   subtitle: string
   icon: React.ElementType
   color: 'indigo' | 'amber' | 'purple'
+  total?: React.ReactNode
+  defaultOpen?: boolean
   children: React.ReactNode
 }) {
+  const [open, setOpen] = useState(defaultOpen)
   const colorMap = {
     indigo: 'border-orange-500/20',
     amber: 'border-amber-500/20',
@@ -1131,15 +1134,25 @@ function Section({ title, subtitle, icon: Icon, color, children }: {
     purple: 'text-purple-700',
   }
   return (
-    <div className={cn('bg-surface border rounded-xl overflow-x-auto', colorMap[color])}>
-      <div className="px-5 py-3 border-b border-border">
-        <h2 className={cn('text-sm font-semibold flex items-center gap-2', iconColor[color])}>
-          <Icon className="w-4 h-4" />
-          {title}
-        </h2>
-        <p className="text-xs text-fg-soft mt-0.5">{subtitle}</p>
-      </div>
-      <div className="p-4 space-y-3">{children}</div>
+    <div className={cn('bg-surface border rounded-xl overflow-hidden', colorMap[color])}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full px-5 py-3 flex items-center justify-between gap-3 text-left hover:bg-surface-2/30 transition-colors"
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <ChevronDown className={cn('w-4 h-4 text-fg-soft shrink-0 transition-transform', open ? '' : '-rotate-90')} />
+          <div className="min-w-0">
+            <h2 className={cn('text-sm font-semibold flex items-center gap-2', iconColor[color])}>
+              <Icon className="w-4 h-4 shrink-0" />
+              {title}
+            </h2>
+            <p className="text-xs text-fg-soft mt-0.5 truncate">{subtitle}</p>
+          </div>
+        </div>
+        {total != null && <div className="font-mono font-bold text-base shrink-0">{total}</div>}
+      </button>
+      {open && <div className="p-4 space-y-3 overflow-x-auto border-t border-border">{children}</div>}
     </div>
   )
 }
