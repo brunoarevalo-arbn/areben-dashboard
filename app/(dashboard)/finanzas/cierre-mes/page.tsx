@@ -33,6 +33,7 @@ export default async function CierreMesPage({
     { data: tcMes },
     { data: comprasPendientes },
     { data: gastosPendientes },
+    { data: gastosRecurrentes },
     { data: cuotasPendientes },
     { data: retirosMes },
     { data: categorias },
@@ -73,13 +74,15 @@ export default async function CierreMesPage({
     // sigue siendo pasivo del mes. Los parcialmente pagados por el ledger se netean después (≤ mesFin).
     supabase
       .from('gastos')
-      .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, medio_pago, tarjeta_id')
+      .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, fecha, mes, medio_pago, tarjeta_id, recurrente_id, estado')
       .neq('estado', 'DEVENGADO')
       .gte('mes', gastosDesde)
       .lte('mes', mes)
       .or(`estado.neq.PAGADO,fecha_pago.gt.${mesFin}`)
       .order('mes', { ascending: false })
       .limit(1500),
+    // Recurrentes (para calcular el vencimiento real de los gastos y unificar los repetidos)
+    supabase.from('gastos_recurrentes').select('id, dia_vencimiento, tipo_mes'),
     // Cuotas de tarjeta: pasivo del mes en que se CONSUMIÓ (mes_cierre), si no estaba pagada al corte.
     // (No por mes_vencimiento ni por el tilde de hoy: el consumo de mayo que se paga en junio es pasivo de mayo.)
     supabase
@@ -418,6 +421,8 @@ export default async function CierreMesPage({
       comprasPendientes={comprasNorm as Parameters<typeof CierreMesClient>[0]['comprasPendientes']}
       produccionEnProceso={produccionNorm as Parameters<typeof CierreMesClient>[0]['produccionEnProceso']}
       gastosPendientes={gastosNetos}
+      gastosRecurrentes={gastosRecurrentes ?? []}
+      hoy={new Date().toISOString().slice(0, 10)}
       cuotasPendientes={(cuotasPendientes ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['cuotasPendientes']}
       retirosMes={(retirosMes ?? []) as Parameters<typeof CierreMesClient>[0]['retirosMes']}
       categorias={categorias ?? []}

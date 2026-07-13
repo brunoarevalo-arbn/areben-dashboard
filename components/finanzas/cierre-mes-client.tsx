@@ -15,6 +15,7 @@ import { Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { MoneyInput } from '@/components/ui/money-input'
 import { formatCurrency, formatMonth, formatDate, getMonthOptions } from '@/lib/utils'
+import { vencimientoGasto, estaVencido } from '@/lib/gastos-vencimiento'
 import {
   Lock, Unlock, Loader2, Save, Plus, Trash2, Wallet, Banknote, Receipt,
   CreditCard, AlertCircle, TrendingUp, TrendingDown, Building2,
@@ -53,9 +54,12 @@ interface GastoPendiente {
   monto_neto: number
   moneda: string
   fecha_pago?: string | null
+  fecha?: string | null
   mes: string
   medio_pago?: string | null
   tarjeta_id?: string | null
+  recurrente_id?: string | null
+  estado?: string | null
 }
 
 interface CuotaPend {
@@ -111,6 +115,8 @@ interface Props {
   comprasPendientes: ComprasPendiente[]
   produccionEnProceso: ProduccionItem[]
   gastosPendientes: GastoPendiente[]
+  gastosRecurrentes?: { id: string; dia_vencimiento?: number | null; tipo_mes?: string | null }[]
+  hoy?: string
   cuotasPendientes: CuotaPend[]
   retirosMes: (RetiroSocio & { categoria?: CategoriaRetiro | null })[]
   categorias: CategoriaRetiro[]
@@ -235,6 +241,13 @@ export function CierreMesClient(props: Props) {
       .map((c) => c.origen_id as string)
   )
   const gastosNetos = props.gastosPendientes.filter((g) => !gastosConCuotasIds.has(g.id))
+
+  // Mapa de recurrentes (para vencimiento) y fecha de hoy (para saber qué está vencido)
+  const recurrentesMap = useMemo(
+    () => new Map((props.gastosRecurrentes ?? []).map((r) => [r.id, r])),
+    [props.gastosRecurrentes],
+  )
+  const hoyStr = props.hoy ?? new Date().toISOString().slice(0, 10)
 
   const pasivosCompras = props.comprasPendientes.reduce((s, c) =>
     s + (c.moneda !== 'USD' ? Number(c.saldo_pendiente) : 0), 0)
@@ -793,19 +806,9 @@ export function CierreMesClient(props: Props) {
             }))}
           />
         )}
-        {/* 5. Gastos pendientes (excluye los que ya están en cuotas) */}
+        {/* 5. Gastos pendientes (unifica el mismo servicio de varios meses en un renglón desplegable) */}
         {gastosNetos.length > 0 && (
-          <PasivoBlock
-            title="Gastos pendientes (incluye nóminas, servicios, alquileres)"
-            icon={Receipt}
-            items={gastosNetos.map((g) => ({
-              label: g.concepto,
-              detalle: `${g.categoria}${g.fecha_pago ? ` · Vence ${formatDate(g.fecha_pago)}` : ''}`,
-              monto: Number(g.monto),
-              moneda: g.moneda,
-              grupo: g.categoria || 'Sin categoría',
-            }))}
-          />
+          <GastosPendientesBlock gastos={gastosNetos} recurrentesMap={recurrentesMap} hoy={hoyStr} />
         )}
         {/* 6. Inversiones de terceros */}
         {inversionesConSaldo.length > 0 && (
@@ -1233,6 +1236,113 @@ function PasivoBlock({ title, icon: Icon, items }: {
       ) : (
         <div className="divide-y divide-slate-700/30">{items.map(renderItem)}</div>
       )}
+    </SubBlock>
+  )
+}
+
+// Badge chico "Vencido"
+function VencidoBadge() {
+  return <span className="text-[9px] px-1 py-0.5 rounded bg-rose-500/15 text-rose-600 font-semibold uppercase tracking-wide shrink-0">Vencido</span>
+}
+
+// Un servicio con varios meses impagos → renglón desplegable con el detalle por mes/vencimiento.
+function GrupoGastoRow({ items, recurrentesMap, hoy }: {
+  items: GastoPendiente[]
+  recurrentesMap: Map<string, { dia_vencimiento?: number | null; tipo_mes?: string | null }>
+  hoy: string
+}) {
+  const [open, setOpen] = useState(false)
+  const g0 = items[0]
+  const total = items.reduce((s, g) => s + Number(g.monto), 0)
+  const recOf = (g: GastoPendiente) => (g.recurrente_id ? recurrentesMap.get(g.recurrente_id) ?? null : null)
+  const algunVencido = items.some((g) => estaVencido(g, recOf(g), hoy))
+  const ordenados = [...items].sort((a, b) => (a.mes < b.mes ? -1 : 1))
+  return (
+    <div>
+      <div
+        onClick={() => setOpen((o) => !o)}
+        className="px-4 py-1.5 flex items-center justify-between gap-2 text-xs cursor-pointer select-none hover:bg-surface-2/40"
+      >
+        <div className="flex items-center gap-1.5 min-w-0">
+          <ChevronDown className={cn('w-3 h-3 text-fg-soft shrink-0 transition-transform', open ? '' : '-rotate-90')} />
+          <div className="min-w-0">
+            <p className="text-fg-muted flex items-center gap-1.5">
+              <span className="truncate">{g0.concepto}</span>
+              <span className="text-fg-soft text-[10px] shrink-0">· {items.length} meses</span>
+              {algunVencido && <VencidoBadge />}
+            </p>
+            <p className="text-fg-soft text-[10px] truncate">{g0.categoria}</p>
+          </div>
+        </div>
+        <span className="font-mono text-fg-muted shrink-0">{formatCurrency(total, g0.moneda as 'ARS' | 'USD')}</span>
+      </div>
+      {open && (
+        <div className="bg-surface-2/20 divide-y divide-slate-700/20">
+          {ordenados.map((g, i) => {
+            const v = vencimientoGasto(g, recOf(g))
+            const venc = estaVencido(g, recOf(g), hoy)
+            return (
+              <div key={i} className="pl-9 pr-4 py-1 flex items-center justify-between text-[11px]">
+                <span className={cn(venc ? 'text-rose-600' : 'text-fg-soft')}>
+                  {formatMonth(g.mes)}{v ? ` · vence ${formatDate(v)}` : ''}{venc ? ' · vencido' : ''}
+                </span>
+                <span className="font-mono text-fg-muted">{formatCurrency(Number(g.monto), g.moneda as 'ARS' | 'USD')}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Bloque "Gastos pendientes": unifica por servicio (recurrente_id, o concepto+categoría para los manuales).
+// Servicios con varios meses impagos → renglón desplegable; los de un solo mes → línea plana. No cambia el total.
+function GastosPendientesBlock({ gastos, recurrentesMap, hoy }: {
+  gastos: GastoPendiente[]
+  recurrentesMap: Map<string, { dia_vencimiento?: number | null; tipo_mes?: string | null }>
+  hoy: string
+}) {
+  const totalArs = gastos.filter((g) => g.moneda !== 'USD').reduce((s, g) => s + Number(g.monto), 0)
+  const totalUsd = gastos.filter((g) => g.moneda === 'USD').reduce((s, g) => s + Number(g.monto), 0)
+  const grupos = new Map<string, GastoPendiente[]>()
+  for (const g of gastos) {
+    const k = g.recurrente_id ?? `${g.concepto}|${g.categoria}`
+    if (!grupos.has(k)) grupos.set(k, [])
+    grupos.get(k)!.push(g)
+  }
+  const recOf = (g: GastoPendiente) => (g.recurrente_id ? recurrentesMap.get(g.recurrente_id) ?? null : null)
+  return (
+    <SubBlock
+      title="Gastos pendientes (servicios, sueldos, alquileres)"
+      icon={Receipt}
+      headerRight={<>
+        {totalArs > 0 && <span className="font-mono text-amber-700">{formatCurrency(totalArs)}</span>}
+        {totalUsd > 0 && <span className="font-mono text-amber-800">{formatCurrency(totalUsd, 'USD')}</span>}
+      </>}
+    >
+      <div className="divide-y divide-slate-700/30">
+        {Array.from(grupos.entries()).map(([k, items]) => {
+          if (items.length > 1) {
+            return <GrupoGastoRow key={k} items={items} recurrentesMap={recurrentesMap} hoy={hoy} />
+          }
+          const g = items[0]
+          const v = vencimientoGasto(g, recOf(g))
+          const venc = estaVencido(g, recOf(g), hoy)
+          return (
+            <div key={k} className="px-4 py-1.5 flex items-center justify-between gap-2 text-xs">
+              <div className="min-w-0">
+                <p className="text-fg-muted flex items-center gap-1.5">
+                  <span className="truncate">{g.concepto}</span>
+                  {venc && <VencidoBadge />}
+                </p>
+                <p className="text-fg-soft text-[10px] truncate">{g.categoria}{v ? ` · Vence ${formatDate(v)}` : ''}</p>
+              </div>
+              <span className="font-mono text-fg-muted shrink-0">{formatCurrency(Number(g.monto), g.moneda as 'ARS' | 'USD')}</span>
+            </div>
+          )
+        })}
+      </div>
     </SubBlock>
   )
 }
