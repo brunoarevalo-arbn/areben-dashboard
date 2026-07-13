@@ -43,7 +43,6 @@ export default async function CierreMesPage({
     { data: pagosCtaCtePendientes },
     { data: instrumentosActivos },
     { data: saldosInversiones },
-    { data: interesInvPeriodos },
     { data: produccionEnProceso },
     { data: ccCuentas },
     { data: ccMovimientos },
@@ -121,10 +120,8 @@ export default async function CierreMesPage({
       .from('instrumentos_inversion')
       .select('*, inversor:inversores(nombre)')
       .eq('estado', 'activo'),
-    // Saldo de cierre del mes para esos instrumentos
+    // Saldo de cierre del mes para esos instrumentos (ya incluye el interés acumulado)
     supabase.from('periodos_instrumento').select('instrumento_id, saldo_cierre').eq('mes', mes),
-    // Interés devengado acumulado hasta el corte (para sumar al pasivo de inversiones no capitalizables)
-    supabase.from('periodos_instrumento').select('instrumento_id, interes_devengado').lte('mes', mes),
     // Producción en proceso (activo): compras de producción todavía no pasadas a stock
     supabase
       .from('compras')
@@ -367,14 +364,6 @@ export default async function CierreMesPage({
     .map((p) => ({ nombre: p.nombre, capital: Math.round((capPorPlan.get(p.id) ?? 0) * 100) / 100 }))
     .filter((p) => p.capital > 0.01)
 
-  // Interés devengado acumulado por instrumento hasta el corte. Para inversores no
-  // capitalizables el interés no engorda el saldo_cierre pero se les debe igual → el
-  // cliente lo suma al pasivo de esas inversiones (los capitalizables ya lo tienen en saldo).
-  const interesAcumInv: Record<string, number> = {}
-  for (const p of interesInvPeriodos ?? []) {
-    interesAcumInv[p.instrumento_id] = (interesAcumInv[p.instrumento_id] ?? 0) + Number(p.interes_devengado ?? 0)
-  }
-
   return (
     <CierreMesClient
       mes={mes}
@@ -399,7 +388,6 @@ export default async function CierreMesPage({
       pagosCtaCtePendientes={(pagosCtaCtePendientes ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['pagosCtaCtePendientes']}
       instrumentosActivos={(instrumentosActivos ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['instrumentosActivos']}
       saldosInversiones={saldosInversiones ?? []}
-      interesAcumInv={interesAcumInv}
       resumenGastosFinancieros={resumenGastosFinancieros}
       ccActivosArs={ccActivosArs}
       ccActivosUsd={ccActivosUsd}

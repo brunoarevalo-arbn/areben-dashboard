@@ -257,19 +257,26 @@ function generarPeriodosPlano(args: CalcArgs, start: Date, fin: Date): PeriodoCa
     shares[shares.length - 1] = round(shares[shares.length - 1] + (interesTotalCiclo - suma))
   }
 
+  // Aunque no capitalice (interés simple sobre el capital), el interés se ACUMULA al
+  // saldo como deuda hasta que el inversor retira → el saldo cierre crece mes a mes y
+  // el saldo inicio del mes siguiente arrastra ese acumulado.
+  let saldoAcum = capitalInicial
   return filas.map((f, idx) => {
     let sumaTasaMes = 0
     for (let t = 0; t < f.dias; t++) sumaTasaMes += tasaEnFecha(tramos, new Date(f.activoStart.getTime() + t * 86400000))
     const tasaMes = f.dias > 0 ? sumaTasaMes / f.dias : 0
     const movimiento = movimientosByMes[f.mes] ?? 0
+    const saldoInicio = saldoAcum
+    const saldoCierre = round(saldoInicio + shares[idx] + movimiento)
+    saldoAcum = saldoCierre
     return {
       mes: f.mes,
-      saldo_inicio: round(capitalInicial),
+      saldo_inicio: round(saldoInicio),
       interes_devengado: shares[idx],
       int_inicio_prorrateado: idx === 0 && !f.primeroDelMes ? shares[idx] : 0,
       int_fin_prorrateado: idx === filas.length - 1 && f.ultimoDelCiclo ? shares[idx] : 0,
       movimiento: round(movimiento),
-      saldo_cierre: round(capitalInicial + movimiento),
+      saldo_cierre: saldoCierre,
       tasa_aplicada: round(tasaMes * 1000000) / 1000000,
       segmentos: [],
     }
@@ -292,14 +299,16 @@ function generarPeriodosCompuesto(args: CalcArgs, start: Date, fin: Date | null)
 
   while (cy < yHasta || (cy === yHasta && cm <= mHasta)) {
     const mes = mesKey(cy, cm)
-    const saldoInicio = capitalizable ? saldoActual : capitalInicial
+    // El saldo arrastra el acumulado en ambos casos. La diferencia es la BASE del
+    // interés: capitalizable = compuesto (sobre el saldo que crece); no capitalizable
+    // = simple (siempre sobre el capital original), pero igual se acumula al saldo.
+    const saldoInicio = saldoActual
+    const baseInteres = capitalizable ? saldoInicio : capitalInicial
 
-    const calc = calcularInteresMes(saldoInicio, mes, start, fin, tramos)
+    const calc = calcularInteresMes(baseInteres, mes, start, fin, tramos)
 
     const movimiento = movimientosByMes[mes] ?? 0
-    const saldoCierre = capitalizable
-      ? saldoInicio + calc.interes + movimiento
-      : saldoInicio + movimiento
+    const saldoCierre = saldoInicio + calc.interes + movimiento
 
     periodos.push({
       mes,
@@ -313,7 +322,7 @@ function generarPeriodosCompuesto(args: CalcArgs, start: Date, fin: Date | null)
       segmentos: calc.segmentos,
     })
 
-    if (capitalizable) saldoActual = saldoCierre
+    saldoActual = saldoCierre
     if (fin && cy === fin.getFullYear() && cm === fin.getMonth() + 1) break
 
     ;[cy, cm] = nextMonth(cy, cm)
