@@ -30,6 +30,11 @@ const esFacturable = (nombre) => ccMap.get((nombre || '').trim()) === 'areben'
 const { data: com } = await supa.from('comision_medio_pago').select('medio, porcentaje')
 const comMap = new Map((com || []).map((r) => [r.medio, Number(r.porcentaje)]))
 const pctComision = (medio) => (comMap.get((medio || '').trim()) ?? 0) / 100
+
+// No re-sincronizar un mes cerrado: el cierre congela el CMV/ventas (reabrir para actualizar).
+const { data: cierre } = await supa.from('cierres_mensuales').select('cerrado').eq('mes', mes).maybeSingle()
+if (cierre?.cerrado) { console.log(`El mes ${mes} está cerrado — no se sincroniza (reabrí el cierre para actualizar el CMV).`); process.exit(0) }
+
 console.log(`Sincronizando ventas de ${mes}...\n`)
 
 for (const c of cuentas) {

@@ -148,6 +148,17 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
   await requireUser()
   if (!/^\d{4}-\d{2}$/.test(mes)) return 'Mes inválido'
 
+  // No re-sincronizar un mes ya cerrado: el cierre congela el CMV/ventas de GN. Si se pisara,
+  // la posición de mercadería (que lee datos_ventas_gn.cmv en vivo) movería un cierre pasado.
+  // Para actualizar, reabrir el cierre primero.
+  const supabaseCierre = await createClient()
+  const { data: cierre } = await supabaseCierre
+    .from('cierres_mensuales')
+    .select('cerrado')
+    .eq('mes', mes)
+    .maybeSingle()
+  if (cierre?.cerrado) return `El mes ${mes} está cerrado — no se sincroniza (reabrí el cierre para actualizar el CMV).`
+
   const cuenta = await getCuenta(alias)
   if (!cuenta) return 'Cuenta GN desconocida'
   if (!cuenta.marcas?.length) return 'La cuenta no tiene marcas configuradas'
