@@ -47,10 +47,18 @@ async function recomputarOrigen(tipo: TipoOrigenPago, origenId: string | null) {
   // Sum total pagado para este origen (sólo pagos acreditados o sin marca de no-acreditado)
   const { data: pagosRel } = await supabase
     .from('pagos')
-    .select('monto')
+    .select('monto, fecha_emision')
     .eq('tipo_origen', tipo)
     .eq('origen_id', origenId)
   const totalPagado = (pagosRel ?? []).reduce((s, p) => s + Number(p.monto), 0)
+  // Fecha real en que quedó saldado = la del último pago cargado (no "hoy"). Así el cierre
+  // (que netea por fecha) refleja cuándo se pagó de verdad, no cuándo se tocó el sistema.
+  const fechaUltimoPago =
+    (pagosRel ?? [])
+      .map((p) => p.fecha_emision)
+      .filter((f): f is string => !!f)
+      .sort()
+      .at(-1) ?? new Date().toISOString().split('T')[0]
 
   if (tipo === 'GASTO') {
     const { data: g } = await supabase
@@ -64,7 +72,7 @@ async function recomputarOrigen(tipo: TipoOrigenPago, origenId: string | null) {
     if (completo && g.estado !== 'PAGADO') {
       await supabase
         .from('gastos')
-        .update({ estado: 'PAGADO', fecha_pago: new Date().toISOString().split('T')[0] })
+        .update({ estado: 'PAGADO', fecha_pago: fechaUltimoPago })
         .eq('id', origenId)
     } else if (!completo && g.estado === 'PAGADO') {
       await supabase
@@ -88,7 +96,7 @@ async function recomputarOrigen(tipo: TipoOrigenPago, origenId: string | null) {
       await supabase.from('nomina_mensual').update({ estado: 'PAGADO' }).eq('id', origenId)
       if (n.gasto_pendiente_id) {
         await supabase.from('gastos')
-          .update({ estado: 'PAGADO', fecha_pago: new Date().toISOString().split('T')[0] })
+          .update({ estado: 'PAGADO', fecha_pago: fechaUltimoPago })
           .eq('id', n.gasto_pendiente_id)
       }
     } else if (!completo && n.estado === 'PAGADO') {
@@ -114,7 +122,7 @@ async function recomputarOrigen(tipo: TipoOrigenPago, origenId: string | null) {
     if (completo && !c.pagada) {
       await supabase
         .from('cuotas_tarjeta')
-        .update({ pagada: true, fecha_pago: new Date().toISOString().split('T')[0] })
+        .update({ pagada: true, fecha_pago: fechaUltimoPago })
         .eq('id', origenId)
     } else if (!completo && c.pagada) {
       await supabase
@@ -134,16 +142,15 @@ async function recomputarOrigen(tipo: TipoOrigenPago, origenId: string | null) {
     if (!c) return
     const total = Number(c.monto_total)
     const completo = totalPagado + 0.01 >= total
-    const hoy = new Date().toISOString().split('T')[0]
     if (completo && !c.pagada) {
       await supabase
         .from('prestamo_cuotas')
-        .update({ pagada: true, fecha_pago: hoy })
+        .update({ pagada: true, fecha_pago: fechaUltimoPago })
         .eq('id', origenId)
       // Marcar el gasto financiero (interés) de ese mes como PAGADO
       await supabase
         .from('gastos')
-        .update({ estado: 'PAGADO', fecha_pago: hoy })
+        .update({ estado: 'PAGADO', fecha_pago: fechaUltimoPago })
         .eq('prestamo_id', c.prestamo_id)
         .eq('mes', c.fecha_vencimiento.substring(0, 7))
         .eq('categoria', 'Gastos Financieros')

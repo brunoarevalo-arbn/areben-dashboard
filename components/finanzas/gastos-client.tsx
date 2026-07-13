@@ -93,12 +93,16 @@ function GastoForm({
           ?? { BDI: 33.33, ZATTIA: 33.33, STUNNED: 33.34 })
   )
   const [medioPago, setMedioPago] = useState(gasto?.medio_pago || 'TRANSFERENCIA')
+  const [estado, setEstado] = useState<string>(gasto?.estado ?? 'PENDIENTE')
 
   const factorIva = 1 + porcentajeIva / 100
   const montoNetoCalc = ivaIncluido && factorIva > 0 ? monto / factorIva : monto
-  // La fecha de pago es obligatoria salvo cuenta corriente (o TARJETA, que la
-  // completa el server automáticamente). Coincide con el superRefine de gastoSchema.
-  const fechaPagoExenta = medioPago === 'CTA_CORRIENTE' || medioPago === 'TARJETA'
+  // La fecha de pago es obligatoria salvo cuenta corriente (o TARJETA, que la completa
+  // el server automáticamente) MIENTRAS el gasto siga PENDIENTE. Si ya se marca PAGADO,
+  // la fecha es obligatoria siempre. Coincide con el superRefine de gastoSchema.
+  const fechaPagoExenta =
+    (medioPago === 'CTA_CORRIENTE' || medioPago === 'CUENTA_CORRIENTE' || medioPago === 'TARJETA') &&
+    estado !== 'PAGADO'
 
   const [error, formAction, isPending] = useActionState(
     async (prev: string | null, fd: FormData) => {
@@ -201,7 +205,7 @@ function GastoForm({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <Select label="Estado" name="estado" defaultValue={gasto?.estado ?? 'PENDIENTE'}
+        <Select label="Estado" name="estado" value={estado} onChange={(e) => setEstado(e.target.value)}
           options={ESTADOS.map((e) => ({ value: e, label: e.charAt(0) + e.slice(1).toLowerCase() }))} />
         <Input
           label={`Fecha de pago${fechaPagoExenta ? ' (opcional)' : ' *'}`}
@@ -485,6 +489,10 @@ function PagarModal({
 
   function confirmar() {
     setError(null)
+    if (!fechaPago) {
+      setError('Ingresá la fecha de pago')
+      return
+    }
     if (!esTarjeta && !cuentaId) {
       setError('Seleccioná la cuenta de origen del pago')
       return
@@ -509,11 +517,14 @@ function PagarModal({
       </div>
 
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-fg-muted">Fecha de pago</label>
+        <label className="block text-sm font-medium text-fg-muted">
+          Fecha de pago <span className="text-red-700">*</span>
+        </label>
         <input
           type="date"
           value={fechaPago}
           onChange={(e) => setFechaPago(e.target.value)}
+          required
           className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
         />
       </div>

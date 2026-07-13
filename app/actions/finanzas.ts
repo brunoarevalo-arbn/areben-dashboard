@@ -64,17 +64,32 @@ const gastoSchema = z.object({
     })
   }
   // Todo gasto se crea con fecha de pago (= fecha real o vencimiento estimado),
-  // salvo dos casos que no la necesitan: cuenta corriente del proveedor (se paga
-  // a saldar la cuenta) y TARJETA (el server la completa automáticamente = fecha).
-  const exento = medio === 'CTA_CORRIENTE' || medio === 'CUENTA_CORRIENTE' || medio === 'TARJETA'
+  // salvo dos casos que no la necesitan mientras siguen PENDIENTE: cuenta corriente
+  // del proveedor (se paga al saldar la cuenta) y TARJETA (el server la completa = fecha).
+  // Pero si el gasto ya se marca PAGADO, la fecha es obligatoria SIEMPRE (sin ella el
+  // cierre no puede saber si al corte estaba pago) — el estado manda sobre el medio.
+  const exentoPorMedio = medio === 'CTA_CORRIENTE' || medio === 'CUENTA_CORRIENTE' || medio === 'TARJETA'
+  const exento = exentoPorMedio && val.estado !== 'PAGADO'
   if (!exento && !val.fecha_pago) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['fecha_pago'],
-      message: 'La fecha de pago es obligatoria (salvo cuenta corriente).',
+      message: val.estado === 'PAGADO'
+        ? 'La fecha de pago es obligatoria si el gasto está PAGADO.'
+        : 'La fecha de pago es obligatoria (salvo cuenta corriente).',
     })
   }
 })
+
+/**
+ * Medios cuyo pago NO pasa por el ledger de `pagos`:
+ * - TARJETA: al proveedor ya le pagaste con la TC; el pasivo vive en cuotas_tarjeta.
+ * - CTA_CORRIENTE / CUENTA_CORRIENTE: se salda al pagar la cuenta del proveedor.
+ * Para el resto (EFECTIVO/TRANSFERENCIA/CHEQUE/ECHEQ), marcar PAGADO crea una fila en `pagos`.
+ */
+function esMedioExentoDeLedger(medio: string | null | undefined): boolean {
+  return medio === 'TARJETA' || medio === 'CTA_CORRIENTE' || medio === 'CUENTA_CORRIENTE'
+}
 
 /**
  * Calcula el monto del interés según tipo y valor.
@@ -317,10 +332,19 @@ export async function createGasto(prevState: string | null, formData: FormData) 
 
   const prorrateo = parseProrrateo(formData.get('prorrateo'))
 
+  // Si el form marca PAGADO a mano con un medio "real" (no tarjeta ni cta corriente),
+  // el gasto se paga por el ledger: se inserta PENDIENTE y luego marcarGastoPagado
+  // crea la fila en `pagos` con la fecha. Así ningún PAGADO queda sin rastro/fecha.
+  const pagarPorLedger =
+    result.data.estado === 'PAGADO' && !esMedioExentoDeLedger(result.data.medio_pago)
+
+  const gastoData = buildGastoData(result.data, prorrateo)
+  if (pagarPorLedger) gastoData.estado = 'PENDIENTE'
+
   const supabase = await createClient()
   const { data: gasto, error } = await supabase
     .from('gastos')
-    .insert(buildGastoData(result.data, prorrateo))
+    .insert(gastoData)
     .select('id')
     .single()
   if (error) return error.message
@@ -333,6 +357,11 @@ export async function createGasto(prevState: string | null, formData: FormData) 
   // Si tiene intereses, crear el gasto-intereses vinculado y sus cuotas
   if (gasto && result.data.tiene_intereses && (result.data.cuotas_total ?? 1) > 1) {
     await syncGastoIntereses(gasto.id)
+  }
+
+  // Pago por ledger: crea la fila en `pagos` y deja el gasto PAGADO con la fecha real.
+  if (gasto && pagarPorLedger) {
+    await marcarGastoPagado(gasto.id, result.data.cuenta_origen_pago_id ?? null, result.data.fecha_pago ?? undefined)
   }
 
   // Si el medio de pago es TARJETA, el gasto queda PAGADO automáticamente.
@@ -371,9 +400,27 @@ export async function updateGasto(id: string, prevState: string | null, formData
 
   const prorrateo = parseProrrateo(formData.get('prorrateo'))
   const supabase = await createClient()
+
+  // Detectar la transición no-PAGADO → PAGADO con medio "real": en ese caso el pago
+  // pasa por el ledger (marcarGastoPagado más abajo), así que dejamos el gasto PENDIENTE
+  // en este update. Editar un gasto que YA estaba PAGADO no reabre el ledger (evita
+  // reescribir la fecha real o duplicar filas en `pagos`).
+  const { data: prevGasto } = await supabase
+    .from('gastos')
+    .select('estado')
+    .eq('id', id)
+    .single()
+  const transicionAPagado =
+    prevGasto?.estado !== 'PAGADO' &&
+    result.data.estado === 'PAGADO' &&
+    !esMedioExentoDeLedger(result.data.medio_pago)
+
+  const gastoData = buildGastoData(result.data, prorrateo)
+  if (transicionAPagado) gastoData.estado = 'PENDIENTE'
+
   const { error } = await supabase
     .from('gastos')
-    .update(buildGastoData(result.data, prorrateo))
+    .update(gastoData)
     .eq('id', id)
   if (error) return error.message
 
@@ -392,6 +439,12 @@ export async function updateGasto(id: string, prevState: string | null, formData
 
   // Sincronizar el gasto-intereses (crea, actualiza o borra según corresponda)
   await syncGastoIntereses(id)
+
+  // Transición a PAGADO con medio "real": pago por el ledger (crea fila en `pagos`
+  // con la fecha) y deja el gasto PAGADO con la fecha real.
+  if (transicionAPagado) {
+    await marcarGastoPagado(id, result.data.cuenta_origen_pago_id ?? null, result.data.fecha_pago ?? undefined)
+  }
 
   // Si el medio de pago es TARJETA y el gasto está PENDIENTE, marcarlo PAGADO
   // (al proveedor ya le pagaste con TC). Si Bruno lo dejó PENDIENTE explícito
