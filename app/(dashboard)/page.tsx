@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import type { CierreMensual } from '@/types/database'
 import { EstadoMesPanel } from '@/components/dashboard/estado-mes-panel'
+import { estaVencido } from '@/lib/gastos-vencimiento'
 
 export default async function DashboardPage({
   searchParams,
@@ -22,11 +23,12 @@ export default async function DashboardPage({
     { data: gastosMes },
     { data: saldosCuentas },
     { data: cierre },
-    { data: gastosVencidos },
+    { data: gastosImpagos },
     { data: nominaPendiente },
     { data: empleadosActivos },
     { data: cuentasInventario },
     { data: existencias },
+    { data: recurrentesDash },
   ] = await Promise.all([
     supabase.from('gastos').select('monto, estado').eq('mes', mes),
     // Fuente viva de saldos (el resto de la app ya no usa saldos_mensuales)
@@ -37,10 +39,11 @@ export default async function DashboardPage({
     supabase.from('cierres_mensuales').select('*').eq('mes', mes).maybeSingle(),
     supabase
       .from('gastos')
-      .select('id, concepto, monto, negocio, mes')
-      .eq('estado', 'VENCIDO')
+      .select('id, concepto, monto, negocio, mes, estado, fecha, fecha_pago, recurrente_id')
+      .neq('estado', 'PAGADO')
+      .neq('estado', 'DEVENGADO')
       .order('mes', { ascending: false })
-      .limit(5),
+      .limit(300),
     supabase
       .from('v_nominas_con_empleado')
       .select('neto, empleado_nombre, empleado_apellido')
@@ -54,7 +57,15 @@ export default async function DashboardPage({
       .eq('activo', true)
       .order('orden'),
     supabase.from('existencias_marca').select('marca, unidades, valuacion').eq('mes', mes),
+    supabase.from('gastos_recurrentes').select('id, dia_vencimiento, tipo_mes'),
   ])
+
+  // Vencidos = impagos cuyo vencimiento ya pasó (computado, no por estado en la base).
+  const hoyStr = new Date().toISOString().slice(0, 10)
+  const recMapDash = new Map((recurrentesDash ?? []).map((r) => [r.id, r]))
+  const gastosVencidos = (gastosImpagos ?? [])
+    .filter((g) => estaVencido(g, g.recurrente_id ? recMapDash.get(g.recurrente_id) : null, hoyStr))
+    .slice(0, 5)
 
   // Posición de mercadería (arranque negativo + compras − CMV) en vivo — misma fuente que el cierre.
   const repoValores = (cuentasInventario?.length ?? 0) > 0

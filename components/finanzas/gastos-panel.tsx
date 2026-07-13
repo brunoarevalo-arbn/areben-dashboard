@@ -19,9 +19,10 @@ export async function GastosPanel({
     .order('created_at', { ascending: false })
 
   if (params.negocio) query = query.eq('negocio', params.negocio)
-  if (params.estado) query = query.eq('estado', params.estado)
+  // VENCIDO es computado (por fecha, no por el estado en la base) → se filtra client-side.
+  if (params.estado && params.estado !== 'VENCIDO') query = query.eq('estado', params.estado)
 
-  const [{ data: gastos }, { data: categorias }, { data: cuentas }, { data: tarjetas }, { data: prorrateoDef }, { data: tiposIva }, { data: configProrrateo }] = await Promise.all([
+  const [{ data: gastos }, { data: categorias }, { data: cuentas }, { data: tarjetas }, { data: prorrateoDef }, { data: tiposIva }, { data: configProrrateo }, { data: recurrentes }] = await Promise.all([
     query,
     supabase.from('gastos').select('categoria').order('categoria'),
     supabase.from('cuentas_bancarias').select('id, nombre, banco, titular:cuentas_titulares(nombre)').eq('activo', true).order('banco'),
@@ -29,6 +30,7 @@ export async function GastosPanel({
     supabase.from('prorrateos_default').select('*'),
     supabase.from('tipos_iva').select('*').eq('activo', true).order('orden'),
     supabase.from('configuracion_prorrateo').select('*').eq('activo', true).order('orden'),
+    supabase.from('gastos_recurrentes').select('id, dia_vencimiento, tipo_mes'),
   ])
 
   const uniqueCategorias = [...new Set(categorias?.map((c) => c.categoria) ?? [])]
@@ -44,6 +46,8 @@ export async function GastosPanel({
       prorrateosDefault={prorrateoDef ?? []}
       tiposIva={tiposIva ?? []}
       configProrrateo={configProrrateo ?? []}
+      recurrentes={recurrentes ?? []}
+      hoy={new Date().toISOString().slice(0, 10)}
     />
   )
 }

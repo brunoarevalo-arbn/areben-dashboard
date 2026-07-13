@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { EstadoBadge, MarcaBadge, Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate, getMonthOptions, labelCuenta, ordenarCuentas } from '@/lib/utils'
+import { estaVencido } from '@/lib/gastos-vencimiento'
 import {
   Plus, Pencil, Trash2, CheckCircle, Filter, TrendingDown, Loader2,
   Info, Layers, Receipt, Wallet, CreditCard, Save, X, Search, RotateCcw,
@@ -42,6 +43,8 @@ interface GastosClientProps {
   prorrateosDefault: ProrrateoDefault[]
   tiposIva: TipoIVA[]
   configProrrateo: ConfiguracionProrrateo[]
+  recurrentes?: { id: string; dia_vencimiento?: number | null; tipo_mes?: string | null }[]
+  hoy?: string
 }
 
 // ─── GastoForm ────────────────────────────────────────────────────────────────
@@ -658,7 +661,9 @@ function MontoGastoEditor({ gasto, onSaved }: { gasto: Gasto; onSaved: () => voi
 
 // ─── GastosClient ─────────────────────────────────────────────────────────────
 
-export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjetas, prorrateosDefault, tiposIva, configProrrateo }: GastosClientProps) {
+export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjetas, prorrateosDefault, tiposIva, configProrrateo, recurrentes, hoy }: GastosClientProps) {
+  const recurrentesMap = useMemo(() => new Map((recurrentes ?? []).map((r) => [r.id, r])), [recurrentes])
+  const hoyStr = hoy ?? new Date().toISOString().slice(0, 10)
   const router = useRouter()
   const searchParams = useSearchParams()
   const [modalOpen, setModalOpen] = useState(false)
@@ -680,6 +685,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
     const qCat = filterCategoria.trim().toLowerCase()
     const qMonto = filterMonto.trim()
     return gastos.filter((g) => {
+      if (filtros.estado === 'VENCIDO' && !estaVencido(g, g.recurrente_id ? recurrentesMap.get(g.recurrente_id) : null, hoyStr)) return false
       if (tipoFiltro === 'RECURRENTES' && !g.recurrente_id) return false
       if (tipoFiltro === 'EXTRAORDINARIOS' && g.recurrente_id) return false
       if (qGen) {
@@ -692,7 +698,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
       if (qMonto && !String(g.monto).includes(qMonto)) return false
       return true
     })
-  }, [gastos, searchGeneral, filterConcepto, filterCategoria, filterMonto, tipoFiltro])
+  }, [gastos, searchGeneral, filterConcepto, filterCategoria, filterMonto, tipoFiltro, filtros.estado, recurrentesMap, hoyStr])
 
   // Totales separados por moneda — sin sumar ni convertir
   // Se calculan sobre los gastos filtrados para que los KPIs reflejen lo que ves
@@ -974,7 +980,11 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
                         <p className="text-xs text-amber-700">{g.cuotas_total} cuotas</p>
                       )}
                     </td>
-                    <td className="px-4 py-3"><EstadoBadge estado={g.estado} /></td>
+                    <td className="px-4 py-3">
+                      {estaVencido(g, g.recurrente_id ? recurrentesMap.get(g.recurrente_id) : null, hoyStr)
+                        ? <Badge variant="danger" className="text-[10px]">Vencido</Badge>
+                        : <EstadoBadge estado={g.estado} />}
+                    </td>
                     <td className="px-4 py-3 text-fg-muted text-xs">{g.fecha_pago ? formatDate(g.fecha_pago) : '—'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
