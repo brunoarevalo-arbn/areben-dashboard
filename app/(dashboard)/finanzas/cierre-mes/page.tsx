@@ -367,6 +367,16 @@ export default async function CierreMesPage({
     .map((p) => ({ nombre: p.nombre, capital: Math.round((capPorPlan.get(p.id) ?? 0) * 100) / 100 }))
     .filter((p) => p.capital > 0.01)
 
+  // Resultados acumulados: Σ resultado de los meses YA CERRADOS anteriores a este.
+  // Es la composición del PN (memo informativo, no entra al arqueo).
+  const { data: cierresCerrados } = await supabase
+    .from('cierres_mensuales')
+    .select('mes, resultado_ars')
+    .eq('cerrado', true)
+    .lt('mes', mes)
+    .order('mes')
+  const resultadosAcumuladosPrevios = (cierresCerrados ?? []).reduce((s, c) => s + Number(c.resultado_ars ?? 0), 0)
+
   // ── Validaciones del cierre (panel semáforo, solo lectura, no toca cálculo) ──
   const validaciones: { nivel: 'error' | 'warning' | 'info'; mensaje: string }[] = []
   // 1) Cuentas bancarias sin saldo cargado en el mes → suman $0 al activo
@@ -442,6 +452,8 @@ export default async function CierreMesPage({
       ccDetalle={ccDetalle}
       prestamosBancarios={prestamosBancarios}
       planesAfip={planesAfipPend}
+      resultadosAcumuladosPrevios={resultadosAcumuladosPrevios}
+      cierresCerrados={cierresCerrados ?? []}
     />
   )
 }

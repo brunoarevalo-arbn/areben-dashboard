@@ -140,6 +140,8 @@ interface Props {
   ccDetalle?: { nombre: string; naturaleza: string; moneda: string; monto: number; esActivo: boolean }[]
   prestamosBancarios?: { nombre: string; acreedor: string; moneda: string; capital: number }[]
   planesAfip?: { nombre: string; capital: number }[]
+  resultadosAcumuladosPrevios?: number
+  cierresCerrados?: { mes: string; resultado_ars: number }[]
 }
 
 export function CierreMesClient(props: Props) {
@@ -1075,6 +1077,22 @@ export function CierreMesClient(props: Props) {
             <p className="text-[10px] text-fg-soft italic pt-2 border-t border-border-strong/40">
               Resultado = (PN actual − PN anterior) + Retiros · TC del cierre: ${tipoCambio.toFixed(2)}
             </p>
+            {/* Memo: Resultados acumulados (composición del PN, informativo — no entra al arqueo) */}
+            <div className="mt-2 pt-2 border-t border-border-strong/40 space-y-1 text-[11px]">
+              <div className="flex justify-between text-fg-soft">
+                <span>Resultados acumulados (meses cerrados)</span>
+                <span className="font-mono">{formatCurrency(props.resultadosAcumuladosPrevios ?? 0)}</span>
+              </div>
+              <div className="flex justify-between font-medium">
+                <span className="text-fg-muted">= Acumulado al cierre de este mes</span>
+                <span className="font-mono text-fg">{formatCurrency((props.resultadosAcumuladosPrevios ?? 0) + resultado)}</span>
+              </div>
+              <p className="text-[10px] text-fg-soft italic">
+                {(props.cierresCerrados ?? []).length === 0
+                  ? 'Se acumula al confirmar cada mes. Arranca el mes que viene; informativo, no cambia el PN.'
+                  : `${(props.cierresCerrados ?? []).length} mes(es) cerrado(s). Arranca el mes que viene; informativo, no cambia el PN.`}
+              </p>
+            </div>
           </div>
         </div>
 
