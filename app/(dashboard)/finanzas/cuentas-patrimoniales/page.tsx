@@ -1,35 +1,36 @@
-import { Tabs, type TabItem } from '@/components/ui/tabs'
 import { PatrimonioPanel } from '@/components/finanzas/patrimonio-panel'
 import { PosicionMercaderiaPanel } from '@/components/finanzas/posicion-mercaderia-panel'
+import { ActivoFijoPanel } from '@/components/finanzas/activo-fijo-panel'
+import { CuentasParticularesPanel } from '@/components/finanzas/cuentas-particulares-panel'
+import { OtrosActivosPanel } from '@/components/finanzas/otros-activos-panel'
 import { SaldosImpositivosPanel } from '@/components/finanzas/saldos-impositivos-panel'
 import { BienesPanel } from '@/components/finanzas/bienes-panel'
 
-const TABS: TabItem[] = [
-  { key: 'tipo', label: 'Por tipo' },
-  { key: 'mercaderia', label: 'Posición de mercadería' },
-  { key: 'impositivos', label: 'Impositivos' },
-  { key: 'bienes', label: 'Bienes de uso' },
-]
-
+// La navegación entre áreas es por el sidebar (sub-ítems de Patrimonio → ?tab=…), sin barra de tabs.
 export default async function PatrimonioPage({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string; mes?: string }>
 }) {
   const params = await searchParams
-  const tab = TABS.some((t) => t.key === params.tab) ? (params.tab as string) : TABS[0].key
+  const tab = params.tab ?? 'tipo'
 
   return (
     <div className="space-y-6">
-      <Tabs items={TABS} activeKey={tab} />
-      {tab === 'tipo' ? (
-        <PatrimonioPanel mes={params.mes} />
-      ) : tab === 'mercaderia' ? (
+      {tab === 'mercaderia' ? (
         <PosicionMercaderiaPanel mes={params.mes} />
+      ) : tab === 'activo-fijo' ? (
+        <ActivoFijoPanel mes={params.mes} />
+      ) : tab === 'cuentas-particulares' ? (
+        <CuentasParticularesPanel mes={params.mes} />
+      ) : tab === 'otros-activos' ? (
+        <OtrosActivosPanel mes={params.mes} />
       ) : tab === 'impositivos' ? (
         <SaldosImpositivosPanel mes={params.mes} />
-      ) : (
+      ) : tab === 'bienes' ? (
         <BienesPanel />
+      ) : (
+        <PatrimonioPanel mes={params.mes} />
       )}
     </div>
   )

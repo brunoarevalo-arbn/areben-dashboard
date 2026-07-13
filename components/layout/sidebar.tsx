@@ -76,6 +76,10 @@ const navItems: NavItem[] = [
         icon: Boxes,
         children: [
           { label: 'Por tipo', href: '/finanzas/cuentas-patrimoniales', icon: Boxes },
+          { label: 'Posición de mercadería', href: '/finanzas/cuentas-patrimoniales?tab=mercaderia', icon: Package },
+          { label: 'Activo fijo', href: '/finanzas/cuentas-patrimoniales?tab=activo-fijo', icon: TrendingUp },
+          { label: 'Cuentas particulares', href: '/finanzas/cuentas-patrimoniales?tab=cuentas-particulares', icon: Users },
+          { label: 'Otros activos', href: '/finanzas/cuentas-patrimoniales?tab=otros-activos', icon: Wallet },
           { label: 'Impositivos', href: '/finanzas/cuentas-patrimoniales?tab=impositivos', icon: Receipt },
           { label: 'Bienes de uso', href: '/finanzas/cuentas-patrimoniales?tab=bienes', icon: Boxes },
         ],
