@@ -233,6 +233,7 @@ export interface CuentaPatrimonial {
   signo_pn: 1 | -1
   saldo_inicial: number
   mes_inicial?: string | null
+  socio_id?: string | null
   notas?: string | null
   activo: boolean
   orden: number

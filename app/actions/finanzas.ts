@@ -2012,6 +2012,7 @@ const cuentaPatrimSchema = z.object({
   signo_pn: z.coerce.number().refine((v) => v === 1 || v === -1, 'Signo debe ser 1 o -1'),
   saldo_inicial: z.coerce.number().default(0),
   mes_inicial: z.string().optional().nullable(),
+  socio_id: optUuid,
   notas: z.string().optional().nullable(),
   orden: z.coerce.number().int().default(0),
 })
@@ -2028,6 +2029,7 @@ export async function createCuentaPatrim(prevState: string | null, formData: For
     categoria: result.data.categoria || null,
     marca: result.data.marca || null,
     mes_inicial: result.data.mes_inicial || null,
+    socio_id: result.data.socio_id || null,
     notas: result.data.notas || null,
     activo: true,
   }).select('id').single()
@@ -2062,6 +2064,7 @@ export async function updateCuentaPatrim(id: string, prevState: string | null, f
     categoria: result.data.categoria || null,
     marca: result.data.marca || null,
     mes_inicial: result.data.mes_inicial || null,
+    socio_id: result.data.socio_id || null,
     notas: result.data.notas || null,
   }).eq('id', id)
   if (error) return error.message

@@ -49,11 +49,12 @@ interface Props {
   mes: string
   cuentas: CuentaPatrimonial[]
   saldos: SaldoCuentaPatrim[]
+  socios: { id: string; nombre: string }[]
 }
 
 // ─── CuentaForm ────────────────────────────────────────────────────────────────
 
-function CuentaForm({ cuenta, onClose }: { cuenta?: CuentaPatrimonial; onClose: () => void }) {
+function CuentaForm({ cuenta, socios, onClose }: { cuenta?: CuentaPatrimonial; socios: { id: string; nombre: string }[]; onClose: () => void }) {
   const action = cuenta ? updateCuentaPatrim.bind(null, cuenta.id) : createCuentaPatrim
   const [tipo, setTipo] = useState<TipoCuentaPatrim>(cuenta?.tipo ?? 'OTRO_ACTIVO')
   const [signo, setSigno] = useState<1 | -1>((cuenta?.signo_pn ?? tipoConfig('OTRO_ACTIVO').signoDefault) as 1 | -1)
@@ -160,6 +161,21 @@ function CuentaForm({ cuenta, onClose }: { cuenta?: CuentaPatrimonial; onClose: 
         </p>
       </div>
 
+      <div className="space-y-1.5">
+        <Select
+          label="Cuenta particular de socio (opcional)"
+          name="socio_id"
+          defaultValue={cuenta?.socio_id ?? ''}
+          options={[
+            { value: '', label: '— No es cuenta particular —' },
+            ...socios.map((s) => ({ value: s.id, label: s.nombre })),
+          ]}
+        />
+        <p className="text-xs text-fg-soft">
+          Si la linkeás a un socio, su saldo se calcula solo: arranque (saldo inicial) + retiros dolarizados del socio. No se carga a mano.
+        </p>
+      </div>
+
       <Textarea label="Notas" name="notas" defaultValue={cuenta?.notas ?? ''} rows={2} />
 
       {error && <p className="text-sm text-red-700">{error}</p>}
@@ -200,6 +216,8 @@ function SaldoRow({
   const saldoCierre = saldoInicio + movimiento
   // INVENTARIO: el signo es el del propio saldo (dinámico). Otros tipos: signo fijo × saldo
   const esInventario = cuenta.tipo === 'INVENTARIO'
+  // Cuenta particular de socio: el saldo se sintetiza en el cierre (arranque + retiros), no se edita acá.
+  const esSocio = !!cuenta.socio_id
   const aporta = esInventario ? saldoCierre : cuenta.signo_pn * saldoCierre
   // Nota: el "Valor de reposición" (INVENTARIO) ahora se calcula automático en el cierre/dashboard
   // (CMV − compras). Ya no se sugiere/guarda a mano acá para no tener dos números.
@@ -229,6 +247,9 @@ function SaldoRow({
           {cuenta.categoria}
           {cuenta.marca && <> · {cuenta.marca}</>}
         </p>
+        {esSocio && (
+          <p className="text-[10px] text-purple-700 mt-0.5">↺ sintetizada en el cierre: arranque + retiros dolarizados</p>
+        )}
       </td>
       <td className="px-3 py-2 text-right">
         {editing ? (
@@ -303,9 +324,11 @@ function SaldoRow({
             </>
           ) : (
             <>
-              <button onClick={() => setEditing(true)} title="Editar saldo del mes" className="p-1 rounded hover:bg-surface-2 text-fg-muted">
-                <Pencil className="w-3 h-3" />
-              </button>
+              {!esSocio && (
+                <button onClick={() => setEditing(true)} title="Editar saldo del mes" className="p-1 rounded hover:bg-surface-2 text-fg-muted">
+                  <Pencil className="w-3 h-3" />
+                </button>
+              )}
               <button onClick={onEdit} title="Editar cuenta" className="p-1 rounded hover:bg-surface-2 text-fg-muted">
                 <Building2 className="w-3 h-3" />
               </button>
@@ -325,7 +348,7 @@ function SaldoRow({
 
 // ─── CuentasPatrimonialesClient ────────────────────────────────────────────────
 
-export function CuentasPatrimonialesClient({ mes, cuentas, saldos }: Props) {
+export function CuentasPatrimonialesClient({ mes, cuentas, saldos, socios }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [modal, setModal] = useState(false)
@@ -507,7 +530,7 @@ export function CuentasPatrimonialesClient({ mes, cuentas, saldos }: Props) {
         title={editCuenta ? 'Editar cuenta patrimonial' : 'Nueva cuenta patrimonial'}
         className="max-w-xl"
       >
-        <CuentaForm cuenta={editCuenta} onClose={() => setModal(false)} />
+        <CuentaForm cuenta={editCuenta} socios={socios} onClose={() => setModal(false)} />
       </Modal>
     </div>
   )
