@@ -52,6 +52,7 @@ const navItems: NavItem[] = [
     label: 'Finanzas',
     icon: DollarSign,
     children: [
+      { label: 'Cierre de mes', href: '/finanzas/cierre-mes', icon: FileCheck },
       {
         label: 'Gastos',
         icon: TrendingDown,
@@ -67,30 +68,29 @@ const navItems: NavItem[] = [
           { label: 'Pagos del mes', href: '/finanzas/pagos', icon: Wallet },
           { label: 'Pendientes', href: '/finanzas/pagos?tab=pendientes', icon: Clock },
           { label: 'Cuentas corrientes', href: '/finanzas/cuentas-corrientes', icon: Wallet },
-          { label: 'CC servicios/proveedores', href: '/finanzas/pagos?tab=cuentas-corrientes', icon: Receipt },
         ],
       },
       { label: 'Tarjetas', href: '/finanzas/tarjetas', icon: CreditCard },
+      { label: 'Tesorería (bancos + caja)', href: '/finanzas/saldos', icon: Wallet },
       {
         label: 'Patrimonio',
         icon: Boxes,
         children: [
-          { label: 'Por tipo', href: '/finanzas/cuentas-patrimoniales', icon: Boxes },
+          { label: 'Resumen (todas)', href: '/finanzas/cuentas-patrimoniales', icon: Boxes },
           { label: 'Posición de mercadería', href: '/finanzas/cuentas-patrimoniales?tab=mercaderia', icon: Package },
           { label: 'Activo fijo', href: '/finanzas/cuentas-patrimoniales?tab=activo-fijo', icon: TrendingUp },
-          { label: 'Cuentas particulares', href: '/finanzas/cuentas-patrimoniales?tab=cuentas-particulares', icon: Users },
-          { label: 'Otros activos', href: '/finanzas/cuentas-patrimoniales?tab=otros-activos', icon: Wallet },
           { label: 'Impositivos', href: '/finanzas/cuentas-patrimoniales?tab=impositivos', icon: Receipt },
+          { label: 'Otros activos', href: '/finanzas/cuentas-patrimoniales?tab=otros-activos', icon: Wallet },
           { label: 'Bienes de uso', href: '/finanzas/cuentas-patrimoniales?tab=bienes', icon: Boxes },
         ],
       },
-      { label: 'Tesorería', href: '/finanzas/saldos', icon: Wallet },
       {
         label: 'Socios',
         icon: Users,
         children: [
           { label: 'Movimientos', href: '/finanzas/cuenta-socios', icon: CreditCard },
           { label: 'Estado de cuenta', href: '/finanzas/cuenta-socios?tab=estado', icon: Users },
+          { label: 'Cuentas particulares', href: '/finanzas/cuentas-patrimoniales?tab=cuentas-particulares', icon: Users },
         ],
       },
       {
@@ -102,7 +102,6 @@ const navItems: NavItem[] = [
         ],
       },
       { label: 'Préstamos bancarios', href: '/finanzas/prestamos', icon: TrendingDown },
-      { label: 'Cierre de mes', href: '/finanzas/cierre-mes', icon: FileCheck },
     ],
   },
   {
