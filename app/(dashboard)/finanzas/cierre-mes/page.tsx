@@ -3,12 +3,6 @@ import { getMesActivo } from '@/lib/mes-activo'
 import { sintetizarSaldosPatrim } from '@/app/actions/composicion-cierre'
 import { CierreMesClient } from '@/components/finanzas/cierre-mes-client'
 
-// Corte "ledger limpio": desde este mes en adelante todo pago queda con fecha en el ledger,
-// así que el pasivo de compras se netea puro por fecha_emision. Los meses ANTERIORES (mayo y
-// previos, ya cerrados) conservan el guardarraíl de "evidencia" para no alterar cierres pasados.
-// ⚠️ Ajustar si cambia el mes desde el que la carga de pagos con fecha es confiable.
-const CORTE_LEDGER_LIMPIO = '2026-06-01'
-
 export default async function CierreMesPage({
   searchParams,
 }: {
@@ -167,17 +161,17 @@ export default async function CierreMesPage({
       }
     }
   }
-  // Desde el corte "ledger limpio": todo pago tiene fecha, así que el saldo al corte se netea
-  // puro por fecha_emision (sin el guardarraíl de evidencia, que solo hacía falta cuando había
-  // compras pagadas sin rastro). Antes del corte se mantiene el guardarraíl (histórico congelado).
-  const ledgerLimpio = mesFin >= CORTE_LEDGER_LIMPIO
+  // Guardarraíl de evidencia (todos los meses): una compra cuenta como pendiente al corte SOLO si hay
+  // evidencia de estar impaga — debe hoy (saldo_pendiente>0) o hubo un pago con fecha posterior al corte.
+  // Necesario porque muchas compras están marcadas pagadas SIN registrar el pago en el ledger: netear puro
+  // por fecha las resucitaría como pendientes falsas (saldoCorte = monto_total, sin pago que netear).
   const comprasNorm = (comprasPendientes ?? [])
     .map((c) => {
       const saldoCorte = Math.round((Number(c.monto_total) - (pagadoCorte.get(c.id) ?? 0)) * 100) / 100
       const impagaAlCorte = Number(c.saldo_pendiente) > 0.01 || tuvoPagoDespues.has(c.id)
       return {
         ...c,
-        saldo_pendiente: ledgerLimpio ? saldoCorte : (impagaAlCorte ? saldoCorte : 0),
+        saldo_pendiente: impagaAlCorte ? saldoCorte : 0,
         proveedor: Array.isArray(c.proveedor) ? c.proveedor[0] ?? null : c.proveedor,
       }
     })
