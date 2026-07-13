@@ -146,52 +146,6 @@ export default async function CierreMesPage({
     supabase.from('planes_afip').select('id, nombre').lte('fecha_inicio', mesFin),
   ])
 
-  // ──────────────────────────────────────────────────────────────
-  // Resumen "Gastos financieros del mes" (mig 033 + 034)
-  // ──────────────────────────────────────────────────────────────
-  // 1) Gastos auto-generados del mes agrupados por subcategoría
-  const { data: gastosFinDelMes } = await supabase
-    .from('gastos')
-    .select('monto, subcategoria:gastos_subcategorias(slug, nombre)')
-    .eq('mes', mes)
-    .eq('auto_generado', true)
-    .eq('generado_desde', 'INVERSION_CIERRE')
-
-  const gastosFinPorSubcategoria = new Map<string, { nombre: string; total: number; count: number }>()
-  for (const g of gastosFinDelMes ?? []) {
-    const sub = Array.isArray(g.subcategoria) ? g.subcategoria[0] : g.subcategoria
-    if (!sub) continue
-    const slug = sub.slug as string
-    const prev = gastosFinPorSubcategoria.get(slug) ?? { nombre: sub.nombre as string, total: 0, count: 0 }
-    prev.total += Number(g.monto)
-    prev.count += 1
-    gastosFinPorSubcategoria.set(slug, prev)
-  }
-
-  const totalGastosFin = Array.from(gastosFinPorSubcategoria.values()).reduce((s, v) => s + v.total, 0)
-
-  // 2) Capital pendiente de créditos bancarios (saldo_cierre de instrumentos tipo=CREDITO_BANCARIO en el mes)
-  const creditosIds = (instrumentosActivos ?? [])
-    .filter((i) => (i as { tipo?: string }).tipo === 'CREDITO_BANCARIO')
-    .map((i) => i.id)
-
-  let capitalPendienteCreditos = 0
-  if (creditosIds.length > 0) {
-    const saldosCreditos = (saldosInversiones ?? []).filter((s) => creditosIds.includes(s.instrumento_id))
-    capitalPendienteCreditos = saldosCreditos.reduce((acc, s) => acc + Number(s.saldo_cierre ?? 0), 0)
-  }
-
-  const resumenGastosFinancieros = {
-    porSubcategoria: Array.from(gastosFinPorSubcategoria.entries()).map(([slug, v]) => ({
-      slug,
-      nombre: v.nombre,
-      total: v.total,
-      count: v.count,
-    })),
-    total: totalGastosFin,
-    capitalPendienteCreditos,
-  }
-
   // Saldo de cada compra AL CORTE. Muchas compras se saldan sin dejar un pago en el ledger (no hay
   // fecha de pago), así que NO se puede reconstruir "cuándo se pagó" sólo con pagos. Criterio:
   //   pasivo al corte = monto_total − Σ pagos(fecha_emision ≤ mesFin), PERO sólo si hay evidencia de que
@@ -454,7 +408,6 @@ export default async function CierreMesPage({
       pagosCtaCtePendientes={(pagosCtaCtePendientes ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['pagosCtaCtePendientes']}
       instrumentosActivos={(instrumentosActivos ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['instrumentosActivos']}
       saldosInversiones={saldosInversiones ?? []}
-      resumenGastosFinancieros={resumenGastosFinancieros}
       ccActivosArs={ccActivosArs}
       ccActivosUsd={ccActivosUsd}
       ccPasivosArs={ccPasivosArs}

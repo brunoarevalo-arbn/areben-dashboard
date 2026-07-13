@@ -15,6 +15,7 @@ import { Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { MoneyInput } from '@/components/ui/money-input'
 import { formatCurrency, formatMonth, formatDate, getMonthOptions } from '@/lib/utils'
+import { valorRetiroArs, valorRetiroUsd } from '@/lib/retiros'
 import { vencimientoGasto, estaVencido } from '@/lib/gastos-vencimiento'
 import {
   Lock, Unlock, Loader2, Save, Plus, Trash2, Wallet, Banknote, Receipt,
@@ -128,11 +129,6 @@ interface Props {
   pagosCtaCtePendientes: PagoCtaCtePend[]
   instrumentosActivos: InstrumentoActivo[]
   saldosInversiones: { instrumento_id: string; saldo_cierre: number }[]
-  resumenGastosFinancieros?: {
-    porSubcategoria: { slug: string; nombre: string; total: number; count: number }[]
-    total: number
-    capitalPendienteCreditos: number
-  }
   ccActivosArs?: number
   ccActivosUsd?: number
   ccPasivosArs?: number
@@ -329,21 +325,23 @@ export function CierreMesClient(props: Props) {
       const socio = r.socio
       if (!map.has(socio)) map.set(socio, { ars: 0, usd: 0, porCategoria: new Map() })
       const entry = map.get(socio)!
-      entry.ars += Number(r.monto_pesos ?? 0)
-      entry.usd += Number(r.monto_usd_calculado ?? r.monto_usd ?? 0)
+      // Regla única: un retiro dolarizado vale por su USD (su ARS queda como origen histórico,
+      // no se suma aparte); uno sin dolarizar vale por su ARS. Nunca los dos → evita doble conteo.
+      entry.ars += valorRetiroArs(r)
+      entry.usd += valorRetiroUsd(r)
       const catId = r.categoria?.id ?? 'sin'
       if (!entry.porCategoria.has(catId)) {
         entry.porCategoria.set(catId, { cat: r.categoria ?? null, ars: 0, usd: 0 })
       }
       const c = entry.porCategoria.get(catId)!
-      c.ars += Number(r.monto_pesos ?? 0)
-      c.usd += Number(r.monto_usd_calculado ?? r.monto_usd ?? 0)
+      c.ars += valorRetiroArs(r)
+      c.usd += valorRetiroUsd(r)
     }
     return Array.from(map.entries())
   }, [props.retirosMes])
 
-  const totalRetirosArs = props.retirosMes.reduce((s, r) => s + Number(r.monto_pesos ?? 0), 0)
-  const totalRetirosUsd = props.retirosMes.reduce((s, r) => s + Number(r.monto_usd_calculado ?? r.monto_usd ?? 0), 0)
+  const totalRetirosArs = props.retirosMes.reduce((s, r) => s + valorRetiroArs(r), 0)
+  const totalRetirosUsd = props.retirosMes.reduce((s, r) => s + valorRetiroUsd(r), 0)
 
   // ─── RESULTADO ─────────────────────────────────────────────────────
   // Resultado = (PN actual − PN anterior) + Retiros del mes (en ARS)
@@ -1008,33 +1006,6 @@ export function CierreMesClient(props: Props) {
           </div>
         </div>
       </Section>
-
-      {/* GASTOS FINANCIEROS DEL MES (mig 033 + 034) */}
-      {props.resumenGastosFinancieros && (props.resumenGastosFinancieros.total > 0 || props.resumenGastosFinancieros.capitalPendienteCreditos > 0) && (
-        <Section title="Gastos financieros del mes" subtitle="Auto-generados desde cierres de inversiones" icon={TrendingUp} color="amber" total={<span className="text-amber-700">{formatCurrency(props.resumenGastosFinancieros.total)}</span>}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {props.resumenGastosFinancieros.porSubcategoria.map((sub) => (
-              <div key={sub.slug} className="border border-amber-500/20 rounded-lg p-4">
-                <p className="text-xs text-fg-muted mb-1">{sub.nombre}</p>
-                <p className="text-2xl font-bold text-amber-700 font-mono">{formatCurrency(sub.total)}</p>
-                <p className="text-xs text-fg-soft mt-1">{sub.count} gasto{sub.count !== 1 ? 's' : ''}</p>
-              </div>
-            ))}
-            <div className="border border-amber-500/40 bg-amber-500/5 rounded-lg p-4">
-              <p className="text-xs text-fg-muted mb-1 font-semibold">TOTAL GASTOS FINANCIEROS</p>
-              <p className="text-2xl font-bold text-amber-800 font-mono">{formatCurrency(props.resumenGastosFinancieros.total)}</p>
-              <p className="text-xs text-fg-soft mt-1">suma del mes</p>
-            </div>
-            {props.resumenGastosFinancieros.capitalPendienteCreditos > 0 && (
-              <div className="border border-rose-500/30 bg-rose-500/5 rounded-lg p-4 md:col-span-3">
-                <p className="text-xs text-rose-700 mb-1 font-semibold">CAPITAL PENDIENTE — CRÉDITOS BANCARIOS</p>
-                <p className="text-2xl font-bold text-rose-700 font-mono">{formatCurrency(props.resumenGastosFinancieros.capitalPendienteCreditos)}</p>
-                <p className="text-xs text-fg-soft mt-1">Deuda por capital (no interés) al cierre del mes</p>
-              </div>
-            )}
-          </div>
-        </Section>
-      )}
 
       {/* RESUMEN PATRIMONIAL — colapsable (el resultado clave ya está en el resumen de arriba) */}
       <Section title="Variación patrimonial" subtitle="Cómo se compone el resultado del mes (detalle)" icon={TrendingUp} color="indigo" total={<span className={resultado >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{formatCurrency(resultado)}</span>}>

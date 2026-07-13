@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate, formatMonth } from '@/lib/utils'
+import { valorRetiroArs, valorRetiroUsd } from '@/lib/retiros'
 import {
   Users, Wallet, CreditCard, TrendingDown, TrendingUp, Calendar,
   ArrowDownCircle, ArrowUpCircle, Loader2, Plus,
@@ -61,16 +62,18 @@ export function CuentaSociosClient({ socios, retiros, categorias, socioInicial }
 
     for (const socio of socios) {
       const rs = retiros.filter((r) => r.socio_id === socio.id)
-      const saldoARS = rs.reduce((s, r) => s + Number(r.monto_pesos ?? 0), 0)
-      const saldoUSD = rs.reduce((s, r) => s + Number(r.monto_usd ?? 0), 0)
+      // Regla única (evita doble conteo): un retiro dolarizado cuenta en USD (su ARS queda como
+      // origen histórico); uno sin dolarizar cuenta en ARS. Ver lib/retiros.
+      const saldoARS = rs.reduce((s, r) => s + valorRetiroArs(r), 0)
+      const saldoUSD = rs.reduce((s, r) => s + valorRetiroUsd(r), 0)
 
       const compromiso = rs.filter(esCompromisoFuturo)
       const yaSalido = rs.filter((r) => !esCompromisoFuturo(r))
 
-      const compromisoARS = compromiso.reduce((s, r) => s + Number(r.monto_pesos ?? 0), 0)
-      const yaSalidoARS = yaSalido.reduce((s, r) => s + Number(r.monto_pesos ?? 0), 0)
-      const compromisoUSD = compromiso.reduce((s, r) => s + Number(r.monto_usd ?? 0), 0)
-      const yaSalidoUSD = yaSalido.reduce((s, r) => s + Number(r.monto_usd ?? 0), 0)
+      const compromisoARS = compromiso.reduce((s, r) => s + valorRetiroArs(r), 0)
+      const yaSalidoARS = yaSalido.reduce((s, r) => s + valorRetiroArs(r), 0)
+      const compromisoUSD = compromiso.reduce((s, r) => s + valorRetiroUsd(r), 0)
+      const yaSalidoUSD = yaSalido.reduce((s, r) => s + valorRetiroUsd(r), 0)
 
       const retirosMesActual = rs
         .filter((r) => mesDe(r) === mesActual)
