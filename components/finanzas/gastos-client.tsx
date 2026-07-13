@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils'
 
 const CATEGORIAS_COMUNES = [
   'Alquiler', 'Servicios', 'Sueldos', 'Marketing', 'Logística',
-  'Impuestos', 'Seguros', 'Mantenimiento', 'Tecnología', 'Otros',
+  'Impuestos', 'Seguros', 'Mantenimiento', 'Tecnología', 'Inversiones', 'Otros',
 ]
 const MARCAS = ['BDI', 'ZATTIA', 'STUNNED', 'GENERAL']
 const ESTADOS = ['PENDIENTE', 'PAGADO', 'VENCIDO']
