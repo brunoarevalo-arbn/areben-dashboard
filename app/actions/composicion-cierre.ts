@@ -104,3 +104,66 @@ export async function sintetizarSaldosPatrim(
 
   return { saldosPatrimFinal: [...byId.values()], movimientoInv }
 }
+
+export interface MovimientoComposicion {
+  fecha: string
+  concepto: string
+  monto: number
+}
+export interface SeccionComposicion {
+  titulo: string
+  moneda: 'ARS' | 'USD'
+  saldoInicio: number
+  saldoCierre: number
+  movimientos: MovimientoComposicion[]
+}
+
+/**
+ * Composición de la posición de mercadería del mes, por grupo (BDI y ZATTIA+STUNNED):
+ * saldo inicio (cierre del mes anterior) + compras del mes (suben el inventario) − CMV de GN (lo baja)
+ * = saldo cierre. Reusa calcularReposicion para los totales y lista las compras individuales.
+ */
+export async function composicionPosicionMercaderia(mes: string): Promise<SeccionComposicion[]> {
+  await requireUser()
+  const supabase = await createClient()
+  const GRUPOS = [
+    { key: 'BDI' as const, titulo: 'BDI', marcas: ['BDI'] },
+    { key: 'ZATTIA_STUNNED' as const, titulo: 'ZATTIA + STUNNED', marcas: ['ZATTIA', 'STUNNED'] },
+  ]
+  const [y, m] = mes.split('-').map(Number)
+  const desde = `${mes}-01`
+  const hasta = new Date(y, m, 0).toISOString().split('T')[0]
+
+  const secciones: SeccionComposicion[] = []
+  for (const g of GRUPOS) {
+    const rep = await calcularReposicion(g.key, mes)
+    const mm = rep.detalle.find((d) => d.mes === mes)
+    const comprasNetas = mm?.comprasNetas ?? 0
+    const cmvMes = mm?.cmv ?? 0
+    const saldoCierre = rep.saldo
+    const saldoInicio = r2(saldoCierre - (comprasNetas - cmvMes))
+
+    const { data: compras } = await supabase
+      .from('compras')
+      .select('fecha, descripcion, monto_total, iva, proveedor:proveedores(nombre)')
+      .in('negocio', g.marcas)
+      .gte('fecha', desde)
+      .lte('fecha', hasta)
+      .order('fecha')
+    const movimientos: MovimientoComposicion[] = (compras ?? []).map((c) => {
+      const prov = Array.isArray(c.proveedor) ? c.proveedor[0]?.nombre : (c.proveedor as { nombre?: string } | null)?.nombre
+      return {
+        fecha: c.fecha,
+        concepto: [c.descripcion, prov].filter(Boolean).join(' · ') || 'Compra',
+        monto: r2(Number(c.monto_total) - Number(c.iva)), // +neto: sube el inventario
+      }
+    })
+    // Si comprasNetas > Σ compras de la marca, la diferencia es producción pasada a stock este mes.
+    const prodPasada = r2(comprasNetas - movimientos.reduce((a, x) => a + x.monto, 0))
+    if (Math.abs(prodPasada) > 0.01) movimientos.push({ fecha: hasta, concepto: 'Producción pasada a stock', monto: prodPasada })
+    if (Math.abs(cmvMes) > 0.01) movimientos.push({ fecha: hasta, concepto: 'CMV — costo de ventas (Gestión Nube)', monto: r2(-cmvMes) })
+
+    secciones.push({ titulo: g.titulo, moneda: 'ARS', saldoInicio, saldoCierre, movimientos })
+  }
+  return secciones
+}
