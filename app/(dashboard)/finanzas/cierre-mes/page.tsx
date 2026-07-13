@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getMesActivo } from '@/lib/mes-activo'
-import { calcularReposicion } from '@/app/actions/finanzas'
-import { valorRetiroUsd } from '@/lib/retiros'
+import { sintetizarSaldosPatrim } from '@/app/actions/composicion-cierre'
 import { CierreMesClient } from '@/components/finanzas/cierre-mes-client'
 
 // Corte "ledger limpio": desde este mes en adelante todo pago queda con fecha en el ledger,
@@ -248,98 +247,10 @@ export default async function CierreMesPage({
     })
     .filter((g) => Number(g.monto) > 0.01)
 
-  // ── Valor de inventario (arranque + compras − CMV) inyectado en las cuentas INVENTARIO ──
-  // BDI → INV-BDI; ZATTIA+STUNNED unificados en la cuenta de ZATTIA; STUNNED consolidado → 0.
-  const invCuentas = (cuentasPatrim ?? []).filter((c) => c.tipo === 'INVENTARIO')
-  let saldosPatrimFinal = saldosPatrim ?? []
-  const movimientoInv: Record<string, { saldoInicial: number; compras: number; cmv: number }> = {}
-  if (invCuentas.length) {
-    const [repoBDI, repoZS] = await Promise.all([
-      calcularReposicion('BDI', mes),
-      calcularReposicion('ZATTIA_STUNNED', mes),
-    ])
-    const cero = { arranque: 0, comprasNetas: 0, cmv: 0, saldo: 0, detalle: [] as { mes: string; cmv: number; comprasNetas: number }[] }
-    const repoPorMarca = (marca: string | null) =>
-      marca === 'BDI' ? repoBDI : marca === 'ZATTIA' ? repoZS : cero
-    const byId = new Map(saldosPatrimFinal.map((s) => [s.cuenta_id, { ...s }]))
-    for (const c of invCuentas) {
-      const r = repoPorMarca(c.marca ?? null)
-      // Movimiento DEL MES (saldo inicial = cierre del mes anterior)
-      const mm = r.detalle.find((d) => d.mes === mes)
-      const comprasMes = mm?.comprasNetas ?? 0
-      const cmvMes = mm?.cmv ?? 0
-      const saldoInicial = Math.round((r.saldo - (comprasMes - cmvMes)) * 100) / 100
-      movimientoInv[c.id] = { saldoInicial, compras: comprasMes, cmv: cmvMes }
-      const row = byId.get(c.id)
-      if (row) { row.saldo_cierre = r.saldo; row.saldo_inicio = saldoInicial; row.movimiento = comprasMes - cmvMes }
-      else byId.set(c.id, { cuenta_id: c.id, mes, saldo_inicio: saldoInicial, movimiento: comprasMes - cmvMes, saldo_cierre: r.saldo } as (typeof saldosPatrimFinal)[number])
-    }
-    saldosPatrimFinal = [...byId.values()]
-  }
-
-  // ── Cuentas particulares de socios: saldo = arranque (saldo_inicial) + Σ retiros dolarizados del socio ──
-  // Espeja el mecanismo de INVENTARIO: se sintetiza en vivo desde retiros_socios (dolarizados) y se inyecta
-  // en saldosPatrimFinal. Así el retiro es PN-neutro (caja↓ + cuenta particular↑) y NO se suma al resultado.
-  const socioCuentas = (cuentasPatrim ?? []).filter((c) => (c as { socio_id?: string | null }).socio_id)
-  if (socioCuentas.length) {
-    const socioIds = socioCuentas.map((c) => (c as { socio_id: string }).socio_id)
-    const { data: retirosSocios } = await supabase
-      .from('retiros_socios')
-      .select('socio_id, mes, monto_usd, monto_usd_calculado, convertido_at')
-      .in('socio_id', socioIds)
-      .lte('mes', mes)
-    const byId = new Map(saldosPatrimFinal.map((s) => [s.cuenta_id, { ...s }]))
-    for (const c of socioCuentas) {
-      const socioId = (c as { socio_id: string }).socio_id
-      const arranque = Number(c.saldo_inicial ?? 0)
-      const mesIni = c.mes_inicial ?? ''
-      let acum = 0, mov = 0
-      for (const r of retirosSocios ?? []) {
-        if (r.socio_id !== socioId) continue
-        if (mesIni && r.mes <= mesIni) continue // ya incluido en el arranque
-        const usd = valorRetiroUsd(r)
-        acum += usd
-        if (r.mes === mes) mov += usd
-      }
-      const saldoCierre = Math.round((arranque + acum) * 100) / 100
-      const saldoInicial = Math.round((saldoCierre - mov) * 100) / 100
-      const row = byId.get(c.id)
-      if (row) { row.saldo_cierre = saldoCierre; row.saldo_inicio = saldoInicial; row.movimiento = mov }
-      else byId.set(c.id, { cuenta_id: c.id, mes, saldo_inicio: saldoInicial, movimiento: mov, saldo_cierre: saldoCierre } as (typeof saldosPatrimFinal)[number])
-    }
-    saldosPatrimFinal = [...byId.values()]
-  }
-
-  // ── Cuentas de inversión (activo fijo): saldo = arranque (saldo_inicial) + Σ gastos categoría "Inversiones" ──
-  // Mismo mecanismo que socios: un gasto-inversión es capex (no gasto operativo). Al crecer el activo por su
-  // monto, es PN-neutro (caja↓/pasivo↑ + activo↑) y NO reduce el resultado. Se asume una sola cuenta INVERSION
-  // acumuladora de capex.
-  const invFijoCuentas = (cuentasPatrim ?? []).filter((c) => c.tipo === 'INVERSION')
-  if (invFijoCuentas.length) {
-    const { data: gastosInv } = await supabase
-      .from('gastos')
-      .select('mes, monto')
-      .eq('categoria', 'Inversiones')
-      .lte('mes', mes)
-    const byId = new Map(saldosPatrimFinal.map((s) => [s.cuenta_id, { ...s }]))
-    for (const c of invFijoCuentas) {
-      const arranque = Number(c.saldo_inicial ?? 0)
-      const mesIni = c.mes_inicial ?? ''
-      let acum = 0, mov = 0
-      for (const g of gastosInv ?? []) {
-        if (mesIni && g.mes <= mesIni) continue // ya incluido en el arranque
-        const m = Number(g.monto)
-        acum += m
-        if (g.mes === mes) mov += m
-      }
-      const saldoCierre = Math.round((arranque + acum) * 100) / 100
-      const saldoInicial = Math.round((saldoCierre - mov) * 100) / 100
-      const row = byId.get(c.id)
-      if (row) { row.saldo_cierre = saldoCierre; row.saldo_inicio = saldoInicial; row.movimiento = mov }
-      else byId.set(c.id, { cuenta_id: c.id, mes, saldo_inicio: saldoInicial, movimiento: mov, saldo_cierre: saldoCierre } as (typeof saldosPatrimFinal)[number])
-    }
-    saldosPatrimFinal = [...byId.values()]
-  }
+  // ── Sintetizar en vivo las cuentas patrimoniales que no se cargan a mano ──
+  // (inventario/posición de mercadería, cuentas particulares de socios, inversiones/activo fijo).
+  // Factorizado en un helper reutilizable para que el cierre Y la página de Patrimonio den los mismos números.
+  const { saldosPatrimFinal, movimientoInv } = await sintetizarSaldosPatrim(cuentasPatrim ?? [], saldosPatrim ?? [], mes)
 
   // ── Cuentas corrientes manuales: saldo a la fecha de corte (Σ DEUDA − Σ PAGO con fecha ≤ mesFin) ──
   // Clasificar en activo/pasivo × ARS/USD. naturaleza COBRAR=nos deben, PAGAR=les debemos; el signo del
