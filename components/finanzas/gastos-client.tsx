@@ -94,6 +94,9 @@ function GastoForm({
 
   const factorIva = 1 + porcentajeIva / 100
   const montoNetoCalc = ivaIncluido && factorIva > 0 ? monto / factorIva : monto
+  // La fecha de pago es obligatoria salvo cuenta corriente (o TARJETA, que la
+  // completa el server automáticamente). Coincide con el superRefine de gastoSchema.
+  const fechaPagoExenta = medioPago === 'CTA_CORRIENTE' || medioPago === 'TARJETA'
 
   const [error, formAction, isPending] = useActionState(
     async (prev: string | null, fd: FormData) => {
@@ -198,7 +201,13 @@ function GastoForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Select label="Estado" name="estado" defaultValue={gasto?.estado ?? 'PENDIENTE'}
           options={ESTADOS.map((e) => ({ value: e, label: e.charAt(0) + e.slice(1).toLowerCase() }))} />
-        <Input label="Fecha de pago" name="fecha_pago" type="date" defaultValue={gasto?.fecha_pago ?? ''} />
+        <Input
+          label={`Fecha de pago${fechaPagoExenta ? ' (opcional)' : ' *'}`}
+          name="fecha_pago"
+          type="date"
+          defaultValue={gasto?.fecha_pago ?? ''}
+          required={!fechaPagoExenta}
+        />
       </div>
 
       {/* Medio de pago */}

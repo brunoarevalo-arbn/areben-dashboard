@@ -53,6 +53,19 @@ const gastoSchema = z.object({
     z.enum(['MONTO', 'PORCENTAJE']).nullable(),
   ).optional(),
   interes_valor: z.coerce.number().min(0).optional().default(0),
+}).superRefine((val, ctx) => {
+  // Todo gasto se crea con fecha de pago (= fecha real o vencimiento estimado),
+  // salvo dos casos que no la necesitan: cuenta corriente del proveedor (se paga
+  // a saldar la cuenta) y TARJETA (el server la completa automáticamente = fecha).
+  const medio = val.medio_pago
+  const exento = medio === 'CTA_CORRIENTE' || medio === 'CUENTA_CORRIENTE' || medio === 'TARJETA'
+  if (!exento && !val.fecha_pago) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['fecha_pago'],
+      message: 'La fecha de pago es obligatoria (salvo cuenta corriente).',
+    })
+  }
 })
 
 /**
