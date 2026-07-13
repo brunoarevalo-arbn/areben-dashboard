@@ -364,9 +364,50 @@ export default async function CierreMesPage({
     .map((p) => ({ nombre: p.nombre, capital: Math.round((capPorPlan.get(p.id) ?? 0) * 100) / 100 }))
     .filter((p) => p.capital > 0.01)
 
+  // ── Validaciones del cierre (panel semáforo, solo lectura, no toca cálculo) ──
+  const validaciones: { nivel: 'error' | 'warning' | 'info'; mensaje: string }[] = []
+  // 1) Cuentas bancarias sin saldo cargado en el mes → suman $0 al activo
+  const cuentasConSaldo = new Set((saldosMes ?? []).map((s) => s.cuenta_id))
+  const cuentasSinSaldo = (cuentas ?? []).filter((c) => !cuentasConSaldo.has(c.id))
+  if (cuentasSinSaldo.length > 0) {
+    validaciones.push({
+      nivel: 'warning',
+      mensaje: `${cuentasSinSaldo.length} cuenta(s) sin saldo cargado en ${mes} (suman $0 al activo): ${cuentasSinSaldo.slice(0, 4).map((c) => c.nombre).join(', ')}${cuentasSinSaldo.length > 4 ? '…' : ''}.`,
+    })
+  }
+  // 2) Mes anterior sin confirmar → el "resultado" se compara contra PN anterior = 0
+  if (!cierreAnterior?.cerrado) {
+    validaciones.push({
+      nivel: 'warning',
+      mensaje: `El mes anterior (${mesAnterior}) no está confirmado → el "resultado del mes" se mide contra PN anterior = 0, no es un delta real.`,
+    })
+  }
+  // 3) Pagos programados (cheque/cta cte) vencidos hace +45 días y sin acreditar → probablemente ya se cobraron sin marcar
+  const limVenc = new Date(y, m, 0); limVenc.setDate(limVenc.getDate() - 45)
+  const limVencStr = limVenc.toISOString().split('T')[0]
+  const progVencidos = [...(chequesPendientes ?? []), ...(pagosCtaCtePendientes ?? [])]
+    .filter((p: { fecha_vencimiento?: string | null }) => p.fecha_vencimiento && p.fecha_vencimiento < limVencStr)
+  if (progVencidos.length > 0) {
+    validaciones.push({
+      nivel: 'warning',
+      mensaje: `${progVencidos.length} pago(s) programado(s) vencidos hace +45 días siguen sin acreditar. Si ya se cobraron, marcalos acreditados con la fecha real (sino inflan el pasivo).`,
+    })
+  }
+  // 4) Posible doble conteo de sueldos: pasivo manual de sueldos + sueldos en gastos pendientes
+  const pmActual = (Array.isArray(cierreActual?.pasivos_manuales) ? cierreActual.pasivos_manuales : []) as { descripcion?: string; monto?: number }[]
+  const manualSueldo = pmActual.some((p) => /sueldo/i.test(p.descripcion ?? '') && Number(p.monto) > 0)
+  const gastoSueldo = (gastosNetos ?? []).some((g: { categoria?: string }) => /sueldo/i.test(g.categoria ?? ''))
+  if (manualSueldo && gastoSueldo) {
+    validaciones.push({
+      nivel: 'error',
+      mensaje: 'Hay un pasivo manual de sueldos Y sueldos en Gastos pendientes → posible doble conteo. Revisá.',
+    })
+  }
+
   return (
     <CierreMesClient
       mes={mes}
+      validaciones={validaciones}
       mesAnterior={mesAnterior}
       cierreActual={cierreActual}
       cierreAnterior={cierreAnterior}

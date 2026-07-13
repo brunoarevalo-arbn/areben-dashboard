@@ -100,6 +100,7 @@ interface InstrumentoActivo {
 
 interface Props {
   mes: string
+  validaciones?: { nivel: 'error' | 'warning' | 'info'; mensaje: string }[]
   mesAnterior: string
   cierreActual: CierreMensual | null
   cierreAnterior: CierreMensual | null
@@ -487,6 +488,24 @@ export function CierreMesClient(props: Props) {
           )}
         </div>
       </div>
+
+      {/* Panel de validación (semáforo) — avisa huecos/duplicados antes de confiar en el número */}
+      {(props.validaciones ?? []).length > 0 && (
+        <div className="bg-surface border border-amber-500/40 rounded-xl p-4 space-y-2">
+          <h2 className="text-sm font-semibold text-amber-700 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            Revisar antes de confiar en el número ({(props.validaciones ?? []).length})
+          </h2>
+          <ul className="space-y-1.5">
+            {(props.validaciones ?? []).map((v, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs">
+                <span className={cn('mt-1 w-1.5 h-1.5 rounded-full shrink-0', v.nivel === 'error' ? 'bg-rose-500' : v.nivel === 'warning' ? 'bg-amber-500' : 'bg-sky-500')} />
+                <span className={cn(v.nivel === 'error' ? 'text-rose-700 font-medium' : 'text-fg-muted')}>{v.mensaje}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Resumen del cierre — los números clave arriba de todo */}
       <div className="bg-gradient-to-br from-slate-900 to-slate-900/40 border border-orange-500/30 rounded-xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
