@@ -27,7 +27,7 @@ export async function PendientesPanel() {
     // consolidado, no acá. Esta vista es de tesorería, no contable.
     supabase
       .from('gastos')
-      .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, estado, cuenta_id, medio_pago, recurrente_id, recurrente:gastos_recurrentes(notas, concepto)')
+      .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, estado, cuenta_id, medio_pago, recurrente_id, recurrente:gastos_recurrentes(notas, concepto, dia_vencimiento, tipo_mes)')
       .neq('estado', 'PAGADO')
       .neq('estado', 'DEVENGADO')
       .or('medio_pago.is.null,medio_pago.neq.TARJETA')

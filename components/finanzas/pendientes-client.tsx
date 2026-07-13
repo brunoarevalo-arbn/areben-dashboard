@@ -8,6 +8,7 @@ import type { Instrumento } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate, formatMonth, labelCuenta, ordenarCuentas } from '@/lib/utils'
+import { fechaVencimientoRecurrente } from '@/lib/gastos-vencimiento'
 import {
   CheckCircle2, AlertTriangle, Clock, FileCheck, Receipt, CreditCard,
   PiggyBank, Loader2, ChevronRight, AlertCircle, Sparkles, Wallet, Pencil,
@@ -96,7 +97,8 @@ interface GastoPend {
   cuenta_id?: string | null
   total_pagado?: number
   saldo_pendiente?: number
-  recurrente?: { notas: string | null } | null
+  recurrente_id?: string | null
+  recurrente?: { notas: string | null; dia_vencimiento?: number | null; tipo_mes?: string | null } | null
 }
 
 type InstrumentoProximo = Omit<Instrumento, 'inversor'> & {
@@ -161,6 +163,14 @@ function clasificarFecha(fecha: string, hoy: string): GrupoFecha {
   const finMes = new Date(h.getFullYear(), h.getMonth() + 1, 0)
   if (f <= finMes) return 'ESTE_MES'
   return 'FUTURO'
+}
+
+// Vencimiento real de un gasto: del recurrente (día + tipo_mes) si existe; si no, fecha_pago; si no, mes-15.
+function vencimientoDeGasto(g: GastoPend): string {
+  if (g.recurrente && (g.recurrente.dia_vencimiento != null || g.recurrente.tipo_mes)) {
+    return fechaVencimientoRecurrente(g.mes, g.recurrente.dia_vencimiento ?? null, g.recurrente.tipo_mes ?? null)
+  }
+  return g.fecha_pago ?? `${g.mes}-15`
 }
 
 function fechaCuota(mes: string): string {
@@ -1162,8 +1172,96 @@ function PagarGrupoForm({
 
 // ─── Main Client ───────────────────────────────────────────────────────────────
 
+// Un mismo servicio recurrente con varios meses impagos → renglón desplegable con el detalle por mes.
+function GastoGrupoServicioItem({ grupo, hoy, onPagoParcial }: {
+  grupo: GastoGrupoServicio
+  hoy: string
+  onPagoParcial: (t: PagoTarget) => void
+}) {
+  const [expandido, setExpandido] = useState(false)
+  const dueDe = (g: GastoPend) => vencimientoDeGasto(g)
+  const diasDe = (fecha: string) => {
+    const f = new Date(fecha + 'T00:00:00')
+    const h = new Date(hoy + 'T00:00:00')
+    return Math.ceil((f.getTime() - h.getTime()) / (1000 * 60 * 60 * 24))
+  }
+  const fechaVenc = dueDe(grupo.gastos[0])
+  const dias = diasDe(fechaVenc)
+  const colorBorder = dias < 0 ? 'border-red-500' : dias <= 7 ? 'border-amber-500' : 'border-transparent'
+  const colorBg = dias < 0 ? 'bg-red-500/5' : dias <= 7 ? 'bg-amber-500/5' : ''
+  return (
+    <div className={cn('border-l-4', colorBorder, colorBg)}>
+      <div className="flex items-center gap-3 px-4 py-2 hover:bg-surface-2/30">
+        <div className="flex items-center gap-3 min-w-0">
+          <button type="button" onClick={() => setExpandido((v) => !v)} className="p-1 -ml-1 rounded hover:bg-surface-2 text-fg-soft">
+            {expandido ? <ChevronRight className="w-4 h-4 rotate-90" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+          <Receipt className="w-5 h-5 text-amber-700 shrink-0" />
+          <p className="text-fg font-medium truncate min-w-0">
+            {grupo.concepto}
+            <span className="text-fg-soft font-normal text-xs ml-2">({grupo.cantidad} meses)</span>
+            <span className="text-fg-soft font-normal"> · {grupo.categoria}</span>
+          </p>
+        </div>
+        <div className="flex-1 min-w-0 flex items-center gap-2"><EstadoVencimientoChip dias={dias} /></div>
+        <div className="flex items-center gap-3 shrink-0">
+          <p className="font-mono font-bold text-amber-700 whitespace-nowrap">{formatCurrency(grupo.totalSaldo)}</p>
+        </div>
+      </div>
+      {expandido && (
+        <div className="border-t border-border/60 bg-surface-2/20 divide-y divide-border/40">
+          {grupo.gastos.map((g) => {
+            const v = dueDe(g)
+            return (
+              <div key={g.id} className="px-4 py-2 pl-12 flex items-center justify-between text-sm">
+                <div className="min-w-0 flex items-center gap-2 flex-wrap">
+                  <span className="text-fg-muted text-xs font-medium">{formatMonth(g.mes)}</span>
+                  <EstadoVencimientoChip dias={diasDe(v)} />
+                  <span className="text-fg-soft text-xs">vence {formatDate(v)}</span>
+                  {g.total_pagado && g.total_pagado > 0 && (
+                    <span className="text-xs text-amber-700">· pagado parcial {formatCurrency(g.total_pagado)}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <p className="font-mono text-xs text-fg">{formatCurrency(g.saldo_pendiente ?? Number(g.monto))}</p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onPagoParcial({
+                      tipo_origen: 'GASTO',
+                      origen_id: g.id,
+                      monto_total: g.monto,
+                      saldo_pendiente: g.saldo_pendiente,
+                      moneda: g.moneda === 'USD' ? 'USD' : 'ARS',
+                      descripcion: g.concepto,
+                      contexto: formatMonth(g.mes),
+                    })}
+                    title="Pagar este mes (parcial o total)"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Pagar
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 interface GastoGrupoCargas {
   mes: string
+  categoria: string
+  gastos: GastoPend[]
+  totalSaldo: number
+  cantidad: number
+}
+
+interface GastoGrupoServicio {
+  recurrenteId: string
+  concepto: string
   categoria: string
   gastos: GastoPend[]
   totalSaldo: number
@@ -1173,9 +1271,9 @@ interface GastoGrupoCargas {
 interface ItemConFecha {
   fecha: string
   grupo: GrupoFecha
-  tipo: 'cheque' | 'cuota' | 'instrumento' | 'pago_cta_cte' | 'compra_sin_plan' | 'gasto' | 'gasto_grupo' | 'cuota_plan_afip' | 'cuota_prestamo' | 'cuota_tc_grupo'
+  tipo: 'cheque' | 'cuota' | 'instrumento' | 'pago_cta_cte' | 'compra_sin_plan' | 'gasto' | 'gasto_grupo' | 'gasto_grupo_servicio' | 'cuota_plan_afip' | 'cuota_prestamo' | 'cuota_tc_grupo'
   prioridad: number // para ordenar dentro del grupo (cheques rojos primero)
-  data: ChequePendiente | CuotaPendiente | InstrumentoProximo | PagoCtaCte | CompraSinPlanPago | GastoPend | GastoGrupoCargas | CuotaPlanAfip | CuotaPrestamo | CuotaTcGrupo
+  data: ChequePendiente | CuotaPendiente | InstrumentoProximo | PagoCtaCte | CompraSinPlanPago | GastoPend | GastoGrupoCargas | GastoGrupoServicio | CuotaPlanAfip | CuotaPrestamo | CuotaTcGrupo
 }
 
 export function PendientesClient({
@@ -1269,6 +1367,11 @@ export function PendientesClient({
     // Las Cargas Sociales (auto-creadas por la nómina, 1 por empleado) se
     // agrupan por mes para mostrar un total agregado en vez de N líneas.
     const cargasSocialesPorMes = new Map<string, GastoPend[]>()
+    const serviciosPorRecurrente = new Map<string, GastoPend[]>()
+    const gastoIndividual = (g: GastoPend) => {
+      const fecha = vencimientoDeGasto(g)
+      list.push({ fecha, grupo: clasificarFecha(fecha, hoy), tipo: 'gasto', prioridad: g.categoria === 'Sueldos' ? 20 : 50, data: g })
+    }
     for (const g of gastosPendientes) {
       if (g.categoria === 'Cargas Sociales') {
         const arr = cargasSocialesPorMes.get(g.mes) ?? []
@@ -1276,8 +1379,28 @@ export function PendientesClient({
         cargasSocialesPorMes.set(g.mes, arr)
         continue
       }
-      const fecha = g.fecha_pago ?? `${g.mes}-15`
-      list.push({ fecha, grupo: clasificarFecha(fecha, hoy), tipo: 'gasto', prioridad: g.categoria === 'Sueldos' ? 20 : 50, data: g })
+      // Los servicios recurrentes se juntan por recurrente para unificar sus meses impagos.
+      if (g.recurrente_id) {
+        const arr = serviciosPorRecurrente.get(g.recurrente_id) ?? []
+        arr.push(g)
+        serviciosPorRecurrente.set(g.recurrente_id, arr)
+        continue
+      }
+      gastoIndividual(g)
+    }
+    // Servicio recurrente: 1 solo mes impago → línea normal; varios meses → renglón desplegable.
+    for (const [recId, gs] of serviciosPorRecurrente.entries()) {
+      if (gs.length === 1) { gastoIndividual(gs[0]); continue }
+      const ordenados = [...gs].sort((a, b) => (a.mes < b.mes ? -1 : 1))
+      const fecha = vencimientoDeGasto(ordenados[0]) // el mes más viejo manda la clasificación
+      const totalSaldo = gs.reduce((s, x) => s + (x.saldo_pendiente ?? Number(x.monto)), 0)
+      list.push({
+        fecha,
+        grupo: clasificarFecha(fecha, hoy),
+        tipo: 'gasto_grupo_servicio',
+        prioridad: ordenados[0].categoria === 'Sueldos' ? 20 : 50,
+        data: { recurrenteId: recId, concepto: ordenados[0].concepto, categoria: ordenados[0].categoria, gastos: ordenados, totalSaldo, cantidad: gs.length } as GastoGrupoServicio,
+      })
     }
     for (const [mes, gastos] of cargasSocialesPorMes.entries()) {
       const fecha = gastos[0]?.fecha_pago ?? `${mes}-15`
@@ -1379,6 +1502,9 @@ export function PendientesClient({
     }
     if (it.tipo === 'gasto_grupo') {
       return <GastoGrupoCargasItem key={key} grupo={it.data as GastoGrupoCargas} hoy={hoy} cuentas={cuentas} onPagoParcial={abrirPagoParcial} onRefetch={refetch} />
+    }
+    if (it.tipo === 'gasto_grupo_servicio') {
+      return <GastoGrupoServicioItem key={key} grupo={it.data as GastoGrupoServicio} hoy={hoy} onPagoParcial={abrirPagoParcial} />
     }
     if (it.tipo === 'cuota_plan_afip') {
       return <CuotaPlanAfipItem key={key} cuota={it.data as CuotaPlanAfip} hoy={hoy} onRefetch={refetch} />
