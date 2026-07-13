@@ -721,18 +721,24 @@ export function CierreMesClient(props: Props) {
           <PasivoBlock
             title="Compras pendientes (sin pago programado)"
             icon={Receipt}
-            items={props.comprasPendientes.map((c) => ({
-              label: c.proveedor?.nombre ?? c.descripcion,
-              detalle: `Compra del ${formatDate(c.fecha)} · Saldo de $ ${formatCurrency(Number(c.monto_total)).replace('$', '').trim()} total`,
-              monto: Number(c.saldo_pendiente),
-              moneda: c.moneda,
-            }))}
+            items={props.comprasPendientes.map((c) => {
+              const total = Number(c.monto_total)
+              const saldoCorte = Number(c.saldo_pendiente)
+              const pagadoAlCorte = total - saldoCorte
+              const mon = c.moneda as 'ARS' | 'USD'
+              return {
+                label: c.proveedor?.nombre ?? c.descripcion,
+                detalle: `Compra del ${formatDate(c.fecha)} · Total ${formatCurrency(total, mon)}${pagadoAlCorte > 0.01 ? ` · pagado ${formatCurrency(pagadoAlCorte, mon)} al corte` : ''}`,
+                monto: saldoCorte,
+                moneda: c.moneda,
+              }
+            })}
           />
         )}
         {/* 2. Cheques emitidos pendientes de acreditación */}
         {props.chequesPendientes.length > 0 && (
           <PasivoBlock
-            title="Cheques emitidos por acreditar"
+            title="Cheques emitidos sin debitar"
             icon={FileText}
             items={props.chequesPendientes.map((c) => ({
               label: `${c.compra?.proveedor?.nombre ?? c.compra?.descripcion ?? 'Cheque'}${c.numero_cheque ? ` · Nº ${c.numero_cheque}` : ''}`,
