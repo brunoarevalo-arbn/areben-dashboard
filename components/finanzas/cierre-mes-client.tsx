@@ -344,10 +344,13 @@ export function CierreMesClient(props: Props) {
   const totalRetirosUsd = props.retirosMes.reduce((s, r) => s + valorRetiroUsd(r), 0)
 
   // ─── RESULTADO ─────────────────────────────────────────────────────
-  // Resultado = (PN actual − PN anterior) + Retiros del mes (en ARS)
+  // Resultado = variación del PN. Los retiros de socios NO se suman: son adelantos que
+  // pasan a la cuenta particular de cada socio (activo), así que el retiro es PN-neutro
+  // (caja↓ + cuenta particular↑) y ya está reflejado en la variación. El total de retiros
+  // se sigue calculando solo para mostrarlo como informativo.
   const variacionPN = pnArs - pnAnteriorArs
   const totalRetirosArsConvertido = totalRetirosArs + totalRetirosUsd * tipoCambio
-  const resultado = variacionPN + totalRetirosArsConvertido
+  const resultado = variacionPN
 
   function setMes(nuevo: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -966,8 +969,8 @@ export function CierreMesClient(props: Props) {
         </div>
       </Section>
 
-      {/* SECCIÓN RETIROS */}
-      <Section title="Retiros del mes" subtitle="Detraídos por los socios — se suman al resultado" icon={ArrowDownCircle} color="purple" total={<span className="text-purple-700">{formatCurrency(totalRetirosArs + totalRetirosUsd * tipoCambio)}</span>}>
+      {/* SECCIÓN RETIROS (informativa: pasan a las cuentas particulares, no suman al resultado) */}
+      <Section title="Retiros del mes" subtitle="Informativo — pasan a la cuenta particular de cada socio (no suman al resultado)" icon={ArrowDownCircle} color="purple" total={<span className="text-fg-soft">{formatCurrency(totalRetirosArs + totalRetirosUsd * tipoCambio)}</span>}>
         {retirosPorSocio.length === 0 ? (
           <p className="px-4 py-6 text-sm text-fg-soft text-center">Sin retiros registrados en {formatMonth(props.mes)}</p>
         ) : (
@@ -1035,9 +1038,9 @@ export function CierreMesClient(props: Props) {
                 {variacionPN >= 0 ? '+' : ''}{formatCurrency(variacionPN)}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-fg-muted">+ Retiros del mes</span>
-              <span className="font-mono text-purple-700">{formatCurrency(totalRetirosArsConvertido)}</span>
+            <div className="flex justify-between text-xs">
+              <span className="text-fg-soft">Retiros del mes → cuentas particulares (informativo, no suma)</span>
+              <span className="font-mono text-fg-soft">{formatCurrency(totalRetirosArsConvertido)}</span>
             </div>
             <div className="flex justify-between border-t border-border-strong pt-3 font-bold">
               <span className="text-fg">RESULTADO DEL MES</span>

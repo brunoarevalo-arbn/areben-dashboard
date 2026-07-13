@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getMesActivo } from '@/lib/mes-activo'
 import { calcularReposicion } from '@/app/actions/finanzas'
+import { valorRetiroUsd } from '@/lib/retiros'
 import { CierreMesClient } from '@/components/finanzas/cierre-mes-client'
 
 // Corte "ledger limpio": desde este mes en adelante todo pago queda con fecha en el ledger,
@@ -272,6 +273,39 @@ export default async function CierreMesPage({
       const row = byId.get(c.id)
       if (row) { row.saldo_cierre = r.saldo; row.saldo_inicio = saldoInicial; row.movimiento = comprasMes - cmvMes }
       else byId.set(c.id, { cuenta_id: c.id, mes, saldo_inicio: saldoInicial, movimiento: comprasMes - cmvMes, saldo_cierre: r.saldo } as (typeof saldosPatrimFinal)[number])
+    }
+    saldosPatrimFinal = [...byId.values()]
+  }
+
+  // ── Cuentas particulares de socios: saldo = arranque (saldo_inicial) + Σ retiros dolarizados del socio ──
+  // Espeja el mecanismo de INVENTARIO: se sintetiza en vivo desde retiros_socios (dolarizados) y se inyecta
+  // en saldosPatrimFinal. Así el retiro es PN-neutro (caja↓ + cuenta particular↑) y NO se suma al resultado.
+  const socioCuentas = (cuentasPatrim ?? []).filter((c) => (c as { socio_id?: string | null }).socio_id)
+  if (socioCuentas.length) {
+    const socioIds = socioCuentas.map((c) => (c as { socio_id: string }).socio_id)
+    const { data: retirosSocios } = await supabase
+      .from('retiros_socios')
+      .select('socio_id, mes, monto_usd, monto_usd_calculado, convertido_at')
+      .in('socio_id', socioIds)
+      .lte('mes', mes)
+    const byId = new Map(saldosPatrimFinal.map((s) => [s.cuenta_id, { ...s }]))
+    for (const c of socioCuentas) {
+      const socioId = (c as { socio_id: string }).socio_id
+      const arranque = Number(c.saldo_inicial ?? 0)
+      const mesIni = c.mes_inicial ?? ''
+      let acum = 0, mov = 0
+      for (const r of retirosSocios ?? []) {
+        if (r.socio_id !== socioId) continue
+        if (mesIni && r.mes <= mesIni) continue // ya incluido en el arranque
+        const usd = valorRetiroUsd(r)
+        acum += usd
+        if (r.mes === mes) mov += usd
+      }
+      const saldoCierre = Math.round((arranque + acum) * 100) / 100
+      const saldoInicial = Math.round((saldoCierre - mov) * 100) / 100
+      const row = byId.get(c.id)
+      if (row) { row.saldo_cierre = saldoCierre; row.saldo_inicio = saldoInicial; row.movimiento = mov }
+      else byId.set(c.id, { cuenta_id: c.id, mes, saldo_inicio: saldoInicial, movimiento: mov, saldo_cierre: saldoCierre } as (typeof saldosPatrimFinal)[number])
     }
     saldosPatrimFinal = [...byId.values()]
   }
