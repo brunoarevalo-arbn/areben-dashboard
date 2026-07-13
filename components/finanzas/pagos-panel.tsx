@@ -11,20 +11,12 @@ export async function PagosPanel({
   const mes = params.mes ?? getCurrentMonth()
   const supabase = await createClient()
 
-  const desde = `${mes}-01`
-  const [y, m] = mes.split('-').map(Number)
-  const hasta = new Date(y, m, 0).toISOString().split('T')[0]
-
-  let query = supabase
+  // Se traen TODOS los pagos (dataset chico) y el filtrado por mes/tipo/instrumento/cuenta
+  // + búsqueda global se hace client-side, para poder buscar en todos los meses a la vez.
+  const query = supabase
     .from('pagos')
     .select('*')
-    .gte('fecha_emision', desde)
-    .lte('fecha_emision', hasta)
     .order('fecha_emision', { ascending: false })
-
-  if (params.tipo) query = query.eq('tipo_origen', params.tipo)
-  if (params.instrumento) query = query.eq('instrumento', params.instrumento)
-  if (params.cuenta) query = query.eq('cuenta_id', params.cuenta)
 
   const [{ data: pagos }, { data: cuentas }, { data: compras }, { data: gastos }, { data: nominas }, { data: cuotas }] = await Promise.all([
     query,

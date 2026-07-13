@@ -11,7 +11,7 @@ import { Modal } from '@/components/ui/modal'
 import { formatCurrency, formatDate, formatMonth, getMonthOptions } from '@/lib/utils'
 import {
   Wallet, Trash2, FileCheck, Banknote, CreditCard, Loader2, Pencil,
-  ShoppingCart, Receipt, Users, AlertCircle, Filter, Link2,
+  ShoppingCart, Receipt, Users, AlertCircle, Filter, Link2, Search, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { deletePagoUnificado, asignarPagoLibre, editPago } from '@/app/actions/pagos'
@@ -127,10 +127,33 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
     })
   }
 
-  // KPIs
-  const totalARS = pagos.filter((p) => p.moneda === 'ARS').reduce((s, p) => s + Number(p.monto), 0)
-  const totalUSD = pagos.filter((p) => p.moneda === 'USD').reduce((s, p) => s + Number(p.monto), 0)
-  const porTipo = pagos.reduce((acc, p) => {
+  // Buscador global + filtrado client-side (el panel trae TODOS los pagos).
+  const [searchGeneral, setSearchGeneral] = useState('')
+  const q = searchGeneral.trim().toLowerCase()
+  const mesActivo = searchParams.get('mes') ?? mes
+  const buscando = q.length > 0
+
+  const pagosFiltrados = pagos.filter((p) => {
+    if (buscando) {
+      // Búsqueda global: ignora mes y dropdowns; busca en nombre/proveedor/empleado/fecha/monto/notas/instrumento.
+      const d = descripcionOrigen(p)
+      const haystack = [
+        d.titulo, d.subtitulo, p.notas, p.numero_cheque, p.instrumento, p.moneda,
+        formatDate(p.fecha_emision), p.fecha_emision, String(p.monto),
+      ].filter(Boolean).join(' ').toLowerCase()
+      return haystack.includes(q)
+    }
+    // Sin búsqueda: filtros dropdown + mes seleccionado.
+    if (filtros.tipo && p.tipo_origen !== filtros.tipo) return false
+    if (filtros.instrumento && p.instrumento !== filtros.instrumento) return false
+    if (filtros.cuenta && p.cuenta_id !== filtros.cuenta) return false
+    return (p.fecha_emision ?? '').startsWith(mesActivo)
+  })
+
+  // KPIs (sobre lo filtrado)
+  const totalARS = pagosFiltrados.filter((p) => p.moneda === 'ARS').reduce((s, p) => s + Number(p.monto), 0)
+  const totalUSD = pagosFiltrados.filter((p) => p.moneda === 'USD').reduce((s, p) => s + Number(p.monto), 0)
+  const porTipo = pagosFiltrados.reduce((acc, p) => {
     acc[p.tipo_origen] = (acc[p.tipo_origen] ?? 0) + Number(p.monto)
     return acc
   }, {} as Record<string, number>)
@@ -144,7 +167,7 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
             Pagos del mes
           </h1>
           <p className="text-sm text-fg-muted mt-0.5">
-            {pagos.length} movimiento(s) · {formatMonth(mes)} · ledger único
+            {pagosFiltrados.length} movimiento(s) · {buscando ? 'búsqueda global (todos los meses)' : formatMonth(mesActivo)} · ledger único
           </p>
         </div>
       </div>
@@ -167,11 +190,33 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
         ))}
       </div>
 
+      {/* Buscador global */}
+      <div className="relative">
+        <Search className="w-4 h-4 text-fg-soft absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <input
+          type="text"
+          value={searchGeneral}
+          onChange={(e) => setSearchGeneral(e.target.value)}
+          placeholder="Buscar en TODOS los pagos: proveedor, empleado, concepto, fecha, monto…"
+          className="w-full pl-9 pr-9 py-2 bg-surface border border-border-strong rounded-lg text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+        {searchGeneral && (
+          <button
+            type="button"
+            onClick={() => setSearchGeneral('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-fg-soft hover:text-fg hover:bg-surface-2"
+            title="Limpiar búsqueda"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
       {/* Filtros */}
-      <div className="bg-surface border border-border rounded-xl p-3 flex flex-wrap gap-3 items-center">
+      <div className={cn('bg-surface border border-border rounded-xl p-3 flex flex-wrap gap-3 items-center', buscando && 'opacity-50 pointer-events-none')}>
         <div className="flex items-center gap-2 text-sm text-fg-muted">
           <Filter className="w-3.5 h-3.5" />
-          Filtros:
+          {buscando ? 'Filtros (desactivados durante la búsqueda):' : 'Filtros:'}
         </div>
         <Select
           value={searchParams.get('mes') ?? mes}
@@ -232,15 +277,15 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
             </tr>
           </thead>
           <tbody>
-            {pagos.length === 0 ? (
+            {pagosFiltrados.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-12 text-center text-fg-soft">
                   <Wallet className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  Sin pagos para los filtros seleccionados
+                  {buscando ? `Sin resultados para "${searchGeneral}"` : 'Sin pagos para los filtros seleccionados'}
                 </td>
               </tr>
             ) : (
-              pagos.map((p) => {
+              pagosFiltrados.map((p) => {
                 const tipo = TIPO_LABELS[p.tipo_origen]
                 const instr = INSTRUMENTO_LABELS[p.instrumento] ?? { label: p.instrumento, icon: Wallet }
                 const Icon = tipo.icon
