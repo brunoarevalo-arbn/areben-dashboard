@@ -39,6 +39,7 @@ export function ProduccionClient({
   const [sel, setSel] = useState<Set<string>>(new Set())
   const hoy = new Date().toISOString().split('T')[0]
   const [fechaPasaje, setFechaPasaje] = useState(hoy)
+  const [marcaPasaje, setMarcaPasaje] = useState('')
 
   const enProceso = useMemo(() => compras.filter((c) => !c.fecha_pasaje), [compras])
   const pasadas = useMemo(() => compras.filter((c) => c.fecha_pasaje), [compras])
@@ -68,10 +69,12 @@ export function ProduccionClient({
 
   function handlePasar() {
     if (sel.size === 0) return
+    if (!marcaPasaje) { alert('Elegí la marca a la que pasa la producción'); return }
     startTransition(async () => {
-      const err = await marcarProduccionPasada(Array.from(sel), fechaPasaje)
+      const err = await marcarProduccionPasada(Array.from(sel), fechaPasaje, marcaPasaje)
       if (err) { alert(err); return }
       setSel(new Set())
+      setMarcaPasaje('')
       router.refresh()
     })
   }
@@ -134,7 +137,18 @@ export function ProduccionClient({
           <span className="text-sm text-fg-muted">
             {sel.size} seleccionada{sel.size > 1 ? 's' : ''} · {formatCurrency(enProceso.filter((c) => sel.has(c.id)).reduce((s, c) => s + costoNeto(c), 0))}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="text-xs text-fg-soft">Marca</label>
+            <select
+              value={marcaPasaje}
+              onChange={(e) => setMarcaPasaje(e.target.value)}
+              className="px-2 py-1.5 bg-surface-2 border border-border-strong rounded text-fg text-sm"
+            >
+              <option value="">Elegir…</option>
+              <option value="BDI">BDI</option>
+              <option value="ZATTIA">ZATTIA</option>
+              <option value="STUNNED">STUNNED</option>
+            </select>
             <label className="text-xs text-fg-soft">Fecha de pasaje</label>
             <input
               type="date"
@@ -213,7 +227,7 @@ export function ProduccionClient({
                 <div className="min-w-0 flex-1">
                   <p className="text-fg-muted truncate">{c.descripcion}</p>
                   <p className="text-xs text-fg-soft">
-                    {CAT_LABELS[c.categoria_produccion ?? 'OTRO'] ?? c.categoria_produccion} · {c.proveedor?.nombre ?? '—'} · pasó el {formatDate(c.fecha_pasaje!)}
+                    {CAT_LABELS[c.categoria_produccion ?? 'OTRO'] ?? c.categoria_produccion} · {c.proveedor?.nombre ?? '—'} · pasó el {formatDate(c.fecha_pasaje!)}{c.marca_pasaje ? ` → ${c.marca_pasaje}` : ''}
                   </p>
                 </div>
                 <span className="font-mono text-fg-soft shrink-0">{formatCurrency(costoNeto(c))}</span>
