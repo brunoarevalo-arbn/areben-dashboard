@@ -95,6 +95,7 @@ interface InstrumentoActivo {
   codigo?: string | null
   moneda: 'USD' | 'ARS'
   capital_inicial: number
+  capitalizable?: boolean
   inversor?: { nombre: string } | null
 }
 
@@ -121,6 +122,7 @@ interface Props {
   pagosCtaCtePendientes: PagoCtaCtePend[]
   instrumentosActivos: InstrumentoActivo[]
   saldosInversiones: { instrumento_id: string; saldo_cierre: number }[]
+  interesAcumInv?: Record<string, number>
   resumenGastosFinancieros?: {
     porSubcategoria: { slug: string; nombre: string; total: number; count: number }[]
     total: number
@@ -268,17 +270,21 @@ export function CierreMesClient(props: Props) {
     return m
   }, [props.saldosInversiones])
 
-  const inversionesConSaldo = props.instrumentosActivos.map((i) => ({
-    ...i,
-    saldoCierre: saldosInvMap.get(i.id) ?? Number(i.capital_inicial),
-  }))
+  const inversionesConSaldo = props.instrumentosActivos.map((i) => {
+    const saldoCierre = saldosInvMap.get(i.id) ?? Number(i.capital_inicial)
+    // Los capitalizables ya tienen el interés dentro de saldo_cierre; los no
+    // capitalizables no lo capitalizan pero se les debe igual → sumar el interés
+    // devengado acumulado hasta el corte (mes a mes), tanto en ARS como en USD.
+    const interesAcum = i.capitalizable ? 0 : Number(props.interesAcumInv?.[i.id] ?? 0)
+    return { ...i, saldoCierre, interesAcum, montoTotal: saldoCierre + interesAcum }
+  })
 
   const pasivosInversionesArs = inversionesConSaldo
     .filter((i) => i.moneda !== 'USD')
-    .reduce((s, i) => s + i.saldoCierre, 0)
+    .reduce((s, i) => s + i.montoTotal, 0)
   const pasivosInversionesUsd = inversionesConSaldo
     .filter((i) => i.moneda === 'USD')
-    .reduce((s, i) => s + i.saldoCierre, 0)
+    .reduce((s, i) => s + i.montoTotal, 0)
 
   const pasivosManArs = pasivosManuales.filter((p) => p.moneda !== 'USD').reduce((s, p) => s + Number(p.monto), 0)
   const pasivosManUsd = pasivosManuales.filter((p) => p.moneda === 'USD').reduce((s, p) => s + Number(p.monto), 0)
@@ -787,8 +793,8 @@ export function CierreMesClient(props: Props) {
             icon={TrendingUp}
             items={inversionesConSaldo.map((i) => ({
               label: i.inversor?.nombre ?? i.codigo ?? 'Inversor',
-              detalle: `${i.codigo ?? ''} · Capital inicial ${i.moneda === 'USD' ? 'U$S' : '$'} ${formatCurrency(Number(i.capital_inicial), i.moneda).replace(/\$\s?|U\$S\s?/g, '')}`,
-              monto: i.saldoCierre,
+              detalle: `Capital ${formatCurrency(i.saldoCierre, i.moneda)}${i.interesAcum > 0 ? ` · interés acum ${formatCurrency(i.interesAcum, i.moneda)}` : ''}`,
+              monto: i.montoTotal,
               moneda: i.moneda,
             }))}
           />
