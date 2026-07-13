@@ -167,3 +167,84 @@ export async function composicionPosicionMercaderia(mes: string): Promise<Seccio
   }
   return secciones
 }
+
+/** Activo fijo / inversiones: por cada cuenta INVERSION → arranque + gastos categoría "Inversiones" del mes. */
+export async function composicionActivoFijo(mes: string): Promise<SeccionComposicion[]> {
+  await requireUser()
+  const supabase = await createClient()
+  const { data: cuentas } = await supabase
+    .from('cuentas_patrimoniales').select('*').eq('tipo', 'INVERSION').eq('activo', true).order('nombre')
+  if (!cuentas?.length) return []
+  const { data: gastos } = await supabase
+    .from('gastos').select('mes, fecha, concepto, monto').eq('categoria', 'Inversiones').lte('mes', mes).order('fecha')
+  return cuentas.map((c) => {
+    const arranque = Number(c.saldo_inicial ?? 0)
+    const mesIni = c.mes_inicial ?? ''
+    let acum = 0
+    const movimientos: MovimientoComposicion[] = []
+    for (const g of gastos ?? []) {
+      if (mesIni && g.mes <= mesIni) continue
+      const m = Number(g.monto)
+      acum += m
+      if (g.mes === mes) movimientos.push({ fecha: g.fecha, concepto: g.concepto || 'Inversión', monto: m })
+    }
+    const saldoCierre = r2(arranque + acum)
+    const mov = movimientos.reduce((a, x) => a + x.monto, 0)
+    return { titulo: c.nombre, moneda: c.moneda === 'USD' ? 'USD' : 'ARS', saldoInicio: r2(saldoCierre - mov), saldoCierre, movimientos }
+  })
+}
+
+/** Cuentas particulares: por cada cuenta con socio_id → arranque + retiros dolarizados del socio del mes. */
+export async function composicionCuentasParticulares(mes: string): Promise<SeccionComposicion[]> {
+  await requireUser()
+  const supabase = await createClient()
+  const { data: cuentas } = await supabase
+    .from('cuentas_patrimoniales').select('*').not('socio_id', 'is', null).eq('activo', true).order('nombre')
+  if (!cuentas?.length) return []
+  const { data: retiros } = await supabase
+    .from('retiros_socios')
+    .select('socio_id, mes, fecha, monto_usd, monto_usd_calculado, convertido_at, categoria:categorias_retiro(nombre)')
+    .in('socio_id', cuentas.map((c) => c.socio_id as string))
+    .lte('mes', mes)
+    .order('fecha')
+  return cuentas.map((c) => {
+    const arranque = Number(c.saldo_inicial ?? 0)
+    const mesIni = c.mes_inicial ?? ''
+    let acum = 0
+    const movimientos: MovimientoComposicion[] = []
+    for (const r of retiros ?? []) {
+      if (r.socio_id !== c.socio_id) continue
+      if (mesIni && r.mes <= mesIni) continue
+      const usd = valorRetiroUsd(r)
+      acum += usd
+      if (r.mes === mes) {
+        const cat = Array.isArray(r.categoria) ? r.categoria[0]?.nombre : (r.categoria as { nombre?: string } | null)?.nombre
+        movimientos.push({ fecha: r.fecha, concepto: cat || 'Retiro', monto: usd })
+      }
+    }
+    const saldoCierre = r2(arranque + acum)
+    const mov = movimientos.reduce((a, x) => a + x.monto, 0)
+    return { titulo: c.nombre, moneda: 'USD' as const, saldoInicio: r2(saldoCierre - mov), saldoCierre, movimientos }
+  })
+}
+
+/** Otros activos manuales (OTRO_ACTIVO sin socio): saldo inicio + ajuste manual del mes → saldo cierre. */
+export async function composicionOtrosActivos(mes: string): Promise<SeccionComposicion[]> {
+  await requireUser()
+  const supabase = await createClient()
+  const { data: cuentas } = await supabase
+    .from('cuentas_patrimoniales').select('*').eq('tipo', 'OTRO_ACTIVO').is('socio_id', null).eq('activo', true).order('nombre')
+  if (!cuentas?.length) return []
+  const { data: saldos } = await supabase
+    .from('saldos_cuentas_patrim').select('cuenta_id, saldo_inicio, movimiento, saldo_cierre').eq('mes', mes)
+  const smap = new Map((saldos ?? []).map((s) => [s.cuenta_id, s]))
+  return cuentas.map((c) => {
+    const s = smap.get(c.id)
+    const saldoInicio = Number(s?.saldo_inicio ?? 0)
+    const movimiento = Number(s?.movimiento ?? 0)
+    const saldoCierre = s ? Number(s.saldo_cierre) : r2(saldoInicio + movimiento)
+    const movimientos: MovimientoComposicion[] = Math.abs(movimiento) > 0.01
+      ? [{ fecha: `${mes}-01`, concepto: 'Ajuste manual del mes', monto: movimiento }] : []
+    return { titulo: c.nombre, moneda: c.moneda === 'USD' ? 'USD' : 'ARS', saldoInicio, saldoCierre, movimientos }
+  })
+}
