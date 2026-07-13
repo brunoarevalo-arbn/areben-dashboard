@@ -2275,8 +2275,10 @@ function siguienteMes(mes: string): string {
 /**
  * saldo(grupo, mes) = arranqueAbril + Σ(mayo..mes) [ comprasNetas_mes − CMV_mes ]
  *   comprasNetas = Σ(monto_total − iva) de compras del grupo (por `negocio`) en el mes → SUBE el inventario.
+ *                  + producción pasada a la marca en ese mes (por `fecha_pasaje`) → también SUBE el inventario.
  *   CMV          = Σ datos_ventas_gn.cmv del grupo en el mes → BAJA el inventario (venta).
- * Producción en proceso (negocio='PRODUCCION') NO entra: el filtro por marca la excluye sola.
+ * Producción EN PROCESO (negocio='PRODUCCION', sin pasaje) NO entra: es un activo aparte. Al pasar a stock
+ * (fecha_pasaje + marca_pasaje) su neto entra acá, compensando la baja del activo "en proceso" → PN neutro.
  * Devuelve los acumulados (compras/CMV) para mostrar el movimiento de la cuenta.
  */
 export async function calcularReposicion(grupo: 'BDI' | 'ZATTIA_STUNNED', mes: string) {
@@ -2290,6 +2292,14 @@ export async function calcularReposicion(grupo: 'BDI' | 'ZATTIA_STUNNED', mes: s
   let cur = siguienteMes(MES_ARRANQUE_REPOSICION)
   while (cur <= mes) { meses.push(cur); cur = siguienteMes(cur) }
 
+  // Producción pasada a stock imputada a este grupo (una sola lectura; se bucketea por mes de fecha_pasaje).
+  const { data: prodPasada } = await supabase
+    .from('compras')
+    .select('fecha_pasaje, monto_total, iva')
+    .eq('negocio', 'PRODUCCION')
+    .in('marca_pasaje', marcas)
+    .not('fecha_pasaje', 'is', null)
+
   let totalCompras = 0, totalCmv = 0
   const detalle: { mes: string; cmv: number; comprasNetas: number }[] = []
   for (const mm of meses) {
@@ -2302,7 +2312,11 @@ export async function calcularReposicion(grupo: 'BDI' | 'ZATTIA_STUNNED', mes: s
       .in('negocio', marcas)
       .gte('fecha', desde)
       .lte('fecha', hasta)
-    const comprasNetas = (compras ?? []).reduce((s, c) => s + (Number(c.monto_total) - Number(c.iva)), 0)
+    // Neto de compras de la marca + neto de producción pasada a stock ESTE mes (por fecha_pasaje).
+    const prodPasadaMes = (prodPasada ?? [])
+      .filter((p) => p.fecha_pasaje >= desde && p.fecha_pasaje <= hasta)
+      .reduce((s, p) => s + (Number(p.monto_total) - Number(p.iva)), 0)
+    const comprasNetas = (compras ?? []).reduce((s, c) => s + (Number(c.monto_total) - Number(c.iva)), 0) + prodPasadaMes
     const { data: ventas } = await supabase
       .from('datos_ventas_gn')
       .select('cmv')

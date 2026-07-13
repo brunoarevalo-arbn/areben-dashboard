@@ -220,6 +220,8 @@ export async function createCompra(prevState: string | null, formData: FormData)
   }
 
   revalidatePath('/compras/lista')
+  revalidatePath('/compras/produccion')
+  revalidatePath('/finanzas/cierre-mes')
   return null
 }
 
@@ -250,7 +252,9 @@ export async function updateCompra(id: string, prevState: string | null, formDat
   if (error) return error.message
 
   revalidatePath('/compras/lista')
+  revalidatePath('/compras/produccion')
   revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/cierre-mes')
   return null
 }
 
@@ -272,35 +276,41 @@ export async function deleteCompra(id: string) {
   if (error) throw new Error(error.message)
 
   revalidatePath('/compras/lista')
+  revalidatePath('/compras/produccion')
   revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/cierre-mes')
   revalidatePath('/egresos/cheques')
   revalidatePath('/egresos/pagos')
   revalidatePath('/finanzas/tarjetas')
 }
 
 // ============ PRODUCCIÓN ============
+// Marcas a cuyo inventario se puede imputar la producción al pasar a stock.
+const MARCAS_PASAJE = ['BDI', 'ZATTIA', 'STUNNED'] as const
+
 // Pasaje etapa 1→2: la tanda deja de contar como "Producción en proceso".
-// Solo marca fecha_pasaje; NO crea otra compra ni toca pagos (el costo ya está
-// capturado en estas compras). El valor debe reflejarse en el inventario de la
-// marca (saldo que se mantiene aparte) para que el PN no cambie con el pasaje.
-export async function marcarProduccionPasada(ids: string[], fecha: string) {
+// Marca fecha_pasaje Y la marca de imputación; NO crea otra compra ni toca pagos
+// (el costo ya está capturado en estas compras). El neto entra a la posición de
+// mercadería de esa marca (ver calcularReposicion), así el PN no cambia con el pasaje.
+export async function marcarProduccionPasada(ids: string[], fecha: string, marca: string) {
   await requireUser()
   if (!ids?.length) return 'No hay compras seleccionadas'
   if (!fecha) return 'Falta la fecha de pasaje'
+  if (!MARCAS_PASAJE.includes(marca as (typeof MARCAS_PASAJE)[number])) return 'Elegí la marca a la que pasa la producción'
   const supabase = await createClient()
-  const { error } = await supabase.from('compras').update({ fecha_pasaje: fecha }).in('id', ids)
+  const { error } = await supabase.from('compras').update({ fecha_pasaje: fecha, marca_pasaje: marca }).in('id', ids)
   if (error) return error.message
   revalidatePath('/compras/produccion')
   revalidatePath('/finanzas/cierre-mes')
   return null
 }
 
-// Revertir el pasaje: vuelve a "en proceso".
+// Revertir el pasaje: vuelve a "en proceso" (limpia fecha y marca de imputación).
 export async function revertirProduccionPasada(ids: string[]) {
   await requireUser()
   if (!ids?.length) return 'No hay compras seleccionadas'
   const supabase = await createClient()
-  const { error } = await supabase.from('compras').update({ fecha_pasaje: null }).in('id', ids)
+  const { error } = await supabase.from('compras').update({ fecha_pasaje: null, marca_pasaje: null }).in('id', ids)
   if (error) return error.message
   revalidatePath('/compras/produccion')
   revalidatePath('/finanzas/cierre-mes')

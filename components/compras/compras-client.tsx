@@ -48,6 +48,7 @@ export interface Compra {
   notas?: string | null
   categoria_produccion?: string | null
   fecha_pasaje?: string | null
+  marca_pasaje?: string | null
   proveedor?: { nombre: string } | null
   pagos?: Pago[]
 }
