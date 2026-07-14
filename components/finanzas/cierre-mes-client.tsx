@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { MoneyInput } from '@/components/ui/money-input'
+import { InfoPopover } from '@/components/ui/info-popover'
 import { formatCurrency, formatMonth, formatDate, getMonthOptions } from '@/lib/utils'
 import { valorRetiroArs, valorRetiroUsd } from '@/lib/retiros'
 import { vencimientoGasto, estaVencido } from '@/lib/gastos-vencimiento'
@@ -555,7 +556,11 @@ export function CierreMesClient(props: Props) {
       </div>
 
       {/* SECCIÓN ACTIVOS */}
-      <Section title="Activos" subtitle="Lo que tengo (efectivo + saldos en cuentas)" icon={Wallet} color="indigo" total={<span className="text-primary">{formatCurrency(totalActivosArs + totalActivosUsd * tipoCambio)}</span>}>
+      <Section title="Activos" subtitle="Lo que tengo (efectivo + saldos en cuentas)" icon={Wallet} color="indigo" total={<span className="text-primary">{formatCurrency(totalActivosArs + totalActivosUsd * tipoCambio)}</span>}
+        info={{ titulo: 'Activos — qué suma', cuerpo: <>
+          <p>Todo lo que la empresa tiene al 31: efectivo en cajas + saldos bancarios por titular + cuentas patrimoniales (mercadería, inversiones/activo fijo, cuentas de socios) + producción en proceso + cuentas corrientes a cobrar.</p>
+          <p>Los saldos bancarios y la caja se cargan a mano; el resto se sintetiza solo desde sus módulos. El USD se valúa al TC del cierre.</p>
+        </> }}>
         {/* Efectivo (cajas) — se edita arriba en "Datos del mes" */}
         {(cajaArs > 0 || cajaUsd > 0) && (
           <div className="bg-surface-2/40 rounded-lg px-4 py-2 flex items-center justify-between text-xs">
@@ -619,10 +624,29 @@ export function CierreMesClient(props: Props) {
             OTRO_ACTIVO: 'Otros activos',
             OTRO_PASIVO: 'Otros pasivos',
           }
+          const infoPatrim: Record<string, { titulo: string; cuerpo: React.ReactNode }> = {
+            INVENTARIO: { titulo: 'Posición de mercadería', cuerpo: <>
+              <p>Se sintetiza sola: <strong>saldo inicial (arranque) + compras de mercadería − CMV del mes</strong>.</p>
+              <p>Sube al comprar/producir; baja al vender (el CMV sale de la sync de Gestión Nube). No se carga a mano.</p>
+            </> },
+            INVERSION: { titulo: 'Inversiones y activo fijo', cuerpo: <>
+              <p>Capex: los gastos de categoría "Inversiones" se acumulan como <strong>activo</strong> (no gasto operativo) → PN-neutro.</p>
+              <p>Al costo (bruto), sin depreciación por ahora.</p>
+            </> },
+            PROVISION: { titulo: 'Provisión', cuerpo: <>
+              <p>Pasivo devengado que se acumula como deuda hasta pagarse (ej. provisión de aguinaldo). <code>signo_pn = -1</code>.</p>
+            </> },
+            OTRO_ACTIVO: { titulo: 'Otros activos', cuerpo: <>
+              <p>Cuentas patrimoniales activas que no son mercadería ni inversión (incluye las cuentas particulares de socios, alimentadas por sus retiros dolarizados).</p>
+            </> },
+            IMPOSITIVO: { titulo: 'Impositivos', cuerpo: <>
+              <p>Saldos técnicos con AFIP/rentas (IVA, Ganancias, IIBB, etc.). Se cargan a mano cada mes.</p>
+            </> },
+          }
           return Array.from(patrimAportes.porTipo.entries()).map(([tipo, totales]) => {
             const cs = props.cuentasPatrim.filter((c) => c.tipo === tipo)
             return (
-              <SubBlock key={tipo} title={tipoLabels[tipo] ?? tipo} headerRight={<>
+              <SubBlock key={tipo} title={tipoLabels[tipo] ?? tipo} info={infoPatrim[tipo]} headerRight={<>
                 {totales.ars !== 0 && (
                   <span className={cn('font-mono', totales.ars >= 0 ? 'text-primary' : 'text-amber-700')}>
                     {totales.ars >= 0 ? '+' : ''}{formatCurrency(totales.ars)}
@@ -750,12 +774,20 @@ export function CierreMesClient(props: Props) {
       </Section>
 
       {/* SECCIÓN PASIVOS */}
-      <Section title="Pasivos" subtitle="Detalle de todo lo que la empresa debe al cierre del mes" icon={ArrowDownCircle} color="amber" total={<span className="text-amber-700">{formatCurrency(totalPasivosArs + totalPasivosUsd * tipoCambio)}</span>}>
+      <Section title="Pasivos" subtitle="Detalle de todo lo que la empresa debe al cierre del mes" icon={ArrowDownCircle} color="amber" total={<span className="text-amber-700">{formatCurrency(totalPasivosArs + totalPasivosUsd * tipoCambio)}</span>}
+        info={{ titulo: 'Pasivos — cuándo cuenta una deuda', cuerpo: <>
+          <p>Regla del cierre (foto al 31): una deuda es pasivo si <strong>nació ≤ 31</strong> y <strong>no se saldó ≤ 31</strong>. No importa el tilde de hoy, sino la fecha.</p>
+          <p>Incluye compras impagas, cheques sin debitar, pagos a plazo, cuotas de tarjeta, gastos pendientes, inversiones de terceros, préstamos y planes AFIP. Cada sub-bloque tiene su ⓘ.</p>
+        </> }}>
         {/* 1. Compras pendientes (sin pago aún) */}
         {props.comprasPendientes.length > 0 && (
           <PasivoBlock
             title="Compras pendientes (sin pago programado)"
             icon={Receipt}
+            info={{ titulo: 'Compras impagas al corte', cuerpo: <>
+              <p>Saldo impago al 31 = total de la compra − pagos con fecha ≤ 31.</p>
+              <p>Solo cuenta si hay <strong>evidencia de estar impaga</strong> (debe hoy, o hubo un pago posterior al 31). Este guardarraíl evita inflar el pasivo con compras marcadas PAGADO pero sin registro en el ledger.</p>
+            </> }}
             items={props.comprasPendientes.map((c) => {
               const total = Number(c.monto_total)
               const saldoCorte = Number(c.saldo_pendiente)
@@ -775,6 +807,10 @@ export function CierreMesClient(props: Props) {
           <PasivoBlock
             title="Cheques emitidos sin debitar"
             icon={FileText}
+            info={{ titulo: 'Cheques propios sin debitar', cuerpo: <>
+              <p>Cheques/e-cheqs que emitimos y que al 31 todavía no se debitaron de la cuenta.</p>
+              <p>Dejan de ser pasivo cuando se acreditan (fecha de débito ≤ 31). Van por la cartera de cheques.</p>
+            </> }}
             items={props.chequesPendientes.map((c) => ({
               label: `${c.compra?.proveedor?.nombre ?? c.compra?.descripcion ?? 'Cheque'}${c.numero_cheque ? ` · Nº ${c.numero_cheque}` : ''}`,
               detalle: `${c.instrumento === 'ECHEQ' ? 'E-Cheq' : 'Físico'}${c.banco_emisor ? ` · ${c.banco_emisor}` : ''}${c.fecha_vencimiento ? ` · Vence ${formatDate(c.fecha_vencimiento)}` : ''}`,
@@ -788,6 +824,9 @@ export function CierreMesClient(props: Props) {
           <PasivoBlock
             title="Pagos a plazo programados"
             icon={CreditCard}
+            info={{ titulo: 'Pagos a plazo comprometidos', cuerpo: <>
+              <p>Pagos por cuenta corriente o transferencia ya comprometidos (con vencimiento futuro) que al 31 aún no se debitaron.</p>
+            </> }}
             items={props.pagosCtaCtePendientes.map((p) => ({
               label: p.compra?.proveedor?.nombre ?? p.compra?.descripcion ?? 'Pago programado',
               detalle: `${p.instrumento === 'CUENTA_CORRIENTE' ? 'Cta. corriente' : 'Transferencia'}${p.fecha_vencimiento ? ` · Vence ${formatDate(p.fecha_vencimiento)}` : ''}`,
@@ -801,6 +840,10 @@ export function CierreMesClient(props: Props) {
           <PasivoBlock
             title="Cuotas de tarjeta pendientes"
             icon={CreditCard}
+            info={{ titulo: 'Cuotas de tarjeta', cuerpo: <>
+              <p>Cuotas cuyo <strong>mes de vencimiento ≤ el mes del cierre</strong> y que todavía no se pagaron.</p>
+              <p>Van por mes de consumo/cierre de la tarjeta, no por la fecha exacta de pago.</p>
+            </> }}
             items={props.cuotasPendientes.map((c) => ({
               label: c.concepto,
               detalle: `${c.tarjeta?.banco ?? '—'} · Vence ${formatMonth(c.mes_vencimiento)}`,
@@ -818,6 +861,10 @@ export function CierreMesClient(props: Props) {
           <PasivoBlock
             title="Inversiones de terceros (capital + intereses al cierre)"
             icon={TrendingUp}
+            info={{ titulo: 'Inversiones de terceros', cuerpo: <>
+              <p>Capital que aportaron terceros + <strong>interés devengado acumulado</strong> al corte.</p>
+              <p>El interés se suma como deuda mes a mes (no se paga hasta que el inversor retira). La mayoría no capitaliza.</p>
+            </> }}
             items={inversionesConSaldo.map((i) => ({
               label: i.inversor?.nombre ?? i.codigo ?? 'Inversor',
               detalle: `${i.codigo ?? ''} · Capital + interés acumulado al corte`,
@@ -831,6 +878,9 @@ export function CierreMesClient(props: Props) {
           <PasivoBlock
             title="Préstamos bancarios"
             icon={TrendingDown}
+            info={{ titulo: 'Préstamos bancarios', cuerpo: <>
+              <p>El <strong>capital pendiente</strong> del préstamo al corte (lo que falta amortizar), no las cuotas futuras completas con intereses.</p>
+            </> }}
             items={(props.prestamosBancarios ?? []).map((p) => ({
               label: p.acreedor || p.nombre,
               detalle: `${p.nombre} · capital pendiente al corte`,
@@ -844,6 +894,9 @@ export function CierreMesClient(props: Props) {
           <PasivoBlock
             title="Planes de pago AFIP"
             icon={Receipt}
+            info={{ titulo: 'Planes de pago AFIP', cuerpo: <>
+              <p>El <strong>capital financiado</strong> del plan que queda pendiente al corte (las cuotas que faltan debitar).</p>
+            </> }}
             items={(props.planesAfip ?? []).map((p) => ({
               label: p.nombre,
               detalle: 'Capital financiado pendiente al corte',
@@ -970,7 +1023,11 @@ export function CierreMesClient(props: Props) {
       </Section>
 
       {/* SECCIÓN RETIROS (informativa: pasan a las cuentas particulares, no suman al resultado) */}
-      <Section title="Retiros del mes" subtitle="Informativo — pasan a la cuenta particular de cada socio (no suman al resultado)" icon={ArrowDownCircle} color="purple" total={<span className="text-fg-soft">{formatCurrency(totalRetirosArs + totalRetirosUsd * tipoCambio)}</span>}>
+      <Section title="Retiros del mes" subtitle="Informativo — pasan a la cuenta particular de cada socio (no suman al resultado)" icon={ArrowDownCircle} color="purple" total={<span className="text-fg-soft">{formatCurrency(totalRetirosArs + totalRetirosUsd * tipoCambio)}</span>}
+        info={{ titulo: 'Retiros — por qué no pegan al resultado', cuerpo: <>
+          <p>Un retiro es un <strong>adelanto al socio</strong>: baja la caja pero sube su cuenta particular (un activo). Es PN-neutro → no cambia el resultado del mes.</p>
+          <p>Por eso esta sección es informativa. El saldo acumulado en USD de cada socio vive en Cuentas particulares (se dolariza al cerrar el mes).</p>
+        </> }}>
         {retirosPorSocio.length === 0 ? (
           <p className="px-4 py-6 text-sm text-fg-soft text-center">Sin retiros registrados en {formatMonth(props.mes)}</p>
         ) : (
@@ -1011,7 +1068,11 @@ export function CierreMesClient(props: Props) {
       </Section>
 
       {/* RESUMEN PATRIMONIAL — colapsable (el resultado clave ya está en el resumen de arriba) */}
-      <Section title="Variación patrimonial" subtitle="Cómo se compone el resultado del mes (detalle)" icon={TrendingUp} color="indigo" total={<span className={resultado >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{formatCurrency(resultado)}</span>}>
+      <Section title="Variación patrimonial" subtitle="Cómo se compone el resultado del mes (detalle)" icon={TrendingUp} color="indigo" total={<span className={resultado >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{formatCurrency(resultado)}</span>}
+        info={{ titulo: 'Resultado = variación del PN', cuerpo: <>
+          <p>PN = Activos − Pasivos. El <strong>resultado del mes = PN al cierre − PN al cierre anterior</strong>.</p>
+          <p>Los movimientos de socios no son resultado: los aportes y retiros se neutralizan (entran y salen del PN sin ser ganancia ni pérdida).</p>
+        </> }}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
@@ -1101,13 +1162,14 @@ export function CierreMesClient(props: Props) {
 
 // ─── Helpers de UI ─────────────────────────────────────────────────────
 
-function Section({ title, subtitle, icon: Icon, color, total, defaultOpen = false, children }: {
+function Section({ title, subtitle, icon: Icon, color, total, defaultOpen = false, info, children }: {
   title: string
   subtitle: string
   icon: React.ElementType
   color: 'indigo' | 'amber' | 'purple'
   total?: React.ReactNode
   defaultOpen?: boolean
+  info?: { titulo: string; cuerpo: React.ReactNode }
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(defaultOpen)
@@ -1137,6 +1199,7 @@ function Section({ title, subtitle, icon: Icon, color, total, defaultOpen = fals
             </h2>
             <p className="text-xs text-fg-soft mt-0.5 truncate">{subtitle}</p>
           </div>
+          {info && <InfoPopover titulo={info.titulo} align="left">{info.cuerpo}</InfoPopover>}
         </div>
         {total != null && <div className="font-mono font-bold text-base shrink-0">{total}</div>}
       </button>
@@ -1148,12 +1211,13 @@ function Section({ title, subtitle, icon: Icon, color, total, defaultOpen = fals
 // Sub-bloque plegable reutilizable (2º nivel de acordeón dentro de Activos/Pasivos).
 // El header es un <div> clickeable (no <button>) para poder anidar controles
 // interactivos (ej. el "Agregar" de pasivos manuales) sin <button> dentro de <button>.
-function SubBlock({ title, icon: Icon, iconColor = 'text-fg-muted', headerRight, defaultOpen = false, children }: {
+function SubBlock({ title, icon: Icon, iconColor = 'text-fg-muted', headerRight, defaultOpen = false, info, children }: {
   title: React.ReactNode
   icon?: React.ElementType
   iconColor?: string
   headerRight?: React.ReactNode
   defaultOpen?: boolean
+  info?: { titulo: string; cuerpo: React.ReactNode }
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(defaultOpen)
@@ -1167,6 +1231,7 @@ function SubBlock({ title, icon: Icon, iconColor = 'text-fg-muted', headerRight,
           <ChevronDown className={cn('w-3.5 h-3.5 text-fg-soft shrink-0 transition-transform', open ? '' : '-rotate-90')} />
           {Icon && <Icon className={cn('w-3.5 h-3.5 shrink-0', iconColor)} />}
           <span className="truncate">{title}</span>
+          {info && <InfoPopover titulo={info.titulo} align="left">{info.cuerpo}</InfoPopover>}
         </h3>
         {headerRight != null && <div className="flex items-center gap-3 text-xs shrink-0">{headerRight}</div>}
       </div>
@@ -1175,10 +1240,11 @@ function SubBlock({ title, icon: Icon, iconColor = 'text-fg-muted', headerRight,
   )
 }
 
-function PasivoBlock({ title, icon: Icon, items }: {
+function PasivoBlock({ title, icon: Icon, items, info }: {
   title: string
   icon: React.ElementType
   items: { label: string; detalle: string; monto: number; moneda: string; grupo?: string }[]
+  info?: { titulo: string; cuerpo: React.ReactNode }
 }) {
   const totalArs = items.filter((i) => i.moneda !== 'USD').reduce((s, i) => s + i.monto, 0)
   const totalUsd = items.filter((i) => i.moneda === 'USD').reduce((s, i) => s + i.monto, 0)
@@ -1206,7 +1272,7 @@ function PasivoBlock({ title, icon: Icon, items }: {
     grupos.get(k)!.push(it)
   }
   return (
-    <SubBlock title={title} icon={Icon} headerRight={headerRight}>
+    <SubBlock title={title} icon={Icon} headerRight={headerRight} info={info}>
       {hayGrupos ? (
         <div className="divide-y divide-slate-700/40">
           {Array.from(grupos.entries()).map(([grupo, its]) => {
@@ -1308,6 +1374,10 @@ function GastosPendientesBlock({ gastos, recurrentesMap, hoy }: {
     <SubBlock
       title="Gastos pendientes (servicios, sueldos, alquileres)"
       icon={Receipt}
+      info={{ titulo: 'Gastos pendientes', cuerpo: <>
+        <p>Gastos con mes ≤ el del cierre que <strong>no se saldaron al corte</strong> (estado ≠ PAGADO, o pago con fecha &gt; 31), neteados contra pagos con fecha ≤ 31.</p>
+        <p>Un mismo servicio con varios meses impagos se agrupa en un renglón desplegable. "Vencido" = ya pasó su fecha de vencimiento.</p>
+      </> }}
       headerRight={<>
         {totalArs > 0 && <span className="font-mono text-amber-700">{formatCurrency(totalArs)}</span>}
         {totalUsd > 0 && <span className="font-mono text-amber-800">{formatCurrency(totalUsd, 'USD')}</span>}
