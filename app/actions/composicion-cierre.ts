@@ -62,6 +62,7 @@ export async function sintetizarSaldosPatrim(
       .from('retiros_socios')
       .select('socio_id, mes, monto_usd, monto_usd_calculado, convertido_at')
       .in('socio_id', socioIds)
+      .eq('estado', 'PAGADO') // los PROGRAMADO (a futuro) no cuentan hasta efectivizarse
       .lte('mes', mes)
     for (const c of socioCuentas) {
       const arranque = Number(c.saldo_inicial ?? 0)
@@ -228,6 +229,7 @@ export async function composicionCuentasParticulares(mes: string): Promise<Secci
     .from('retiros_socios')
     .select('socio_id, mes, fecha, monto_usd, monto_usd_calculado, convertido_at, categoria:categorias_retiro(nombre)')
     .in('socio_id', cuentas.map((c) => c.socio_id as string))
+    .eq('estado', 'PAGADO') // los PROGRAMADO no cuentan hasta efectivizarse
     .lte('mes', mes)
     .order('fecha')
   return cuentas.map((c) => {

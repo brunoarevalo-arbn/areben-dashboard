@@ -21,6 +21,7 @@ export async function PendientesPanel() {
     { data: proveedores },
     { data: cuotasPlanAfip },
     { data: cuotasPrestamo },
+    { data: retirosProgramados },
   ] = await Promise.all([
     // Gastos NO pagados de los últimos 12 meses (escala con el tiempo de uso).
     // Excluye los pagados con TARJETA: su salida de cash vive en el "Pago TC..."
@@ -137,6 +138,12 @@ export async function PendientesPanel() {
         .order('fecha_vencimiento', { ascending: true })
         .limit(500)
     })(),
+    // Retiros de socios PROGRAMADOS (a futuro, todavía no efectivizados)
+    supabase
+      .from('retiros_socios')
+      .select('id, socio, socio_id, monto_pesos, monto_usd, fecha_programada, fecha, categoria:categorias_retiro(nombre, emoji)')
+      .eq('estado', 'PROGRAMADO')
+      .order('fecha_programada', { ascending: true }),
   ])
 
   // Saldo total actual de Tesorería
@@ -280,6 +287,7 @@ export async function PendientesPanel() {
       proveedores={proveedores ?? []}
       cuotasPlanAfip={cuotasPlanAfip ?? []}
       cuotasPrestamo={cuotasPrestamoConSaldo}
+      retirosProgramados={(retirosProgramados ?? []) as unknown as Parameters<typeof PendientesClient>[0]['retirosProgramados']}
     />
   )
 }

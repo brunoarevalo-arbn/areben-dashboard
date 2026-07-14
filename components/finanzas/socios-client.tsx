@@ -53,6 +53,7 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
   const [defaultSocio, setDefaultSocio] = useState('')
   const [medioPago, setMedioPago] = useState<'TRANSFERENCIA' | 'EFECTIVO' | 'TARJETA'>('TRANSFERENCIA')
   const [cuotasTotal, setCuotasTotal] = useState(1)
+  const [programar, setProgramar] = useState(false)
   const [cierreModalOpen, setCierreModalOpen] = useState(false)
   const [cierreMesInicial, setCierreMesInicial] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -164,6 +165,7 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
     setDefaultSocio(nombre)
     setMedioPago('TRANSFERENCIA')
     setCuotasTotal(1)
+    setProgramar(false)
     setAltaModalOpen(true)
   }
   function abrirConversion(mes: string) {
@@ -484,7 +486,18 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
             options={[{ value: '', label: '— Sin categoría —' }, ...categorias.map((c) => ({ value: c.id, label: `${c.emoji ?? ''} ${c.nombre}` }))]}
           />
 
-          <Input label="Fecha" name="fecha" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
+          <label className="flex items-center gap-2 text-sm text-fg-muted cursor-pointer bg-surface-2/40 border border-border-strong/40 rounded-lg px-3 py-2">
+            <input type="checkbox" checked={programar} onChange={(e) => setProgramar(e.target.checked)} className="rounded" />
+            Programar a futuro (queda pendiente, no impacta hasta efectivizarlo)
+          </label>
+          <input type="hidden" name="estado" value={programar ? 'PROGRAMADO' : 'PAGADO'} />
+
+          <Input
+            label={programar ? 'Fecha programada' : 'Fecha'}
+            name="fecha" type="date"
+            defaultValue={new Date().toISOString().split('T')[0]}
+            required
+          />
 
           <div className="bg-surface-2/40 border border-border-strong/40 rounded-xl p-3 space-y-3">
             <Select

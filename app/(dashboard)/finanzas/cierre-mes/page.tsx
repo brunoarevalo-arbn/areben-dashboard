@@ -94,7 +94,8 @@ export default async function CierreMesPage({
     supabase
       .from('retiros_socios')
       .select('*, categoria:categorias_retiro(*)')
-      .eq('mes', mes),
+      .eq('mes', mes)
+      .eq('estado', 'PAGADO'), // los PROGRAMADO no entran al cierre hasta efectivizarse
     supabase.from('categorias_retiro').select('*').eq('activo', true).order('orden'),
     supabase.from('activos_manuales').select('*, titular:cuentas_titulares(*)').eq('mes', mes),
     supabase.from('cuentas_patrimoniales').select('*').eq('activo', true).order('orden').order('nombre'),

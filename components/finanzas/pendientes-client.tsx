@@ -3,7 +3,7 @@
 import { useState, useTransition, useMemo } from 'react'
 import Link from 'next/link'
 import { debitarCheque, pagarCtaCteParcial } from '@/app/actions/compras'
-import { marcarCuotaPagada, marcarGastoPagado } from '@/app/actions/finanzas'
+import { marcarCuotaPagada, marcarGastoPagado, efectivizarRetiro } from '@/app/actions/finanzas'
 import type { Instrumento } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -150,6 +150,18 @@ interface Props {
   proveedores: { id: string; nombre: string }[]
   cuotasPlanAfip?: CuotaPlanAfip[]
   cuotasPrestamo?: CuotaPrestamo[]
+  retirosProgramados?: RetiroProgramado[]
+}
+
+interface RetiroProgramado {
+  id: string
+  socio: string
+  socio_id: string | null
+  monto_pesos: number
+  monto_usd: number
+  fecha_programada: string | null
+  fecha: string
+  categoria?: { nombre: string; emoji: string | null } | null
 }
 
 type GrupoFecha = 'VENCIDO' | 'ESTA_SEMANA' | 'ESTE_MES' | 'FUTURO'
@@ -1269,12 +1281,52 @@ interface GastoGrupoServicio {
   cantidad: number
 }
 
+// ─── RetiroItem (retiro de socio programado) ─────────────────────────────────
+function RetiroItem({ retiro, hoy, onRefetch }: { retiro: RetiroProgramado; hoy: string; onRefetch: () => void }) {
+  const [isPending, startTransition] = useTransition()
+  const fecha = retiro.fecha_programada ?? retiro.fecha
+  const moneda: 'USD' | 'ARS' = Number(retiro.monto_usd) > 0 ? 'USD' : 'ARS'
+  const monto = Number(retiro.monto_usd) > 0 ? Number(retiro.monto_usd) : Number(retiro.monto_pesos)
+  const dias = (() => {
+    const f = new Date(fecha + 'T00:00:00'); const h = new Date(hoy + 'T00:00:00')
+    return Math.ceil((f.getTime() - h.getTime()) / (1000 * 60 * 60 * 24))
+  })()
+  const colorBorder = dias < 0 ? 'border-red-500' : dias <= 7 ? 'border-amber-500' : 'border-transparent'
+  const colorBg = dias < 0 ? 'bg-red-500/5' : dias <= 7 ? 'bg-amber-500/5' : ''
+  function efectivizar() {
+    if (!confirm('¿Efectivizar este retiro? Pasa a realizado y empieza a contar en la cuenta particular del socio.')) return
+    startTransition(async () => { await efectivizarRetiro(retiro.id); onRefetch() })
+  }
+  return (
+    <div className={cn('border-l-4', colorBorder, colorBg)}>
+      <div className="flex items-center gap-3 px-4 py-2 hover:bg-surface-2/30">
+        <div className="flex items-center gap-3 min-w-0">
+          <Sparkles className="w-5 h-5 text-purple-700 shrink-0" />
+          <p className="text-fg font-medium truncate min-w-0">
+            Retiro · {retiro.socio}
+            {retiro.categoria?.nombre && <span className="text-fg-soft font-normal text-xs ml-2">— {retiro.categoria.emoji ?? ''} {retiro.categoria.nombre}</span>}
+            <span className="text-fg-soft font-normal"> · programado {formatDate(fecha)}</span>
+          </p>
+        </div>
+        <div className="flex-1 min-w-0 flex items-center gap-2"><EstadoVencimientoChip dias={dias} /></div>
+        <div className="flex items-center gap-3 shrink-0">
+          <p className="font-mono font-bold text-fg whitespace-nowrap">{formatCurrency(monto, moneda)}</p>
+          <Button size="sm" variant="success" disabled={isPending} onClick={efectivizar} title="Marcar el retiro como efectivizado (empieza a contar en la cuenta del socio)">
+            {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+            Efectivizar
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface ItemConFecha {
   fecha: string
   grupo: GrupoFecha
-  tipo: 'cheque' | 'cuota' | 'instrumento' | 'pago_cta_cte' | 'compra_sin_plan' | 'gasto' | 'gasto_grupo' | 'gasto_grupo_servicio' | 'cuota_plan_afip' | 'cuota_prestamo' | 'cuota_tc_grupo'
+  tipo: 'cheque' | 'cuota' | 'instrumento' | 'pago_cta_cte' | 'compra_sin_plan' | 'gasto' | 'gasto_grupo' | 'gasto_grupo_servicio' | 'cuota_plan_afip' | 'cuota_prestamo' | 'cuota_tc_grupo' | 'retiro'
   prioridad: number // para ordenar dentro del grupo (cheques rojos primero)
-  data: ChequePendiente | CuotaPendiente | InstrumentoProximo | PagoCtaCte | CompraSinPlanPago | GastoPend | GastoGrupoCargas | GastoGrupoServicio | CuotaPlanAfip | CuotaPrestamo | CuotaTcGrupo
+  data: ChequePendiente | CuotaPendiente | InstrumentoProximo | PagoCtaCte | CompraSinPlanPago | GastoPend | GastoGrupoCargas | GastoGrupoServicio | CuotaPlanAfip | CuotaPrestamo | CuotaTcGrupo | RetiroProgramado
 }
 
 // ─── Agrupación por tipo dentro de cada bucket de fecha ──────────────────────
@@ -1295,6 +1347,7 @@ function grupoDeItem(it: ItemConFecha): GrupoTipoMeta {
     case 'cuota_tc_grupo': return { key: 'tarjetas', label: 'Tarjetas', icon: CreditCard, orden: 5 }
     case 'pago_cta_cte': return { key: 'pagos_plazo', label: 'Pagos a plazo', icon: Banknote, orden: 6 }
     case 'compra_sin_plan': return { key: 'compras', label: 'Compras', icon: ShoppingCart, orden: 7 }
+    case 'retiro': return { key: 'retiros', label: 'Retiros de socios', icon: Users, orden: 8.5 }
     case 'cheque': return { key: 'cheques', label: 'Cheques', icon: FileCheck, orden: 9 }
     default: return { key: 'otros', label: 'Otros', icon: AlertCircle, orden: 99 }
   }
@@ -1313,6 +1366,7 @@ function montoDeItem(it: ItemConFecha): { ars: number; usd: number } {
     case 'gasto_grupo_servicio': { const g = it.data as GastoGrupoServicio; return { ars: Number(g.totalSaldo), usd: 0 } }
     case 'cuota_plan_afip': { const c = it.data as CuotaPlanAfip; return { ars: Number(c.monto_total), usd: 0 } }
     case 'cuota_prestamo': { const c = it.data as CuotaPrestamo; const m = Number(c.saldo_pendiente ?? c.monto_total); return c.prestamo?.moneda === 'USD' ? { ars: 0, usd: m } : { ars: m, usd: 0 } }
+    case 'retiro': { const r = it.data as RetiroProgramado; return Number(r.monto_usd) > 0 ? { ars: 0, usd: Number(r.monto_usd) } : { ars: Number(r.monto_pesos), usd: 0 } }
     default: return { ars: 0, usd: 0 }
   }
 }
@@ -1405,6 +1459,7 @@ export function PendientesClient({
   gastosPendientes, cuentas, tarjetas, proveedores,
   cuotasPlanAfip = [],
   cuotasPrestamo = [],
+  retirosProgramados = [],
 }: Props) {
   const [_tick, setTick] = useState(0)
   const refetch = () => setTick((t) => t + 1)
@@ -1561,6 +1616,18 @@ export function PendientesClient({
       })
     }
 
+    // Retiros de socios PROGRAMADOS (a futuro)
+    for (const r of retirosProgramados) {
+      const fecha = r.fecha_programada ?? r.fecha
+      list.push({
+        fecha,
+        grupo: clasificarFecha(fecha, hoy),
+        tipo: 'retiro',
+        prioridad: 40,
+        data: r,
+      })
+    }
+
     // Ordenar por (grupo > prioridad > fecha asc)
     return list.sort((a, b) => {
       const ordenGrupo: Record<GrupoFecha, number> = { VENCIDO: 0, ESTA_SEMANA: 1, ESTE_MES: 2, FUTURO: 3 }
@@ -1568,7 +1635,7 @@ export function PendientesClient({
       if (a.prioridad !== b.prioridad) return a.prioridad - b.prioridad
       return a.fecha.localeCompare(b.fecha)
     })
-  }, [cheques, pagosCtaCte, comprasSinPlanPago, cuotas, instrumentosProximos, gastosPendientes, cuotasPlanAfip, cuotasPrestamo, mesActual, hoy, saldoActualARS, saldoActualUSD, _tick])
+  }, [cheques, pagosCtaCte, comprasSinPlanPago, cuotas, instrumentosProximos, gastosPendientes, cuotasPlanAfip, cuotasPrestamo, retirosProgramados, mesActual, hoy, saldoActualARS, saldoActualUSD, _tick])
 
   // Mostrar todos los buckets ahora, incluyendo FUTURO para visualizar cuotas de tarjeta a futuro
   const visibles = items
@@ -1637,6 +1704,9 @@ export function PendientesClient({
     }
     if (it.tipo === 'cuota_tc_grupo') {
       return <CuotaTcGrupoItem key={key} grupo={it.data as CuotaTcGrupo} hoy={hoy} onRefetch={refetch} />
+    }
+    if (it.tipo === 'retiro') {
+      return <RetiroItem key={key} retiro={it.data as RetiroProgramado} hoy={hoy} onRefetch={refetch} />
     }
     return <InstrumentoItem key={key} inst={it.data as InstrumentoProximo} hoy={hoy} />
   }

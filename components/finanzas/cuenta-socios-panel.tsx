@@ -9,7 +9,7 @@ export async function CuentaSociosPanel({ socioInicial }: { socioInicial?: strin
 
   const [{ data: socios }, { data: retiros }, { data: categorias }, { data: tipoCambio }, { data: tarjetas }] = await Promise.all([
     supabase.from('socios').select('*').eq('activo', true).order('nombre'),
-    supabase.from('retiros_socios').select('*, categoria:categorias_retiro(*)').order('fecha', { ascending: false }),
+    supabase.from('retiros_socios').select('*, categoria:categorias_retiro(*)').eq('estado', 'PAGADO').order('fecha', { ascending: false }),
     supabase.from('categorias_retiro').select('*').eq('activo', true).order('orden'),
     supabase.from('tipos_cambio_mes').select('*').order('mes', { ascending: false }),
     supabase.from('tarjetas_credito').select('id, nombre, banco').eq('activo', true).order('banco'),

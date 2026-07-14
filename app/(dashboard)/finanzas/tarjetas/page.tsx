@@ -40,6 +40,7 @@ export default async function TarjetasPage() {
       .from('retiros_socios')
       .select('id, socio, socio_id, monto_pesos, monto_usd, fecha, mes, tarjeta_id, notas')
       .not('tarjeta_id', 'is', null)
+      .eq('estado', 'PAGADO')
       .gte('mes', desdeMes)
       .order('fecha', { ascending: false }),
     supabase.from('socios').select('id, alias, nombre').eq('activo', true),

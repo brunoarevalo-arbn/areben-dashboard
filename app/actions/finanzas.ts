@@ -1637,6 +1637,7 @@ const retiroSchema = z.object({
   medio_pago: z.enum(['TRANSFERENCIA', 'EFECTIVO', 'TARJETA']).default('TRANSFERENCIA'),
   tarjeta_id: optUuid,
   cuotas_total: optInt({ min: 1 }),
+  estado: z.enum(['PROGRAMADO', 'PAGADO']).default('PAGADO'),
 })
 
 export async function createRetiro(prevState: string | null, formData: FormData) {
@@ -1645,6 +1646,7 @@ export async function createRetiro(prevState: string | null, formData: FormData)
   if (!result.success) return result.error.issues[0].message
 
   const d = result.data
+  const esProgramado = d.estado === 'PROGRAMADO'
   const mes = d.fecha.substring(0, 7)
   // monto_usd_calculado: si se cargó pesos, lo dividimos por TC; si se cargó USD directo, usamos ese
   const monto_usd_calculado = d.monto_usd > 0
@@ -1687,11 +1689,14 @@ export async function createRetiro(prevState: string | null, formData: FormData)
     medio_pago: d.medio_pago,
     tarjeta_id: d.medio_pago === 'TARJETA' ? d.tarjeta_id : null,
     cuotas_total: d.medio_pago === 'TARJETA' ? (d.cuotas_total || 1) : null,
+    estado: d.estado,
+    fecha_programada: esProgramado ? d.fecha : null,
   }).select('id').single()
   if (error) return error.message
 
-  // Si es con tarjeta, generar las cuotas como pasivos del sistema
-  if (retiroIns && d.medio_pago === 'TARJETA' && d.tarjeta_id) {
+  // Si es con tarjeta y NO es programado, generar las cuotas como pasivos del sistema.
+  // (Un retiro programado a futuro no genera cuotas hasta efectivizarse.)
+  if (retiroIns && !esProgramado && d.medio_pago === 'TARJETA' && d.tarjeta_id) {
     const cuotas = d.cuotas_total || 1
     const monto = d.monto_pesos > 0 ? d.monto_pesos : (d.monto_usd * d.tipo_cambio)
     if (monto > 0) {
@@ -1716,8 +1721,61 @@ export async function createRetiro(prevState: string | null, formData: FormData)
   revalidatePath('/finanzas/cuenta-socios')
   revalidatePath('/finanzas/tarjetas')
   revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/pagos')
   revalidatePath('/')
   return null
+}
+
+/**
+ * Efectiviza un retiro PROGRAMADO: lo pasa a PAGADO y setea la fecha real de
+ * efectivización (recalcula `mes`). Recién ahí cuenta en la cuenta particular / cierre.
+ * Si el retiro es con tarjeta, genera sus cuotas al efectivizar.
+ */
+export async function efectivizarRetiro(id: string, fechaReal?: string) {
+  await requireUser()
+  const supabase = await createClient()
+  const { data: r } = await supabase
+    .from('retiros_socios')
+    .select('id, estado, socio, medio_pago, tarjeta_id, cuotas_total, monto_pesos, monto_usd, tipo_cambio')
+    .eq('id', id)
+    .single()
+  if (!r) throw new Error('Retiro no encontrado')
+  if (r.estado !== 'PROGRAMADO') throw new Error('El retiro ya está efectivizado')
+
+  const fecha = fechaReal || new Date().toISOString().substring(0, 10)
+  const mes = fecha.substring(0, 7)
+  const { error } = await supabase
+    .from('retiros_socios')
+    .update({ estado: 'PAGADO', fecha, mes })
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+
+  // Retiro con tarjeta → generar las cuotas ahora (al efectivizarse).
+  if (r.medio_pago === 'TARJETA' && r.tarjeta_id) {
+    const monto = Number(r.monto_pesos) > 0 ? Number(r.monto_pesos) : Number(r.monto_usd) * Number(r.tipo_cambio)
+    if (monto > 0) {
+      try {
+        await generarCuotasTarjeta({
+          tarjetaId: r.tarjeta_id,
+          origenTipo: 'MANUAL',
+          origenId: r.id,
+          concepto: `Retiro tarjeta - ${r.socio}`,
+          montoTotal: Math.round(monto * 100) / 100,
+          cuotasTotal: r.cuotas_total || 1,
+          fechaCompra: fecha,
+        })
+      } catch (e) {
+        console.error('Error generando cuotas al efectivizar retiro:', (e as Error).message)
+      }
+    }
+  }
+
+  revalidatePath('/finanzas/pendientes')
+  revalidatePath('/finanzas/pagos')
+  revalidatePath('/finanzas/cuenta-socios')
+  revalidatePath('/finanzas/cierre-mes')
+  revalidatePath('/')
+  return { ok: true }
 }
 
 /**
@@ -1736,6 +1794,7 @@ export async function cerrarConvertirRetirosMes(mes: string, tcCierre: number) {
     .from('retiros_socios')
     .select('id, monto_usd, monto_pesos')
     .eq('mes', mes)
+    .eq('estado', 'PAGADO') // no dolarizar retiros PROGRAMADO (a futuro, sin efectivizar)
   if (errFetch) throw new Error(errFetch.message)
   if (!retiros || retiros.length === 0) {
     throw new Error('No hay retiros para este mes')
