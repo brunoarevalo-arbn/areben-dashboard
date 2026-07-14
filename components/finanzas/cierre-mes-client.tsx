@@ -770,7 +770,7 @@ export function CierreMesClient(props: Props) {
             })}
           />
         )}
-        {/* 2. Cheques emitidos pendientes de acreditación */}
+        {/* 2. Cheques emitidos pendientes de débito */}
         {props.chequesPendientes.length > 0 && (
           <PasivoBlock
             title="Cheques emitidos sin debitar"

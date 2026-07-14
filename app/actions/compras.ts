@@ -400,14 +400,14 @@ export async function createPago(prevState: string | null, formData: FormData) {
 
 // ============ CHEQUES ============
 
-export async function acreditarCheque(pagoId: string, fecha?: string) {
+export async function debitarCheque(pagoId: string, fecha?: string) {
   await requireUser()
   const supabase = await createClient()
   const { error } = await supabase
     .from('pagos')
     .update({
-      acreditado: true,
-      fecha_acreditacion: fecha || new Date().toISOString().split('T')[0],
+      debitado: true,
+      fecha_debito: fecha || new Date().toISOString().split('T')[0],
     })
     .eq('id', pagoId)
   if (error) throw new Error(error.message)
@@ -417,10 +417,10 @@ export async function acreditarCheque(pagoId: string, fecha?: string) {
 }
 
 // Pago parcial (o total) contra una obligación a cuenta corriente.
-// Modelo "split": la fila de obligación (acreditado=false, monto = lo que resta) se va
-// achicando y cada abono se inserta como fila acreditada propia (con su fecha y nota).
+// Modelo "split": la fila de obligación (debitado=false, monto = lo que resta) se va
+// achicando y cada abono se inserta como fila debitada propia (con su fecha y nota).
 // El trigger actualizar_saldo_compra (migración 039) recalcula el saldo de la compra solo,
-// porque suma solo los pagos acreditados. Pensado para CC ligadas a una COMPRA.
+// porque suma solo los pagos debitados. Pensado para CC ligadas a una COMPRA.
 export async function pagarCtaCteParcial(
   pagoId: string,
   input: { monto: number; fecha: string; cuenta_id?: string | null; notas?: string | null }
@@ -441,19 +441,19 @@ export async function pagarCtaCteParcial(
   const fecha = input.fecha || new Date().toISOString().split('T')[0]
 
   if (abono >= restante - 0.01) {
-    // Pago total: acreditar la obligación completa (+ datos opcionales)
+    // Pago total: debitar la obligación completa (+ datos opcionales)
     const { error } = await supabase
       .from('pagos')
       .update({
-        acreditado: true,
-        fecha_acreditacion: fecha,
+        debitado: true,
+        fecha_debito: fecha,
         cuenta_id: input.cuenta_id ?? pago.cuenta_id ?? null,
         notas: input.notas ?? pago.notas ?? null,
       })
       .eq('id', pagoId)
     if (error) throw new Error(error.message)
   } else {
-    // Pago parcial: 1) achicar la obligación, 2) registrar el abono acreditado
+    // Pago parcial: 1) achicar la obligación, 2) registrar el abono debitado
     const { error: errUpd } = await supabase
       .from('pagos')
       .update({ monto: restante - abono })
@@ -471,8 +471,8 @@ export async function pagarCtaCteParcial(
       condicion_pago: 'CONTADO',
       instrumento: 'CUENTA_CORRIENTE',
       cuenta_id: input.cuenta_id ?? null,
-      acreditado: true,
-      fecha_acreditacion: fecha,
+      debitado: true,
+      fecha_debito: fecha,
       notas: input.notas ?? null,
     })
     if (errIns) throw new Error(errIns.message)

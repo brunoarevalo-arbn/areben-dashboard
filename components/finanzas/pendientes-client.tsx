@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from 'react'
 import Link from 'next/link'
-import { acreditarCheque, pagarCtaCteParcial } from '@/app/actions/compras'
+import { debitarCheque, pagarCtaCteParcial } from '@/app/actions/compras'
 import { marcarCuotaPagada, marcarGastoPagado } from '@/app/actions/finanzas'
 import type { Instrumento } from '@/types/database'
 import { Button } from '@/components/ui/button'
@@ -250,7 +250,7 @@ function EvolucionPagoBar({ totalPagado, saldo, pct, moneda }: {
 }
 
 function ChequeItem({
-  cheque, hoy, saldoActualARS, saldoActualUSD, otrosCheques, cuotas, onAcreditar,
+  cheque, hoy, saldoActualARS, saldoActualUSD, otrosCheques, cuotas, onDebitar,
 }: {
   cheque: ChequePendiente
   hoy: string
@@ -258,7 +258,7 @@ function ChequeItem({
   saldoActualUSD: number
   otrosCheques: ChequePendiente[]
   cuotas: CuotaPendiente[]
-  onAcreditar: () => void
+  onDebitar: () => void
 }) {
   const [isPending, startTransition] = useTransition()
   const moneda = (cheque.moneda === 'USD' ? 'USD' : 'ARS') as 'USD' | 'ARS'
@@ -297,11 +297,11 @@ function ChequeItem({
               ?? cheque.compra?.descripcion
               ?? cheque.gasto?.concepto
               ?? '—'}
-            <span className="text-fg-soft font-normal"> · {cheque.gasto?.categoria && !cheque.compra ? `${cheque.gasto.categoria} · ` : ''}{cheque.numero_cheque ? `Nº ${cheque.numero_cheque} · ` : ''}acredita {formatDate(fechaVenc)}</span>
+            <span className="text-fg-soft font-normal"> · {cheque.gasto?.categoria && !cheque.compra ? `${cheque.gasto.categoria} · ` : ''}{cheque.numero_cheque ? `Nº ${cheque.numero_cheque} · ` : ''}debita {formatDate(fechaVenc)}</span>
           </p>
         </div>
         <div className="flex-1 min-w-0 flex items-center gap-2 text-[11px]">
-          {/* Cheque pasado fecha pero no acreditado: aún disponible para cobrar (no es deadline rígido) */}
+          {/* Cheque pasado fecha pero no debitado: aún disponible para cobrar (no es deadline rígido) */}
           {dias < 0 && Math.abs(dias) <= 30 && <span className="text-fg-muted whitespace-nowrap">esperando depósito</span>}
           {dias < 0 && Math.abs(dias) > 30 && <span className="text-red-700 font-medium whitespace-nowrap">{Math.abs(dias)}d sin cobrar — revisar</span>}
           {dias === 0 && <span className="text-amber-700 whitespace-nowrap">disponible hoy</span>}
@@ -329,11 +329,11 @@ function ChequeItem({
             size="sm"
             variant="success"
             disabled={isPending}
-            onClick={() => startTransition(async () => { await acreditarCheque(cheque.id); onAcreditar() })}
-            title="Confirmar acreditación del cheque"
+            onClick={() => startTransition(async () => { await debitarCheque(cheque.id); onDebitar() })}
+            title="Confirmar débito del cheque"
           >
             {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-            Acreditar
+            Debitar
           </Button>
         </div>
       </div>
@@ -535,7 +535,7 @@ function PagarGastoInline({ gasto, cuentas, onClose }: { gasto: GastoPend; cuent
   )
 }
 
-function PagoCtaCteItem({ pago, hoy, cuentas, onAcreditar }: { pago: PagoCtaCte; hoy: string; cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]; onAcreditar: () => void }) {
+function PagoCtaCteItem({ pago, hoy, cuentas, onDebitar }: { pago: PagoCtaCte; hoy: string; cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]; onDebitar: () => void }) {
   const [isPending, startTransition] = useTransition()
   const [abierto, setAbierto] = useState(false)
   const moneda = (pago.moneda === 'USD' ? 'USD' : 'ARS') as 'USD' | 'ARS'
@@ -543,7 +543,7 @@ function PagoCtaCteItem({ pago, hoy, cuentas, onAcreditar }: { pago: PagoCtaCte;
   if (!fecha) return null
   const dias = diasHasta(fecha, hoy)
   // Solo las CC ligadas a una compra usan el flujo de pago parcial con notas (el saldo lo
-  // recalcula el trigger sumando los pagos acreditados). Para gastos se mantiene el botón simple.
+  // recalcula el trigger sumando los pagos debitados). Para gastos se mantiene el botón simple.
   const esCompra = pago.tipo_origen === 'COMPRA'
   return (
     <div>
@@ -578,7 +578,7 @@ function PagoCtaCteItem({ pago, hoy, cuentas, onAcreditar }: { pago: PagoCtaCte;
               size="sm"
               variant="success"
               disabled={isPending}
-              onClick={() => startTransition(async () => { await acreditarCheque(pago.id); onAcreditar() })}
+              onClick={() => startTransition(async () => { await debitarCheque(pago.id); onDebitar() })}
               title="Marcar como pagado"
             >
               {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -592,7 +592,7 @@ function PagoCtaCteItem({ pago, hoy, cuentas, onAcreditar }: { pago: PagoCtaCte;
           pago={pago}
           cuentas={cuentas}
           onClose={() => setAbierto(false)}
-          onDone={() => { setAbierto(false); onAcreditar() }}
+          onDone={() => { setAbierto(false); onDebitar() }}
         />
       )}
     </div>
@@ -1347,7 +1347,7 @@ export function PendientesClient({
       })
     }
 
-    // Pagos a cuenta corriente / a plazo no acreditados
+    // Pagos a cuenta corriente / a plazo no debitados
     for (const p of pagosCtaCte) {
       if (!p.fecha_vencimiento) continue
       list.push({ fecha: p.fecha_vencimiento, grupo: clasificarFecha(p.fecha_vencimiento, hoy), tipo: 'pago_cta_cte', prioridad: 50, data: p })
@@ -1485,14 +1485,14 @@ export function PendientesClient({
         saldoActualUSD={saldoActualUSD}
         otrosCheques={cheques}
         cuotas={cuotas}
-        onAcreditar={refetch}
+        onDebitar={refetch}
       />
     }
     if (it.tipo === 'cuota') {
       return <CuotaItem key={key} cuota={it.data as CuotaPendiente} hoy={hoy} onPagar={refetch} onPagoParcial={abrirPagoParcial} onEditHistorica={setEditCuotaTarget} />
     }
     if (it.tipo === 'pago_cta_cte') {
-      return <PagoCtaCteItem key={key} pago={it.data as PagoCtaCte} hoy={hoy} cuentas={cuentas} onAcreditar={refetch} />
+      return <PagoCtaCteItem key={key} pago={it.data as PagoCtaCte} hoy={hoy} cuentas={cuentas} onDebitar={refetch} />
     }
     if (it.tipo === 'compra_sin_plan') {
       return <CompraSinPlanItem key={key} compra={it.data as CompraSinPlanPago} onPagoParcial={abrirPagoParcial} />
@@ -1598,7 +1598,7 @@ export function PendientesClient({
           <p className="text-xl font-bold text-amber-700">{formatCurrency(totalPagosUSD, 'USD')}</p>
         </div>
         <div className="bg-surface border border-border rounded-xl p-4">
-          <p className="text-xs text-fg-muted mb-1">Cheques por acreditar</p>
+          <p className="text-xs text-fg-muted mb-1">Cheques por debitar</p>
           <p className="text-xl font-bold text-fg">{formatCurrency(totalCheques)}</p>
           <p className="text-xs text-fg-soft mt-0.5">{cheques.length} cheque(s)</p>
         </div>

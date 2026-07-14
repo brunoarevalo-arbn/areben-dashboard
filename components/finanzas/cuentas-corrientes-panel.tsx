@@ -39,7 +39,7 @@ export async function CuentasCorrientesPanel() {
       .neq('estado', 'PAGADO'),
     supabase
       .from('pagos')
-      .select('compra_id, fecha_vencimiento, acreditado')
+      .select('compra_id, fecha_vencimiento, debitado')
       .eq('tipo_origen', 'COMPRA'),
   ])
 
@@ -108,7 +108,7 @@ export async function CuentasCorrientesPanel() {
   // 3) Proveedores con saldo pendiente SIN fecha de pago (sin pago programado con vencimiento)
   const comprasConFecha = new Set<string>()
   for (const p of pagosCompra ?? []) {
-    if (p.compra_id && !p.acreditado && p.fecha_vencimiento) comprasConFecha.add(p.compra_id)
+    if (p.compra_id && !p.debitado && p.fecha_vencimiento) comprasConFecha.add(p.compra_id)
   }
   const provMap = new Map<string, Cuenta>()
   for (const c of compras ?? []) {

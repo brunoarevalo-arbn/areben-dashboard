@@ -99,14 +99,14 @@ export default async function CierreMesPage({
     supabase.from('activos_manuales').select('*, titular:cuentas_titulares(*)').eq('mes', mes),
     supabase.from('cuentas_patrimoniales').select('*').eq('activo', true).order('orden').order('nombre'),
     supabase.from('saldos_cuentas_patrim').select('*').eq('mes', mes),
-    // Cheques emitidos pendientes de acreditación
+    // Cheques emitidos pendientes de débito
     supabase
       .from('pagos')
       .select('id, monto, moneda, fecha_emision, fecha_vencimiento, instrumento, numero_cheque, banco_emisor, compra:compras(descripcion, proveedor:proveedores(nombre))')
       .in('instrumento', ['CHEQUE_FISICO', 'ECHEQ'])
       // Pasivo del mes = emitido ≤ fin de mes y no cobrado a esa fecha (por fecha, no por el tilde de HOY)
       .lte('fecha_emision', mesFin)
-      .or(`acreditado.eq.false,fecha_acreditacion.gt.${mesFin}`)
+      .or(`debitado.eq.false,fecha_debito.gt.${mesFin}`)
       .order('fecha_vencimiento', { ascending: true }),
     // Pagos a plazo (cta cte / transferencia) no efectivizados
     supabase
@@ -115,7 +115,7 @@ export default async function CierreMesPage({
       .in('instrumento', ['CUENTA_CORRIENTE', 'TRANSFERENCIA'])
       // Mismo criterio por fecha que los cheques (no por el tilde de HOY)
       .lte('fecha_emision', mesFin)
-      .or(`acreditado.eq.false,fecha_acreditacion.gt.${mesFin}`)
+      .or(`debitado.eq.false,fecha_debito.gt.${mesFin}`)
       .not('fecha_vencimiento', 'is', null)
       .order('fecha_vencimiento', { ascending: true }),
     // Inversiones de terceros activas (deuda con inversores)
@@ -329,7 +329,7 @@ export default async function CierreMesPage({
       mensaje: `El mes anterior (${mesAnterior}) no está confirmado → el "resultado del mes" se mide contra PN anterior = 0, no es un delta real.`,
     })
   }
-  // 3) Pagos programados (cheque/cta cte) vencidos hace +45 días y sin acreditar → probablemente ya se cobraron sin marcar
+  // 3) Pagos programados (cheque/cta cte) vencidos hace +45 días y sin debitar → probablemente ya se cobraron sin marcar
   const limVenc = new Date(y, m, 0); limVenc.setDate(limVenc.getDate() - 45)
   const limVencStr = limVenc.toISOString().split('T')[0]
   const progVencidos = [...(chequesPendientes ?? []), ...(pagosCtaCtePendientes ?? [])]
@@ -337,7 +337,7 @@ export default async function CierreMesPage({
   if (progVencidos.length > 0) {
     validaciones.push({
       nivel: 'warning',
-      mensaje: `${progVencidos.length} pago(s) programado(s) vencidos hace +45 días siguen sin acreditar. Si ya se cobraron, marcalos acreditados con la fecha real (sino inflan el pasivo).`,
+      mensaje: `${progVencidos.length} pago(s) programado(s) vencidos hace +45 días siguen sin debitar. Si ya se cobraron, marcalos debitados con la fecha real (sino inflan el pasivo).`,
     })
   }
   // 4) Posible doble conteo de sueldos: pasivo manual de sueldos + sueldos en gastos pendientes

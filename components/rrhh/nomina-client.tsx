@@ -569,8 +569,8 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
           numero_cheque: p.numero_cheque,
           banco_emisor: p.banco_emisor,
           notas: p.notas,
-          acreditado: p.acreditado,
-          fecha_acreditacion: p.fecha_acreditacion,
+          debitado: p.debitado,
+          fecha_debito: p.fecha_debito,
         })) as PagoHistorialItem[] | undefined}
       />
 

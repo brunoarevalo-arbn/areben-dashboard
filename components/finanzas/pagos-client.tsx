@@ -324,8 +324,8 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
                     </td>
                     <td className="px-4 py-3 text-right">
                       <p className="font-mono font-semibold text-fg">{formatCurrency(p.monto, p.moneda)}</p>
-                      {!p.acreditado && (
-                        <Badge variant="warning" className="text-[10px] mt-0.5">Sin acreditar</Badge>
+                      {!p.debitado && (
+                        <Badge variant="warning" className="text-[10px] mt-0.5">Sin debitar</Badge>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -344,8 +344,8 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
                           size="sm"
                           variant="ghost"
                           onClick={() => setEditTarget(p)}
-                          title={p.acreditado && !esLibre ? 'Pago ya acreditado — no editable' : 'Editar pago'}
-                          disabled={p.acreditado && !esLibre}
+                          title={p.debitado && !esLibre ? 'Pago ya debitado — no editable' : 'Editar pago'}
+                          disabled={p.debitado && !esLibre}
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>

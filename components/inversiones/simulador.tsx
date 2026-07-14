@@ -261,7 +261,7 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
                 <div className="border-t border-border-strong/60 pt-3 space-y-1.5">
                   {result.esRetiroTotal ? (
                     <>
-                      <p className="text-xs text-fg-soft mb-1 uppercase tracking-wide">── Total a acreditar al inversor ──</p>
+                      <p className="text-xs text-fg-soft mb-1 uppercase tracking-wide">── Total a pagar al inversor ──</p>
                       <div className="row flex justify-between">
                         <span className="text-fg-muted">Capital</span>
                         <span className="font-mono text-fg">{formatMoneda(result.capitalAlMomento ?? 0, moneda)}</span>
