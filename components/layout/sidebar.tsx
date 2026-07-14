@@ -67,6 +67,7 @@ const navItems: NavItem[] = [
         children: [
           { label: 'Pagos del mes', href: '/finanzas/pagos', icon: Wallet },
           { label: 'Pendientes', href: '/finanzas/pagos?tab=pendientes', icon: Clock },
+          { label: 'Vencimientos del mes', href: '/finanzas/vencimientos', icon: CalendarDays },
           { label: 'Cuentas corrientes', href: '/finanzas/cuentas-corrientes', icon: Wallet },
         ],
       },
