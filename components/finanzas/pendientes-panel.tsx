@@ -38,7 +38,7 @@ export async function PendientesPanel() {
       })())
       .order('fecha_pago', { ascending: true, nullsFirst: false })
       .limit(500),
-    // Cheques no acreditados: ventana ±6 meses para no traer históricos infinitos
+    // Cheques no debitados: ventana ±6 meses para no traer históricos infinitos
     (() => {
       const desde = new Date(); desde.setMonth(desde.getMonth() - 6)
       const desdeStr = desde.toISOString().split('T')[0]
@@ -46,12 +46,12 @@ export async function PendientesPanel() {
         .from('pagos')
         .select('*, compra:compras(descripcion, proveedor:proveedores(nombre))')
         .in('instrumento', ['CHEQUE_FISICO', 'ECHEQ'])
-        .eq('acreditado', false)
+        .eq('debitado', false)
         .gte('fecha_emision', desdeStr)
         .order('fecha_vencimiento', { ascending: true })
         .limit(300)
     })(),
-    // Pagos a cta cte / a plazo no acreditados (excepto cheques) — últimos 6 meses
+    // Pagos a cta cte / a plazo no debitados (excepto cheques) — últimos 6 meses
     (() => {
       const desde = new Date(); desde.setMonth(desde.getMonth() - 6)
       const desdeStr = desde.toISOString().split('T')[0]
@@ -59,7 +59,7 @@ export async function PendientesPanel() {
         .from('pagos')
         .select('*, compra:compras(descripcion, proveedor:proveedores(nombre))')
         .in('instrumento', ['CUENTA_CORRIENTE', 'TRANSFERENCIA'])
-        .eq('acreditado', false)
+        .eq('debitado', false)
         .gte('fecha_emision', desdeStr)
         .not('fecha_vencimiento', 'is', null)
         .order('fecha_vencimiento', { ascending: true })

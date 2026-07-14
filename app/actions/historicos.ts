@@ -128,7 +128,7 @@ const ctaCteHistoricaSchema = z.object({
 
 /**
  * Carga una deuda en cuenta corriente con proveedor sin compra detallada.
- * Crea: una compra histórica + un pago cta cte pendiente. Cuando se acredite el pago,
+ * Crea: una compra histórica + un pago cta cte pendiente. Cuando se debite el pago,
  * el flujo normal cierra la compra.
  */
 export async function crearCtaCteHistorica(input: z.infer<typeof ctaCteHistoricaSchema>) {
@@ -163,7 +163,7 @@ export async function crearCtaCteHistorica(input: z.infer<typeof ctaCteHistorica
   if (errCompra) throw new Error(errCompra.message)
   if (!compra) throw new Error('No se pudo crear la compra histórica')
 
-  // 2) Crear el pago cta cte pendiente (no acreditado, con vencimiento)
+  // 2) Crear el pago cta cte pendiente (no debitado, con vencimiento)
   const { error: errPago } = await supabase.from('pagos').insert({
     tipo_origen: 'COMPRA',
     origen_id: compra.id,
@@ -175,7 +175,7 @@ export async function crearCtaCteHistorica(input: z.infer<typeof ctaCteHistorica
     condicion_pago: 'A_PLAZO',
     instrumento: 'CUENTA_CORRIENTE',
     notas: `[HISTÓRICO]${d.notas ? ` ${d.notas}` : ''}`,
-    acreditado: false,
+    debitado: false,
   })
   if (errPago) {
     // Rollback manual: borrar la compra que quedó huérfana

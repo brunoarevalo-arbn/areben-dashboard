@@ -34,8 +34,8 @@ export interface PagoHistorialItem {
   numero_cheque?: string | null
   banco_emisor?: string | null
   notas?: string | null
-  acreditado?: boolean
-  fecha_acreditacion?: string | null
+  debitado?: boolean
+  fecha_debito?: string | null
 }
 
 const INSTRUMENTOS: { value: InstrumentoPago; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -237,12 +237,12 @@ export function RegistrarPagoModal({
                           {cuenta ? ` · ${cuenta.banco} ${cuenta.nombre}` : ''}
                           {p.notas ? ` · ${p.notas}` : ''}
                         </p>
-                        {p.acreditado
-                          ? p.fecha_acreditacion && (
-                            <p className="text-[10px] text-green-700 mt-0.5">✓ Acreditado {formatDate(p.fecha_acreditacion)}</p>
+                        {p.debitado
+                          ? p.fecha_debito && (
+                            <p className="text-[10px] text-green-700 mt-0.5">✓ Debitado {formatDate(p.fecha_debito)}</p>
                           )
-                          : p.acreditado === false && (
-                            <p className="text-[10px] text-amber-700 mt-0.5">● Programado — sin acreditar</p>
+                          : p.debitado === false && (
+                            <p className="text-[10px] text-amber-700 mt-0.5">● Programado — sin debitar</p>
                           )}
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -340,7 +340,7 @@ export function RegistrarPagoModal({
               onChange={(e) => setFechaVencimiento(e.target.value)}
               required
             />
-            <p className="text-xs text-fg-soft">El cheque queda como pendiente de acreditación hasta su vencimiento.</p>
+            <p className="text-xs text-fg-soft">El cheque queda como pendiente de débito hasta su vencimiento.</p>
           </div>
         )}
 

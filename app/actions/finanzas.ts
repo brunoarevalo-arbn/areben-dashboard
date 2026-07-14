@@ -273,8 +273,8 @@ async function regenerarCuotasGasto(gastoId: string) {
  * pago en el ledger por el total del gasto con ese instrumento, y el trigger
  * `recomputarOrigen` marca el gasto como PAGADO.
  *
- * Para TARJETA/CHEQUE el pago no afecta tesorería (acreditado=false): el dinero
- * sale recién cuando se paga la cuota o se acredita el cheque.
+ * Para TARJETA/CHEQUE el pago no afecta tesorería (debitado=false): el dinero
+ * sale recién cuando se paga la cuota o se debita el cheque.
  */
 async function marcarGastoPagadoOnCommit(gastoId: string) {
   const supabase = await createClient()
@@ -304,7 +304,7 @@ async function marcarGastoPagadoOnCommit(gastoId: string) {
   if (restante <= 0.01) return
 
   // Compromisos con vencimiento futuro (cheque y cta. cte.) deben aparecer en
-  // pendientes hasta que se acrediten/paguen. Para tarjeta el compromiso son
+  // pendientes hasta que se debiten/paguen. Para tarjeta el compromiso son
   // las cuotas — el pago contra el gasto es virtual y no debe aparecer.
   const fechaVenc = medio === 'TARJETA' ? null : (g.fecha_pago || g.fecha || null)
 
@@ -761,7 +761,7 @@ export async function revertirPagoGasto(gastoId: string) {
   }
 
   // Borrar todos los pagos asociados al gasto (tipo_origen=GASTO).
-  // Incluye tanto pagos virtuales (acreditado=false) como reales.
+  // Incluye tanto pagos virtuales (debitado=false) como reales.
   const { error: errDel } = await supabase
     .from('pagos')
     .delete()

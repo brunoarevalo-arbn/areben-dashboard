@@ -762,7 +762,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
     if (!confirm(
       `¿Revertir el pago de "${g.concepto}"?\n\n` +
       `El gasto vuelve a PENDIENTE y se borra el pago asociado del ledger. ` +
-      `Si era un pago real (acreditado en caja), también se va — vas a tener que cargarlo de nuevo cuando corresponda.`
+      `Si era un pago real (debitado de caja), también se va — vas a tener que cargarlo de nuevo cuando corresponda.`
     )) return
     startTransition(async () => {
       try {

@@ -665,8 +665,8 @@ export interface Pago {
   numero_cuota?: number | null
   total_cuotas?: number | null
   cuenta_id?: string | null
-  acreditado?: boolean
-  fecha_acreditacion?: string | null
+  debitado?: boolean
+  fecha_debito?: string | null
   notas?: string | null
   created_at: string
 }

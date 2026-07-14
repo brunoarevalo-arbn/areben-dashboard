@@ -44,7 +44,7 @@ async function recomputarOrigen(tipo: TipoOrigenPago, origenId: string | null) {
 
   const supabase = await createClient()
 
-  // Sum total pagado para este origen (sólo pagos acreditados o sin marca de no-acreditado)
+  // Sum total pagado para este origen (sólo pagos debitados o sin marca de no-debitado)
   const { data: pagosRel } = await supabase
     .from('pagos')
     .select('monto, fecha_emision')
@@ -238,8 +238,8 @@ export async function createPagoUnificado(input: PagoUnifInput) {
     banco_emisor: d.banco_emisor || null,
     cuenta_id: d.cuenta_id || null,
     notas: d.notas || null,
-    acreditado: ['EFECTIVO', 'TRANSFERENCIA'].includes(d.instrumento),
-    fecha_acreditacion: ['EFECTIVO', 'TRANSFERENCIA'].includes(d.instrumento) ? d.fecha_emision : null,
+    debitado: ['EFECTIVO', 'TRANSFERENCIA'].includes(d.instrumento),
+    fecha_debito: ['EFECTIVO', 'TRANSFERENCIA'].includes(d.instrumento) ? d.fecha_emision : null,
   })
   if (error) throw new Error(error.message)
 
@@ -368,7 +368,7 @@ export async function crearGastoIntereses(args: {
  * Edita un pago existente — sólo campos no estructurales (notas, datos del cheque,
  * fechas). Para cambiar monto / instrumento / cuenta, eliminá y recreá el pago.
  *
- * Bloquea: pagos acreditados (excepto LIBRE) y pagos en meses cerrados de su cuenta.
+ * Bloquea: pagos debitados (excepto LIBRE) y pagos en meses cerrados de su cuenta.
  */
 const editPagoSchema = z.object({
   fecha_emision: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha YYYY-MM-DD').optional(),
@@ -386,13 +386,13 @@ export async function editPago(pagoId: string, input: z.infer<typeof editPagoSch
   const supabase = await createClient()
   const { data: pago } = await supabase
     .from('pagos')
-    .select('id, tipo_origen, origen_id, acreditado, monto, fecha_emision, cuenta_id')
+    .select('id, tipo_origen, origen_id, debitado, monto, fecha_emision, cuenta_id')
     .eq('id', pagoId)
     .single()
   if (!pago) throw new Error('Pago no encontrado')
 
-  if (pago.acreditado && pago.tipo_origen !== 'LIBRE') {
-    throw new Error('No se puede editar un pago ya acreditado. Borralo y volvé a cargar.')
+  if (pago.debitado && pago.tipo_origen !== 'LIBRE') {
+    throw new Error('No se puede editar un pago ya debitado. Borralo y volvé a cargar.')
   }
 
   // Guard: si la cuenta del pago tiene saldo cerrado en el mes original o

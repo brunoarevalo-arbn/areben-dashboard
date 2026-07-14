@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { acreditarCheque } from '@/app/actions/compras'
+import { debitarCheque } from '@/app/actions/compras'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
@@ -23,8 +23,8 @@ interface Cheque {
   banco_emisor: string | null
   cuit_beneficiario: string | null
   cuenta_id: string | null
-  acreditado: boolean
-  fecha_acreditacion: string | null
+  debitado: boolean
+  fecha_debito: string | null
   numero_cuota: number | null
   total_cuotas: number | null
   notas: string | null
@@ -105,8 +105,8 @@ export function ChequesClient({ cheques, cuentas: _cuentas }: { cheques: Cheque[
 
   const chequesFiltrados = useMemo(() => {
     return cheques.filter((c) => {
-      if (estadoFiltro === 'PENDIENTE' && c.acreditado) return false
-      if (estadoFiltro === 'PAGADO' && !c.acreditado) return false
+      if (estadoFiltro === 'PENDIENTE' && c.debitado) return false
+      if (estadoFiltro === 'PAGADO' && !c.debitado) return false
       if (search) {
         const q = search.toLowerCase()
         const haystack = [
@@ -142,7 +142,7 @@ export function ChequesClient({ cheques, cuentas: _cuentas }: { cheques: Cheque[
   }, [cheques, estadoFiltro, search, sortKey, sortDir])
 
   // KPIs (sobre todos los cheques, no los filtrados — son el "panorama")
-  const pendientes = cheques.filter((c) => !c.acreditado)
+  const pendientes = cheques.filter((c) => !c.debitado)
   const stats = {
     totalCartera: pendientes.reduce((s, c) => s + Number(c.monto), 0),
     cantTotal: pendientes.length,
@@ -321,15 +321,15 @@ export function ChequesClient({ cheques, cuentas: _cuentas }: { cheques: Cheque[
                 </tr>
               ) : (
                 chequesFiltrados.map((c) => {
-                  const dias = c.acreditado ? null : diasHasta(c.fecha_vencimiento)
+                  const dias = c.debitado ? null : diasHasta(c.fecha_vencimiento)
                   const urgente = dias !== null && dias <= 7
                   return (
                     <tr
                       key={c.id}
                       className={cn(
                         'border-b border-border/60 hover:bg-surface-2/30',
-                        urgente && !c.acreditado && 'bg-amber-500/5',
-                        c.acreditado && 'opacity-60',
+                        urgente && !c.debitado && 'bg-amber-500/5',
+                        c.debitado && 'opacity-60',
                       )}
                     >
                       <td className="px-4 py-3 text-xs text-fg-muted font-medium whitespace-nowrap">
@@ -374,17 +374,17 @@ export function ChequesClient({ cheques, cuentas: _cuentas }: { cheques: Cheque[
                         {formatCurrency(c.monto)}
                       </td>
                       <td className="px-4 py-3">
-                        {c.acreditado ? (
+                        {c.debitado ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/15 text-green-700 border border-green-500/20">
                             <CheckCircle2 className="w-3 h-3" />
-                            Pagado {c.fecha_acreditacion && `· ${formatDate(c.fecha_acreditacion)}`}
+                            Pagado {c.fecha_debito && `· ${formatDate(c.fecha_debito)}`}
                           </span>
                         ) : (
                           <EstadoCheque dias={dias} />
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {!c.acreditado && (
+                        {!c.debitado && (
                           <Button
                             size="sm"
                             variant="success"
@@ -448,7 +448,7 @@ function MarcarPagadoForm({ cheque, onClose }: { cheque: Cheque; onClose: () => 
     setError(null)
     startTransition(async () => {
       try {
-        await acreditarCheque(cheque.id, fecha)
+        await debitarCheque(cheque.id, fecha)
         onClose()
       } catch (e) {
         setError((e as Error).message)
