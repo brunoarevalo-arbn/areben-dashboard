@@ -8,6 +8,7 @@ import type { Inversor, Instrumento, PeriodoInstrumento, TramoTasa } from '@/typ
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useSort, SortTh } from '@/components/ui/sortable'
 import { formatMoneda } from '@/lib/inversiones-calc'
 import { formatMonth, formatDate } from '@/lib/utils'
 import { InstrumentoForm } from './instrumento-form'
@@ -54,8 +55,22 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
     return map
   }, [tramos])
 
-  const periodosSelected = selectedInstr ? periodosByInstr.get(selectedInstr.id) ?? [] : []
+  const periodosSelectedRaw = selectedInstr ? periodosByInstr.get(selectedInstr.id) ?? [] : []
   const tramosSelected = selectedInstr ? tramosByInstr.get(selectedInstr.id) ?? [] : []
+
+  const { sortKey, sortDir, toggleSort, sortRows } = useSort<'mes' | 'saldo_inicio' | 'tasa' | 'interes' | 'movimiento' | 'saldo_cierre' | 'estado'>('mes', 'desc')
+  const periodosSelected = sortRows(periodosSelectedRaw, (p, k): string | number => {
+    switch (k) {
+      case 'mes': return p.mes ?? ''
+      case 'saldo_inicio': return Number(p.saldo_inicio ?? 0)
+      case 'tasa': return Number(p.tasa_aplicada ?? 0)
+      case 'interes': return Number(p.interes_devengado ?? 0)
+      case 'movimiento': return Number(p.movimiento ?? 0)
+      case 'saldo_cierre': return Number(p.saldo_cierre ?? 0)
+      case 'estado': return p.cerrado ? 1 : 0
+      default: return ''
+    }
+  })
   // Tasa actual = la del tramo más reciente cuya fecha_desde ≤ hoy
   const tasaActualSelected = useMemo(() => {
     if (!selectedInstr) return 0
@@ -324,13 +339,13 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Mes</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Saldo inicio</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Tasa</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Interés</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Movimiento</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Saldo cierre</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Estado</th>
+                <SortTh col="mes" label="Mes" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+                <SortTh col="saldo_inicio" label="Saldo inicio" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+                <SortTh col="tasa" label="Tasa" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+                <SortTh col="interes" label="Interés" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+                <SortTh col="movimiento" label="Movimiento" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+                <SortTh col="saldo_cierre" label="Saldo cierre" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+                <SortTh col="estado" label="Estado" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
               </tr>
             </thead>
             <tbody>

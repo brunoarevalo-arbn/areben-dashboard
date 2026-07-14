@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
+import { useSort, SortTh } from '@/components/ui/sortable'
 import { RenovarModal } from './renovar-modal'
 import { formatMoneda } from '@/lib/inversiones-calc'
 import { formatMonth, getMonthOptions, formatCurrency } from '@/lib/utils'
@@ -205,6 +206,22 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
   const [isPending, startTransition] = useTransition()
   const [toast, setToast] = useState<ToastResult | null>(null)
 
+  const { sortKey, sortDir, toggleSort, sortRows } = useSort<'inversor' | 'moneda' | 'tipo' | 'saldo_inicio' | 'interes' | 'movimiento' | 'saldo_cierre' | 'estado'>('inversor', 'asc')
+  const periodosOrdenados = sortRows(periodos, (p, k): string | number => {
+    const i = p.instrumento
+    switch (k) {
+      case 'inversor': return (i?.inversor?.nombre ?? '').toLowerCase()
+      case 'moneda': return i?.moneda ?? ''
+      case 'tipo': return i?.capitalizable ? 1 : 0
+      case 'saldo_inicio': return Number(p.saldo_inicio ?? 0)
+      case 'interes': return Number(p.interes_devengado ?? 0)
+      case 'movimiento': return Number(p.movimiento ?? 0)
+      case 'saldo_cierre': return Number(p.saldo_cierre ?? 0)
+      case 'estado': return p.cerrado ? 1 : 0
+      default: return ''
+    }
+  })
+
   const totalUsd = periodos
     .filter((p) => p.instrumento?.moneda === 'USD')
     .reduce((s, p) => s + Number(p.interes_devengado), 0)
@@ -364,14 +381,14 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Inversor / Cód.</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Moneda</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Tipo</th>
-              <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Saldo inicio</th>
-              <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Interés</th>
-              <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Movimiento</th>
-              <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Saldo cierre</th>
-              <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Estado</th>
+              <SortTh col="inversor" label="Inversor / Cód." sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+              <SortTh col="moneda" label="Moneda" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+              <SortTh col="tipo" label="Tipo" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+              <SortTh col="saldo_inicio" label="Saldo inicio" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+              <SortTh col="interes" label="Interés" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+              <SortTh col="movimiento" label="Movimiento" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+              <SortTh col="saldo_cierre" label="Saldo cierre" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+              <SortTh col="estado" label="Estado" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
               <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Acción</th>
             </tr>
           </thead>
@@ -383,7 +400,7 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                 </td>
               </tr>
             ) : (
-              periodos.map((p) => {
+              periodosOrdenados.map((p) => {
                 const i = p.instrumento
                 if (!i) return null
                 return (
