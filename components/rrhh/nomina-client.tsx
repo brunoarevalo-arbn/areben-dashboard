@@ -238,9 +238,14 @@ function NominaRow({ n, isPending, onRecibo, onEdit, onPago, onDelete }: {
                 Registrar pago
               </Button>
             )}
-            <Button size="sm" variant="ghost" onClick={() => onRecibo('COMPLETO')} title={esBlanco ? 'Recibo oficial' : 'Detalle de pago'}>
+            <Button size="sm" variant="ghost" onClick={() => onRecibo('COMPLETO')} title={esBlanco ? 'Recibo oficial (PDF)' : 'Detalle de pago (PDF)'}>
               <Receipt className="w-3.5 h-3.5" />
             </Button>
+            {esBlanco && tieneAdicional && (
+              <Button size="sm" variant="warning" onClick={() => onRecibo('INTERNO_NEGRO')} title="Recibo interno del adicional (PDF)">
+                <FileText className="w-3.5 h-3.5" />
+              </Button>
+            )}
             <Button size="sm" variant="ghost" onClick={onEdit} title={pagada ? 'Editar (sólo notas — está pagada)' : 'Editar nómina'}>
               <Pencil className="w-3.5 h-3.5" />
             </Button>
@@ -260,11 +265,6 @@ function NominaRow({ n, isPending, onRecibo, onEdit, onPago, onDelete }: {
               <span className="text-fg-soft">Patronales: <span className="font-mono text-amber-700">{formatCurrency(n.aportes_patronales)}</span></span>
               <span className="text-fg-soft">Provisión SAC: <span className="font-mono text-amber-800">{n.aguinaldo_provisionado > 0 ? formatCurrency(n.aguinaldo_provisionado) : '—'}</span></span>
               <span className="text-fg-soft">Costo empresa: <span className="font-mono text-primary">{formatCurrency(n.costo_empresa)}</span></span>
-              {esBlanco && tieneAdicional && (
-                <button type="button" onClick={() => onRecibo('INTERNO_NEGRO')} className="text-amber-700 hover:underline inline-flex items-center gap-1">
-                  <FileText className="w-3 h-3" /> Recibo interno del adicional
-                </button>
-              )}
             </div>
           </td>
         </tr>
