@@ -82,6 +82,7 @@ export function NominaForm({
   nominasExistentes,
   horasExtrasMes,
   registrosExtras,
+  cajaAguinaldos,
   nomina,
   onClose,
 }: {
@@ -483,6 +484,34 @@ export function NominaForm({
           />
           <p className="text-[11px] text-fg-soft">
             Se suma al neto a pagar, genera el gasto de este mes y aparece como concepto propio en el recibo.
+            No toca la caja de aguinaldos.
+          </p>
+        </div>
+      )}
+
+      {/* Aguinaldo pagado DESDE la caja provisionada — descuenta la caja y la provisión del cierre */}
+      {empleado?.corresponde_aguinaldo && (cajaAguinaldos[empleadoId] ?? 0) > 0 && (
+        <div className={cn(
+          'border rounded-xl p-4 space-y-2',
+          vals.aguinaldo_pagado_de_caja > 0 ? 'bg-amber-500/10 border-amber-500/40' : 'bg-surface-2/40 border-border-strong/40'
+        )}>
+          <label className="text-sm font-medium text-fg-muted flex items-center gap-2">
+            <PiggyBank className={cn('w-4 h-4', vals.aguinaldo_pagado_de_caja > 0 ? 'text-amber-700' : 'text-fg-soft')} />
+            Aguinaldo desde la caja
+            <span className="text-xs text-amber-700 font-mono font-semibold ml-auto">
+              Disponible: {formatCurrency(cajaAguinaldos[empleadoId] ?? 0)}
+            </span>
+          </label>
+          <Input
+            label="Monto a tomar de la caja"
+            name="aguinaldo_desde_caja_visible"
+            type="number" step="0.01" min="0" max={cajaAguinaldos[empleadoId] ?? 0}
+            value={vals.aguinaldo_pagado_de_caja}
+            onChange={(e) => setVals((v) => ({ ...v, aguinaldo_pagado_de_caja: Math.max(0, Math.min(cajaAguinaldos[empleadoId] ?? 0, Number(e.target.value))) }))}
+            placeholder="0"
+          />
+          <p className="text-[11px] text-fg-soft">
+            Consume lo provisionado: se suma al neto y <strong>descuenta la caja y la provisión del cierre</strong>.
           </p>
         </div>
       )}

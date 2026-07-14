@@ -43,7 +43,10 @@ export default async function NominaPage({
     // Para calcular caja aguinaldos: provisiones acumuladas - pagos
     supabase
       .from('nomina_mensual')
-      .select('empleado_id, aguinaldo_provisionado, aguinaldo_pagado_de_caja'),
+      .select('empleado_id, aguinaldo_provisionado, aguinaldo_pagado_de_caja')
+      // La caja arranca en $0 en julio-2026 (consistente con la cuenta "Provisión aguinaldo" del cierre,
+      // mes_inicial 2026-06). No cuenta las provisiones previas (abril/mayo/junio) sin sustento real.
+      .gte('mes', '2026-07'),
     supabase
       .from('cuentas_bancarias')
       .select('id, nombre, banco, titular:cuentas_titulares(nombre)')
