@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useState, useTransition, useMemo, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createRetiro, deleteRetiro, cerrarConvertirRetirosMes } from '@/app/actions/finanzas'
 import type { RetiroSocio, CategoriaRetiro, TipoCambioMes } from '@/types/database'
@@ -9,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { formatCurrency, formatDate, formatMonth } from '@/lib/utils'
 import { retiroEsUsd, valorRetiroUsd, valorRetiroArs } from '@/lib/retiros'
-import { Plus, Trash2, CreditCard, Loader2, DollarSign, TrendingUp, RefreshCcw, Lock, Banknote, AlertTriangle } from 'lucide-react'
+import { Plus, Trash2, CreditCard, Loader2, TrendingUp, RefreshCcw, Lock, Banknote, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const SOCIOS_PREDEFINIDOS = ['Darío Arévalo', 'Bruno Arévalo']
@@ -217,37 +218,38 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
         </div>
       )}
 
-      {/* Resumen por socio */}
+      {/* Resumen por socio: pendiente de dolarizar (lo único accionable acá).
+          El saldo acumulado en USD vive en Cuentas particulares (dueño único). */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {resumenSocios.map(({ socio, usd, arsPendiente, sinConvertir, count }) => (
+        {resumenSocios.map(({ socio, arsPendiente, sinConvertir, count }) => (
           <div key={socio} className="bg-surface border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-medium text-fg-muted">{socio}</p>
               <span className="text-xs text-fg-soft">{count} retiro{count !== 1 ? 's' : ''}</span>
             </div>
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs text-fg-muted flex items-center gap-1">
-                  <DollarSign className="w-3 h-3" />
-                  Total USD (dolarizado)
-                </span>
-                <span className="text-xl font-mono font-bold text-green-700">
-                  {formatCurrency(usd, 'USD')}
-                </span>
-              </div>
+            {sinConvertir > 0 ? (
               <div className="flex justify-between items-baseline">
                 <span className="text-xs text-fg-muted">
-                  ARS sin convertir
-                  {sinConvertir > 0 && <span className="text-amber-600"> · {sinConvertir}</span>}
+                  Pendiente de dolarizar
+                  <span className="text-amber-600"> · {sinConvertir} retiro{sinConvertir !== 1 ? 's' : ''}</span>
                 </span>
-                <span className={cn('text-sm font-mono', arsPendiente ? 'text-amber-700' : 'text-fg-soft')}>
+                <span className="text-xl font-mono font-bold text-amber-700">
                   {formatCurrency(arsPendiente)}
                 </span>
               </div>
-            </div>
+            ) : (
+              <p className="text-sm text-fg-soft">Todo dolarizado ✓</p>
+            )}
           </div>
         ))}
       </div>
+
+      <Link
+        href="/finanzas/cuentas-patrimoniales?tab=cuentas-particulares"
+        className="inline-flex items-center gap-1 text-xs text-fg-soft hover:text-primary transition-colors"
+      >
+        Ver saldo en USD por socio → Cuentas particulares
+      </Link>
 
       {/* Filtros */}
       <div className="flex items-center gap-3 flex-wrap">
