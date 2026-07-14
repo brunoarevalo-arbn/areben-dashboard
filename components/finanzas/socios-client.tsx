@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate, formatMonth } from '@/lib/utils'
 import { retiroEsUsd, valorRetiroArs, valorRetiroUsd } from '@/lib/retiros'
 import {
-  Users, CreditCard, TrendingDown, Calendar, ArrowUpCircle, ArrowDownCircle,
+  Users, CreditCard, TrendingDown, Calendar, ArrowUpCircle,
   Loader2, Plus, Trash2, RefreshCcw, Lock, AlertTriangle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -81,23 +81,28 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
     null
   )
 
+  const mesesDisponibles = useMemo(() => {
+    const setM = new Set<string>()
+    for (const r of retiros) setM.add(mesDe(r))
+    return Array.from(setM).sort((a, b) => b.localeCompare(a))
+  }, [retiros])
+
+  // Mes que scopea las cards (retiros del mes + top categorías). Default = último con datos.
+  const [mesSeleccionado, setMesSeleccionado] = useState<string>(mesesDisponibles[0] ?? hoy)
+
   // Datos agregados por socio (misma valuación excluyente que Cuentas particulares).
+  // saldoARS/saldoUSD/sinConvertir son GLOBALES (lo pendiente no es de un mes);
+  // retirosDelMes y topCategorias reflejan `mesSeleccionado`.
   const datosPorSocio = useMemo(() => {
     const m = new Map<string, {
       socio: Socio
       saldoARS: number
       saldoUSD: number
-      yaSalidoARS: number
-      compromisoARS: number
-      yaSalidoUSD: number
-      compromisoUSD: number
       sinConvertir: number
-      retirosMesActual: number
+      retirosDelMes: number
       cantidadRetiros: number
       topCategorias: { categoria: CategoriaRetiro | null; total: number; count: number }[]
     }>()
-
-    const mesActual = new Date().toISOString().substring(0, 7)
 
     for (const socio of socios) {
       const rs = retiros.filter((r) => r.socio_id === socio.id)
@@ -105,22 +110,13 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
       // (los dolarizados suman 0 en ARS). saldoUSD = Σ valorRetiroUsd (lo ya dolarizado).
       const saldoARS = rs.reduce((s, r) => s + valorRetiroArs(r), 0)
       const saldoUSD = rs.reduce((s, r) => s + valorRetiroUsd(r), 0)
-
-      const compromiso = rs.filter(esCompromisoFuturo)
-      const yaSalido = rs.filter((r) => !esCompromisoFuturo(r))
-
-      const compromisoARS = compromiso.reduce((s, r) => s + valorRetiroArs(r), 0)
-      const yaSalidoARS = yaSalido.reduce((s, r) => s + valorRetiroArs(r), 0)
-      const compromisoUSD = compromiso.reduce((s, r) => s + valorRetiroUsd(r), 0)
-      const yaSalidoUSD = yaSalido.reduce((s, r) => s + valorRetiroUsd(r), 0)
       const sinConvertir = rs.filter((r) => !retiroEsUsd(r)).length
 
-      const retirosMesActual = rs
-        .filter((r) => mesDe(r) === mesActual)
-        .reduce((s, r) => s + Number(r.monto_pesos ?? 0), 0)
+      const rsMes = rs.filter((r) => mesDe(r) === mesSeleccionado)
+      const retirosDelMes = rsMes.reduce((s, r) => s + Number(r.monto_pesos ?? 0), 0)
 
       const porCat = new Map<string, { categoria: CategoriaRetiro | null; total: number; count: number }>()
-      for (const r of rs) {
+      for (const r of rsMes) {
         const key = r.categoria?.id ?? 'sin'
         if (!porCat.has(key)) porCat.set(key, { categoria: r.categoria ?? null, total: 0, count: 0 })
         const v = porCat.get(key)!
@@ -129,13 +125,10 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
       }
       const topCategorias = Array.from(porCat.values()).sort((a, b) => b.total - a.total).slice(0, 3)
 
-      m.set(socio.id, {
-        socio, saldoARS, saldoUSD, yaSalidoARS, compromisoARS, yaSalidoUSD, compromisoUSD,
-        sinConvertir, retirosMesActual, cantidadRetiros: rs.length, topCategorias,
-      })
+      m.set(socio.id, { socio, saldoARS, saldoUSD, sinConvertir, retirosDelMes, cantidadRetiros: rs.length, topCategorias })
     }
     return m
-  }, [socios, retiros])
+  }, [socios, retiros, mesSeleccionado])
 
   // Sin dolarizar (banner + default del conversor)
   const mesesSinConvertir = useMemo(() => {
@@ -144,12 +137,6 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
   }, [retiros])
   const mesConvDefault = mesesSinConvertir[0] ?? hoy
   const totalSinConvertir = retiros.filter((r) => !retiroEsUsd(r)).length
-
-  const mesesDisponibles = useMemo(() => {
-    const setM = new Set<string>()
-    for (const r of retiros) setM.add(mesDe(r))
-    return Array.from(setM).sort((a, b) => b.localeCompare(a))
-  }, [retiros])
 
   const retirosFiltrados = useMemo(() => {
     return retiros.filter((r) => {
@@ -241,6 +228,23 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
         </div>
       )}
 
+      {/* Selector de mes (scopea retiros del mes + top categorías de las cards) */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-fg-muted flex items-center gap-1">
+          <Calendar className="w-3.5 h-3.5" />
+          Actividad de:
+        </span>
+        <select
+          value={mesSeleccionado}
+          onChange={(e) => setMesSeleccionado(e.target.value)}
+          className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
+        >
+          {(mesesDisponibles.length > 0 ? mesesDisponibles : [mesSeleccionado]).map((m) => (
+            <option key={m} value={m}>{formatMonth(m)}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Cards por socio */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {socios.map((socio) => {
@@ -269,57 +273,38 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
                 </div>
               </div>
 
-              {/* Saldo deudor: ARS = pendiente de dolarizar, USD = ya dolarizado */}
+              {/* Pendiente de dolarizar (accionable) + saldo USD acumulado como referencia */}
               <div className="px-5 py-5 bg-amber-500/5 border-b border-border">
-                <p className="text-xs text-fg-muted uppercase tracking-wide mb-1">Saldo deudor con Areben</p>
-                <div className="flex items-baseline gap-3 flex-wrap">
-                  <p className="text-3xl font-bold text-amber-700 font-mono">{formatCurrency(datos.saldoARS)}</p>
-                  {datos.saldoUSD !== 0 && (
-                    <p className="text-sm font-mono text-fg-muted">+ {formatCurrency(datos.saldoUSD, 'USD')}</p>
-                  )}
-                </div>
+                <p className="text-xs text-fg-muted uppercase tracking-wide mb-1">Pendiente de dolarizar</p>
+                <p className="text-3xl font-bold text-amber-700 font-mono">{formatCurrency(datos.saldoARS)}</p>
                 {datos.sinConvertir > 0 ? (
                   <p className="text-xs text-amber-700 mt-1">
-                    ARS = {datos.sinConvertir} retiro{datos.sinConvertir !== 1 ? 's' : ''} pendiente{datos.sinConvertir !== 1 ? 's' : ''} de dolarizar · USD ya dolarizado
+                    {datos.sinConvertir} retiro{datos.sinConvertir !== 1 ? 's' : ''} en ARS sin convertir a USD
                   </p>
                 ) : (
-                  <p className="text-xs text-fg-soft mt-1">Todo dolarizado ✓ · el saldo en USD vive en Cuentas particulares</p>
+                  <p className="text-xs text-fg-soft mt-1">Todo dolarizado ✓</p>
                 )}
+                <Link
+                  href="/finanzas/cuentas-patrimoniales?tab=cuentas-particulares"
+                  className="inline-flex items-center gap-1 text-xs text-fg-muted hover:text-primary transition-colors mt-2"
+                >
+                  saldo USD acumulado: <span className="font-mono font-medium">{formatCurrency(datos.saldoUSD, 'USD')}</span> →
+                </Link>
               </div>
 
-              {/* ya salió vs compromiso futuro */}
-              <div className="px-5 py-4 grid grid-cols-2 gap-3 border-b border-border">
-                <div>
-                  <p className="text-xs text-fg-muted flex items-center gap-1 mb-1">
-                    <ArrowDownCircle className="w-3 h-3 text-green-700" />
-                    Ya salió de caja
-                  </p>
-                  <p className="text-base font-bold text-green-700 font-mono">{formatCurrency(datos.yaSalidoARS)}</p>
-                  {datos.yaSalidoUSD !== 0 && <p className="text-xs font-mono text-fg-soft">+ {formatCurrency(datos.yaSalidoUSD, 'USD')}</p>}
-                </div>
-                <div>
-                  <p className="text-xs text-fg-muted flex items-center gap-1 mb-1">
-                    <CreditCard className="w-3 h-3 text-purple-700" />
-                    Compromiso futuro (TC)
-                  </p>
-                  <p className="text-base font-bold text-purple-700 font-mono">{formatCurrency(datos.compromisoARS)}</p>
-                  {datos.compromisoUSD !== 0 && <p className="text-xs font-mono text-fg-soft">+ {formatCurrency(datos.compromisoUSD, 'USD')}</p>}
-                </div>
-              </div>
-
-              {/* mes actual */}
+              {/* retiros del mes seleccionado */}
               <div className="px-5 py-3 border-b border-border flex items-center justify-between">
                 <span className="text-xs text-fg-muted flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  Retiros de {formatMonth(new Date().toISOString().substring(0, 7))}
+                  Retiros de {formatMonth(mesSeleccionado)}
                 </span>
-                <span className="text-sm font-mono font-semibold text-fg">{formatCurrency(datos.retirosMesActual)}</span>
+                <span className="text-sm font-mono font-semibold text-fg">{formatCurrency(datos.retirosDelMes)}</span>
               </div>
 
-              {/* top categorías */}
-              {datos.topCategorias.length > 0 && (
+              {/* top categorías del mes seleccionado */}
+              {datos.topCategorias.length > 0 ? (
                 <div className="px-5 py-3">
-                  <p className="text-xs text-fg-muted uppercase tracking-wide mb-2">Top categorías</p>
+                  <p className="text-xs text-fg-muted uppercase tracking-wide mb-2">Top categorías · {formatMonth(mesSeleccionado)}</p>
                   <div className="space-y-1.5">
                     {datos.topCategorias.map((c, idx) => (
                       <div key={c.categoria?.id ?? `sin-${idx}`} className="flex items-center justify-between text-xs">
@@ -332,6 +317,10 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
                       </div>
                     ))}
                   </div>
+                </div>
+              ) : (
+                <div className="px-5 py-3">
+                  <p className="text-xs text-fg-soft">Sin retiros en {formatMonth(mesSeleccionado)}</p>
                 </div>
               )}
 
@@ -348,13 +337,6 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
           )
         })}
       </div>
-
-      <Link
-        href="/finanzas/cuentas-patrimoniales?tab=cuentas-particulares"
-        className="inline-flex items-center gap-1 text-xs text-fg-soft hover:text-primary transition-colors"
-      >
-        Ver saldo acumulado en USD por socio → Cuentas particulares
-      </Link>
 
       {/* Detalle: tabla de retiros filtrables */}
       <div className="bg-surface border border-border rounded-xl overflow-hidden">
