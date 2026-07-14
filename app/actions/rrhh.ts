@@ -4,6 +4,7 @@ import { createClient, requireUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { optUuid } from '@/lib/zod-helpers'
+import { calcularNomina as calcNominaPuro, type AporteConfig } from '@/lib/calc/nomina'
 
 // ============ EMPLEADOS ============
 
@@ -640,58 +641,40 @@ export async function createNomina(prevState: string | null, formData: FormData)
   const d = result.data
   const esBlanco = empleado.tipo_empleado === 'BLANCO'
 
-  // Para BLANCO: el monto_recibo_oficial es el NETO que se paga del recibo (no se le restan
-  // aportes empleado — eso lo maneja el contador externo). Para NEGRO usamos sueldo_basico.
-  const basicoEfectivo = esBlanco && d.monto_recibo_oficial > 0
-    ? d.monto_recibo_oficial
-    : d.sueldo_basico
-
-  const horas_extras_monto = d.horas_extras * d.valor_hora * (1 + d.porcentaje_extras / 100)
-
-  // Presentismo solo para NEGRO con asistencia completa
-  const presentismo = !esBlanco && d.asistencia_completa
-    ? Math.round(basicoEfectivo * (empleado.presentismo_pct ?? 0)) / 100
-    : 0
-
-  const ausenciasDescuento = Math.round(d.ausencias_horas * d.valor_hora * 100) / 100
+  // Cálculo con el motor único (lib/calc/nomina.ts): mismo resultado que la liquidación masiva.
+  // Respeta aplicable_a de los aportes (empleado en negro → 0 cargas patronales).
+  const calc = calcNominaPuro({
+    esBlanco,
+    sueldoBasico: d.sueldo_basico,
+    montoReciboOficial: d.monto_recibo_oficial,
+    horasTrabajadas: d.horas_trabajadas,
+    valorHora: d.valor_hora,
+    horasExtras: d.horas_extras,
+    porcentajeExtras: d.porcentaje_extras,
+    comida: d.comida,
+    asistenciaCompleta: d.asistencia_completa,
+    presentismoPctEmpleado: empleado.presentismo_pct ?? 0,
+    aguinaldoPagadoDeCaja: d.aguinaldo_pagado_de_caja,
+    aguinaldoDirecto: d.aguinaldo_directo,
+    adicionalNoRegistrado: d.adicional_no_registrado,
+    ausenciasHoras: d.ausencias_horas,
+    bonoMonto: d.bono_monto,
+    descuentoOtroMonto: d.descuento_otro_monto,
+    correspondeAguinaldo: empleado.corresponde_aguinaldo,
+    porcentajeAguinaldo: empleado.porcentaje_aguinaldo ?? 0,
+    aportes: (aportes ?? []).map((a) => ({ tipo: a.tipo, valor: Number(a.valor), aplicable_a: a.aplicable_a, es_patronal: a.es_patronal })) as AporteConfig[],
+  })
+  const basicoEfectivo = calc.basicoEfectivo
+  const aguinaldoProvisionado = calc.aguinaldoProvisionado
+  const presentismo = calc.presentismo
+  const ausenciasDescuento = calc.ausenciasDescuento
   const ausenciasHoras = d.ausencias_horas
-
-  // Base del aguinaldo = sueldo FIJO mensual (oficial + acuerdo fijo en negro).
-  // No incluye horas extras reales (variables) ni comida/presentismo/aguinaldo de caja.
-  const baseAguinaldo = basicoEfectivo + d.adicional_no_registrado
-  const aguinaldoProvisionado = empleado.corresponde_aguinaldo
-    ? Math.round(baseAguinaldo * (empleado.porcentaje_aguinaldo ?? 0)) / 100
-    : 0
-
-  // Subtotal = lo que efectivamente se paga al empleado este mes.
-  // Bono y descuento_otro son puntuales (no afectan base del aguinaldo).
-  const subtotal = basicoEfectivo + horas_extras_monto + d.comida + presentismo
-    + d.aguinaldo_pagado_de_caja + d.aguinaldo_directo + d.adicional_no_registrado - ausenciasDescuento
-    + d.bono_monto - d.descuento_otro_monto
-
-  // Aportes patronales (es_patronal=true): cargas sociales que paga la empresa al estado.
-  // Base: el bruto del recibo oficial para BLANCO, o el sueldo fijo en negro.
-  const baseAportesPatronales = esBlanco && d.monto_recibo_oficial > 0
-    ? d.monto_recibo_oficial
-    : basicoEfectivo
-
-  let aportes_patronales = 0
-  for (const aporte of aportes ?? []) {
-    if (!aporte.es_patronal) continue
-    const monto = aporte.tipo === 'PORCENTAJE' ? (baseAportesPatronales * aporte.valor) / 100 : aporte.valor
-    aportes_patronales += monto
-  }
-
-  // Neto a pagar = subtotal (lo que efectivamente sale para el empleado).
-  // Costo empresa = neto + cargas sociales + provisión aguinaldo.
-  const neto = subtotal
-  const costo_empresa = neto + aportes_patronales + aguinaldoProvisionado
-
-  const valor_hora_real = d.horas_trabajadas > 0 && d.monto_recibo_oficial > 0
-    ? d.monto_recibo_oficial / d.horas_trabajadas
-    : d.valor_hora
-
-  const netoFinal = Math.round(neto * 100) / 100
+  const aportes_patronales = calc.aportesPatronales
+  const subtotal = calc.subtotal
+  const neto = calc.neto
+  const costo_empresa = calc.costoEmpresa
+  const valor_hora_real = calc.valorHoraReal
+  const netoFinal = calc.neto
 
   const { data: nominaInserted, error } = await supabase.from('nomina_mensual').insert({
     empleado_id: d.empleado_id,
@@ -1029,14 +1012,24 @@ export async function deleteNomina(id: string) {
 // ============ LIQUIDACIÓN MASIVA DE NÓMINAS ============
 
 /**
- * Genera nóminas en lote para múltiples empleados de un mes,
- * usando los valores por defecto de cada empleado (básico, horas, valor hora, comida).
- * Saltea los que ya tienen nómina ese mes. Sin horas extras ni adicionales.
+ * Genera nóminas en lote para múltiples empleados de un mes. Toma los defaults de ficha
+ * (básico, horas, valor hora, comida) y admite conceptos por empleado (horas extras, bono,
+ * descuento) vía `conceptos`. Usa el MISMO motor que la individual (`calcularNomina` de
+ * lib/calc/nomina) → netos/aguinaldo/aportes idénticos a una liquidación individual.
+ * Saltea los que ya tienen nómina ese mes.
  */
 export async function liquidacionMasiva(args: {
   empleadoIds: string[]
   mes: string
   fechaProgramadaPago: string
+  conceptos?: Record<string, {
+    horasExtras?: number
+    porcentajeExtras?: number
+    bonoMonto?: number
+    bonoConcepto?: string
+    descuentoOtroMonto?: number
+    descuentoOtroConcepto?: string
+  }>
 }) {
   await requireUser()
   if (!args.empleadoIds.length) return { ok: 0, errors: [] as string[] }
@@ -1080,51 +1073,69 @@ export async function liquidacionMasiva(args: {
   type CalcRow = { empleado: typeof empleadosElegibles[number]; nomina: Record<string, unknown>; gasto: Record<string, unknown>; netoFinal: number }
   const filas: CalcRow[] = empleadosElegibles.map((empleado) => {
     const esBlanco = empleado.tipo_empleado === 'BLANCO'
+    const c = args.conceptos?.[empleado.id] ?? {}
+    const horasExtras = Number(c.horasExtras ?? 0)
+    const porcentajeExtras = Number(c.porcentajeExtras ?? 50)
+    const bonoMonto = Number(c.bonoMonto ?? 0)
+    const descuentoOtroMonto = Number(c.descuentoOtroMonto ?? 0)
     const basicoEfectivo = Number(empleado.sueldo_basico ?? 0)
     const horasTrabajadas = Number(empleado.horas_mensuales ?? 0)
     const valorHora = Number(empleado.valor_hora ?? 0)
     const comida = Number(empleado.monto_comidas ?? 0)
-    const aguinaldoProvisionado = empleado.corresponde_aguinaldo
-      ? Math.round(basicoEfectivo * (Number(empleado.porcentaje_aguinaldo) ?? 0)) / 100
-      : 0
-    const subtotal = basicoEfectivo + comida
-    const baseAportes = subtotal
-    let aportes_empleado = 0
-    let aportes_patronales = 0
-    for (const a of aportes ?? []) {
-      if (a.aplicable_a !== 'AMBOS' && a.aplicable_a !== empleado.tipo_empleado) continue
-      const monto = a.tipo === 'PORCENTAJE' ? (baseAportes * Number(a.valor)) / 100 : Number(a.valor)
-      if (a.es_patronal) aportes_patronales += monto
-      else aportes_empleado += monto
-    }
-    const neto = subtotal - aportes_empleado
-    const costo_empresa = subtotal + aportes_patronales + aguinaldoProvisionado
-    const netoFinal = Math.round(neto * 100) / 100
+
+    // Mismo motor que la individual: neto=subtotal, aportes filtrados por aplicable_a.
+    const calc = calcNominaPuro({
+      esBlanco,
+      sueldoBasico: basicoEfectivo,
+      montoReciboOficial: esBlanco ? basicoEfectivo : 0,
+      horasTrabajadas,
+      valorHora,
+      horasExtras,
+      porcentajeExtras,
+      comida,
+      asistenciaCompleta: false,
+      presentismoPctEmpleado: Number(empleado.presentismo_pct ?? 0),
+      aguinaldoPagadoDeCaja: 0,
+      aguinaldoDirecto: 0,
+      adicionalNoRegistrado: 0,
+      ausenciasHoras: 0,
+      bonoMonto,
+      descuentoOtroMonto,
+      correspondeAguinaldo: empleado.corresponde_aguinaldo,
+      porcentajeAguinaldo: Number(empleado.porcentaje_aguinaldo ?? 0),
+      aportes: (aportes ?? []).map((a) => ({ tipo: a.tipo, valor: Number(a.valor), aplicable_a: a.aplicable_a, es_patronal: a.es_patronal })) as AporteConfig[],
+    })
+    const netoFinal = calc.neto
     return {
       empleado,
       netoFinal,
       nomina: {
         empleado_id: empleado.id,
         mes: args.mes,
-        sueldo_basico: basicoEfectivo,
+        sueldo_basico: calc.basicoEfectivo,
         horas_trabajadas: horasTrabajadas,
         valor_hora: valorHora,
-        valor_hora_real: valorHora,
-        horas_extras: 0,
-        porcentaje_extras: 50,
+        valor_hora_real: calc.valorHoraReal,
+        horas_extras: horasExtras,
+        porcentaje_extras: porcentajeExtras,
         comida,
         aguinaldo: 0,
         aguinaldo_pagado_de_caja: 0,
-        aguinaldo_provisionado: aguinaldoProvisionado,
+        aguinaldo_directo: 0,
+        aguinaldo_provisionado: calc.aguinaldoProvisionado,
         asistencia_completa: false,
-        presentismo_monto: 0,
+        presentismo_monto: calc.presentismo,
         monto_recibo_oficial: esBlanco ? basicoEfectivo : 0,
         adicional_no_registrado: 0,
-        aportes_empleado: Math.round(aportes_empleado * 100) / 100,
-        aportes_patronales: Math.round(aportes_patronales * 100) / 100,
-        subtotal: Math.round(subtotal * 100) / 100,
+        aportes_empleado: 0,
+        aportes_patronales: calc.aportesPatronales,
+        subtotal: calc.subtotal,
         neto: netoFinal,
-        costo_empresa: Math.round(costo_empresa * 100) / 100,
+        costo_empresa: calc.costoEmpresa,
+        bono_monto: bonoMonto || 0,
+        bono_concepto: c.bonoConcepto || null,
+        descuento_otro_monto: descuentoOtroMonto || 0,
+        descuento_otro_concepto: c.descuentoOtroConcepto || null,
         estado: 'PENDIENTE',
         fecha_programada_pago: args.fechaProgramadaPago,
         notas: 'Generada por liquidación masiva',

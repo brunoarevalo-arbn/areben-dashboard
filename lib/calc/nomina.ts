@@ -27,6 +27,8 @@ export interface CalcNominaInput {
   asistenciaCompleta: boolean
   presentismoPctEmpleado: number
   aguinaldoPagadoDeCaja: number
+  /** SAC pagado directo este mes (sin pasar por la caja) — suma al neto, NO a la base del aguinaldo */
+  aguinaldoDirecto?: number
   /** Monto fijo en negro (parte del acuerdo) — suma a la base del aguinaldo */
   adicionalNoRegistrado: number
   /** Horas faltadas este mes — descuento sobre el subtotal */
@@ -78,7 +80,7 @@ export function calcularNomina(input: CalcNominaInput): CalcNominaOutput {
     : 0
 
   const subtotal = basicoEfectivo + horasExtrasMonto + input.comida
-    + presentismo + input.aguinaldoPagadoDeCaja + input.adicionalNoRegistrado - ausenciasDescuento
+    + presentismo + input.aguinaldoPagadoDeCaja + (input.aguinaldoDirecto ?? 0) + input.adicionalNoRegistrado - ausenciasDescuento
     + (input.bonoMonto ?? 0) - (input.descuentoOtroMonto ?? 0)
 
   // Aportes patronales sobre el bruto del recibo oficial (BLANCO) o el básico fijo (NEGRO)

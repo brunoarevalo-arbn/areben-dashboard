@@ -623,7 +623,7 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
         open={liqMasivaOpen}
         onOpenChange={setLiqMasivaOpen}
         title={`Liquidación masiva — ${formatMonth(mes)}`}
-        className="max-w-lg"
+        className="max-w-3xl"
       >
         <LiquidacionMasivaModal
           empleados={empleados}

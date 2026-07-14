@@ -8,6 +8,9 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { Loader2, ListChecks } from 'lucide-react'
 import type { EmpleadoBasico } from './nomina-client'
 
+interface Concepto { he: number; pct: number; bono: number; desc: number }
+const CONCEPTO_DEFAULT: Concepto = { he: 0, pct: 50, bono: 0, desc: 0 }
+
 export function LiquidacionMasivaModal({
   empleados,
   mes,
@@ -21,6 +24,7 @@ export function LiquidacionMasivaModal({
 }) {
   const disponibles = empleados.filter((e) => !nominasExistentes.includes(e.id))
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set(disponibles.map((e) => e.id)))
+  const [conceptos, setConceptos] = useState<Record<string, Concepto>>({})
   const [fechaPago, setFechaPago] = useState(() => {
     const [y, m] = mes.split('-').map(Number)
     const fin = new Date(y, m, 0)
@@ -28,6 +32,11 @@ export function LiquidacionMasivaModal({
   })
   const [isPending, startTransition] = useTransition()
   const [resultado, setResultado] = useState<{ ok: number; errors: string[] } | null>(null)
+
+  const conceptoDe = (id: string): Concepto => conceptos[id] ?? CONCEPTO_DEFAULT
+  function setConcepto(id: string, field: keyof Concepto, value: number) {
+    setConceptos((prev) => ({ ...prev, [id]: { ...conceptoDe(id), [field]: value } }))
+  }
 
   function toggle(id: string) {
     setSeleccionados((prev) => {
@@ -37,16 +46,30 @@ export function LiquidacionMasivaModal({
       return next
     })
   }
-
   function toggleAll() {
     if (seleccionados.size === disponibles.length) setSeleccionados(new Set())
     else setSeleccionados(new Set(disponibles.map((e) => e.id)))
   }
 
+  // Neto estimado = básico + comida + horas extras + bono − descuento (= neto real, sin aportes).
+  function netoEstimado(e: EmpleadoBasico): number {
+    const c = conceptoDe(e.id)
+    const heMonto = c.he * (e.valor_hora ?? 0) * (1 + c.pct / 100)
+    return (e.sueldo_basico ?? 0) + (e.monto_comidas ?? 0) + heMonto + c.bono - c.desc
+  }
+
   function ejecutar() {
-    if (seleccionados.size === 0) {
-      alert('Seleccioná al menos un empleado')
-      return
+    if (seleccionados.size === 0) { alert('Seleccioná al menos un empleado'); return }
+    const payload: Record<string, { horasExtras: number; porcentajeExtras: number; bonoMonto: number; descuentoOtroMonto: number; descuentoOtroConcepto?: string }> = {}
+    for (const id of seleccionados) {
+      const c = conceptoDe(id)
+      payload[id] = {
+        horasExtras: c.he || 0,
+        porcentajeExtras: c.pct || 50,
+        bonoMonto: c.bono || 0,
+        descuentoOtroMonto: c.desc || 0,
+        descuentoOtroConcepto: c.desc > 0 ? 'OTRO' : undefined,
+      }
     }
     startTransition(async () => {
       try {
@@ -54,6 +77,7 @@ export function LiquidacionMasivaModal({
           empleadoIds: Array.from(seleccionados),
           mes,
           fechaProgramadaPago: fechaPago,
+          conceptos: payload,
         })
         setResultado(r)
         if (r.errors.length === 0) onClose()
@@ -67,9 +91,7 @@ export function LiquidacionMasivaModal({
     return (
       <div className="space-y-3 text-sm">
         <p className="text-fg-muted">Todos los empleados activos ya tienen nómina del mes {mes}.</p>
-        <div className="flex justify-end">
-          <Button variant="secondary" onClick={onClose}>Cerrar</Button>
-        </div>
+        <div className="flex justify-end"><Button variant="secondary" onClick={onClose}>Cerrar</Button></div>
       </div>
     )
   }
@@ -86,85 +108,86 @@ export function LiquidacionMasivaModal({
             </ul>
           </div>
         )}
-        <div className="flex justify-end">
-          <Button variant="secondary" onClick={onClose}>Cerrar</Button>
-        </div>
+        <div className="flex justify-end"><Button variant="secondary" onClick={onClose}>Cerrar</Button></div>
       </div>
     )
   }
 
+  const inputCls = 'w-16 px-1.5 py-1 bg-surface-2 border border-border-strong rounded text-fg text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary'
+
   return (
     <div className="space-y-4">
       <div className="bg-surface-2/40 border border-border-strong/40 rounded-lg p-3 text-xs text-fg-muted space-y-1">
-        <p>
-          Se generarán nóminas usando los <strong>valores por defecto de cada empleado</strong>:
-          básico, valor hora, comida y aportes. Sin extras ni adicionales.
-        </p>
-        <p className="text-fg-muted">Los empleados con nómina ya cargada del mes están excluidos.</p>
+        <p>Cargá horas extras, bono o descuento por empleado (el resto sale de la ficha). Usa el mismo cálculo que la liquidación individual.</p>
+        <p>Los empleados con nómina ya cargada del mes están excluidos.</p>
       </div>
 
-      <Input
-        label="Fecha programada de pago"
-        type="date"
-        value={fechaPago}
-        onChange={(e) => setFechaPago(e.target.value)}
-        required
-      />
+      <div className="flex items-end gap-3 flex-wrap">
+        <Input label="Fecha programada de pago" type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} required />
+        <button type="button" onClick={toggleAll} className="text-xs text-primary hover:text-orange-600 pb-2">
+          {seleccionados.size === disponibles.length ? 'Deseleccionar todos' : 'Seleccionar todos'} ({seleccionados.size}/{disponibles.length})
+        </button>
+      </div>
 
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-medium text-fg-muted uppercase tracking-wider">
-            Seleccionar empleados ({seleccionados.size}/{disponibles.length})
-          </p>
-          <button
-            type="button"
-            onClick={toggleAll}
-            className="text-xs text-primary hover:text-orange-600"
-          >
-            {seleccionados.size === disponibles.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
-          </button>
-        </div>
-
-        <div className="border border-border-strong rounded-lg max-h-72 overflow-y-auto divide-y divide-slate-800">
-          {disponibles.map((e) => {
-            const checked = seleccionados.has(e.id)
-            const netoEstimado = (e.sueldo_basico ?? 0) + (e.monto_comidas ?? 0)
-            return (
-              <label
-                key={e.id}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-surface-2/50',
-                  checked && 'bg-orange-500/10',
-                )}
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => toggle(e.id)}
-                  className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2 text-orange-600"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-fg truncate">{e.apellido}, {e.nombre}</p>
-                  <p className="text-xs text-fg-soft">{e.tipo_empleado} · básico {formatCurrency(e.sueldo_basico)}</p>
-                </div>
-                <span className="text-xs font-mono text-fg-muted">≈ {formatCurrency(netoEstimado)}</span>
-              </label>
-            )
-          })}
-        </div>
+      <div className="border border-border-strong rounded-lg max-h-[26rem] overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-surface z-10">
+            <tr className="border-b border-border-strong">
+              <th className="px-2 py-2 w-8" />
+              <th className="text-left px-3 py-2 text-[10px] font-medium text-fg-muted uppercase">Empleado</th>
+              <th className="text-right px-2 py-2 text-[10px] font-medium text-fg-muted uppercase">HE (hs)</th>
+              <th className="text-right px-2 py-2 text-[10px] font-medium text-fg-muted uppercase">HE %</th>
+              <th className="text-right px-2 py-2 text-[10px] font-medium text-fg-muted uppercase">Bono $</th>
+              <th className="text-right px-2 py-2 text-[10px] font-medium text-fg-muted uppercase">Desc. $</th>
+              <th className="text-right px-3 py-2 text-[10px] font-medium text-fg-muted uppercase">Neto est.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {disponibles.map((e) => {
+              const checked = seleccionados.has(e.id)
+              const c = conceptoDe(e.id)
+              return (
+                <tr key={e.id} className={cn('border-b border-border/60', checked ? 'bg-orange-500/5' : 'opacity-50')}>
+                  <td className="px-2 py-1.5 text-center">
+                    <input type="checkbox" checked={checked} onChange={() => toggle(e.id)}
+                      className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2 text-orange-600" />
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <p className="text-sm text-fg truncate">{e.apellido}, {e.nombre}</p>
+                    <p className="text-[10px] text-fg-soft">{e.tipo_empleado} · básico {formatCurrency(e.sueldo_basico)}</p>
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    <input type="number" min="0" step="0.5" disabled={!checked} value={c.he || ''} placeholder="0"
+                      onChange={(ev) => setConcepto(e.id, 'he', Number(ev.target.value))} className={inputCls} />
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    <input type="number" min="0" max="200" step="10" disabled={!checked} value={c.pct}
+                      onChange={(ev) => setConcepto(e.id, 'pct', Number(ev.target.value))} className={inputCls} />
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    <input type="number" min="0" step="1000" disabled={!checked} value={c.bono || ''} placeholder="0"
+                      onChange={(ev) => setConcepto(e.id, 'bono', Number(ev.target.value))} className={inputCls} />
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    <input type="number" min="0" step="1000" disabled={!checked} value={c.desc || ''} placeholder="0"
+                      onChange={(ev) => setConcepto(e.id, 'desc', Number(ev.target.value))} className={inputCls} />
+                  </td>
+                  <td className="px-3 py-1.5 text-right font-mono text-xs text-green-700 font-medium">
+                    {checked ? formatCurrency(netoEstimado(e)) : '—'}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
 
       <div className="flex items-center justify-end gap-2 pt-2">
         <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-        <Button
-          type="button"
-          variant="success"
-          onClick={ejecutar}
-          disabled={isPending || seleccionados.size === 0}
-          title={`Generar ${seleccionados.size} nómina(s) con valores por defecto`}
-        >
+        <Button type="button" variant="success" onClick={ejecutar} disabled={isPending || seleccionados.size === 0}
+          title={`Liquidar ${seleccionados.size} nómina(s)`}>
           {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ListChecks className="w-4 h-4" />}
-          Generar {seleccionados.size} nómina(s)
+          Liquidar {seleccionados.size} nómina(s)
         </Button>
       </div>
     </div>
