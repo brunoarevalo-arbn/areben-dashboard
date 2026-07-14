@@ -8,7 +8,8 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { formatCurrency, formatDate, formatMonth } from '@/lib/utils'
-import { Plus, Trash2, CreditCard, Loader2, DollarSign, TrendingUp, RefreshCcw, Lock, Banknote } from 'lucide-react'
+import { retiroEsUsd, valorRetiroUsd, valorRetiroArs } from '@/lib/retiros'
+import { Plus, Trash2, CreditCard, Loader2, DollarSign, TrendingUp, RefreshCcw, Lock, Banknote, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const SOCIOS_PREDEFINIDOS = ['Darío Arévalo', 'Bruno Arévalo']
@@ -52,6 +53,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
   const [medioPago, setMedioPago] = useState<'TRANSFERENCIA' | 'EFECTIVO' | 'TARJETA'>('TRANSFERENCIA')
   const [cuotasTotal, setCuotasTotal] = useState(1)
   const [cierreModalOpen, setCierreModalOpen] = useState(false)
+  const [cierreMesInicial, setCierreMesInicial] = useState<string>('')
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -82,15 +84,26 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
     })
   }, [retiros, filtroSocio, filtroMes])
 
-  // Resumen por socio (USD master)
+  // Resumen por socio (USD master). Valuación EXCLUYENTE (lib/retiros): un retiro cuenta en
+  // USD (si está dolarizado/nativo) O en ARS (si sigue sin convertir), nunca en las dos.
+  // Así los totales coinciden con Estado de cuenta y Cuentas particulares.
   const resumenSocios = useMemo(() => {
     return todosLosSocios.map((socio) => {
       const rs = retiros.filter((r) => r.socio === socio)
-      const usd = rs.reduce((s, r) => s + (r.monto_usd_calculado ?? r.monto_usd ?? 0), 0)
-      const ars = rs.reduce((s, r) => s + r.monto_pesos, 0)
-      return { socio, usd, ars, count: rs.length }
+      const usd = rs.reduce((s, r) => s + valorRetiroUsd(r), 0)
+      const arsPendiente = rs.reduce((s, r) => s + valorRetiroArs(r), 0)
+      const sinConvertir = rs.filter((r) => !retiroEsUsd(r)).length
+      return { socio, usd, arsPendiente, sinConvertir, count: rs.length }
     })
   }, [retiros, todosLosSocios])
+
+  // Retiros sin dolarizar, para el aviso y el default del modal de conversión.
+  const mesesSinConvertir = useMemo(() => {
+    const meses = retiros.filter((r) => !retiroEsUsd(r)).map((r) => r.mes).filter(Boolean) as string[]
+    return [...new Set(meses)].sort().reverse()
+  }, [retiros])
+  const mesConvDefault = mesesSinConvertir[0] ?? new Date().toISOString().substring(0, 7)
+  const totalSinConvertir = retiros.filter((r) => !retiroEsUsd(r)).length
 
   // Resumen por categoría (del filtrado)
   const resumenCategorias = useMemo(() => {
@@ -135,6 +148,11 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
     setModalOpen(true)
   }
 
+  function abrirConversion(mes: string) {
+    setCierreMesInicial(mes)
+    setCierreModalOpen(true)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -147,7 +165,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="secondary"
-            onClick={() => setCierreModalOpen(true)}
+            onClick={() => abrirConversion(mesConvDefault)}
             title="Convertir todos los retiros del mes a USD usando un único TC de cierre"
           >
             <RefreshCcw className="w-4 h-4" />
@@ -175,9 +193,33 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
         </div>
       </div>
 
+      {/* Aviso: retiros sin dolarizar */}
+      {totalSinConvertir > 0 && (
+        <div className="flex items-center justify-between gap-3 flex-wrap bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
+          <div className="flex items-center gap-2.5 text-sm text-amber-800">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+            <span>
+              Hay <strong>{totalSinConvertir}</strong> retiro{totalSinConvertir !== 1 ? 's' : ''} sin dolarizar
+              {mesesSinConvertir.length > 0 && (
+                <> · el más reciente en <strong>{formatMonth(mesesSinConvertir[0])}</strong></>
+              )}
+              . Hasta convertirlos no suman al cierre en USD ni a las cuentas particulares.
+            </span>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={() => abrirConversion(mesConvDefault)}
+            title={`Abrir el conversor ya posicionado en ${formatMonth(mesConvDefault)}`}
+          >
+            <RefreshCcw className="w-4 h-4" />
+            Convertir {formatMonth(mesConvDefault)}
+          </Button>
+        </div>
+      )}
+
       {/* Resumen por socio */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {resumenSocios.map(({ socio, usd, ars, count }) => (
+        {resumenSocios.map(({ socio, usd, arsPendiente, sinConvertir, count }) => (
           <div key={socio} className="bg-surface border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-medium text-fg-muted">{socio}</p>
@@ -187,15 +229,20 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
               <div className="flex justify-between items-baseline">
                 <span className="text-xs text-fg-muted flex items-center gap-1">
                   <DollarSign className="w-3 h-3" />
-                  Total USD
+                  Total USD (dolarizado)
                 </span>
                 <span className="text-xl font-mono font-bold text-green-700">
                   {formatCurrency(usd, 'USD')}
                 </span>
               </div>
               <div className="flex justify-between items-baseline">
-                <span className="text-xs text-fg-muted">Equivalente ARS (histórico)</span>
-                <span className="text-sm font-mono text-fg-muted">{formatCurrency(ars)}</span>
+                <span className="text-xs text-fg-muted">
+                  ARS sin convertir
+                  {sinConvertir > 0 && <span className="text-amber-600"> · {sinConvertir}</span>}
+                </span>
+                <span className={cn('text-sm font-mono', arsPendiente ? 'text-amber-700' : 'text-fg-soft')}>
+                  {formatCurrency(arsPendiente)}
+                </span>
               </div>
             </div>
           </div>
@@ -286,10 +333,21 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
                   <td className="px-4 py-3"><CategoriaTag categoria={r.categoria} /></td>
                   <td className="px-4 py-3 text-fg-muted text-xs">{formatDate(r.fecha)}</td>
                   <td className="px-4 py-3 text-right font-mono text-fg-muted">{formatCurrency(r.monto_pesos)}</td>
-                  <td className="px-4 py-3 text-right font-mono text-green-700 font-medium">
-                    {formatCurrency(r.monto_usd_calculado ?? r.monto_usd, 'USD')}
-                  </td>
-                  <td className="px-4 py-3 text-right text-fg-muted text-xs">{r.tipo_cambio.toFixed(0)}</td>
+                  {retiroEsUsd(r) ? (
+                    <>
+                      <td className="px-4 py-3 text-right font-mono text-green-700 font-medium">
+                        {formatCurrency(valorRetiroUsd(r), 'USD')}
+                      </td>
+                      <td className="px-4 py-3 text-right text-fg-muted text-xs">{r.tipo_cambio.toFixed(0)}</td>
+                    </>
+                  ) : (
+                    <td className="px-4 py-3 text-right" colSpan={2}>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-700 text-xs font-medium">
+                        <AlertTriangle className="w-3 h-3" />
+                        sin convertir
+                      </span>
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <Button size="sm" variant="danger" onClick={() => handleDelete(r.id)} disabled={isPending}>
                       <Trash2 className="w-3.5 h-3.5" />
@@ -424,6 +482,7 @@ export function RetirosClient({ retiros, socios, categorias, tiposCambio, tarjet
         onOpenChange={setCierreModalOpen}
         retiros={retiros}
         tcSugerido={tcSugerido}
+        mesInicial={cierreMesInicial || mesConvDefault}
       />
     </div>
   )
@@ -436,19 +495,32 @@ function CierreConversionModal({
   onOpenChange,
   retiros,
   tcSugerido,
+  mesInicial,
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
   retiros: RetiroSocio[]
   tcSugerido: number
+  mesInicial: string
 }) {
-  const [mes, setMes] = useState<string>(new Date().toISOString().substring(0, 7))
+  const [mes, setMes] = useState<string>(mesInicial)
   const [tc, setTc] = useState(tcSugerido)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<number | null>(null)
 
+  // Al abrir, posicionarse en el mes que pidió quien lo abrió (banner/botón → último mes sin convertir).
+  useEffect(() => {
+    if (open) {
+      setMes(mesInicial)
+      setError(null)
+      setDone(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   const retirosDelMes = retiros.filter((r) => r.mes === mes)
+  const sinConvertirDelMes = retirosDelMes.filter((r) => !retiroEsUsd(r)).length
   const totalArs = retirosDelMes.reduce((s, r) => s + (r.monto_pesos || 0), 0)
   const totalUsdActual = retirosDelMes.reduce((s, r) => s + (r.monto_usd_calculado ?? 0), 0)
   const totalUsdNuevo = tc > 0 ? totalArs / tc + retirosDelMes.reduce((s, r) => s + (r.monto_usd > 0 ? r.monto_usd : 0), 0) : 0
@@ -506,7 +578,12 @@ function CierreConversionModal({
         <div className="bg-surface/60 border border-border-strong/40 rounded-lg p-3 grid grid-cols-2 gap-3 text-xs">
           <div>
             <p className="text-fg-muted">Retiros del mes</p>
-            <p className="text-base font-semibold text-fg">{retirosDelMes.length}</p>
+            <p className="text-base font-semibold text-fg">
+              {retirosDelMes.length}
+              {sinConvertirDelMes > 0 && (
+                <span className="text-xs font-normal text-amber-600"> · {sinConvertirDelMes} sin convertir</span>
+              )}
+            </p>
           </div>
           <div>
             <p className="text-fg-muted">Total ARS</p>
