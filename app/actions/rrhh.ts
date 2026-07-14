@@ -480,6 +480,72 @@ async function syncGastoAportesPatronales(nominaId: string) {
   }
 }
 
+// La provisión de aguinaldo arranca en julio-2026. Mayo/junio no generan provisión.
+const PROVISION_AGUINALDO_DESDE = '2026-07'
+
+/**
+ * Sincroniza el gasto DEVENGADO de "Provisión Aguinaldo" vinculado a una nómina.
+ * Es un costo del mes SIN salida de caja (estado DEVENGADO → no entra a pasivos del cierre;
+ * el pasivo lo aporta la cuenta patrimonial "Provisión aguinaldo", sintetizada desde nómina).
+ * - mes < cutoff o aguinaldo_provisionado <= 0 → borra el gasto si existe.
+ * - si no → crea/actualiza el gasto devengado.
+ */
+async function syncGastoProvisionAguinaldo(nominaId: string) {
+  const supabase = await createClient()
+  const { data: n } = await supabase
+    .from('nomina_mensual')
+    .select(`
+      id, mes, aguinaldo_provisionado, gasto_provision_aguinaldo_id,
+      empleado:empleados(nombre, apellido)
+    `)
+    .eq('id', nominaId)
+    .single()
+  if (!n) return
+
+  const provision = Number(n.aguinaldo_provisionado ?? 0)
+  const empleado = Array.isArray(n.empleado) ? n.empleado[0] : n.empleado
+  const empleadoLabel = empleado ? `${empleado.nombre} ${empleado.apellido}` : 'empleado'
+
+  const borrar = async () => {
+    if (n.gasto_provision_aguinaldo_id) {
+      await supabase.from('gastos').delete().eq('id', n.gasto_provision_aguinaldo_id)
+      await supabase.from('nomina_mensual').update({ gasto_provision_aguinaldo_id: null }).eq('id', nominaId)
+    }
+  }
+
+  if (n.mes < PROVISION_AGUINALDO_DESDE || provision <= 0) {
+    await borrar()
+    return
+  }
+
+  const gastoData = {
+    categoria: 'Provisión Aguinaldo',
+    concepto: `Provisión aguinaldo — ${empleadoLabel} — ${n.mes}`,
+    monto: provision,
+    monto_neto: provision,
+    iva_incluido: false,
+    porcentaje_iva: 0,
+    moneda: 'ARS',
+    negocio: 'GENERAL',
+    mes: n.mes,
+    fecha: `${n.mes}-01`,
+    estado: 'DEVENGADO',
+    fecha_pago: null,
+    medio_pago: 'TRANSFERENCIA',
+    notas: 'Provisión de aguinaldo (SAC) — costo devengado del mes, sin salida de caja. Generado desde la nómina.',
+    confirmado: true,
+  }
+
+  if (n.gasto_provision_aguinaldo_id) {
+    await supabase.from('gastos').update(gastoData).eq('id', n.gasto_provision_aguinaldo_id)
+  } else {
+    const { data: nuevo } = await supabase.from('gastos').insert(gastoData).select('id').single()
+    if (nuevo) {
+      await supabase.from('nomina_mensual').update({ gasto_provision_aguinaldo_id: nuevo.id }).eq('id', nominaId)
+    }
+  }
+}
+
 // Reconcilia los registros de horas extras del empleado/mes contra las líneas cargadas en la
 // liquidación. Actualiza por id, da de alta las nuevas y borra las que se quitaron. Devuelve el
 // agregado (total de horas + promedio ponderado) que guarda la nómina.
@@ -702,6 +768,7 @@ export async function createNomina(prevState: string | null, formData: FormData)
   // Sincronizar el gasto de aportes patronales (si aportes_patronales > 0)
   if (nominaInserted) {
     await syncGastoAportesPatronales(nominaInserted.id)
+    await syncGastoProvisionAguinaldo(nominaInserted.id)
   }
 
   // Si se confirmó, llevar este sueldo a la ficha del empleado (registra ajuste salarial)
@@ -905,6 +972,7 @@ export async function updateNomina(id: string, prevState: string | null, formDat
 
   // Sincronizar el gasto de aportes patronales con el nuevo monto
   await syncGastoAportesPatronales(id)
+  await syncGastoProvisionAguinaldo(id)
 
   // Si se confirmó, llevar este sueldo a la ficha del empleado (registra ajuste salarial)
   if (formData.get('actualizar_sueldo_ficha') === 'true') {
@@ -931,10 +999,10 @@ export async function deleteNomina(id: string) {
     .update({ incluido_en_nomina_id: null })
     .eq('incluido_en_nomina_id', id)
 
-  // Buscar y eliminar los gastos vinculados (sueldo + aportes patronales)
+  // Buscar y eliminar los gastos vinculados (sueldo + aportes patronales + provisión aguinaldo)
   const { data: nomina } = await supabase
     .from('nomina_mensual')
-    .select('gasto_pendiente_id, gasto_aportes_patronales_id')
+    .select('gasto_pendiente_id, gasto_aportes_patronales_id, gasto_provision_aguinaldo_id')
     .eq('id', id)
     .single()
 
@@ -946,6 +1014,9 @@ export async function deleteNomina(id: string) {
   }
   if (nomina?.gasto_aportes_patronales_id) {
     await supabase.from('gastos').delete().eq('id', nomina.gasto_aportes_patronales_id)
+  }
+  if (nomina?.gasto_provision_aguinaldo_id) {
+    await supabase.from('gastos').delete().eq('id', nomina.gasto_provision_aguinaldo_id)
   }
 
   revalidatePath('/rrhh/nomina')
@@ -1119,6 +1190,7 @@ export async function liquidacionMasiva(args: {
   // Sincronizar gastos de aportes patronales para todas las nóminas insertadas
   if (nominasInsertadas?.length) {
     await Promise.all(nominasInsertadas.map((n) => syncGastoAportesPatronales(n.id)))
+    await Promise.all(nominasInsertadas.map((n) => syncGastoProvisionAguinaldo(n.id)))
   }
 
   revalidatePath('/rrhh/nomina')

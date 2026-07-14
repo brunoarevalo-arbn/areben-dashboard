@@ -102,6 +102,29 @@ export async function sintetizarSaldosPatrim(
     }
   }
 
+  // 4) Provisión de aguinaldo — arranque + Σ (aguinaldo_provisionado − aguinaldo_pagado_de_caja)
+  //    de nomina_mensual (desde mes_inicial = 2026-06 → cuenta desde 2026-07).
+  const provAguinaldoCuentas = cuentasPatrim.filter((c) => c.tipo === 'PROVISION' && /aguinaldo/i.test(c.nombre))
+  if (provAguinaldoCuentas.length) {
+    const { data: noms } = await supabase
+      .from('nomina_mensual')
+      .select('mes, aguinaldo_provisionado, aguinaldo_pagado_de_caja')
+      .lte('mes', mes)
+    for (const c of provAguinaldoCuentas) {
+      const arranque = Number(c.saldo_inicial ?? 0)
+      const mesIni = c.mes_inicial ?? ''
+      let acum = 0, mov = 0
+      for (const n of noms ?? []) {
+        if (mesIni && n.mes <= mesIni) continue
+        const prov = Number(n.aguinaldo_provisionado ?? 0) - Number(n.aguinaldo_pagado_de_caja ?? 0)
+        acum += prov
+        if (n.mes === mes) mov += prov
+      }
+      const saldoCierre = r2(arranque + acum)
+      upsert(c.id, r2(saldoCierre - mov), mov, saldoCierre)
+    }
+  }
+
   return { saldosPatrimFinal: [...byId.values()], movimientoInv }
 }
 
