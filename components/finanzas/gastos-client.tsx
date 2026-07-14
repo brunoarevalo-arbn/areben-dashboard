@@ -13,7 +13,7 @@ import { formatCurrency, formatDate, getMonthOptions, labelCuenta, ordenarCuenta
 import { estaVencido } from '@/lib/gastos-vencimiento'
 import {
   Plus, Pencil, Trash2, CheckCircle, Filter, TrendingDown, Loader2,
-  Info, Layers, Receipt, Wallet, CreditCard, Save, X, Search, RotateCcw,
+  Info, Layers, Receipt, Wallet, CreditCard, Save, X, Search, RotateCcw, ChevronDown, ListTree,
 } from 'lucide-react'
 import { ProrrateoEditor } from './prorrateo-editor'
 import { MoneyInput } from '@/components/ui/money-input'
@@ -726,6 +726,80 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
     }
   }), [gastosFiltrados, sortKey, sortDir]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [agruparCategoria, setAgruparCategoria] = useState(false)
+  const gruposCategoria = useMemo(() => {
+    const m = new Map<string, Gasto[]>()
+    for (const g of gastosOrdenados) {
+      const k = g.categoria || 'Sin categoría'
+      if (!m.has(k)) m.set(k, [])
+      m.get(k)!.push(g)
+    }
+    return Array.from(m.entries())
+  }, [gastosOrdenados])
+
+  // Fila de gasto reutilizable (modo plano y modo agrupado).
+  const renderGastoRow = (g: Gasto) => (
+    <tr key={g.id} className="border-b border-border/60 hover:bg-surface-2/30 transition-colors">
+      <td className="px-4 py-3 text-fg-muted font-mono text-xs whitespace-nowrap">{formatDate(g.fecha)}</td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <p className="text-fg font-medium">{g.concepto}</p>
+          {g.prorrateo && (
+            <Badge variant="info" className="text-[10px]">
+              <Layers className="w-2.5 h-2.5 mr-0.5 inline" />
+              Compartido
+            </Badge>
+          )}
+          {g.recurrente_id && (
+            <Badge variant="purple" className="text-[10px]">Recurrente</Badge>
+          )}
+        </div>
+        {g.notas && <p className="text-xs text-fg-soft mt-0.5 truncate max-w-[200px]">{g.notas}</p>}
+      </td>
+      <td className="px-4 py-3 text-fg-muted">{g.categoria}</td>
+      <td className="px-4 py-3"><MarcaBadge marca={g.negocio} /></td>
+      <td className="px-4 py-3 text-right">
+        <MontoGastoEditor gasto={g} onSaved={() => router.refresh()} />
+        {g.iva_incluido && (
+          <p className="text-xs text-green-700 font-mono">neto: {formatCurrency(g.monto_neto, g.moneda || 'ARS')}</p>
+        )}
+        {g.cuotas_total && g.cuotas_total > 1 && (
+          <p className="text-xs text-amber-700">{g.cuotas_total} cuotas</p>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        {estaVencido(g, g.recurrente_id ? recurrentesMap.get(g.recurrente_id) : null, hoyStr)
+          ? <Badge variant="danger" className="text-[10px]">Vencido</Badge>
+          : <EstadoBadge estado={g.estado} />}
+      </td>
+      <td className="px-4 py-3 text-fg-muted text-xs">{g.fecha_pago ? formatDate(g.fecha_pago) : '—'}</td>
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-end gap-1">
+          <Button size="sm" variant="ghost" onClick={() => setDetalleGasto(g)} title="Ver detalles">
+            <Info className="w-3.5 h-3.5" />
+          </Button>
+          {g.estado !== 'PAGADO' && (
+            <Button size="sm" variant="success" onClick={() => setPagarGasto(g)} title="Registrar pago (con cuenta de origen)">
+              <CheckCircle className="w-3.5 h-3.5" />
+            </Button>
+          )}
+          {g.estado === 'PAGADO' && !g.auto_generado && !g.gasto_padre_id && (
+            <Button size="sm" variant="warning" onClick={() => handleRevertirPago(g)} disabled={isPending}
+              title="Revertir pago: vuelve el gasto a PENDIENTE y borra el pago asociado">
+              <RotateCcw className="w-3.5 h-3.5" />
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" onClick={() => openEdit(g)} title="Editar gasto">
+            <Pencil className="w-3.5 h-3.5" />
+          </Button>
+          <Button size="sm" variant="danger" onClick={() => handleDelete(g.id)} disabled={isPending} title="Eliminar gasto">
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      </td>
+    </tr>
+  )
+
   // Totales separados por moneda — sin sumar ni convertir
   // Se calculan sobre los gastos filtrados para que los KPIs reflejen lo que ves
   const ars = (g: Gasto) => (g.moneda === 'USD' ? 0 : g.monto)
@@ -909,12 +983,26 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
             )}
           </div>
 
-          {/* Conteo de resultados cuando hay búsqueda activa */}
-          {hayBusquedaActiva && (
-            <p className="text-xs text-fg-muted">
-              Mostrando <span className="font-semibold text-fg">{gastosFiltrados.length}</span> de {gastos.length} registros
-            </p>
-          )}
+          {/* Conteo de resultados + toggle de agrupación */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            {hayBusquedaActiva ? (
+              <p className="text-xs text-fg-muted">
+                Mostrando <span className="font-semibold text-fg">{gastosFiltrados.length}</span> de {gastos.length} registros
+              </p>
+            ) : <span />}
+            <button
+              type="button"
+              onClick={() => setAgruparCategoria((v) => !v)}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors',
+                agruparCategoria ? 'bg-orange-500/15 border-orange-500/40 text-orange-600' : 'bg-surface-2 border-border-strong text-fg-muted hover:text-fg',
+              )}
+              title="Agrupar los gastos por categoría en secciones colapsables"
+            >
+              <ListTree className="w-3.5 h-3.5" />
+              {agruparCategoria ? 'Agrupado por categoría' : 'Agrupar por categoría'}
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -966,8 +1054,8 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
                 <th className="px-4 pb-2"></th>
               </tr>
             </thead>
-            <tbody>
-              {gastosOrdenados.length === 0 ? (
+            {gastosOrdenados.length === 0 ? (
+              <tbody>
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-fg-soft">
                     <TrendingDown className="w-8 h-8 mx-auto mb-2 opacity-40" />
@@ -976,75 +1064,16 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
                       : 'No hay gastos para este período'}
                   </td>
                 </tr>
-              ) : (
-                gastosOrdenados.map((g) => (
-                  <tr key={g.id} className="border-b border-border/60 hover:bg-surface-2/30 transition-colors">
-                    <td className="px-4 py-3 text-fg-muted font-mono text-xs whitespace-nowrap">{formatDate(g.fecha)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <p className="text-fg font-medium">{g.concepto}</p>
-                        {g.prorrateo && (
-                          <Badge variant="info" className="text-[10px]">
-                            <Layers className="w-2.5 h-2.5 mr-0.5 inline" />
-                            Compartido
-                          </Badge>
-                        )}
-                        {g.recurrente_id && (
-                          <Badge variant="purple" className="text-[10px]">Recurrente</Badge>
-                        )}
-                      </div>
-                      {g.notas && <p className="text-xs text-fg-soft mt-0.5 truncate max-w-[200px]">{g.notas}</p>}
-                    </td>
-                    <td className="px-4 py-3 text-fg-muted">{g.categoria}</td>
-                    <td className="px-4 py-3"><MarcaBadge marca={g.negocio} /></td>
-                    <td className="px-4 py-3 text-right">
-                      <MontoGastoEditor gasto={g} onSaved={() => router.refresh()} />
-                      {g.iva_incluido && (
-                        <p className="text-xs text-green-700 font-mono">neto: {formatCurrency(g.monto_neto, g.moneda || 'ARS')}</p>
-                      )}
-                      {g.cuotas_total && g.cuotas_total > 1 && (
-                        <p className="text-xs text-amber-700">{g.cuotas_total} cuotas</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {estaVencido(g, g.recurrente_id ? recurrentesMap.get(g.recurrente_id) : null, hoyStr)
-                        ? <Badge variant="danger" className="text-[10px]">Vencido</Badge>
-                        : <EstadoBadge estado={g.estado} />}
-                    </td>
-                    <td className="px-4 py-3 text-fg-muted text-xs">{g.fecha_pago ? formatDate(g.fecha_pago) : '—'}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => setDetalleGasto(g)} title="Ver detalles">
-                          <Info className="w-3.5 h-3.5" />
-                        </Button>
-                        {g.estado !== 'PAGADO' && (
-                          <Button size="sm" variant="success" onClick={() => setPagarGasto(g)} title="Registrar pago (con cuenta de origen)">
-                            <CheckCircle className="w-3.5 h-3.5" />
-                          </Button>
-                        )}
-                        {g.estado === 'PAGADO' && !g.auto_generado && !g.gasto_padre_id && (
-                          <Button
-                            size="sm"
-                            variant="warning"
-                            onClick={() => handleRevertirPago(g)}
-                            disabled={isPending}
-                            title="Revertir pago: vuelve el gasto a PENDIENTE y borra el pago asociado"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                          </Button>
-                        )}
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(g)} title="Editar gasto">
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button size="sm" variant="danger" onClick={() => handleDelete(g.id)} disabled={isPending} title="Eliminar gasto">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
+              </tbody>
+            ) : agruparCategoria ? (
+              gruposCategoria.map(([cat, gs]) => (
+                <GrupoCategoriaGastos key={cat} categoria={cat} gastos={gs} renderRow={renderGastoRow} />
+              ))
+            ) : (
+              <tbody>
+                {gastosOrdenados.map((g) => renderGastoRow(g))}
+              </tbody>
+            )}
           </table>
         </div>
       </div>
@@ -1075,5 +1104,36 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
         </Modal>
       )}
     </div>
+  )
+}
+
+// Grupo de gastos por categoría, colapsable (cada uno es un <tbody> con header + filas).
+function GrupoCategoriaGastos({ categoria, gastos, renderRow }: {
+  categoria: string
+  gastos: Gasto[]
+  renderRow: (g: Gasto) => React.ReactNode
+}) {
+  const [open, setOpen] = useState(true)
+  const ars = gastos.reduce((s, g) => s + (g.moneda === 'USD' ? 0 : Number(g.monto ?? 0)), 0)
+  const usd = gastos.reduce((s, g) => s + (g.moneda === 'USD' ? Number(g.monto ?? 0) : 0), 0)
+  return (
+    <tbody>
+      <tr className="border-b border-border bg-surface-2/40 cursor-pointer select-none hover:bg-surface-2/60" onClick={() => setOpen((o) => !o)}>
+        <td colSpan={8} className="px-4 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2 text-sm font-semibold text-fg-muted">
+              <ChevronDown className={cn('w-4 h-4 text-fg-soft transition-transform', open ? '' : '-rotate-90')} />
+              {categoria}
+              <Badge variant="default">{gastos.length}</Badge>
+            </span>
+            <span className="font-mono text-xs text-fg-muted">
+              {ars > 0 && formatCurrency(ars)}
+              {usd > 0 && `${ars > 0 ? ' · ' : ''}${formatCurrency(usd, 'USD')}`}
+            </span>
+          </div>
+        </td>
+      </tr>
+      {open && gastos.map(renderRow)}
+    </tbody>
   )
 }
