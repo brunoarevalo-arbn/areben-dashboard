@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { marcarNominaPagada, deleteNomina } from '@/app/actions/rrhh'
+import { deleteNomina } from '@/app/actions/rrhh'
 import { RegistrarPagoModal, type PagoHistorialItem } from '@/components/finanzas/registrar-pago-modal'
 import type { NominaMensual, ConfiguracionAporte, HoraExtraRegistro } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
@@ -10,10 +10,11 @@ import { Button } from '@/components/ui/button'
 import { EstadoBadge } from '@/components/ui/badge'
 import { useSort, SortTh } from '@/components/ui/sortable'
 import { formatCurrency, getMonthOptions, formatMonth } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import {
-  Plus, Trash2, CheckCircle, FileText, Pencil,
-  Receipt, Printer, PiggyBank, BadgeCheck,
-  Wallet, Users,
+  Plus, Trash2, FileText, Pencil,
+  Receipt, Printer, PiggyBank, BadgeCheck, ChevronDown, DollarSign,
+  Users,
 } from 'lucide-react'
 import { NominaForm } from './nomina-form'
 import { LiquidacionMasivaModal } from './liquidacion-masiva-modal'
@@ -171,6 +172,107 @@ interface NominaClientProps {
   cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
 }
 
+type NominaFila = NominaClientProps['nominas'][number]
+
+// Fila de nómina: primario (empleado/neto/estado/acciones) + detalle contable expandible.
+function NominaRow({ n, isPending, onRecibo, onEdit, onPago, onDelete }: {
+  n: NominaFila
+  isPending: boolean
+  onRecibo: (modo: 'COMPLETO' | 'INTERNO_NEGRO') => void
+  onEdit: () => void
+  onPago: () => void
+  onDelete: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const esBlanco = n.empleado?.tipo_empleado === 'BLANCO'
+  const tieneAdicional = (n.adicional_no_registrado ?? 0) > 0
+  const pagado = n.total_pagado ?? 0
+  const saldo = n.saldo_pendiente ?? n.neto
+  const hayParciales = pagado > 0
+  const nPagos = n.pagos_parciales?.length ?? 0
+  const pagadoPct = n.neto > 0 ? Math.min(100, (pagado / n.neto) * 100) : 0
+  const pagada = n.estado === 'PAGADO'
+  return (
+    <>
+      <tr className="border-b border-border/60 hover:bg-surface-2/30">
+        <td className="px-2 py-3 text-center">
+          <button type="button" onClick={() => setOpen((o) => !o)} className="text-fg-soft hover:text-fg" title="Ver detalle contable (subtotal, patronales, SAC, costo)">
+            <ChevronDown className={cn('w-4 h-4 transition-transform', open ? '' : '-rotate-90')} />
+          </button>
+        </td>
+        <td className="px-4 py-3">
+          <p className="font-medium text-fg">{n.empleado?.apellido}, {n.empleado?.nombre}</p>
+          <p className="text-xs text-fg-soft flex items-center gap-2">
+            {n.empleado?.tipo_empleado}
+            {n.asistencia_completa && <span className="text-green-700 flex items-center gap-0.5"><BadgeCheck className="w-3 h-3" />presentismo</span>}
+            {tieneAdicional && esBlanco && <span className="text-amber-700">+ adicional</span>}
+          </p>
+        </td>
+        <td className="px-4 py-3 text-right">
+          <p className="font-mono font-semibold text-green-700">{formatCurrency(n.neto)}</p>
+          {hayParciales && !pagada && (
+            <div className="mt-1 space-y-0.5">
+              <div className="h-1 w-full bg-surface-2 rounded-full overflow-hidden">
+                <div className="h-full bg-amber-400 transition-all" style={{ width: `${pagadoPct}%` }} />
+              </div>
+              <p className="text-[10px] font-mono text-fg-muted">
+                <span className="text-green-700">{formatCurrency(pagado)}</span>{' / '}
+                <span className="text-amber-700">{formatCurrency(saldo)}</span> resta
+              </p>
+            </div>
+          )}
+        </td>
+        <td className="px-4 py-3">
+          <EstadoBadge estado={n.estado} />
+          <p className="text-[10px] text-fg-soft mt-0.5">
+            {pagada
+              ? (nPagos > 0 ? `${nPagos} pago${nPagos !== 1 ? 's' : ''} registrado${nPagos !== 1 ? 's' : ''}` : 'saldada (sin pago en ledger)')
+              : hayParciales ? `${nPagos} pago${nPagos !== 1 ? 's' : ''} · parcial` : 'sin pago registrado'}
+          </p>
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex items-center justify-end gap-1">
+            {!pagada && (
+              <Button size="sm" variant="success" onClick={onPago} title="Registrar pago (cuenta, instrumento, parcial o total)">
+                <DollarSign className="w-3.5 h-3.5" />
+                Registrar pago
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={() => onRecibo('COMPLETO')} title={esBlanco ? 'Recibo oficial' : 'Detalle de pago'}>
+              <Receipt className="w-3.5 h-3.5" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onEdit} title={pagada ? 'Editar (sólo notas — está pagada)' : 'Editar nómina'}>
+              <Pencil className="w-3.5 h-3.5" />
+            </Button>
+            <Button size="sm" variant="danger" disabled={isPending} onClick={onDelete} title="Eliminar nómina">
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </td>
+      </tr>
+      {open && (
+        <tr className="bg-surface-2/20 border-b border-border/60">
+          <td />
+          <td colSpan={4} className="px-4 py-2">
+            <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
+              <span className="text-fg-soft">Básico: <span className="font-mono text-fg-muted">{formatCurrency(n.sueldo_basico)}</span></span>
+              <span className="text-fg-soft">Subtotal: <span className="font-mono text-fg-muted">{formatCurrency(n.subtotal)}</span></span>
+              <span className="text-fg-soft">Patronales: <span className="font-mono text-amber-700">{formatCurrency(n.aportes_patronales)}</span></span>
+              <span className="text-fg-soft">Provisión SAC: <span className="font-mono text-amber-800">{n.aguinaldo_provisionado > 0 ? formatCurrency(n.aguinaldo_provisionado) : '—'}</span></span>
+              <span className="text-fg-soft">Costo empresa: <span className="font-mono text-primary">{formatCurrency(n.costo_empresa)}</span></span>
+              {esBlanco && tieneAdicional && (
+                <button type="button" onClick={() => onRecibo('INTERNO_NEGRO')} className="text-amber-700 hover:underline inline-flex items-center gap-1">
+                  <FileText className="w-3 h-3" /> Recibo interno del adicional
+                </button>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}
+
 export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes, registrosExtras, cajaAguinaldos, cuentas }: NominaClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -178,6 +280,7 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
   const [editNomina, setEditNomina] = useState<NominaMensual | null>(null)
   const [recibo, setRecibo] = useState<ReciboData | null>(null)
   const [pagosNomina, setPagosNomina] = useState<typeof nominas[number] | null>(null)
+  const [cajaOpen, setCajaOpen] = useState(false)
   const [liqMasivaOpen, setLiqMasivaOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -393,28 +496,34 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
         ))}
       </div>
 
-      {/* Caja Aguinaldos por empleado */}
+      {/* Caja Aguinaldos — colapsable (por defecto solo total) */}
       {totalCaja > 0 && (
-        <div className="bg-surface border border-amber-500/20 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
+        <div className="bg-surface border border-amber-500/20 rounded-xl overflow-hidden">
+          <div
+            onClick={() => setCajaOpen((o) => !o)}
+            className="px-4 py-2.5 flex items-center justify-between gap-2 cursor-pointer select-none hover:bg-surface-2/30 transition-colors"
+          >
+            <h2 className="text-sm font-medium text-fg-muted flex items-center gap-2">
+              <ChevronDown className={cn('w-4 h-4 text-fg-soft transition-transform', cajaOpen ? '' : '-rotate-90')} />
               <PiggyBank className="w-4 h-4 text-amber-700" />
-              Caja de Aguinaldos (acumulado disponible)
+              Caja de aguinaldos
             </h2>
             <span className="text-sm font-mono font-bold text-amber-700">{formatCurrency(totalCaja)}</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {Object.entries(cajaAguinaldos).filter(([, v]) => v > 0).map(([eid, v]) => {
-              const emp = empleados.find((e) => e.id === eid)
-              if (!emp) return null
-              return (
-                <div key={eid} className="bg-surface-2/40 rounded-lg p-2 flex items-center justify-between">
-                  <span className="text-xs text-fg-muted">{emp.apellido}, {emp.nombre}</span>
-                  <span className="text-xs font-mono text-amber-700 font-semibold">{formatCurrency(v)}</span>
-                </div>
-              )
-            })}
-          </div>
+          {cajaOpen && (
+            <div className="px-4 pb-3 grid grid-cols-2 md:grid-cols-3 gap-2 border-t border-border-strong/40 pt-3">
+              {Object.entries(cajaAguinaldos).filter(([, v]) => v > 0).map(([eid, v]) => {
+                const emp = empleados.find((e) => e.id === eid)
+                if (!emp) return null
+                return (
+                  <div key={eid} className="bg-surface-2/40 rounded-lg p-2 flex items-center justify-between">
+                    <span className="text-xs text-fg-muted">{emp.apellido}, {emp.nombre}</span>
+                    <span className="text-xs font-mono text-amber-700 font-semibold">{formatCurrency(v)}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -425,121 +534,41 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
+              <th className="px-2 py-3 w-8" />
               <SortTh col="empleado" label="Empleado" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
-              <SortTh col="basico" label="Básico" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
-              <SortTh col="subtotal" label="Subtotal" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
-              <SortTh col="patronales" label="Patronales" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
               <SortTh col="neto" label="Neto" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
-              <SortTh col="sac" label="Provisión SAC" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
-              <SortTh col="costo" label="Costo emp." align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
               <SortTh col="estado" label="Estado" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
-              <th className="px-4 py-3" />
+              <th className="px-4 py-3 text-right text-xs font-medium text-fg-muted uppercase">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {nominas.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-12 text-center text-fg-soft">
+                <td colSpan={5} className="px-4 py-12 text-center text-fg-soft">
                   <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   No hay nómina para {formatMonth(mes)}
                 </td>
               </tr>
             ) : (
-              nominasOrdenadas.map((n) => {
-                const esBlanco = n.empleado?.tipo_empleado === 'BLANCO'
-                const tieneAdicional = n.adicional_no_registrado > 0
-                const pagado = n.total_pagado ?? 0
-                const saldo = n.saldo_pendiente ?? n.neto
-                const hayParciales = pagado > 0
-                const pagadoPct = n.neto > 0 ? Math.min(100, (pagado / n.neto) * 100) : 0
-                return (
-                  <tr key={n.id} className="border-b border-border/60 hover:bg-surface-2/30">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-fg">{n.empleado?.apellido}, {n.empleado?.nombre}</p>
-                      <p className="text-xs text-fg-soft flex items-center gap-2">
-                        {n.empleado?.tipo_empleado}
-                        {n.asistencia_completa && <span className="text-green-700 flex items-center gap-0.5"><BadgeCheck className="w-3 h-3" />presentismo</span>}
-                        {tieneAdicional && esBlanco && <span className="text-amber-700">+ adicional</span>}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-fg-muted">{formatCurrency(n.sueldo_basico)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-fg-muted">{formatCurrency(n.subtotal)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-amber-700">{formatCurrency(n.aportes_patronales)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <p className="font-mono font-semibold text-green-700">{formatCurrency(n.neto)}</p>
-                      {hayParciales && n.estado !== 'PAGADO' && (
-                        <div className="mt-1 space-y-0.5">
-                          <div className="h-1 w-full bg-surface-2 rounded-full overflow-hidden">
-                            <div className="h-full bg-amber-400 transition-all" style={{ width: `${pagadoPct}%` }} />
-                          </div>
-                          <p className="text-[10px] font-mono text-fg-muted">
-                            <span className="text-green-700">{formatCurrency(pagado)}</span>
-                            {' / '}
-                            <span className="text-amber-700">{formatCurrency(saldo)}</span> resta
-                          </p>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-amber-800 text-xs">
-                      {n.aguinaldo_provisionado > 0 ? formatCurrency(n.aguinaldo_provisionado) : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-primary">{formatCurrency(n.costo_empresa)}</td>
-                    <td className="px-4 py-3"><EstadoBadge estado={n.estado} /></td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => generarRecibo(n, 'COMPLETO')} title={esBlanco ? 'Recibo oficial' : 'Detalle pago'}>
-                          <Receipt className="w-3.5 h-3.5" />
-                        </Button>
-                        {esBlanco && tieneAdicional && (
-                          <Button size="sm" variant="warning" onClick={() => generarRecibo(n, 'INTERNO_NEGRO')} title="Recibo interno del adicional">
-                            <FileText className="w-3.5 h-3.5" />
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => { setEditNomina(n); setModalOpen(true) }}
-                          title={n.estado === 'PAGADO' ? 'Editar nómina (sólo notas — está pagada)' : 'Editar nómina (cambiar horas extras, faltas, comida, etc.)'}
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        {n.estado !== 'PAGADO' && (
-                          <Button size="sm" variant="ghost" onClick={() => setPagosNomina(n)} title="Cargar pago a cuenta / ver historial de pagos parciales">
-                            <Wallet className="w-3.5 h-3.5" />
-                          </Button>
-                        )}
-                        {n.estado === 'PENDIENTE' && (
-                          <Button size="sm" variant="success" disabled={isPending}
-                            title="Marcar nómina como totalmente pagada"
-                            onClick={() => startTransition(() => marcarNominaPagada(n.id))}>
-                            <CheckCircle className="w-3.5 h-3.5" />
-                          </Button>
-                        )}
-                        <Button size="sm" variant="danger" disabled={isPending}
-                          title="Eliminar nómina"
-                          onClick={() => {
-                            if (!confirm('¿Eliminar esta nómina?')) return
-                            startTransition(() => deleteNomina(n.id))
-                          }}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })
+              nominasOrdenadas.map((n) => (
+                <NominaRow
+                  key={n.id}
+                  n={n}
+                  isPending={isPending}
+                  onRecibo={(modo) => generarRecibo(n, modo)}
+                  onEdit={() => { setEditNomina(n); setModalOpen(true) }}
+                  onPago={() => setPagosNomina(n)}
+                  onDelete={() => { if (confirm('¿Eliminar esta nómina?')) startTransition(() => deleteNomina(n.id)) }}
+                />
+              ))
             )}
           </tbody>
           {nominas.length > 0 && (
             <tfoot>
               <tr className="border-t border-border-strong bg-surface-2/50">
-                <td className="px-4 py-3 text-sm font-semibold text-fg-muted">TOTAL</td>
                 <td />
-                <td className="px-4 py-3 text-right font-mono font-semibold text-fg-muted">{formatCurrency(nominas.reduce((s, n) => s + n.subtotal, 0))}</td>
-                <td className="px-4 py-3 text-right font-mono font-semibold text-amber-700">{formatCurrency(nominas.reduce((s, n) => s + n.aportes_patronales, 0))}</td>
+                <td className="px-4 py-3 text-sm font-semibold text-fg-muted">TOTAL · costo empresa {formatCurrency(totalCosto)}</td>
                 <td className="px-4 py-3 text-right font-mono font-bold text-green-700">{formatCurrency(totalNeto)}</td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-amber-800">{formatCurrency(totalProvisionAg)}</td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-primary">{formatCurrency(totalCosto)}</td>
                 <td colSpan={2} />
               </tr>
             </tfoot>
