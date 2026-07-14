@@ -8,6 +8,7 @@ import type { NominaMensual, ConfiguracionAporte, HoraExtraRegistro } from '@/ty
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { EstadoBadge } from '@/components/ui/badge'
+import { useSort, SortTh } from '@/components/ui/sortable'
 import { formatCurrency, getMonthOptions, formatMonth } from '@/lib/utils'
 import {
   Plus, Trash2, CheckCircle, FileText, Pencil,
@@ -190,6 +191,21 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const { sortKey, sortDir, toggleSort, sortRows } = useSort<'empleado' | 'basico' | 'subtotal' | 'patronales' | 'neto' | 'sac' | 'costo' | 'estado'>('empleado', 'asc')
+  const nominasOrdenadas = sortRows(nominas, (n, k): string | number => {
+    switch (k) {
+      case 'empleado': return `${n.empleado?.apellido ?? ''} ${n.empleado?.nombre ?? ''}`.toLowerCase()
+      case 'basico': return Number(n.sueldo_basico ?? 0)
+      case 'subtotal': return Number(n.subtotal ?? 0)
+      case 'patronales': return Number(n.aportes_patronales ?? 0)
+      case 'neto': return Number(n.neto ?? 0)
+      case 'sac': return Number(n.aguinaldo_provisionado ?? 0)
+      case 'costo': return Number(n.costo_empresa ?? 0)
+      case 'estado': return (n.estado ?? '').toLowerCase()
+      default: return ''
+    }
+  })
 
   const nominasExistentes = nominas.map((n) => n.empleado_id)
   const totalNeto = nominas.reduce((s, n) => s + n.neto, 0)
@@ -409,14 +425,14 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Empleado</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Básico</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Subtotal</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Patronales</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Neto</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Provisión SAC</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Costo emp.</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Estado</th>
+              <SortTh col="empleado" label="Empleado" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortTh col="basico" label="Básico" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortTh col="subtotal" label="Subtotal" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortTh col="patronales" label="Patronales" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortTh col="neto" label="Neto" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortTh col="sac" label="Provisión SAC" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortTh col="costo" label="Costo emp." align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortTh col="estado" label="Estado" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -429,7 +445,7 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
                 </td>
               </tr>
             ) : (
-              nominas.map((n) => {
+              nominasOrdenadas.map((n) => {
                 const esBlanco = n.empleado?.tipo_empleado === 'BLANCO'
                 const tieneAdicional = n.adicional_no_registrado > 0
                 const pagado = n.total_pagado ?? 0

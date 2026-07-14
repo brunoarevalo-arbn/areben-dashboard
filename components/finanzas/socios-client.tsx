@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { useSort, SortTh } from '@/components/ui/sortable'
 import { formatCurrency, formatDate, formatMonth } from '@/lib/utils'
 import { retiroEsUsd, valorRetiroArs, valorRetiroUsd } from '@/lib/retiros'
 import {
@@ -138,14 +139,26 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
   const mesConvDefault = mesesSinConvertir[0] ?? hoy
   const totalSinConvertir = retiros.filter((r) => !retiroEsUsd(r)).length
 
+  const { sortKey, sortDir, toggleSort, sortRows } = useSort<'fecha' | 'socio' | 'categoria' | 'medio' | 'monto'>('fecha', 'desc')
   const retirosFiltrados = useMemo(() => {
-    return retiros.filter((r) => {
+    const filtrados = retiros.filter((r) => {
       if (filtroSocio && r.socio_id !== filtroSocio) return false
       if (filtroCategoria && r.categoria_id !== filtroCategoria) return false
       if (filtroMes && mesDe(r) !== filtroMes) return false
       return true
     })
-  }, [retiros, filtroSocio, filtroCategoria, filtroMes])
+    return sortRows(filtrados, (r, k): string | number => {
+      switch (k) {
+        case 'fecha': return r.fecha ?? ''
+        case 'socio': return (socios.find((s) => s.id === r.socio_id)?.nombre ?? r.socio ?? '').toLowerCase()
+        case 'categoria': return (r.categoria?.nombre ?? '').toLowerCase()
+        case 'medio': return (r.medio_pago ?? '').toLowerCase()
+        case 'monto': return Number(r.monto_pesos ?? 0)
+        default: return ''
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retiros, filtroSocio, filtroCategoria, filtroMes, sortKey, sortDir])
 
   function abrirAlta(nombre: string) {
     setDefaultSocio(nombre)
@@ -386,11 +399,11 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface-2/30">
-                <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Fecha</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Socio</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Categoría</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Medio</th>
-                <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Monto</th>
+                <SortTh col="fecha" label="Fecha" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+                <SortTh col="socio" label="Socio" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+                <SortTh col="categoria" label="Categoría" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+                <SortTh col="medio" label="Medio" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+                <SortTh col="monto" label="Monto" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
                 <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Notas</th>
                 <th className="px-4 py-2" />
               </tr>

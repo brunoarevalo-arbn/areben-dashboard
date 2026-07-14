@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ExcelImport } from '@/components/ui/excel-import'
+import { useSort, SortTh } from '@/components/ui/sortable'
 import { formatCurrency, formatMonth, getMonthOptions, labelCuenta, ordenarCuentas } from '@/lib/utils'
 import {
   Plus, Pencil, Trash2, Repeat, Loader2, CheckCircle2, Info,
@@ -904,15 +905,26 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
 
   const confirmadosIds = new Set(gastosMes.filter((g) => g.recurrente_id).map((g) => g.recurrente_id!))
   const recurrentesPendientes = recurrentes.filter((r) => !confirmadosIds.has(r.id))
+  const { sortKey, sortDir, toggleSort, sortRows } = useSort<'concepto' | 'categoria' | 'estimado' | 'medio' | 'estado'>('concepto', 'asc')
   const recurrentesFiltrados = useMemo(() => {
     const q = searchRec.trim().toLowerCase()
-    if (!q) return recurrentes
-    return recurrentes.filter((r) =>
+    const filtrados = !q ? recurrentes : recurrentes.filter((r) =>
       [r.concepto, r.categoria, r.medio_pago, String(r.monto_estimado)]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q))
     )
-  }, [recurrentes, searchRec])
+    return sortRows(filtrados, (r, k): string | number => {
+      switch (k) {
+        case 'concepto': return (r.concepto ?? '').toLowerCase()
+        case 'categoria': return (r.categoria ?? '').toLowerCase()
+        case 'estimado': return Number(r.monto_estimado ?? 0)
+        case 'medio': return (r.medio_pago ?? '').toLowerCase()
+        case 'estado': return confirmadosIds.has(r.id) ? 1 : 0
+        default: return ''
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recurrentes, searchRec, sortKey, sortDir])
   // Los ids seleccionados que aún no fueron confirmados en este mes — sirve para "Pasar a gastos del mes"
   const idsSelNoConfirmados = Array.from(seleccionados).filter((id) => !confirmadosIds.has(id))
 
@@ -1137,12 +1149,12 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
                   className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2 text-orange-600 focus:ring-primary"
                 />
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Concepto</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Categoría</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Estimado</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Medio</th>
+              <SortTh col="concepto" label="Concepto" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortTh col="categoria" label="Categoría" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortTh col="estimado" label="Estimado" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortTh col="medio" label="Medio" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
               <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Compartido</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Estado mes</th>
+              <SortTh col="estado" label="Estado mes" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
               <th className="px-4 py-3" />
             </tr>
           </thead>

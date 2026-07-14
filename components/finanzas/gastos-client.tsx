@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { EstadoBadge, MarcaBadge, Badge } from '@/components/ui/badge'
+import { useSort, SortTh } from '@/components/ui/sortable'
 import { formatCurrency, formatDate, getMonthOptions, labelCuenta, ordenarCuentas } from '@/lib/utils'
 import { estaVencido } from '@/lib/gastos-vencimiento'
 import {
@@ -711,6 +712,20 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
     })
   }, [gastos, searchGeneral, filterConcepto, filterCategoria, filterMonto, tipoFiltro, filtros.estado, recurrentesMap, hoyStr])
 
+  const { sortKey, sortDir, toggleSort, sortRows } = useSort<'fecha' | 'concepto' | 'categoria' | 'negocio' | 'monto' | 'estado' | 'fecha_pago'>('fecha', 'desc')
+  const gastosOrdenados = useMemo(() => sortRows(gastosFiltrados, (g, k): string | number => {
+    switch (k) {
+      case 'fecha': return g.fecha ?? g.mes ?? ''
+      case 'concepto': return (g.concepto ?? '').toLowerCase()
+      case 'categoria': return (g.categoria ?? '').toLowerCase()
+      case 'negocio': return (g.negocio ?? '').toLowerCase()
+      case 'monto': return Number(g.monto ?? 0)
+      case 'estado': return (g.estado ?? '').toLowerCase()
+      case 'fecha_pago': return g.fecha_pago ?? ''
+      default: return ''
+    }
+  }), [gastosFiltrados, sortKey, sortDir]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Totales separados por moneda — sin sumar ni convertir
   // Se calculan sobre los gastos filtrados para que los KPIs reflejen lo que ves
   const ars = (g: Gasto) => (g.moneda === 'USD' ? 0 : g.monto)
@@ -906,13 +921,13 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left px-4 pt-3 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">Fecha</th>
-                <th className="text-left px-4 pt-3 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">Concepto</th>
-                <th className="text-left px-4 pt-3 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">Categoría</th>
-                <th className="text-left px-4 pt-3 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">Negocio</th>
-                <th className="text-right px-4 pt-3 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">Monto</th>
-                <th className="text-left px-4 pt-3 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">Estado</th>
-                <th className="text-left px-4 pt-3 pb-2 text-xs font-medium text-fg-muted uppercase tracking-wider">Fecha pago</th>
+                <SortTh col="fecha" label="Fecha" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="pt-3 pb-2 tracking-wider" />
+                <SortTh col="concepto" label="Concepto" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="pt-3 pb-2 tracking-wider" />
+                <SortTh col="categoria" label="Categoría" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="pt-3 pb-2 tracking-wider" />
+                <SortTh col="negocio" label="Negocio" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="pt-3 pb-2 tracking-wider" />
+                <SortTh col="monto" label="Monto" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="pt-3 pb-2 tracking-wider" />
+                <SortTh col="estado" label="Estado" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="pt-3 pb-2 tracking-wider" />
+                <SortTh col="fecha_pago" label="Fecha pago" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="pt-3 pb-2 tracking-wider" />
                 <th className="px-4 pt-3 pb-2" />
               </tr>
               {/* Fila de filtros por columna */}
@@ -952,7 +967,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
               </tr>
             </thead>
             <tbody>
-              {gastosFiltrados.length === 0 ? (
+              {gastosOrdenados.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-fg-soft">
                     <TrendingDown className="w-8 h-8 mx-auto mb-2 opacity-40" />
@@ -962,7 +977,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
                   </td>
                 </tr>
               ) : (
-                gastosFiltrados.map((g) => (
+                gastosOrdenados.map((g) => (
                   <tr key={g.id} className="border-b border-border/60 hover:bg-surface-2/30 transition-colors">
                     <td className="px-4 py-3 text-fg-muted font-mono text-xs whitespace-nowrap">{formatDate(g.fecha)}</td>
                     <td className="px-4 py-3">
