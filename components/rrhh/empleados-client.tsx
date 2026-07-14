@@ -17,7 +17,7 @@ import {
   Plus, Pencil, UserX, UserCheck, Users, Loader2, Phone, Mail,
   Calendar, AlertTriangle, History, ChevronDown, ChevronUp, Trash2,
   Calculator, TrendingUp, FileText, Clock, UtensilsCrossed, BadgeCheck,
-  CalendarX,
+  CalendarX, Search, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -1078,8 +1078,15 @@ export function EmpleadosClient({
   const [ausenciaEmp, setAusenciaEmp] = useState<Empleado | undefined>()
   const [createOpen, setCreateOpen] = useState(false)
   const [showInactivos, setShowInactivos] = useState(false)
+  const [search, setSearch] = useState('')
+  const [orden, setOrden] = useState<'alfabetico' | 'sueldo'>('alfabetico')
 
-  const filtered = showInactivos ? empleados : empleados.filter((e) => e.activo)
+  const q = search.trim().toLowerCase()
+  const filtered = (showInactivos ? empleados : empleados.filter((e) => e.activo))
+    .filter((e) => !q || `${e.apellido ?? ''} ${e.nombre ?? ''} ${e.dni ?? ''}`.toLowerCase().includes(q))
+    .sort((a, b) => orden === 'sueldo'
+      ? Number(b.sueldo_basico ?? 0) - Number(a.sueldo_basico ?? 0)
+      : `${a.apellido ?? ''} ${a.nombre ?? ''}`.toLowerCase().localeCompare(`${b.apellido ?? ''} ${b.nombre ?? ''}`.toLowerCase()))
   const activos = empleados.filter((e) => e.activo).length
 
   return (
@@ -1104,6 +1111,26 @@ export function EmpleadosClient({
             Nuevo empleado
           </Button>
         </div>
+      </div>
+
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[220px] max-w-md">
+          <Search className="w-4 h-4 text-fg-soft absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nombre, apellido o DNI…"
+            className="w-full pl-9 pr-9 py-2 bg-surface border border-border-strong rounded-lg text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          {search && (
+            <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-fg-soft hover:text-fg hover:bg-surface-2" title="Limpiar">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <Select value={orden} onChange={(e) => setOrden(e.target.value as 'alfabetico' | 'sueldo')} className="w-48"
+          options={[{ value: 'alfabetico', label: 'Orden: A → Z' }, { value: 'sueldo', label: 'Orden: sueldo ↓' }]} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ExcelImport } from '@/components/ui/excel-import'
-import { Plus, Pencil, Truck, Globe, Loader2, Mail, Phone, Upload } from 'lucide-react'
+import { Plus, Pencil, Truck, Globe, Loader2, Mail, Phone, Upload, Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const MARCAS_DISPONIBLES = ['BDI', 'ZATTIA', 'STUNNED', 'GENERAL'] as const
@@ -131,8 +131,11 @@ export function ProveedoresClient({ proveedores }: { proveedores: Proveedor[] })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const nacionales = proveedores.filter((p) => p.tipo === 'NACIONAL')
-  const importacion = proveedores.filter((p) => p.tipo === 'IMPORTACION')
+  const [search, setSearch] = useState('')
+  const q = search.trim().toLowerCase()
+  const match = (p: Proveedor) => !q || [p.nombre, ...(p.marcas ?? [])].filter(Boolean).join(' ').toLowerCase().includes(q)
+  const nacionales = proveedores.filter((p) => p.tipo === 'NACIONAL' && match(p))
+  const importacion = proveedores.filter((p) => p.tipo === 'IMPORTACION' && match(p))
 
   return (
     <div className="space-y-6">
@@ -151,6 +154,22 @@ export function ProveedoresClient({ proveedores }: { proveedores: Proveedor[] })
             Nuevo proveedor
           </Button>
         </div>
+      </div>
+
+      <div className="relative max-w-md">
+        <Search className="w-4 h-4 text-fg-soft absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar proveedor por nombre o marca…"
+          className="w-full pl-9 pr-9 py-2 bg-surface border border-border-strong rounded-lg text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+        {search && (
+          <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-fg-soft hover:text-fg hover:bg-surface-2" title="Limpiar">
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {['NACIONAL', 'IMPORTACION'].map((tipo) => {

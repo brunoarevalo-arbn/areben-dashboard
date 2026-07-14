@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
-import { Plus, Trash2, CalendarDays, Loader2, PlusCircle } from 'lucide-react'
+import { Plus, Trash2, CalendarDays, Loader2, PlusCircle, Search, X } from 'lucide-react'
 
 interface Empleado {
   id: string
@@ -213,8 +213,13 @@ export function VacacionesClient({
   const [modalOpen, setModalOpen] = useState(false)
   const [editVac, setEditVac] = useState<VacacionRecord | undefined>()
 
+  const [search, setSearch] = useState('')
+  const q = search.trim().toLowerCase()
   const conVacaciones = vacaciones.map((v) => v.empleado_id)
-  const sinVacaciones = empleados.filter((e) => !conVacaciones.includes(e.id))
+  const sinVacacionesAll = empleados.filter((e) => !conVacaciones.includes(e.id))
+  const nombreMatch = (nombre?: string, apellido?: string) => !q || `${apellido ?? ''} ${nombre ?? ''}`.toLowerCase().includes(q)
+  const vacacionesFiltradas = vacaciones.filter((v) => nombreMatch(v.empleado?.nombre, v.empleado?.apellido))
+  const sinVacaciones = sinVacacionesAll.filter((e) => nombreMatch(e.nombre, e.apellido))
 
   function openEdit(v: VacacionRecord) {
     setEditVac(v)
@@ -232,13 +237,29 @@ export function VacacionesClient({
         <div>
           <h1 className="text-2xl font-bold text-fg">Vacaciones {ano}</h1>
           <p className="text-sm text-fg-muted mt-0.5">
-            {vacaciones.length} empleados con registro · {sinVacaciones.length} sin registrar
+            {vacaciones.length} empleados con registro · {sinVacacionesAll.length} sin registrar
           </p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="w-4 h-4" />
           Registrar vacaciones
         </Button>
+      </div>
+
+      <div className="relative max-w-md">
+        <Search className="w-4 h-4 text-fg-soft absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar empleado…"
+          className="w-full pl-9 pr-9 py-2 bg-surface border border-border-strong rounded-lg text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+        {search && (
+          <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-fg-soft hover:text-fg hover:bg-surface-2" title="Limpiar">
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {vacaciones.length === 0 ? (
@@ -251,7 +272,7 @@ export function VacacionesClient({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {vacaciones.map((v) => (
+          {vacacionesFiltradas.map((v) => (
             <div key={v.id} className="bg-surface border border-border rounded-xl p-5">
               <div className="flex items-start justify-between mb-4">
                 <div>
