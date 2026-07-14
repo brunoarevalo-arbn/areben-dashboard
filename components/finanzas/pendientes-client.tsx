@@ -11,7 +11,8 @@ import { formatCurrency, formatDate, formatMonth, labelCuenta, ordenarCuentas } 
 import { fechaVencimientoRecurrente } from '@/lib/gastos-vencimiento'
 import {
   CheckCircle2, AlertTriangle, Clock, FileCheck, Receipt, CreditCard,
-  PiggyBank, Loader2, ChevronRight, AlertCircle, Sparkles, Wallet, Pencil,
+  PiggyBank, Loader2, ChevronRight, ChevronDown, AlertCircle, Sparkles, Wallet, Pencil,
+  Users, Banknote, TrendingDown, ShoppingCart,
 } from 'lucide-react'
 import { editCuotaHistorica } from '@/app/actions/historicos'
 import { Modal } from '@/components/ui/modal'
@@ -1276,6 +1277,128 @@ interface ItemConFecha {
   data: ChequePendiente | CuotaPendiente | InstrumentoProximo | PagoCtaCte | CompraSinPlanPago | GastoPend | GastoGrupoCargas | GastoGrupoServicio | CuotaPlanAfip | CuotaPrestamo | CuotaTcGrupo
 }
 
+// ─── Agrupación por tipo dentro de cada bucket de fecha ──────────────────────
+type GrupoTipoMeta = { key: string; label: string; icon: React.ElementType; orden: number }
+
+function grupoDeItem(it: ItemConFecha): GrupoTipoMeta {
+  switch (it.tipo) {
+    case 'gasto': {
+      const g = it.data as GastoPend
+      if (g.categoria === 'Sueldos') return { key: 'sueldos', label: 'Sueldos', icon: Users, orden: 1 }
+      return { key: 'gastos', label: 'Gastos y servicios', icon: Receipt, orden: 8 }
+    }
+    case 'gasto_grupo': return { key: 'cargas', label: 'Cargas sociales', icon: Users, orden: 2 }
+    case 'gasto_grupo_servicio': return { key: 'servicios', label: 'Gastos y servicios', icon: Receipt, orden: 8 }
+    case 'cuota_plan_afip': return { key: 'afip', label: 'Planes AFIP', icon: Receipt, orden: 3 }
+    case 'cuota_prestamo': return { key: 'prestamos', label: 'Préstamos', icon: TrendingDown, orden: 4 }
+    case 'cuota':
+    case 'cuota_tc_grupo': return { key: 'tarjetas', label: 'Tarjetas', icon: CreditCard, orden: 5 }
+    case 'pago_cta_cte': return { key: 'pagos_plazo', label: 'Pagos a plazo', icon: Banknote, orden: 6 }
+    case 'compra_sin_plan': return { key: 'compras', label: 'Compras', icon: ShoppingCart, orden: 7 }
+    case 'cheque': return { key: 'cheques', label: 'Cheques', icon: FileCheck, orden: 9 }
+    default: return { key: 'otros', label: 'Otros', icon: AlertCircle, orden: 99 }
+  }
+}
+
+function montoDeItem(it: ItemConFecha): { ars: number; usd: number } {
+  const porMoneda = (monto: number, moneda?: string) => (moneda === 'USD' ? { ars: 0, usd: monto } : { ars: monto, usd: 0 })
+  switch (it.tipo) {
+    case 'cheque': { const c = it.data as ChequePendiente; return porMoneda(Number(c.monto), c.moneda) }
+    case 'cuota': { const c = it.data as CuotaPendiente; return { ars: Number(c.saldo_pendiente ?? c.monto_cuota), usd: 0 } }
+    case 'cuota_tc_grupo': { const g = it.data as CuotaTcGrupo; return { ars: Number(g.totalSaldo), usd: 0 } }
+    case 'pago_cta_cte': { const p = it.data as PagoCtaCte; return porMoneda(Number(p.monto), p.moneda) }
+    case 'compra_sin_plan': { const c = it.data as CompraSinPlanPago; return porMoneda(Number(c.saldo_pendiente), c.moneda) }
+    case 'gasto': { const g = it.data as GastoPend; return porMoneda(Number(g.saldo_pendiente ?? g.monto), g.moneda) }
+    case 'gasto_grupo': { const g = it.data as GastoGrupoCargas; return { ars: Number(g.totalSaldo), usd: 0 } }
+    case 'gasto_grupo_servicio': { const g = it.data as GastoGrupoServicio; return { ars: Number(g.totalSaldo), usd: 0 } }
+    case 'cuota_plan_afip': { const c = it.data as CuotaPlanAfip; return { ars: Number(c.monto_total), usd: 0 } }
+    case 'cuota_prestamo': { const c = it.data as CuotaPrestamo; const m = Number(c.saldo_pendiente ?? c.monto_total); return c.prestamo?.moneda === 'USD' ? { ars: 0, usd: m } : { ars: m, usd: 0 } }
+    default: return { ars: 0, usd: 0 }
+  }
+}
+
+function Subtotal({ ars, usd }: { ars: number; usd: number }) {
+  return (
+    <span className="flex items-center gap-2 font-mono text-xs shrink-0">
+      {ars > 0 && <span className="text-amber-700">{formatCurrency(ars)}</span>}
+      {usd > 0 && <span className="text-green-700">{formatCurrency(usd, 'USD')}</span>}
+    </span>
+  )
+}
+
+// Grupo por tipo (Sueldos, Tarjetas, …) colapsable dentro de un bucket.
+function GrupoTipoPendiente({ meta, items, renderItem, defaultOpen }: {
+  meta: GrupoTipoMeta
+  items: ItemConFecha[]
+  renderItem: (it: ItemConFecha, key: number) => React.ReactNode
+  defaultOpen: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  const Icon = meta.icon
+  const sub = items.reduce((acc, it) => { const m = montoDeItem(it); return { ars: acc.ars + m.ars, usd: acc.usd + m.usd } }, { ars: 0, usd: 0 })
+  return (
+    <div>
+      <div
+        onClick={() => setOpen((o) => !o)}
+        className="px-4 py-2 flex items-center justify-between gap-2 cursor-pointer select-none hover:bg-surface-2/40 transition-colors"
+      >
+        <span className="flex items-center gap-2 text-xs font-medium text-fg-muted min-w-0">
+          <ChevronDown className={cn('w-3.5 h-3.5 text-fg-soft shrink-0 transition-transform', open ? '' : '-rotate-90')} />
+          <Icon className="w-3.5 h-3.5 text-fg-soft shrink-0" />
+          <span className="truncate">{meta.label}</span>
+          <Badge variant="default">{items.length}</Badge>
+        </span>
+        <Subtotal ars={sub.ars} usd={sub.usd} />
+      </div>
+      {open && <div className="divide-y divide-slate-800/60 border-t border-border-strong/40">{items.map((it, i) => renderItem(it, i))}</div>}
+    </div>
+  )
+}
+
+// Bucket de fecha (Vencido, Esta semana, …) colapsable, con grupos por tipo adentro.
+function BucketPendientes({ config, items, renderItem, defaultOpen, gruposAbiertos }: {
+  config: { label: string; color: string; textColor: string; icon: React.ElementType }
+  items: ItemConFecha[]
+  renderItem: (it: ItemConFecha, key: number) => React.ReactNode
+  defaultOpen: boolean
+  gruposAbiertos: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  const Icon = config.icon
+  // Agrupar por tipo, respetando el orden de aparición dentro del grupo (ya vienen ordenados por prioridad/fecha)
+  const grupos = new Map<string, { meta: GrupoTipoMeta; items: ItemConFecha[] }>()
+  for (const it of items) {
+    const meta = grupoDeItem(it)
+    if (!grupos.has(meta.key)) grupos.set(meta.key, { meta, items: [] })
+    grupos.get(meta.key)!.items.push(it)
+  }
+  const gruposOrdenados = Array.from(grupos.values()).sort((a, b) => a.meta.orden - b.meta.orden)
+  const sub = items.reduce((acc, it) => { const m = montoDeItem(it); return { ars: acc.ars + m.ars, usd: acc.usd + m.usd } }, { ars: 0, usd: 0 })
+  return (
+    <div className={cn('bg-surface border rounded-xl overflow-hidden', config.color)}>
+      <div
+        onClick={() => setOpen((o) => !o)}
+        className={cn('px-4 py-2.5 border-b flex items-center justify-between gap-2 cursor-pointer select-none hover:bg-surface-2/30 transition-colors', config.color)}
+      >
+        <h2 className={cn('text-sm font-semibold flex items-center gap-2 min-w-0', config.textColor)}>
+          <ChevronDown className={cn('w-4 h-4 shrink-0 transition-transform', open ? '' : '-rotate-90')} />
+          <Icon className="w-4 h-4 shrink-0" />
+          {config.label}
+          <Badge variant="default">{items.length}</Badge>
+        </h2>
+        <Subtotal ars={sub.ars} usd={sub.usd} />
+      </div>
+      {open && (
+        <div className="divide-y divide-slate-800/40">
+          {gruposOrdenados.map(({ meta, items: its }) => (
+            <GrupoTipoPendiente key={meta.key} meta={meta} items={its} renderItem={renderItem} defaultOpen={gruposAbiertos} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function PendientesClient({
   mesActual, hoy, saldoActualARS, saldoActualUSD,
   cheques, pagosCtaCte, comprasSinPlanPago, cuotas, instrumentosProximos,
@@ -1625,7 +1748,7 @@ export function PendientesClient({
         </div>
       )}
 
-      {/* Grupos */}
+      {/* Grupos por urgencia; adentro, agrupados por tipo (Sueldos, Tarjetas, …) colapsables */}
       {(['VENCIDO', 'ESTA_SEMANA', 'ESTE_MES', 'FUTURO'] as const).map((grupo) => {
         const its = porGrupo[grupo]
         if (its.length === 0) return null
@@ -1635,20 +1758,16 @@ export function PendientesClient({
           ESTE_MES: { label: 'Este mes', color: 'border-border-strong', textColor: 'text-fg-muted', icon: Clock },
           FUTURO: { label: 'Próximos meses', color: 'border-border-strong/60', textColor: 'text-fg-muted', icon: Clock },
         }[grupo]
-        const Icon = config.icon
+        // Bucket abierto para lo urgente (vencido / esta semana); grupos de tipo abiertos solo en vencidos.
         return (
-          <div key={grupo} className={cn('bg-surface border rounded-xl overflow-x-auto', config.color)}>
-            <div className={cn('px-4 py-2.5 border-b flex items-center justify-between', config.color)}>
-              <h2 className={cn('text-sm font-semibold flex items-center gap-2', config.textColor)}>
-                <Icon className="w-4 h-4" />
-                {config.label}
-              </h2>
-              <Badge variant="default">{its.length}</Badge>
-            </div>
-            <div className="divide-y divide-slate-800/60">
-              {its.map((it, i) => renderItem(it, i))}
-            </div>
-          </div>
+          <BucketPendientes
+            key={grupo}
+            config={config}
+            items={its}
+            renderItem={renderItem}
+            defaultOpen={grupo === 'VENCIDO' || grupo === 'ESTA_SEMANA'}
+            gruposAbiertos={grupo === 'VENCIDO'}
+          />
         )
       })}
 
