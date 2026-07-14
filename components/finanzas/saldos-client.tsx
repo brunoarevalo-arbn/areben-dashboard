@@ -17,7 +17,7 @@ import { formatCurrency, formatMonth, getMonthOptions } from '@/lib/utils'
 import {
   Plus, Wallet, Building2, Lock, Unlock, Pencil, UserPlus,
   Loader2, DollarSign, TrendingUp, AlertCircle, Power, Sparkles, Trash2,
-  Zap, Save, X,
+  Zap, Save, X, ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -657,37 +657,14 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
           if (cuentasTit.length === 0) return null
 
           return (
-            <div key={titular.id} className="bg-surface border border-border rounded-xl overflow-x-auto">
-              <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
-                  {titular.nombre}
-                  <Badge variant={titular.tipo === 'EMPRESA' ? 'info' : 'default'}>{titular.tipo}</Badge>
-                </h2>
-                <span className="text-xs text-fg-soft">{cuentasTit.length} cuenta(s)</span>
-              </div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Cuenta</th>
-                    <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Tipo</th>
-                    <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">ARS</th>
-                    <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">USD</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {cuentasTit.map((c) => (
-                    <CuentaRow
-                      key={c.id}
-                      cuenta={c}
-                      saldo={saldosByCuenta.get(c.id)}
-                      mes={mes}
-                      onEdit={() => { setEditCuenta(c); setCuentaModal(true) }}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <TitularSaldosCard
+              key={titular.id}
+              titular={titular}
+              cuentasTit={cuentasTit}
+              saldosByCuenta={saldosByCuenta}
+              mes={mes}
+              onEditCuenta={(c) => { setEditCuenta(c); setCuentaModal(true) }}
+            />
           )
         })
       )}
@@ -793,6 +770,64 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
       >
         <ActivoManualForm activo={editActivo} mes={mes} titulares={titulares} onClose={() => setActivoModal(false)} />
       </Modal>
+    </div>
+  )
+}
+
+// Sección de cuentas de un titular, colapsable, con subtotal ARS/USD en el header.
+function TitularSaldosCard({ titular, cuentasTit, saldosByCuenta, mes, onEditCuenta }: {
+  titular: CuentaTitular
+  cuentasTit: CuentaBancaria[]
+  saldosByCuenta: Map<string, SaldoCuenta>
+  mes: string
+  onEditCuenta: (c: CuentaBancaria) => void
+}) {
+  const [open, setOpen] = useState(true)
+  const subArs = cuentasTit.reduce((s, c) => s + (saldosByCuenta.get(c.id)?.saldo_ars ?? 0), 0)
+  const subUsd = cuentasTit.reduce((s, c) => s + (saldosByCuenta.get(c.id)?.saldo_usd ?? 0), 0)
+  return (
+    <div className="bg-surface border border-border rounded-xl overflow-hidden">
+      <div
+        onClick={() => setOpen((o) => !o)}
+        className="px-4 py-3 border-b border-border flex items-center justify-between gap-2 cursor-pointer select-none hover:bg-surface-2/30 transition-colors"
+      >
+        <h2 className="text-sm font-semibold text-fg flex items-center gap-2 min-w-0">
+          <ChevronDown className={cn('w-4 h-4 text-fg-soft shrink-0 transition-transform', open ? '' : '-rotate-90')} />
+          {titular.nombre}
+          <Badge variant={titular.tipo === 'EMPRESA' ? 'info' : 'default'}>{titular.tipo}</Badge>
+          <span className="text-xs text-fg-soft font-normal">{cuentasTit.length} cuenta(s)</span>
+        </h2>
+        <span className="flex items-center gap-3 font-mono text-xs shrink-0">
+          {subArs !== 0 && <span className="text-fg-muted">{formatCurrency(subArs)}</span>}
+          {subUsd !== 0 && <span className="text-green-700">{formatCurrency(subUsd, 'USD')}</span>}
+        </span>
+      </div>
+      {open && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Cuenta</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Tipo</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">ARS</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">USD</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {cuentasTit.map((c) => (
+                <CuentaRow
+                  key={c.id}
+                  cuenta={c}
+                  saldo={saldosByCuenta.get(c.id)}
+                  mes={mes}
+                  onEdit={() => onEditCuenta(c)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
