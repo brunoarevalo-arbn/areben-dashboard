@@ -1199,7 +1199,7 @@ function Section({ title, subtitle, icon: Icon, color, total, defaultOpen = fals
             </h2>
             <p className="text-xs text-fg-soft mt-0.5 truncate">{subtitle}</p>
           </div>
-          {info && <InfoPopover titulo={info.titulo} align="left">{info.cuerpo}</InfoPopover>}
+          {info && <InfoPopover titulo={info.titulo}>{info.cuerpo}</InfoPopover>}
         </div>
         {total != null && <div className="font-mono font-bold text-base shrink-0">{total}</div>}
       </button>
@@ -1231,7 +1231,7 @@ function SubBlock({ title, icon: Icon, iconColor = 'text-fg-muted', headerRight,
           <ChevronDown className={cn('w-3.5 h-3.5 text-fg-soft shrink-0 transition-transform', open ? '' : '-rotate-90')} />
           {Icon && <Icon className={cn('w-3.5 h-3.5 shrink-0', iconColor)} />}
           <span className="truncate">{title}</span>
-          {info && <InfoPopover titulo={info.titulo} align="left">{info.cuerpo}</InfoPopover>}
+          {info && <InfoPopover titulo={info.titulo}>{info.cuerpo}</InfoPopover>}
         </h3>
         {headerRight != null && <div className="flex items-center gap-3 text-xs shrink-0">{headerRight}</div>}
       </div>
