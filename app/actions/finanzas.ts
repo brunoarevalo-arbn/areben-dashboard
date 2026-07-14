@@ -1659,8 +1659,23 @@ export async function createRetiro(prevState: string | null, formData: FormData)
   }
 
   const supabase = await createClient()
+
+  // Resolver socio_id desde el nombre (nombre o alias). Sin esto el retiro queda con
+  // socio_id NULL y NO llega a Estado de cuenta ni a Cuentas particulares / cierre.
+  let socioId: string | null = null
+  {
+    const { data: porNombre } = await supabase.from('socios').select('id').eq('nombre', d.socio).maybeSingle()
+    if (porNombre?.id) {
+      socioId = porNombre.id
+    } else {
+      const { data: porAlias } = await supabase.from('socios').select('id').eq('alias', d.socio).maybeSingle()
+      socioId = porAlias?.id ?? null
+    }
+  }
+
   const { data: retiroIns, error } = await supabase.from('retiros_socios').insert({
     socio: d.socio,
+    socio_id: socioId,
     fecha: d.fecha,
     monto_usd: d.monto_usd,
     monto_pesos: d.monto_pesos,
@@ -1698,6 +1713,7 @@ export async function createRetiro(prevState: string | null, formData: FormData)
   }
 
   revalidatePath('/finanzas/retiros')
+  revalidatePath('/finanzas/cuenta-socios')
   revalidatePath('/finanzas/tarjetas')
   revalidatePath('/finanzas/pendientes')
   revalidatePath('/')
@@ -1744,6 +1760,7 @@ export async function cerrarConvertirRetirosMes(mes: string, tcCierre: number) {
   if (firstError?.error) throw new Error(firstError.error.message)
 
   revalidatePath('/finanzas/retiros')
+  revalidatePath('/finanzas/cuenta-socios')
   revalidatePath('/finanzas/cierre-mes')
   return { ok: retiros.length }
 }
@@ -1754,6 +1771,7 @@ export async function deleteRetiro(id: string) {
   const { error } = await supabase.from('retiros_socios').delete().eq('id', id)
   if (error) throw new Error(error.message)
   revalidatePath('/finanzas/retiros')
+  revalidatePath('/finanzas/cuenta-socios')
 }
 
 const categoriaRetiroSchema = z.object({

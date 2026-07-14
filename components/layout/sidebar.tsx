@@ -88,8 +88,7 @@ const navItems: NavItem[] = [
         label: 'Socios',
         icon: Users,
         children: [
-          { label: 'Movimientos', href: '/finanzas/cuenta-socios', icon: CreditCard },
-          { label: 'Estado de cuenta', href: '/finanzas/cuenta-socios?tab=estado', icon: Users },
+          { label: 'Cuenta corriente', href: '/finanzas/cuenta-socios', icon: CreditCard },
           { label: 'Cuentas particulares', href: '/finanzas/cuentas-patrimoniales?tab=cuentas-particulares', icon: Users },
         ],
       },

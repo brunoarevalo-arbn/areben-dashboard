@@ -356,7 +356,7 @@ export default async function DashboardPage({
           {[
             { label: 'Cargar gasto', href: '/finanzas/gastos', color: 'text-danger' },
             { label: 'Nueva nómina', href: '/rrhh/nomina', color: 'text-amber-800' },
-            { label: 'Registrar retiro', href: '/finanzas/cuenta-socios?tab=movimientos', color: 'text-primary' },
+            { label: 'Registrar retiro', href: '/finanzas/cuenta-socios?nuevo=1', color: 'text-primary' },
             { label: 'Ver análisis', href: '/analisis/pl-marca', color: 'text-success' },
           ].map((item) => (
             <Link
