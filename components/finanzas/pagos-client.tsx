@@ -12,6 +12,7 @@ import { formatCurrency, formatDate, formatMonth, getMonthOptions } from '@/lib/
 import {
   Wallet, Trash2, FileCheck, Banknote, CreditCard, Loader2, Pencil,
   ShoppingCart, Receipt, Users, AlertCircle, Filter, Link2, Search, X,
+  ArrowUp, ArrowDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { deletePagoUnificado, asignarPagoLibre, editPago } from '@/app/actions/pagos'
@@ -65,12 +66,21 @@ function pickOne<T>(v: T | T[] | null): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : v
 }
 
+type SortKey = 'fecha' | 'tipo' | 'concepto' | 'instrumento' | 'cuenta' | 'monto'
+
 export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nominas, cuotas }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
   const [asignarTarget, setAsignarTarget] = useState<Pago | null>(null)
   const [editTarget, setEditTarget] = useState<Pago | null>(null)
+  const [sortKey, setSortKey] = useState<SortKey>('fecha')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortKey(key); setSortDir(key === 'fecha' || key === 'monto' ? 'desc' : 'asc') }
+  }
 
   function setFilter(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -133,22 +143,44 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
   const mesActivo = searchParams.get('mes') ?? mes
   const buscando = q.length > 0
 
-  const pagosFiltrados = pagos.filter((p) => {
-    if (buscando) {
-      // Búsqueda global: ignora mes y dropdowns; busca en nombre/proveedor/empleado/fecha/monto/notas/instrumento.
-      const d = descripcionOrigen(p)
-      const haystack = [
-        d.titulo, d.subtitulo, p.notas, p.numero_cheque, p.instrumento, p.moneda,
-        formatDate(p.fecha_emision), p.fecha_emision, String(p.monto),
-      ].filter(Boolean).join(' ').toLowerCase()
-      return haystack.includes(q)
+  const pagosFiltrados = useMemo(() => {
+    const filtrados = pagos.filter((p) => {
+      if (buscando) {
+        // Búsqueda global: ignora mes y dropdowns; busca en nombre/proveedor/empleado/fecha/monto/notas/instrumento.
+        const d = descripcionOrigen(p)
+        const haystack = [
+          d.titulo, d.subtitulo, p.notas, p.numero_cheque, p.instrumento, p.moneda,
+          formatDate(p.fecha_emision), p.fecha_emision, String(p.monto),
+        ].filter(Boolean).join(' ').toLowerCase()
+        return haystack.includes(q)
+      }
+      // Sin búsqueda: filtros dropdown + mes seleccionado.
+      if (filtros.tipo && p.tipo_origen !== filtros.tipo) return false
+      if (filtros.instrumento && p.instrumento !== filtros.instrumento) return false
+      if (filtros.cuenta && p.cuenta_id !== filtros.cuenta) return false
+      return (p.fecha_emision ?? '').startsWith(mesActivo)
+    })
+    const getVal = (p: Pago): string | number => {
+      switch (sortKey) {
+        case 'fecha': return p.fecha_emision ?? ''
+        case 'tipo': return (TIPO_LABELS[p.tipo_origen]?.label ?? '').toLowerCase()
+        case 'concepto': return descripcionOrigen(p).titulo.toLowerCase()
+        case 'instrumento': return (INSTRUMENTO_LABELS[p.instrumento]?.label ?? p.instrumento ?? '').toLowerCase()
+        case 'cuenta': {
+          const c = p.cuenta_id ? cuentaMap.get(p.cuenta_id) : null
+          return c ? `${c.banco} ${c.nombre}`.toLowerCase() : ''
+        }
+        case 'monto': return Number(p.monto)
+      }
     }
-    // Sin búsqueda: filtros dropdown + mes seleccionado.
-    if (filtros.tipo && p.tipo_origen !== filtros.tipo) return false
-    if (filtros.instrumento && p.instrumento !== filtros.instrumento) return false
-    if (filtros.cuenta && p.cuenta_id !== filtros.cuenta) return false
-    return (p.fecha_emision ?? '').startsWith(mesActivo)
-  })
+    return filtrados.sort((a, b) => {
+      const av = getVal(a), bv = getVal(b)
+      if (av < bv) return sortDir === 'asc' ? -1 : 1
+      if (av > bv) return sortDir === 'asc' ? 1 : -1
+      return 0
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagos, buscando, q, filtros.tipo, filtros.instrumento, filtros.cuenta, mesActivo, sortKey, sortDir, cuentaMap])
 
   // KPIs (sobre lo filtrado)
   const totalARS = pagosFiltrados.filter((p) => p.moneda === 'ARS').reduce((s, p) => s + Number(p.monto), 0)
@@ -267,12 +299,32 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Fecha</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Tipo</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Concepto</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Instrumento</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Cuenta</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-fg-muted uppercase">Monto</th>
+              {([
+                { key: 'fecha', label: 'Fecha', align: 'left' },
+                { key: 'tipo', label: 'Tipo', align: 'left' },
+                { key: 'concepto', label: 'Concepto', align: 'left' },
+                { key: 'instrumento', label: 'Instrumento', align: 'left' },
+                { key: 'cuenta', label: 'Cuenta', align: 'left' },
+                { key: 'monto', label: 'Monto', align: 'right' },
+              ] as { key: SortKey; label: string; align: 'left' | 'right' }[]).map((col) => {
+                const active = sortKey === col.key
+                return (
+                  <th
+                    key={col.key}
+                    onClick={() => toggleSort(col.key)}
+                    className={cn(
+                      'px-4 py-3 text-xs font-medium uppercase cursor-pointer select-none hover:text-fg transition-colors',
+                      active ? 'text-fg' : 'text-fg-muted',
+                      col.align === 'right' ? 'text-right' : 'text-left'
+                    )}
+                  >
+                    <span className={cn('inline-flex items-center gap-1', col.align === 'right' && 'flex-row-reverse')}>
+                      {col.label}
+                      {active && (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
+                    </span>
+                  </th>
+                )
+              })}
               <th className="px-4 py-3" />
             </tr>
           </thead>
