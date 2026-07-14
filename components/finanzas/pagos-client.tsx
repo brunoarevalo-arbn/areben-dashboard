@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input, Select } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
+import { useSort, SortTh } from '@/components/ui/sortable'
 import { formatCurrency, formatDate, formatMonth, getMonthOptions } from '@/lib/utils'
 import {
   Wallet, Trash2, FileCheck, Banknote, CreditCard, Loader2, Pencil,
   ShoppingCart, Receipt, Users, AlertCircle, Filter, Link2, Search, X,
-  ArrowUp, ArrowDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { deletePagoUnificado, asignarPagoLibre, editPago } from '@/app/actions/pagos'
@@ -74,13 +74,7 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
   const [isPending, startTransition] = useTransition()
   const [asignarTarget, setAsignarTarget] = useState<Pago | null>(null)
   const [editTarget, setEditTarget] = useState<Pago | null>(null)
-  const [sortKey, setSortKey] = useState<SortKey>('fecha')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    else { setSortKey(key); setSortDir(key === 'fecha' || key === 'monto' ? 'desc' : 'asc') }
-  }
+  const { sortKey, sortDir, toggleSort, sortRows } = useSort<SortKey>('fecha', 'desc')
 
   function setFilter(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -160,8 +154,8 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
       if (filtros.cuenta && p.cuenta_id !== filtros.cuenta) return false
       return (p.fecha_emision ?? '').startsWith(mesActivo)
     })
-    const getVal = (p: Pago): string | number => {
-      switch (sortKey) {
+    return sortRows(filtrados, (p, k): string | number => {
+      switch (k) {
         case 'fecha': return p.fecha_emision ?? ''
         case 'tipo': return (TIPO_LABELS[p.tipo_origen]?.label ?? '').toLowerCase()
         case 'concepto': return descripcionOrigen(p).titulo.toLowerCase()
@@ -171,13 +165,8 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
           return c ? `${c.banco} ${c.nombre}`.toLowerCase() : ''
         }
         case 'monto': return Number(p.monto)
+        default: return ''
       }
-    }
-    return filtrados.sort((a, b) => {
-      const av = getVal(a), bv = getVal(b)
-      if (av < bv) return sortDir === 'asc' ? -1 : 1
-      if (av > bv) return sortDir === 'asc' ? 1 : -1
-      return 0
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagos, buscando, q, filtros.tipo, filtros.instrumento, filtros.cuenta, mesActivo, sortKey, sortDir, cuentaMap])
@@ -305,26 +294,11 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
                 { key: 'concepto', label: 'Concepto', align: 'left' },
                 { key: 'instrumento', label: 'Instrumento', align: 'left' },
                 { key: 'cuenta', label: 'Cuenta', align: 'left' },
-                { key: 'monto', label: 'Monto', align: 'right' },
-              ] as { key: SortKey; label: string; align: 'left' | 'right' }[]).map((col) => {
-                const active = sortKey === col.key
-                return (
-                  <th
-                    key={col.key}
-                    onClick={() => toggleSort(col.key)}
-                    className={cn(
-                      'px-4 py-3 text-xs font-medium uppercase cursor-pointer select-none hover:text-fg transition-colors',
-                      active ? 'text-fg' : 'text-fg-muted',
-                      col.align === 'right' ? 'text-right' : 'text-left'
-                    )}
-                  >
-                    <span className={cn('inline-flex items-center gap-1', col.align === 'right' && 'flex-row-reverse')}>
-                      {col.label}
-                      {active && (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
-                    </span>
-                  </th>
-                )
-              })}
+                { key: 'monto', label: 'Monto', align: 'right', numeric: true },
+              ] as { key: SortKey; label: string; align: 'left' | 'right'; numeric?: boolean }[]).map((col) => (
+                <SortTh key={col.key} col={col.key} label={col.label} align={col.align} numeric={col.numeric}
+                  sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              ))}
               <th className="px-4 py-3" />
             </tr>
           </thead>

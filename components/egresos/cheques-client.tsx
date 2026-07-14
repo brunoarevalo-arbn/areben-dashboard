@@ -6,8 +6,9 @@ import { debitarCheque } from '@/app/actions/compras'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
+import { useSort, SortTh } from '@/components/ui/sortable'
 import {
-  FileCheck, AlertTriangle, Clock, CheckCircle2, Search, X, ArrowUp, ArrowDown, Loader2, Wallet,
+  FileCheck, AlertTriangle, Clock, CheckCircle2, Search, X, Loader2, Wallet,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -94,17 +95,11 @@ export function ChequesClient({ cheques, cuentas: _cuentas }: { cheques: Cheque[
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>('PENDIENTE')
-  const [sortKey, setSortKey] = useState<SortKey>('fecha_vencimiento')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const { sortKey, sortDir, toggleSort, sortRows } = useSort<SortKey>('fecha_vencimiento', 'asc')
   const [cobrarTarget, setCobrarTarget] = useState<Cheque | null>(null)
 
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    else { setSortKey(key); setSortDir('asc') }
-  }
-
   const chequesFiltrados = useMemo(() => {
-    return cheques.filter((c) => {
+    const filtrados = cheques.filter((c) => {
       if (estadoFiltro === 'PENDIENTE' && c.debitado) return false
       if (estadoFiltro === 'PAGADO' && !c.debitado) return false
       if (search) {
@@ -122,23 +117,19 @@ export function ChequesClient({ cheques, cuentas: _cuentas }: { cheques: Cheque[
         if (!haystack.includes(q)) return false
       }
       return true
-    }).sort((a, b) => {
-      const getVal = (c: Cheque): string | number => {
-        switch (sortKey) {
-          case 'fecha_vencimiento': return c.fecha_vencimiento ?? '9999-99-99'
-          case 'monto': return Number(c.monto)
-          case 'numero_cheque': return (c.numero_cheque ?? '').toLowerCase()
-          case 'banco_emisor': return ((c.cuenta?.banco ?? c.banco_emisor) ?? '').toLowerCase()
-          case 'proveedor': return ((c.compra?.proveedor as { nombre: string } | null)?.nombre ?? '').toLowerCase()
-          case 'cuenta': return (c.cuenta?.nombre ?? '').toLowerCase()
-        }
-      }
-      const av = getVal(a)
-      const bv = getVal(b)
-      if (av < bv) return sortDir === 'asc' ? -1 : 1
-      if (av > bv) return sortDir === 'asc' ? 1 : -1
-      return 0
     })
+    return sortRows(filtrados, (c, k): string | number => {
+      switch (k) {
+        case 'fecha_vencimiento': return c.fecha_vencimiento ?? '9999-99-99'
+        case 'monto': return Number(c.monto)
+        case 'numero_cheque': return (c.numero_cheque ?? '').toLowerCase()
+        case 'banco_emisor': return ((c.cuenta?.banco ?? c.banco_emisor) ?? '').toLowerCase()
+        case 'proveedor': return ((c.compra?.proveedor as { nombre: string } | null)?.nombre ?? '').toLowerCase()
+        case 'cuenta': return (c.cuenta?.nombre ?? '').toLowerCase()
+        default: return ''
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cheques, estadoFiltro, search, sortKey, sortDir])
 
   // KPIs (sobre todos los cheques, no los filtrados — son el "panorama")
@@ -287,26 +278,11 @@ export function ChequesClient({ cheques, cuentas: _cuentas }: { cheques: Cheque[
                   { key: 'banco_emisor', label: 'Tipo / Banco', align: 'left' },
                   { key: 'cuenta', label: 'Cuenta emisora', align: 'left' },
                   { key: 'proveedor', label: 'Concepto / Beneficiario', align: 'left' },
-                  { key: 'monto', label: 'Monto', align: 'right' },
-                ] as { key: SortKey; label: string; align: 'left' | 'right' }[]).map((col) => {
-                  const active = sortKey === col.key
-                  return (
-                    <th
-                      key={col.key}
-                      onClick={() => toggleSort(col.key)}
-                      className={cn(
-                        'px-4 py-3 text-xs font-medium uppercase cursor-pointer select-none hover:text-fg transition-colors',
-                        active ? 'text-fg' : 'text-fg-muted',
-                        col.align === 'right' ? 'text-right' : 'text-left'
-                      )}
-                    >
-                      <span className={cn('inline-flex items-center gap-1', col.align === 'right' && 'flex-row-reverse')}>
-                        {col.label}
-                        {active && (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
-                      </span>
-                    </th>
-                  )
-                })}
+                  { key: 'monto', label: 'Monto', align: 'right', numeric: true },
+                ] as { key: SortKey; label: string; align: 'left' | 'right'; numeric?: boolean }[]).map((col) => (
+                  <SortTh key={col.key} col={col.key} label={col.label} align={col.align} numeric={col.numeric}
+                    sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+                ))}
                 <th className="text-left px-4 py-3 text-xs font-medium text-fg-muted uppercase">Estado</th>
                 <th className="px-4 py-3" />
               </tr>
