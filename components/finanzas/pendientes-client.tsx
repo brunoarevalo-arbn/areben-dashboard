@@ -30,6 +30,7 @@ interface ChequePendiente {
   fecha_emision: string
   numero_cheque: string | null
   banco_emisor: string | null
+  cuenta_id?: string | null
   instrumento: string
   tipo_origen?: string | null
   origen_id?: string | null
@@ -68,6 +69,7 @@ interface PagoCtaCte {
   fecha_vencimiento: string | null
   fecha_emision: string
   instrumento: string
+  cuenta_id?: string | null
   numero_cuota: number | null
   total_cuotas: number | null
   tipo_origen?: string | null
@@ -263,7 +265,7 @@ function EvolucionPagoBar({ totalPagado, saldo, pct, moneda }: {
 }
 
 function ChequeItem({
-  cheque, hoy, saldoActualARS, saldoActualUSD, otrosCheques, cuotas, onDebitar,
+  cheque, hoy, saldoActualARS, saldoActualUSD, otrosCheques, cuotas, cuentas, onDebitar,
 }: {
   cheque: ChequePendiente
   hoy: string
@@ -271,9 +273,11 @@ function ChequeItem({
   saldoActualUSD: number
   otrosCheques: ChequePendiente[]
   cuotas: CuotaPendiente[]
+  cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
   onDebitar: () => void
 }) {
   const [isPending, startTransition] = useTransition()
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const moneda = (cheque.moneda === 'USD' ? 'USD' : 'ARS') as 'USD' | 'ARS'
   const fechaVenc = cheque.fecha_vencimiento
 
@@ -342,14 +346,24 @@ function ChequeItem({
             size="sm"
             variant="success"
             disabled={isPending}
-            onClick={() => startTransition(async () => { await debitarCheque(cheque.id); onDebitar() })}
-            title="Confirmar débito del cheque"
+            onClick={() => setConfirmOpen(true)}
+            title="Confirmar débito del cheque (fecha real + origen de fondos)"
           >
             {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
             Debitar
           </Button>
         </div>
       </div>
+      <ConfirmarPagoModal
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Debitar cheque"
+        descripcion={`${cheque.numero_cheque ? `Cheque N° ${cheque.numero_cheque} · ` : ''}${cheque.compra?.proveedor?.nombre ?? cheque.compra?.descripcion ?? cheque.gasto?.concepto ?? ''}`.trim() || undefined}
+        monto={Number(cheque.monto)}
+        cuentas={cuentas}
+        defaultCuentaId={cheque.cuenta_id}
+        onConfirm={async (fecha, cuentaId) => { await debitarCheque(cheque.id, fecha, cuentaId); onDebitar() }}
+      />
     </div>
   )
 }
@@ -549,8 +563,8 @@ function PagarGastoInline({ gasto, cuentas, onClose }: { gasto: GastoPend; cuent
 }
 
 function PagoCtaCteItem({ pago, hoy, cuentas, onDebitar }: { pago: PagoCtaCte; hoy: string; cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]; onDebitar: () => void }) {
-  const [isPending, startTransition] = useTransition()
   const [abierto, setAbierto] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const moneda = (pago.moneda === 'USD' ? 'USD' : 'ARS') as 'USD' | 'ARS'
   const fecha = pago.fecha_vencimiento
   if (!fecha) return null
@@ -590,16 +604,27 @@ function PagoCtaCteItem({ pago, hoy, cuentas, onDebitar }: { pago: PagoCtaCte; h
             <Button
               size="sm"
               variant="success"
-              disabled={isPending}
-              onClick={() => startTransition(async () => { await debitarCheque(pago.id); onDebitar() })}
-              title="Marcar como pagado"
+              onClick={() => setConfirmOpen(true)}
+              title="Marcar como pagado (fecha real + origen de fondos)"
             >
-              {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              <CheckCircle2 className="w-3.5 h-3.5" />
               Pagar
             </Button>
           )}
         </div>
       </div>
+      {!esCompra && (
+        <ConfirmarPagoModal
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title="Registrar pago a plazo"
+          descripcion={(pago.compra?.proveedor?.nombre ?? pago.compra?.descripcion ?? pago.gasto?.concepto ?? '') || undefined}
+          monto={Number(pago.monto)}
+          cuentas={cuentas}
+          defaultCuentaId={pago.cuenta_id}
+          onConfirm={async (fecha, cuentaId) => { await debitarCheque(pago.id, fecha, cuentaId); onDebitar() }}
+        />
+      )}
       {esCompra && abierto && (
         <PagarCtaCteInline
           pago={pago}
@@ -1675,6 +1700,7 @@ export function PendientesClient({
         saldoActualUSD={saldoActualUSD}
         otrosCheques={cheques}
         cuotas={cuotas}
+        cuentas={cuentas}
         onDebitar={refetch}
       />
     }

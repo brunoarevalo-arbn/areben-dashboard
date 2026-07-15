@@ -90,7 +90,7 @@ function EstadoCheque({ dias }: { dias: number | null }) {
   )
 }
 
-export function ChequesClient({ cheques, cuentas: _cuentas }: { cheques: Cheque[]; cuentas: Cuenta[] }) {
+export function ChequesClient({ cheques, cuentas }: { cheques: Cheque[]; cuentas: Cuenta[] }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState('')
@@ -405,6 +405,7 @@ export function ChequesClient({ cheques, cuentas: _cuentas }: { cheques: Cheque[
         {cobrarTarget && (
           <MarcarPagadoForm
             cheque={cobrarTarget}
+            cuentas={cuentas}
             onClose={() => { setCobrarTarget(null); router.refresh() }}
           />
         )}
@@ -415,8 +416,9 @@ export function ChequesClient({ cheques, cuentas: _cuentas }: { cheques: Cheque[
 
 // ─── MarcarPagadoForm ────────────────────────────────────────────────────────
 
-function MarcarPagadoForm({ cheque, onClose }: { cheque: Cheque; onClose: () => void }) {
+function MarcarPagadoForm({ cheque, cuentas, onClose }: { cheque: Cheque; cuentas: Cuenta[]; onClose: () => void }) {
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0])
+  const [cuentaId, setCuentaId] = useState(cheque.cuenta_id ?? '')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -424,7 +426,7 @@ function MarcarPagadoForm({ cheque, onClose }: { cheque: Cheque; onClose: () => 
     setError(null)
     startTransition(async () => {
       try {
-        await debitarCheque(cheque.id, fecha)
+        await debitarCheque(cheque.id, fecha, cuentaId || undefined)
         onClose()
       } catch (e) {
         setError((e as Error).message)
@@ -460,6 +462,18 @@ function MarcarPagadoForm({ cheque, onClose }: { cheque: Cheque; onClose: () => 
           required
           className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
         />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="block text-sm font-medium text-fg-muted">Origen de los fondos</label>
+        <select
+          value={cuentaId}
+          onChange={(e) => setCuentaId(e.target.value)}
+          className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+        >
+          <option value="">— Sin especificar —</option>
+          {cuentas.map((c) => <option key={c.id} value={c.id}>{c.banco} · {c.nombre}</option>)}
+        </select>
       </div>
 
       {error && <p className="text-sm text-red-700">{error}</p>}

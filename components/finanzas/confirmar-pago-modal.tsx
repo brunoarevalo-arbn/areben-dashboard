@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/input'
 import { Loader2 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
@@ -16,8 +17,11 @@ interface Props {
   monto?: number
   /** Default de la fecha — útil cuando se conoce el día del débito (ej. fecha_vencimiento) */
   defaultFecha?: string
-  /** Acción async que recibe la fecha confirmada y ejecuta el pago */
-  onConfirm: (fecha: string) => Promise<void>
+  /** Si se pasan cuentas, muestra un select de origen de fondos (cuenta) */
+  cuentas?: { id: string; nombre: string; banco: string }[]
+  defaultCuentaId?: string | null
+  /** Acción async que recibe la fecha (y la cuenta, si aplica) y ejecuta el pago */
+  onConfirm: (fecha: string, cuentaId?: string) => Promise<void>
 }
 
 export function ConfirmarPagoModal({
@@ -27,17 +31,21 @@ export function ConfirmarPagoModal({
   descripcion,
   monto,
   defaultFecha,
+  cuentas,
+  defaultCuentaId,
   onConfirm,
 }: Props) {
   const hoy = new Date().toISOString().split('T')[0]
   const [fecha, setFecha] = useState(defaultFecha ?? hoy)
+  const [cuentaId, setCuentaId] = useState(defaultCuentaId ?? '')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  // Reset fecha al cambiar default cuando se abre
+  // Reset fecha/cuenta al cambiar default cuando se abre
   function handleOpenChange(o: boolean) {
     if (o) {
       setFecha(defaultFecha ?? hoy)
+      setCuentaId(defaultCuentaId ?? '')
       setError(null)
     }
     onOpenChange(o)
@@ -47,7 +55,7 @@ export function ConfirmarPagoModal({
     setError(null)
     startTransition(async () => {
       try {
-        await onConfirm(fecha)
+        await onConfirm(fecha, cuentaId || undefined)
         onOpenChange(false)
       } catch (e) {
         setError((e as Error).message)
@@ -80,6 +88,18 @@ export function ConfirmarPagoModal({
             Importante: usá la fecha REAL del débito (no la de hoy si pagaste antes). Esto afecta el cash flow histórico y los reportes de cierre.
           </p>
         </div>
+
+        {cuentas && cuentas.length > 0 && (
+          <Select
+            label="Origen de los fondos"
+            value={cuentaId}
+            onChange={(e) => setCuentaId(e.target.value)}
+            options={[
+              { value: '', label: '— Sin especificar —' },
+              ...cuentas.map((c) => ({ value: c.id, label: `${c.banco} · ${c.nombre}` })),
+            ]}
+          />
+        )}
 
         {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
 

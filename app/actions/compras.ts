@@ -400,15 +400,17 @@ export async function createPago(prevState: string | null, formData: FormData) {
 
 // ============ CHEQUES ============
 
-export async function debitarCheque(pagoId: string, fecha?: string) {
+export async function debitarCheque(pagoId: string, fecha?: string, cuentaId?: string) {
   await requireUser()
   const supabase = await createClient()
+  const update: { debitado: boolean; fecha_debito: string; cuenta_id?: string } = {
+    debitado: true,
+    fecha_debito: fecha || new Date().toISOString().split('T')[0],
+  }
+  if (cuentaId) update.cuenta_id = cuentaId // origen de fondos (editable al debitar)
   const { error } = await supabase
     .from('pagos')
-    .update({
-      debitado: true,
-      fecha_debito: fecha || new Date().toISOString().split('T')[0],
-    })
+    .update(update)
     .eq('id', pagoId)
   if (error) throw new Error(error.message)
   revalidatePath('/finanzas/pendientes')
