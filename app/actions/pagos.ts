@@ -373,6 +373,8 @@ export async function crearGastoIntereses(args: {
 const editPagoSchema = z.object({
   fecha_emision: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha YYYY-MM-DD').optional(),
   fecha_vencimiento: z.string().optional().nullable(),
+  fecha_debito: z.string().optional().nullable(),
+  cuenta_id: z.string().optional().nullable(),
   numero_cheque: z.string().optional().nullable(),
   banco_emisor: z.string().optional().nullable(),
   notas: z.string().optional().nullable(),
@@ -391,20 +393,22 @@ export async function editPago(pagoId: string, input: z.infer<typeof editPagoSch
     .single()
   if (!pago) throw new Error('Pago no encontrado')
 
-  if (pago.debitado && pago.tipo_origen !== 'LIBRE') {
-    throw new Error('No se puede editar un pago ya debitado. Borralo y volvé a cargar.')
-  }
+  // Un pago ya debitado (no LIBRE) sólo permite corregir campos NO estructurales:
+  // fecha real del débito, origen de fondos (cuenta) y notas. Nunca monto/instrumento.
+  const esDebitadoNoLibre = pago.debitado && pago.tipo_origen !== 'LIBRE'
 
   // Guard: si la cuenta del pago tiene saldo cerrado en el mes original o
   // en el mes destino (si cambia la fecha), bloquear.
   const mesesAValidar = new Set<string>()
   if (pago.fecha_emision) mesesAValidar.add(pago.fecha_emision.substring(0, 7))
   if (result.data.fecha_emision) mesesAValidar.add(result.data.fecha_emision.substring(0, 7))
-  if (pago.cuenta_id && mesesAValidar.size > 0) {
+  if (result.data.fecha_debito) mesesAValidar.add(result.data.fecha_debito.substring(0, 7))
+  const cuentaValidar = result.data.cuenta_id || pago.cuenta_id
+  if (cuentaValidar && mesesAValidar.size > 0) {
     const { data: saldosCerrados } = await supabase
       .from('saldos_cuentas')
       .select('mes')
-      .eq('cuenta_id', pago.cuenta_id)
+      .eq('cuenta_id', cuentaValidar)
       .in('mes', Array.from(mesesAValidar))
       .eq('cerrado', true)
     if (saldosCerrados && saldosCerrados.length > 0) {
@@ -413,10 +417,16 @@ export async function editPago(pagoId: string, input: z.infer<typeof editPagoSch
   }
 
   const updates: Record<string, unknown> = {}
-  if (result.data.fecha_emision !== undefined) updates.fecha_emision = result.data.fecha_emision
-  if (result.data.fecha_vencimiento !== undefined) updates.fecha_vencimiento = result.data.fecha_vencimiento || null
-  if (result.data.numero_cheque !== undefined) updates.numero_cheque = result.data.numero_cheque || null
-  if (result.data.banco_emisor !== undefined) updates.banco_emisor = result.data.banco_emisor || null
+  // Campos estructurales: solo para pagos NO debitados.
+  if (!esDebitadoNoLibre) {
+    if (result.data.fecha_emision !== undefined) updates.fecha_emision = result.data.fecha_emision
+    if (result.data.fecha_vencimiento !== undefined) updates.fecha_vencimiento = result.data.fecha_vencimiento || null
+    if (result.data.numero_cheque !== undefined) updates.numero_cheque = result.data.numero_cheque || null
+    if (result.data.banco_emisor !== undefined) updates.banco_emisor = result.data.banco_emisor || null
+  }
+  // Campos seguros: permitidos siempre (incluso en debitados).
+  if (result.data.fecha_debito !== undefined) updates.fecha_debito = result.data.fecha_debito || null
+  if (result.data.cuenta_id !== undefined) updates.cuenta_id = result.data.cuenta_id || null
   if (result.data.notas !== undefined) updates.notas = result.data.notas || null
 
   if (Object.keys(updates).length === 0) return

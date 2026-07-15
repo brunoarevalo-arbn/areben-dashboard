@@ -370,8 +370,7 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
                           size="sm"
                           variant="ghost"
                           onClick={() => setEditTarget(p)}
-                          title={p.debitado && !esLibre ? 'Pago ya debitado — no editable' : 'Editar pago'}
-                          disabled={p.debitado && !esLibre}
+                          title={p.debitado && !esLibre ? 'Editar fecha de débito / origen de fondos' : 'Editar pago'}
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
@@ -404,6 +403,7 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
       {editTarget && (
         <EditPagoModal
           pago={editTarget}
+          cuentas={cuentas}
           onOpenChange={(o) => { if (!o) setEditTarget(null) }}
         />
       )}
@@ -415,14 +415,18 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
 
 function EditPagoModal({
   pago,
+  cuentas,
   onOpenChange,
 }: {
   pago: Pago
+  cuentas: { id: string; nombre: string; banco: string }[]
   onOpenChange: (o: boolean) => void
 }) {
   const router = useRouter()
   const [fechaEmision, setFechaEmision] = useState(pago.fecha_emision)
   const [fechaVencimiento, setFechaVencimiento] = useState(pago.fecha_vencimiento ?? '')
+  const [fechaDebito, setFechaDebito] = useState(pago.fecha_debito ?? '')
+  const [cuentaId, setCuentaId] = useState(pago.cuenta_id ?? '')
   const [numeroCheque, setNumeroCheque] = useState(pago.numero_cheque ?? '')
   const [bancoEmisor, setBancoEmisor] = useState(pago.banco_emisor ?? '')
   const [notas, setNotas] = useState(pago.notas ?? '')
@@ -430,18 +434,22 @@ function EditPagoModal({
   const [isPending, startTransition] = useTransition()
 
   const esCheque = pago.instrumento === 'CHEQUE_FISICO' || pago.instrumento === 'ECHEQ'
+  // Pago ya debitado (no LIBRE): sólo se corrige fecha real del débito + origen de fondos + notas.
+  const esDebitado = pago.debitado && pago.tipo_origen !== 'LIBRE'
 
   function submit() {
     setError(null)
     startTransition(async () => {
       try {
-        await editPago(pago.id, {
-          fecha_emision: fechaEmision,
-          fecha_vencimiento: fechaVencimiento || null,
-          numero_cheque: numeroCheque || null,
-          banco_emisor: bancoEmisor || null,
-          notas: notas || null,
-        })
+        await editPago(pago.id, esDebitado
+          ? { fecha_debito: fechaDebito || null, cuenta_id: cuentaId || null, notas: notas || null }
+          : {
+              fecha_emision: fechaEmision,
+              fecha_vencimiento: fechaVencimiento || null,
+              numero_cheque: numeroCheque || null,
+              banco_emisor: bancoEmisor || null,
+              notas: notas || null,
+            })
         onOpenChange(false)
         router.refresh()
       } catch (e) {
@@ -451,7 +459,7 @@ function EditPagoModal({
   }
 
   return (
-    <Modal open={!!pago} onOpenChange={onOpenChange} title="Editar pago" className="max-w-md">
+    <Modal open={!!pago} onOpenChange={onOpenChange} title={esDebitado ? 'Corregir débito' : 'Editar pago'} className="max-w-md">
       <div className="space-y-4">
         <div className="bg-surface-2/40 border border-border-strong/40 rounded-lg p-3 space-y-1">
           <p className="text-xs text-fg-muted">
@@ -463,20 +471,35 @@ function EditPagoModal({
             {new Intl.NumberFormat('es-AR', { style: 'currency', currency: pago.moneda }).format(Number(pago.monto))}
           </p>
           <p className="text-[11px] text-fg-soft">
-            Para cambiar monto, instrumento o cuenta: eliminá este pago y creá uno nuevo.
+            {esDebitado
+              ? 'Pago ya debitado: sólo podés corregir la fecha real del débito y el origen de fondos.'
+              : 'Para cambiar monto o instrumento: eliminá este pago y creá uno nuevo.'}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Input label="Fecha emisión" type="date" value={fechaEmision} onChange={(e) => setFechaEmision(e.target.value)} />
-          <Input label="Fecha vencimiento" type="date" value={fechaVencimiento} onChange={(e) => setFechaVencimiento(e.target.value)} />
-        </div>
-
-        {esCheque && (
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="N° de cheque" value={numeroCheque} onChange={(e) => setNumeroCheque(e.target.value)} />
-            <Input label="Banco emisor" value={bancoEmisor} onChange={(e) => setBancoEmisor(e.target.value)} />
-          </div>
+        {esDebitado ? (
+          <>
+            <Input label="Fecha real del débito" type="date" value={fechaDebito} onChange={(e) => setFechaDebito(e.target.value)} />
+            <Select
+              label="Origen de los fondos"
+              value={cuentaId}
+              onChange={(e) => setCuentaId(e.target.value)}
+              options={[{ value: '', label: '— Sin especificar —' }, ...cuentas.map((c) => ({ value: c.id, label: `${c.banco} · ${c.nombre}` }))]}
+            />
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Fecha emisión" type="date" value={fechaEmision} onChange={(e) => setFechaEmision(e.target.value)} />
+              <Input label="Fecha vencimiento" type="date" value={fechaVencimiento} onChange={(e) => setFechaVencimiento(e.target.value)} />
+            </div>
+            {esCheque && (
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="N° de cheque" value={numeroCheque} onChange={(e) => setNumeroCheque(e.target.value)} />
+                <Input label="Banco emisor" value={bancoEmisor} onChange={(e) => setBancoEmisor(e.target.value)} />
+              </div>
+            )}
+          </>
         )}
 
         <Input label="Notas" value={notas} onChange={(e) => setNotas(e.target.value)} />
