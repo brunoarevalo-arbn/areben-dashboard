@@ -161,7 +161,9 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
       if (filtros.tipo && p.tipo_origen !== filtros.tipo) return false
       if (filtros.instrumento && p.instrumento !== filtros.instrumento) return false
       if (filtros.cuenta && p.cuenta_id !== filtros.cuenta) return false
-      return fechaEfectivaPago(p).startsWith(mesActivo)
+      // "Pagos del mes" = solo lo que efectivamente salió (debitado), por fecha de débito.
+      // Lo emitido no debitado (cheques/pagos a plazo) vive en Pendientes.
+      return p.debitado && fechaEfectivaPago(p).startsWith(mesActivo)
     })
     return sortRows(filtrados, (p, k): string | number => {
       switch (k) {
@@ -193,7 +195,7 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
             Pagos del mes
           </h1>
           <p className="text-sm text-fg-muted mt-0.5">
-            {pagosFiltrados.length} movimiento(s) · {buscando ? 'búsqueda global (todos los meses)' : formatMonth(mesActivo)} · ledger único
+            {pagosFiltrados.length} movimiento(s) · {buscando ? 'búsqueda global (todos los meses)' : `${formatMonth(mesActivo)} · lo que efectivamente salió`}
           </p>
         </div>
       </div>
