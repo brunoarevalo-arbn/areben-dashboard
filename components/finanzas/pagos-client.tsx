@@ -66,7 +66,7 @@ function pickOne<T>(v: T | T[] | null): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : v
 }
 
-type SortKey = 'fecha' | 'tipo' | 'concepto' | 'instrumento' | 'cuenta' | 'monto'
+type SortKey = 'fecha' | 'tipo' | 'concepto' | 'instrumento' | 'monto'
 
 export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nominas, cuotas }: Props) {
   const router = useRouter()
@@ -160,10 +160,6 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
         case 'tipo': return (TIPO_LABELS[p.tipo_origen]?.label ?? '').toLowerCase()
         case 'concepto': return descripcionOrigen(p).titulo.toLowerCase()
         case 'instrumento': return (INSTRUMENTO_LABELS[p.instrumento]?.label ?? p.instrumento ?? '').toLowerCase()
-        case 'cuenta': {
-          const c = p.cuenta_id ? cuentaMap.get(p.cuenta_id) : null
-          return c ? `${c.banco} ${c.nombre}`.toLowerCase() : ''
-        }
         case 'monto': return Number(p.monto)
         default: return ''
       }
@@ -292,20 +288,19 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
                 { key: 'fecha', label: 'Fecha', align: 'left' },
                 { key: 'tipo', label: 'Tipo', align: 'left' },
                 { key: 'concepto', label: 'Concepto', align: 'left' },
-                { key: 'instrumento', label: 'Instrumento', align: 'left' },
-                { key: 'cuenta', label: 'Cuenta', align: 'left' },
+                { key: 'instrumento', label: 'Medio', align: 'left' },
                 { key: 'monto', label: 'Monto', align: 'right', numeric: true },
               ] as { key: SortKey; label: string; align: 'left' | 'right'; numeric?: boolean }[]).map((col) => (
                 <SortTh key={col.key} col={col.key} label={col.label} align={col.align} numeric={col.numeric}
-                  sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+                  sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
               ))}
-              <th className="px-4 py-3" />
+              <th className="px-3 py-2" />
             </tr>
           </thead>
           <tbody>
             {pagosFiltrados.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-fg-soft">
+                <td colSpan={6} className="px-4 py-12 text-center text-fg-soft">
                   <Wallet className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   {buscando ? `Sin resultados para "${searchGeneral}"` : 'Sin pagos para los filtros seleccionados'}
                 </td>
@@ -321,40 +316,44 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
                 const esLibre = p.tipo_origen === 'LIBRE'
                 return (
                   <tr key={p.id} className={cn('border-b border-border/60 hover:bg-surface-2/30', esLibre && 'bg-amber-500/5')}>
-                    <td className="px-4 py-3 text-fg-muted text-xs whitespace-nowrap font-mono">{formatDate(p.fecha_emision)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 text-fg-muted text-xs whitespace-nowrap font-mono">
+                      {p.fecha_debito && p.fecha_debito !== p.fecha_emision ? (
+                        <>
+                          {formatDate(p.fecha_debito)}
+                          <span className="block text-[10px] text-fg-soft">emitido {formatDate(p.fecha_emision)}</span>
+                        </>
+                      ) : formatDate(p.fecha_debito ?? p.fecha_emision)}
+                    </td>
+                    <td className="px-3 py-2">
                       <span className={cn('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-xs', tipo.color)}>
                         <Icon className="w-3 h-3" />
                         {tipo.label}
                       </span>
                     </td>
-                    <td className="px-4 py-3 min-w-[200px]">
+                    <td className="px-3 py-2 min-w-[160px] max-w-[280px]">
                       <p className="text-fg truncate font-medium">{desc.titulo}</p>
                       {desc.subtitulo && <p className="text-xs text-fg-soft truncate">{desc.subtitulo}</p>}
                       {p.notas && !esLibre && <p className="text-xs text-fg-muted truncate">· {p.notas}</p>}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <span className="inline-flex items-center gap-1 text-xs text-fg-muted">
                         <InstrIcon className="w-3 h-3" />
                         {instr.label}
                       </span>
-                      {p.numero_cheque && (
-                        <p className="text-[10px] text-fg-soft font-mono">N° {p.numero_cheque}</p>
-                      )}
-                      {p.fecha_vencimiento && (
-                        <p className="text-[10px] text-fg-soft">vto. {formatDate(p.fecha_vencimiento)}</p>
+                      <p className="text-[10px] text-fg-soft truncate max-w-[180px]">{cuenta ? `${cuenta.banco} · ${cuenta.nombre}` : '—'}</p>
+                      {(p.numero_cheque || p.fecha_vencimiento) && (
+                        <p className="text-[10px] text-fg-soft font-mono">
+                          {p.numero_cheque ? `N° ${p.numero_cheque}` : ''}{p.numero_cheque && p.fecha_vencimiento ? ' · ' : ''}{p.fecha_vencimiento ? `vto. ${formatDate(p.fecha_vencimiento)}` : ''}
+                        </p>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-fg-muted">
-                      {cuenta ? `${cuenta.banco} · ${cuenta.nombre}` : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 py-2 text-right">
                       <p className="font-mono font-semibold text-fg">{formatCurrency(p.monto, p.moneda)}</p>
                       {!p.debitado && (
                         <Badge variant="warning" className="text-[10px] mt-0.5">Sin debitar</Badge>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <div className="flex items-center justify-end gap-1">
                         {esLibre && (
                           <Button
