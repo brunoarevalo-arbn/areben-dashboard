@@ -66,6 +66,15 @@ function pickOne<T>(v: T | T[] | null): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : v
 }
 
+// Fecha en que la plata efectivamente se mueve (para filtrar/ordenar "Pagos del mes"):
+// débito real si ya salió; vencimiento si es un cheque diferido sin debitar; si no, la emisión.
+function fechaEfectivaPago(p: Pago): string {
+  if (p.fecha_debito) return p.fecha_debito
+  const esCheque = p.instrumento === 'CHEQUE_FISICO' || p.instrumento === 'ECHEQ'
+  if (esCheque && p.fecha_vencimiento) return p.fecha_vencimiento
+  return p.fecha_emision ?? ''
+}
+
 type SortKey = 'fecha' | 'tipo' | 'concepto' | 'instrumento' | 'monto'
 
 export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nominas, cuotas }: Props) {
@@ -152,11 +161,11 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
       if (filtros.tipo && p.tipo_origen !== filtros.tipo) return false
       if (filtros.instrumento && p.instrumento !== filtros.instrumento) return false
       if (filtros.cuenta && p.cuenta_id !== filtros.cuenta) return false
-      return (p.fecha_emision ?? '').startsWith(mesActivo)
+      return fechaEfectivaPago(p).startsWith(mesActivo)
     })
     return sortRows(filtrados, (p, k): string | number => {
       switch (k) {
-        case 'fecha': return p.fecha_emision ?? ''
+        case 'fecha': return fechaEfectivaPago(p)
         case 'tipo': return (TIPO_LABELS[p.tipo_origen]?.label ?? '').toLowerCase()
         case 'concepto': return descripcionOrigen(p).titulo.toLowerCase()
         case 'instrumento': return (INSTRUMENTO_LABELS[p.instrumento]?.label ?? p.instrumento ?? '').toLowerCase()
@@ -317,18 +326,10 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
                 return (
                   <tr key={p.id} className={cn('border-b border-border/60 hover:bg-surface-2/30', esLibre && 'bg-amber-500/5')}>
                     <td className="px-3 py-2 text-fg-muted text-xs whitespace-nowrap font-mono">
-                      {(() => {
-                        const esCheque = p.instrumento === 'CHEQUE_FISICO' || p.instrumento === 'ECHEQ'
-                        if (p.fecha_debito) {
-                          return p.fecha_debito !== p.fecha_emision
-                            ? <>{formatDate(p.fecha_debito)}<span className="block text-[10px] text-fg-soft">emitido {formatDate(p.fecha_emision)}</span></>
-                            : formatDate(p.fecha_debito)
-                        }
-                        if (esCheque && p.fecha_vencimiento) {
-                          return <>{formatDate(p.fecha_vencimiento)}<span className="block text-[10px] text-fg-soft">emitido {formatDate(p.fecha_emision)}</span></>
-                        }
-                        return formatDate(p.fecha_emision)
-                      })()}
+                      {formatDate(fechaEfectivaPago(p))}
+                      {fechaEfectivaPago(p) !== p.fecha_emision && (
+                        <span className="block text-[10px] text-fg-soft">emitido {formatDate(p.fecha_emision)}</span>
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       <span className={cn('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-xs', tipo.color)}>
