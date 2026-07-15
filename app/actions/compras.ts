@@ -202,6 +202,9 @@ export async function createCompra(prevState: string | null, formData: FormData)
     if (error) return error.message
   } else {
     const monto = Number(formData.get('monto_pago') || result.data.monto_total)
+    // CONTADO (efectivo/transferencia) = la plata sale al instante → débito ya efectuado en la fecha de pago.
+    // A_PLAZO = pago futuro → queda sin debitar hasta que se confirme la salida.
+    const esContado = condicion_pago === 'CONTADO'
     const { error } = await supabase.from('pagos').insert({
       compra_id: compra.id,
       origen_id: compra.id,
@@ -215,6 +218,8 @@ export async function createCompra(prevState: string | null, formData: FormData)
       numero_cheque,
       cuenta_id,
       cuit_beneficiario: instrumento === 'CHEQUE_FISICO' ? cuit_beneficiario : null,
+      debitado: esContado,
+      fecha_debito: esContado ? fecha_emision : null,
     })
     if (error) return error.message
   }

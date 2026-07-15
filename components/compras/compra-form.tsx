@@ -548,9 +548,17 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
             )}
 
             {formaPago === 'CONTADO' && (
-              <p className="text-xs text-fg-soft">
-                Fecha de pago: hoy ({formatDate(fechaEmisionPago)})
-              </p>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-fg-muted">Fecha de pago</label>
+                <input
+                  type="date"
+                  value={fechaEmisionPago}
+                  onChange={(e) => setFechaEmisionPago(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                />
+                <p className="text-[11px] text-fg-soft">Cuándo salió realmente la plata (por defecto hoy; cambiala si pagaste otro día).</p>
+              </div>
             )}
 
             {/* Datos cheque */}
