@@ -317,12 +317,18 @@ export function PagosClient({ mes, pagos, filtros, cuentas, compras, gastos, nom
                 return (
                   <tr key={p.id} className={cn('border-b border-border/60 hover:bg-surface-2/30', esLibre && 'bg-amber-500/5')}>
                     <td className="px-3 py-2 text-fg-muted text-xs whitespace-nowrap font-mono">
-                      {p.fecha_debito && p.fecha_debito !== p.fecha_emision ? (
-                        <>
-                          {formatDate(p.fecha_debito)}
-                          <span className="block text-[10px] text-fg-soft">emitido {formatDate(p.fecha_emision)}</span>
-                        </>
-                      ) : formatDate(p.fecha_debito ?? p.fecha_emision)}
+                      {(() => {
+                        const esCheque = p.instrumento === 'CHEQUE_FISICO' || p.instrumento === 'ECHEQ'
+                        if (p.fecha_debito) {
+                          return p.fecha_debito !== p.fecha_emision
+                            ? <>{formatDate(p.fecha_debito)}<span className="block text-[10px] text-fg-soft">emitido {formatDate(p.fecha_emision)}</span></>
+                            : formatDate(p.fecha_debito)
+                        }
+                        if (esCheque && p.fecha_vencimiento) {
+                          return <>{formatDate(p.fecha_vencimiento)}<span className="block text-[10px] text-fg-soft">emitido {formatDate(p.fecha_emision)}</span></>
+                        }
+                        return formatDate(p.fecha_emision)
+                      })()}
                     </td>
                     <td className="px-3 py-2">
                       <span className={cn('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-xs', tipo.color)}>

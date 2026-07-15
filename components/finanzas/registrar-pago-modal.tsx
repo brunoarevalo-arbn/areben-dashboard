@@ -309,7 +309,7 @@ export function RegistrarPagoModal({
           )}
         </div>
 
-        <Input label="Fecha del pago" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required />
+        <Input label={requiereCheque ? 'Fecha de emisión' : 'Fecha del pago'} type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required />
 
         <Select
           label="Instrumento"
