@@ -10,7 +10,7 @@ import { Input, Select, Textarea } from '@/components/ui/input'
 import { EstadoBadge, MarcaBadge, Badge } from '@/components/ui/badge'
 import { useSort, SortTh } from '@/components/ui/sortable'
 import { formatCurrency, formatDate, getMonthOptions, labelCuenta, ordenarCuentas } from '@/lib/utils'
-import { estaVencido } from '@/lib/gastos-vencimiento'
+import { estadoGasto, type EstadoGasto } from '@/lib/gastos-estado'
 import {
   Plus, Pencil, Trash2, CheckCircle, Filter, TrendingDown, Loader2,
   Info, Layers, Receipt, Wallet, CreditCard, Save, X, Search, RotateCcw, ChevronDown, ListTree,
@@ -24,7 +24,21 @@ const CATEGORIAS_COMUNES = [
   'Impuestos', 'Seguros', 'Mantenimiento', 'Tecnología', 'Inversiones', 'Otros',
 ]
 const MARCAS = ['BDI', 'ZATTIA', 'STUNNED', 'GENERAL']
-const ESTADOS = ['PENDIENTE', 'PAGADO', 'VENCIDO']
+// Estado GUARDADO en la base (el que se elige a mano en el form del gasto).
+const ESTADOS_GUARDADOS = [
+  { value: 'PENDIENTE', label: 'Pendiente' },
+  { value: 'PAGADO', label: 'Pagado' },
+  { value: 'DEVENGADO', label: 'Devengado' },
+]
+// Estados COMPUTADOS (ver lib/gastos-estado.ts) — para filtrar; no son el estado guardado.
+const ESTADOS_FILTRO: { value: EstadoGasto; label: string }[] = [
+  { value: 'PENDIENTE', label: 'Pendiente' },
+  { value: 'PAGO_PROGRAMADO', label: 'Pago programado' },
+  { value: 'CUENTA_CORRIENTE', label: 'Cuenta corriente' },
+  { value: 'VENCIDO', label: 'Vencido' },
+  { value: 'PAGADO', label: 'Pagado' },
+  { value: 'DEVENGADO', label: 'Devengado' },
+]
 const MEDIOS_PAGO = [
   { value: 'TRANSFERENCIA', label: 'Transferencia' },
   { value: 'EFECTIVO', label: 'Efectivo' },
@@ -43,7 +57,8 @@ interface GastosClientProps {
   prorrateosDefault: ProrrateoDefault[]
   tiposIva: TipoIVA[]
   configProrrateo: ConfiguracionProrrateo[]
-  recurrentes?: { id: string; dia_vencimiento?: number | null; tipo_mes?: string | null }[]
+  recurrentes?: { id: string; concepto?: string | null; dia_vencimiento?: number | null; tipo_mes?: string | null }[]
+  pagosByGasto?: Record<string, { monto: number; debitado: boolean; fecha_vencimiento: string | null }[]>
   hoy?: string
 }
 
@@ -207,7 +222,7 @@ function GastoForm({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Select label="Estado" name="estado" value={estado} onChange={(e) => setEstado(e.target.value)}
-          options={ESTADOS.map((e) => ({ value: e, label: e.charAt(0) + e.slice(1).toLowerCase() }))} />
+          options={ESTADOS_GUARDADOS} />
         <Input
           label={`Fecha de pago${fechaPagoExenta ? ' (opcional)' : ' *'}`}
           name="fecha_pago"
@@ -673,9 +688,24 @@ function MontoGastoEditor({ gasto, onSaved }: { gasto: Gasto; onSaved: () => voi
 
 // ─── GastosClient ─────────────────────────────────────────────────────────────
 
-export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjetas, prorrateosDefault, tiposIva, configProrrateo, recurrentes, hoy }: GastosClientProps) {
+export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjetas, prorrateosDefault, tiposIva, configProrrateo, recurrentes, pagosByGasto, hoy }: GastosClientProps) {
   const recurrentesMap = useMemo(() => new Map((recurrentes ?? []).map((r) => [r.id, r])), [recurrentes])
   const hoyStr = hoy ?? new Date().toISOString().slice(0, 10)
+
+  // Estado COMPUTADO por gasto (Vencido, Cuenta corriente, Pago programado, etc.) — ver lib/gastos-estado.ts
+  const estadosMap = useMemo(() => {
+    const m = new Map<string, { estado: EstadoGasto; parcial: boolean }>()
+    for (const g of gastos) {
+      const rec = g.recurrente_id ? recurrentesMap.get(g.recurrente_id) : null
+      m.set(g.id, estadoGasto(
+        { ...g, recurrenteConcepto: rec?.concepto ?? null },
+        pagosByGasto?.[g.id] ?? [],
+        rec,
+        hoyStr,
+      ))
+    }
+    return m
+  }, [gastos, recurrentesMap, pagosByGasto, hoyStr])
   const router = useRouter()
   const searchParams = useSearchParams()
   const [modalOpen, setModalOpen] = useState(false)
@@ -697,7 +727,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
     const qCat = filterCategoria.trim().toLowerCase()
     const qMonto = filterMonto.trim()
     return gastos.filter((g) => {
-      if (filtros.estado === 'VENCIDO' && !estaVencido(g, g.recurrente_id ? recurrentesMap.get(g.recurrente_id) : null, hoyStr)) return false
+      if (filtros.estado && estadosMap.get(g.id)?.estado !== filtros.estado) return false
       if (tipoFiltro === 'RECURRENTES' && !g.recurrente_id) return false
       if (tipoFiltro === 'EXTRAORDINARIOS' && g.recurrente_id) return false
       if (qGen) {
@@ -710,7 +740,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
       if (qMonto && !String(g.monto).includes(qMonto)) return false
       return true
     })
-  }, [gastos, searchGeneral, filterConcepto, filterCategoria, filterMonto, tipoFiltro, filtros.estado, recurrentesMap, hoyStr])
+  }, [gastos, searchGeneral, filterConcepto, filterCategoria, filterMonto, tipoFiltro, filtros.estado, estadosMap])
 
   const { sortKey, sortDir, toggleSort, sortRows } = useSort<'fecha' | 'concepto' | 'categoria' | 'negocio' | 'monto' | 'estado' | 'fecha_pago'>('fecha', 'desc')
   const gastosOrdenados = useMemo(() => sortRows(gastosFiltrados, (g, k): string | number => {
@@ -720,7 +750,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
       case 'categoria': return (g.categoria ?? '').toLowerCase()
       case 'negocio': return (g.negocio ?? '').toLowerCase()
       case 'monto': return Number(g.monto ?? 0)
-      case 'estado': return (g.estado ?? '').toLowerCase()
+      case 'estado': return (estadosMap.get(g.id)?.estado ?? g.estado ?? '').toLowerCase()
       case 'fecha_pago': return g.fecha_pago ?? ''
       default: return ''
     }
@@ -768,9 +798,12 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
         )}
       </td>
       <td className="px-4 py-3">
-        {estaVencido(g, g.recurrente_id ? recurrentesMap.get(g.recurrente_id) : null, hoyStr)
-          ? <Badge variant="danger" className="text-[10px]">Vencido</Badge>
-          : <EstadoBadge estado={g.estado} />}
+        <div className="flex items-center gap-1">
+          <EstadoBadge estado={estadosMap.get(g.id)?.estado ?? g.estado} />
+          {estadosMap.get(g.id)?.parcial && (
+            <Badge variant="default" className="text-[10px]">Parcial</Badge>
+          )}
+        </div>
       </td>
       <td className="px-4 py-3 text-fg-muted text-xs">{g.fecha_pago ? formatDate(g.fecha_pago) : '—'}</td>
       <td className="px-4 py-3">
@@ -970,7 +1003,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
               className="bg-surface-2 border border-border-strong rounded-lg px-3 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="">Todos los estados</option>
-              {ESTADOS.map((e) => <option key={e} value={e}>{e.charAt(0) + e.slice(1).toLowerCase()}</option>)}
+              {ESTADOS_FILTRO.map((e) => <option key={e.value} value={e.value}>{e.label}</option>)}
             </select>
             {hayBusquedaActiva && (
               <button

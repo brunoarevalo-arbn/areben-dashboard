@@ -19,8 +19,8 @@ export async function GastosPanel({
     .order('created_at', { ascending: false })
 
   if (params.negocio) query = query.eq('negocio', params.negocio)
-  // VENCIDO es computado (por fecha, no por el estado en la base) → se filtra client-side.
-  if (params.estado && params.estado !== 'VENCIDO') query = query.eq('estado', params.estado)
+  // El estado ahora es COMPUTADO (Vencido, Cuenta corriente, Pago programado, etc. dependen de
+  // los pagos y del concepto, no del estado en la base) → se filtra íntegro client-side.
 
   const [{ data: gastos }, { data: categorias }, { data: cuentas }, { data: tarjetas }, { data: prorrateoDef }, { data: tiposIva }, { data: configProrrateo }, { data: recurrentes }] = await Promise.all([
     query,
@@ -30,8 +30,27 @@ export async function GastosPanel({
     supabase.from('prorrateos_default').select('*'),
     supabase.from('tipos_iva').select('*').eq('activo', true).order('orden'),
     supabase.from('configuracion_prorrateo').select('*').eq('activo', true).order('orden'),
-    supabase.from('gastos_recurrentes').select('id, dia_vencimiento, tipo_mes'),
+    supabase.from('gastos_recurrentes').select('id, concepto, dia_vencimiento, tipo_mes'),
   ])
+
+  // Pagos del ledger por gasto (para el estado computado: saldo debitado + cuotas programadas).
+  const gastoIds = (gastos ?? []).map((g) => g.id)
+  const pagosByGasto: Record<string, { monto: number; debitado: boolean; fecha_vencimiento: string | null }[]> = {}
+  if (gastoIds.length > 0) {
+    const { data: pagos } = await supabase
+      .from('pagos')
+      .select('origen_id, monto, debitado, fecha_vencimiento')
+      .eq('tipo_origen', 'GASTO')
+      .in('origen_id', gastoIds)
+    for (const p of pagos ?? []) {
+      if (!p.origen_id) continue
+      ;(pagosByGasto[p.origen_id] ??= []).push({
+        monto: Number(p.monto),
+        debitado: !!p.debitado,
+        fecha_vencimiento: p.fecha_vencimiento ? String(p.fecha_vencimiento).slice(0, 10) : null,
+      })
+    }
+  }
 
   const uniqueCategorias = [...new Set(categorias?.map((c) => c.categoria) ?? [])]
 
@@ -47,6 +66,7 @@ export async function GastosPanel({
       tiposIva={tiposIva ?? []}
       configProrrateo={configProrrateo ?? []}
       recurrentes={recurrentes ?? []}
+      pagosByGasto={pagosByGasto}
       hoy={new Date().toISOString().slice(0, 10)}
     />
   )

@@ -223,26 +223,25 @@ export async function PendientesPanel() {
   }
 
   // Enriquecer con saldos pendientes y filtrar los que quedaron en 0.
-  // Excluye los conceptos que ya son Cuenta Corriente: viven en esa pestaña, no acá,
-  // para no mostrarlos duplicados (ver lib/cuentas-corrientes).
-  const gastosConSaldo = (gastosPendientes ?? [])
-    .filter((g) => !esCuentaCorriente({
-      concepto: g.concepto,
-      recurrente_id: (g as unknown as { recurrente_id?: string | null }).recurrente_id,
-      recurrenteConcepto: (() => {
-        const r = (g as unknown as { recurrente?: { concepto: string | null }[] }).recurrente
-        return Array.isArray(r) && r.length > 0 ? r[0]?.concepto ?? null : null
-      })(),
-    }))
+  // Las Cuentas Corrientes (conceptos curados sin fecha fija) NO se excluyen: se separan en
+  // `gastosCC` para mostrarlas en su propio desplegable dentro de Pendientes (ver lib/cuentas-corrientes).
+  const gastosConSaldoTodos = (gastosPendientes ?? [])
     .map((g) => {
       const pagado = pagosByGasto.get(g.id) ?? 0
       const saldo = Math.max(0, Number(g.monto) - pagado)
       // Supabase devuelve la relación como array; nos quedamos con el primer elemento
-      const recurrenteArr = (g as unknown as { recurrente?: { notas: string | null }[] }).recurrente
+      const recurrenteArr = (g as unknown as { recurrente?: { notas: string | null; concepto: string | null }[] }).recurrente
       const recurrente = Array.isArray(recurrenteArr) && recurrenteArr.length > 0 ? recurrenteArr[0] : null
-      return { ...g, total_pagado: pagado, saldo_pendiente: saldo, recurrente }
+      const esCC = esCuentaCorriente({
+        concepto: g.concepto,
+        recurrente_id: (g as unknown as { recurrente_id?: string | null }).recurrente_id,
+        recurrenteConcepto: recurrente?.concepto ?? null,
+      })
+      return { ...g, total_pagado: pagado, saldo_pendiente: saldo, recurrente, _esCC: esCC }
     })
     .filter((g) => g.saldo_pendiente > 0.01)
+  const gastosConSaldo = gastosConSaldoTodos.filter((g) => !g._esCC)
+  const gastosCC = gastosConSaldoTodos.filter((g) => g._esCC)
 
   const cuotasConSaldo = (cuotas ?? []).map((c) => {
     const pagado = pagosByCuota.get(c.id) ?? 0
@@ -282,6 +281,7 @@ export async function PendientesPanel() {
       cuotas={cuotasConSaldo}
       instrumentosProximos={instrumentosProximos}
       gastosPendientes={gastosConSaldo}
+      gastosCC={gastosCC}
       cuentas={(cuentasBancarias ?? []) as unknown as Parameters<typeof PendientesClient>[0]['cuentas']}
       tarjetas={tarjetas ?? []}
       proveedores={proveedores ?? []}

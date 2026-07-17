@@ -33,6 +33,8 @@ export function EstadoBadge({ estado }: { estado: string }) {
     PENDIENTE: { label: 'Pendiente', variant: 'warning' },
     VENCIDO: { label: 'Vencido', variant: 'danger' },
     DEVENGADO: { label: 'Devengado', variant: 'default' },
+    CUENTA_CORRIENTE: { label: 'Cuenta corriente', variant: 'info' },
+    PAGO_PROGRAMADO: { label: 'Pago programado', variant: 'purple' },
   }
   const config = map[estado] ?? { label: estado, variant: 'default' }
   return <Badge variant={config.variant}>{config.label}</Badge>

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-// Reemplazado por "Cuentas corrientes" (deuda sin fecha) dentro de "Pagos y deuda".
+// Las cuentas corrientes (deuda sin fecha) ahora viven dentro de Pendientes.
 export default function SaldosAcumuladosPage() {
-  redirect('/finanzas/pagos?tab=cuentas-corrientes')
+  redirect('/finanzas/pagos?tab=pendientes')
 }

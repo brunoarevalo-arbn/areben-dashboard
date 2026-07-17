@@ -147,6 +147,7 @@ interface Props {
   cuotas: CuotaPendiente[]
   instrumentosProximos: InstrumentoProximo[]
   gastosPendientes: GastoPend[]
+  gastosCC?: GastoPend[]
   cuentas: { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }[]
   tarjetas: { id: string; nombre: string; banco: string }[]
   proveedores: { id: string; nombre: string }[]
@@ -1481,7 +1482,7 @@ function BucketPendientes({ config, items, renderItem, defaultOpen, gruposAbiert
 export function PendientesClient({
   mesActual, hoy, saldoActualARS, saldoActualUSD,
   cheques, pagosCtaCte, comprasSinPlanPago, cuotas, instrumentosProximos,
-  gastosPendientes, cuentas, tarjetas, proveedores,
+  gastosPendientes, gastosCC = [], cuentas, tarjetas, proveedores,
   cuotasPlanAfip = [],
   cuotasPrestamo = [],
   retirosProgramados = [],
@@ -1556,10 +1557,8 @@ export function PendientesClient({
       list.push({ fecha: p.fecha_vencimiento, grupo: clasificarFecha(p.fecha_vencimiento, hoy), tipo: 'pago_cta_cte', prioridad: 50, data: p })
     }
 
-    // Compras con saldo pendiente sin plan de pago — las muestro como "vencidas" si la fecha de compra ya pasó
-    for (const c of comprasSinPlanPago) {
-      list.push({ fecha: c.fecha, grupo: clasificarFecha(c.fecha, hoy), tipo: 'compra_sin_plan', prioridad: 10, data: c })
-    }
+    // Las compras con saldo sin plan de pago (proveedores) NO van acá: son cuenta corriente
+    // (deuda sin fecha fija) y se muestran en el desplegable "Cuenta corriente" (ver itemsCC).
 
     for (const i of instrumentosProximos) {
       if (!i.fecha_fin) continue
@@ -1662,6 +1661,44 @@ export function PendientesClient({
     })
   }, [cheques, pagosCtaCte, comprasSinPlanPago, cuotas, instrumentosProximos, gastosPendientes, cuotasPlanAfip, cuotasPrestamo, retirosProgramados, mesActual, hoy, saldoActualARS, saldoActualUSD, _tick])
 
+  // Cuenta corriente: deuda sin fecha fija (servicios/gastos CC + proveedores con saldo).
+  // No se clasifica por fecha; se muestra en su propio desplegable. El `grupo` es un placeholder
+  // (BucketPendientes no lo usa). Se agrupan los recurrentes por sus meses impagos, igual que arriba.
+  const itemsCC: ItemConFecha[] = useMemo(() => {
+    const list: ItemConFecha[] = []
+    for (const c of comprasSinPlanPago) {
+      list.push({ fecha: c.fecha, grupo: 'ESTE_MES', tipo: 'compra_sin_plan', prioridad: 10, data: c })
+    }
+    const porRecurrente = new Map<string, GastoPend[]>()
+    const sueltos: GastoPend[] = []
+    for (const g of gastosCC) {
+      if (g.recurrente_id) {
+        const arr = porRecurrente.get(g.recurrente_id) ?? []
+        arr.push(g)
+        porRecurrente.set(g.recurrente_id, arr)
+      } else {
+        sueltos.push(g)
+      }
+    }
+    const pushGasto = (g: GastoPend) => {
+      list.push({ fecha: vencimientoDeGasto(g), grupo: 'ESTE_MES', tipo: 'gasto', prioridad: 50, data: g })
+    }
+    for (const [recId, gs] of porRecurrente.entries()) {
+      if (gs.length === 1) { pushGasto(gs[0]); continue }
+      const ordenados = [...gs].sort((a, b) => (a.mes < b.mes ? -1 : 1))
+      const totalSaldo = gs.reduce((s, x) => s + (x.saldo_pendiente ?? Number(x.monto)), 0)
+      list.push({
+        fecha: vencimientoDeGasto(ordenados[0]),
+        grupo: 'ESTE_MES',
+        tipo: 'gasto_grupo_servicio',
+        prioridad: 50,
+        data: { recurrenteId: recId, concepto: ordenados[0].concepto, categoria: ordenados[0].categoria, gastos: ordenados, totalSaldo, cantidad: gs.length } as GastoGrupoServicio,
+      })
+    }
+    for (const g of sueltos) pushGasto(g)
+    return list.sort((a, b) => a.fecha.localeCompare(b.fecha))
+  }, [comprasSinPlanPago, gastosCC, _tick])
+
   // Mostrar todos los buckets ahora, incluyendo FUTURO para visualizar cuotas de tarjeta a futuro
   const visibles = items
 
@@ -1670,9 +1707,11 @@ export function PendientesClient({
     + pagosCtaCte.filter((p) => p.moneda !== 'USD').reduce((s, p) => s + Number(p.monto), 0)
     + comprasSinPlanPago.filter((c) => c.moneda !== 'USD').reduce((s, c) => s + Number(c.saldo_pendiente), 0)
     + gastosPendientes.filter((g) => g.moneda !== 'USD').reduce((s, g) => s + Number(g.monto), 0)
+    + gastosCC.filter((g) => g.moneda !== 'USD').reduce((s, g) => s + Number(g.saldo_pendiente ?? g.monto), 0)
   const totalPagosUSD = pagosCtaCte.filter((p) => p.moneda === 'USD').reduce((s, p) => s + Number(p.monto), 0)
     + comprasSinPlanPago.filter((c) => c.moneda === 'USD').reduce((s, c) => s + Number(c.saldo_pendiente), 0)
     + gastosPendientes.filter((g) => g.moneda === 'USD').reduce((s, g) => s + Number(g.monto), 0)
+    + gastosCC.filter((g) => g.moneda === 'USD').reduce((s, g) => s + Number(g.saldo_pendiente ?? g.monto), 0)
   const totalCheques = cheques.reduce((s, c) => s + Number(c.monto), 0)
   const chequesInsuficientes = cheques.filter((c) => {
     if (!c.fecha_vencimiento) return false
@@ -1836,7 +1875,7 @@ export function PendientesClient({
       </div>
 
       {/* Empty state */}
-      {totalVisibles === 0 && totalInstrumentos === 0 && (
+      {totalVisibles === 0 && totalInstrumentos === 0 && itemsCC.length === 0 && (
         <div className="bg-surface border border-green-500/20 rounded-xl p-12 text-center">
           <Sparkles className="w-10 h-10 mx-auto mb-3 text-green-700" />
           <p className="text-lg font-medium text-fg mb-1">¡Todo al día!</p>
@@ -1866,6 +1905,17 @@ export function PendientesClient({
           />
         )
       })}
+
+      {/* Cuenta corriente: deuda sin fecha fija (no "vencido") — servicios/gastos CC + proveedores con saldo */}
+      {itemsCC.length > 0 && (
+        <BucketPendientes
+          config={{ label: 'Cuenta corriente', color: 'border-info-bd', textColor: 'text-info', icon: Wallet }}
+          items={itemsCC}
+          renderItem={renderItem}
+          defaultOpen={false}
+          gruposAbiertos
+        />
+      )}
 
       {/* Instrumentos próximos a vencer (siempre al final) */}
       {instrumentosProximos.length > 0 && (
