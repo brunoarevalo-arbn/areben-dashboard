@@ -979,7 +979,15 @@ function EmpleadoCard({
           size="sm"
           variant={emp.activo ? 'danger' : 'success'}
           disabled={isPending}
-          onClick={() => startTransition(() => toggleEmpleadoActivo(emp.id, !emp.activo))}
+          title={emp.activo ? 'Dar de baja' : 'Reactivar'}
+          onClick={() => {
+            const nombre = `${emp.nombre} ${emp.apellido ?? ''}`.trim()
+            const msg = emp.activo
+              ? `¿Dar de baja a ${nombre}? Deja de aparecer en el listado y en la nómina. Se puede revertir con "Mostrar inactivos".`
+              : `¿Reactivar a ${nombre}? Vuelve al listado y a la nómina, y se borra su fecha de egreso.`
+            if (!confirm(msg)) return
+            startTransition(() => toggleEmpleadoActivo(emp.id, !emp.activo))
+          }}
         >
           {emp.activo ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
         </Button>
