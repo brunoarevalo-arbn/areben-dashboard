@@ -30,7 +30,7 @@ export async function GastosPanel({
     supabase.from('prorrateos_default').select('*'),
     supabase.from('tipos_iva').select('*').eq('activo', true).order('orden'),
     supabase.from('configuracion_prorrateo').select('*').eq('activo', true).order('orden'),
-    supabase.from('gastos_recurrentes').select('id, concepto, dia_vencimiento, tipo_mes'),
+    supabase.from('gastos_recurrentes').select('id, concepto, dia_vencimiento, tipo_mes, es_cuenta_corriente'),
   ])
 
   // Pagos del ledger por gasto (para el estado computado: saldo debitado + cuotas programadas).

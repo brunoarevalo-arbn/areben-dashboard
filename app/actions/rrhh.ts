@@ -1229,7 +1229,7 @@ const pagoParcialSchema = z.object({
 
 function medioToInstrumento(medio: string): 'TRANSFERENCIA' | 'EFECTIVO' | 'CUENTA_CORRIENTE' | 'CHEQUE_FISICO' {
   if (medio === 'EFECTIVO') return 'EFECTIVO'
-  if (medio === 'CTA_CORRIENTE') return 'CUENTA_CORRIENTE'
+  if (medio === 'CTA_CORRIENTE' || medio === 'CUENTA_CORRIENTE') return 'CUENTA_CORRIENTE'
   if (medio === 'CHEQUE') return 'CHEQUE_FISICO'
   return 'TRANSFERENCIA'
 }

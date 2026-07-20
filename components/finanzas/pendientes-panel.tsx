@@ -28,7 +28,7 @@ export async function PendientesPanel() {
     // consolidado, no acá. Esta vista es de tesorería, no contable.
     supabase
       .from('gastos')
-      .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, estado, cuenta_id, medio_pago, recurrente_id, recurrente:gastos_recurrentes(notas, concepto, dia_vencimiento, tipo_mes)')
+      .select('id, concepto, categoria, monto, monto_neto, moneda, fecha_pago, mes, estado, cuenta_id, medio_pago, recurrente_id, recurrente:gastos_recurrentes(notas, concepto, dia_vencimiento, tipo_mes, es_cuenta_corriente)')
       .neq('estado', 'PAGADO')
       .neq('estado', 'DEVENGADO')
       .or('medio_pago.is.null,medio_pago.neq.TARJETA')
@@ -230,12 +230,12 @@ export async function PendientesPanel() {
       const pagado = pagosByGasto.get(g.id) ?? 0
       const saldo = Math.max(0, Number(g.monto) - pagado)
       // Supabase devuelve la relación como array; nos quedamos con el primer elemento
-      const recurrenteArr = (g as unknown as { recurrente?: { notas: string | null; concepto: string | null }[] }).recurrente
+      const recurrenteArr = (g as unknown as { recurrente?: { notas: string | null; concepto: string | null; es_cuenta_corriente?: boolean | null }[] }).recurrente
       const recurrente = Array.isArray(recurrenteArr) && recurrenteArr.length > 0 ? recurrenteArr[0] : null
       const esCC = esCuentaCorriente({
         concepto: g.concepto,
         recurrente_id: (g as unknown as { recurrente_id?: string | null }).recurrente_id,
-        recurrenteConcepto: recurrente?.concepto ?? null,
+        recurrenteEsCC: recurrente?.es_cuenta_corriente ?? null,
       })
       return { ...g, total_pagado: pagado, saldo_pendiente: saldo, recurrente, _esCC: esCC }
     })

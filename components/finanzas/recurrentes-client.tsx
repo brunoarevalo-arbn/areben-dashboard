@@ -42,7 +42,7 @@ const MEDIOS_PAGO = [
   { value: 'EFECTIVO', label: 'Efectivo' },
   { value: 'TARJETA', label: 'Tarjeta' },
   { value: 'DEBITO_AUTOMATICO', label: 'Débito automático' },
-  { value: 'CTA_CORRIENTE', label: 'Cuenta corriente' },
+  { value: 'CUENTA_CORRIENTE', label: 'Cuenta corriente' },
 ]
 
 // ─── RecurrenteForm ───────────────────────────────────────────────────────────
@@ -74,6 +74,7 @@ function RecurrenteForm({
   const [monedaSecundaria, setMonedaSecundaria] = useState<'ARS' | 'USD'>(recurrente?.moneda_secundaria ?? 'USD')
   const [medioPago, setMedioPago] = useState(recurrente?.medio_pago ?? 'TRANSFERENCIA')
   const [esCompartido, setEsCompartido] = useState(!!recurrente?.prorrateo)
+  const [esCuentaCorriente, setEsCuentaCorriente] = useState(recurrente?.es_cuenta_corriente ?? false)
 
   // Prorrateo default desde configuracion_prorrateo (usuario lo configura en /settings/prorrateo)
   const defaultFromConfig: ProrrateoMarcas = Object.fromEntries(
@@ -107,6 +108,7 @@ function RecurrenteForm({
       }
       if (esCompartido) fd.set('prorrateo', JSON.stringify(prorrateo))
       else fd.delete('prorrateo')
+      fd.set('es_cuenta_corriente', esCuentaCorriente ? 'true' : 'false')
       const r = await action(prev, fd)
       if (!r) onClose()
       return r
@@ -287,6 +289,23 @@ function RecurrenteForm({
             <ProrrateoEditor value={prorrateo} onChange={setProrrateo} defaults={prorrateosDefault} />
           </div>
         )}
+      </div>
+
+      {/* Cuenta corriente */}
+      <div className="bg-surface-2/60 border border-border-strong/60 rounded-xl p-4 space-y-2">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={esCuentaCorriente}
+            onChange={(e) => setEsCuentaCorriente(e.target.checked)}
+            className="w-4 h-4 rounded border-[#c8c0b0] bg-surface-2"
+          />
+          <span className="text-sm font-medium text-fg-muted">Es cuenta corriente (deuda que se junta)</span>
+        </label>
+        <p className="pl-6 text-xs text-fg-muted">
+          Tildá esto solo si no lo pagás en fecha cada mes, sino que se acumula y lo pagás cuando hay caja.
+          No aparecerá como pendiente con vencimiento: se suma al saldo de la cuenta corriente del proveedor.
+        </p>
       </div>
 
       <Textarea label="Notas — forma de pago y facturación"

@@ -30,7 +30,7 @@ export interface PagoAgg {
 export interface GastoEstadoInput extends GastoVencInput {
   concepto: string
   monto: number | string
-  recurrenteConcepto?: string | null
+  recurrenteEsCC?: boolean | null
 }
 
 // `hoy` en formato YYYY-MM-DD. `rec` = recurrente (día/tipo_mes) para su vencimiento propio.
@@ -50,7 +50,7 @@ export function estadoGasto(
   // 2. Devengado
   if (g.estado === 'DEVENGADO') return { estado: 'DEVENGADO', parcial }
   // 3. Cuenta corriente
-  if (esCuentaCorriente({ concepto: g.concepto, recurrente_id: g.recurrente_id, recurrenteConcepto: g.recurrenteConcepto })) {
+  if (esCuentaCorriente({ concepto: g.concepto, recurrente_id: g.recurrente_id, recurrenteEsCC: g.recurrenteEsCC })) {
     return { estado: 'CUENTA_CORRIENTE', parcial }
   }
 

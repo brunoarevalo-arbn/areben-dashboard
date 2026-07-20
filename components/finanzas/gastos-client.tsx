@@ -44,7 +44,7 @@ const MEDIOS_PAGO = [
   { value: 'EFECTIVO', label: 'Efectivo' },
   { value: 'TARJETA', label: 'Tarjeta' },
   { value: 'DEBITO_AUTOMATICO', label: 'Débito automático' },
-  { value: 'CTA_CORRIENTE', label: 'Cuenta corriente' },
+  { value: 'CUENTA_CORRIENTE', label: 'Cuenta corriente' },
 ]
 
 interface GastosClientProps {
@@ -57,7 +57,7 @@ interface GastosClientProps {
   prorrateosDefault: ProrrateoDefault[]
   tiposIva: TipoIVA[]
   configProrrateo: ConfiguracionProrrateo[]
-  recurrentes?: { id: string; concepto?: string | null; dia_vencimiento?: number | null; tipo_mes?: string | null }[]
+  recurrentes?: { id: string; concepto?: string | null; dia_vencimiento?: number | null; tipo_mes?: string | null; es_cuenta_corriente?: boolean | null }[]
   pagosByGasto?: Record<string, { monto: number; debitado: boolean; fecha_vencimiento: string | null }[]>
   hoy?: string
 }
@@ -698,7 +698,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
     for (const g of gastos) {
       const rec = g.recurrente_id ? recurrentesMap.get(g.recurrente_id) : null
       m.set(g.id, estadoGasto(
-        { ...g, recurrenteConcepto: rec?.concepto ?? null },
+        { ...g, recurrenteEsCC: rec?.es_cuenta_corriente ?? null },
         pagosByGasto?.[g.id] ?? [],
         rec,
         hoyStr,

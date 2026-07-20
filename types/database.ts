@@ -329,6 +329,8 @@ export interface GastoRecurrente {
   prorrateo?: ProrrateoMarcas | null
   detalles?: Record<string, unknown> | null
   notas?: string | null
+  /** Deuda tipo cuenta corriente (se junta sin fecha fija) → no aparece como pendiente con vencimiento. */
+  es_cuenta_corriente?: boolean
   activo: boolean
   created_at: string
 }

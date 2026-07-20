@@ -605,6 +605,7 @@ const recurrenteSchema = z.object({
   dia_vencimiento: optInt({ min: 1, max: 31 }),
   tipo_mes: z.enum(['CORRIENTE', 'VENCIDO']),
   notas: z.string().optional().nullable(),
+  es_cuenta_corriente: z.coerce.boolean().default(false),
 })
 
 export async function createRecurrente(prevState: string | null, formData: FormData) {
@@ -612,6 +613,7 @@ export async function createRecurrente(prevState: string | null, formData: FormD
   const raw = {
     ...Object.fromEntries(formData),
     iva_incluido: formData.get('iva_incluido') === 'true' || formData.get('iva_incluido') === 'on',
+    es_cuenta_corriente: formData.get('es_cuenta_corriente') === 'true' || formData.get('es_cuenta_corriente') === 'on',
   }
   const result = recurrenteSchema.safeParse(raw)
   if (!result.success) return result.error.issues[0].message
@@ -647,6 +649,7 @@ export async function updateRecurrente(id: string, prevState: string | null, for
   const raw = {
     ...Object.fromEntries(formData),
     iva_incluido: formData.get('iva_incluido') === 'true' || formData.get('iva_incluido') === 'on',
+    es_cuenta_corriente: formData.get('es_cuenta_corriente') === 'true' || formData.get('es_cuenta_corriente') === 'on',
   }
   const result = recurrenteSchema.safeParse(raw)
   if (!result.success) return result.error.issues[0].message
