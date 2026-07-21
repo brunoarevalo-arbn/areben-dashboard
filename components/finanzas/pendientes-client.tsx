@@ -318,7 +318,7 @@ function ChequeItem({
             <span className="text-fg-soft font-normal"> · {cheque.gasto?.categoria && !cheque.compra ? `${cheque.gasto.categoria} · ` : ''}{cheque.numero_cheque ? `Nº ${cheque.numero_cheque} · ` : ''}debita {formatDate(fechaVenc)}</span>
           </p>
         </div>
-        <div className="flex-1 min-w-0 flex items-center gap-2 text-[11px]">
+        <div className="flex-1 flex items-center gap-2 text-[11px] overflow-hidden">
           {/* Cheque pasado fecha pero no debitado: aún disponible para cobrar (no es deadline rígido) */}
           {dias < 0 && Math.abs(dias) <= 30 && <span className="text-fg-muted whitespace-nowrap">esperando depósito</span>}
           {dias < 0 && Math.abs(dias) > 30 && <span className="text-red-700 font-medium whitespace-nowrap">{Math.abs(dias)}d sin cobrar — revisar</span>}
@@ -395,7 +395,7 @@ function CuotaItem({ cuota, hoy, onPagar, onPagoParcial, onEditHistorica }: {
           <span className="text-fg-soft font-normal"> · {cuota.tarjeta?.nombre ?? '—'} · vence {formatMonth(cuota.mes_vencimiento)}{cuota.cuotas_total > 1 ? ` (${cuota.cuota_numero}/${cuota.cuotas_total})` : ''}</span>
         </p>
       </div>
-      <div className="flex-1 min-w-0 flex items-center gap-2">
+      <div className="flex-1 flex items-center gap-2">
         <EstadoVencimientoChip dias={dias} />
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -467,7 +467,7 @@ function GastoPendItem({ gasto, hoy, cuentas, onPagoParcial }: { gasto: GastoPen
             <span className="text-fg-soft font-normal"> · {gasto.categoria}{fecha ? ` · vence ${formatDate(fecha)}` : ''}</span>
           </p>
         </div>
-        <div className="flex-1 min-w-0 flex items-center gap-2">
+        <div className="flex-1 flex items-center gap-2">
           <EstadoVencimientoChip dias={dias} />
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -586,7 +586,7 @@ function PagoCtaCteItem({ pago, hoy, cuentas, onDebitar }: { pago: PagoCtaCte; h
             <span className="text-fg-soft font-normal"> · {pago.gasto?.categoria && !pago.compra ? `${pago.gasto.categoria} · ` : ''}Cta. corriente · vence {formatDate(fecha)}{pago.numero_cuota && pago.total_cuotas && pago.total_cuotas > 1 ? ` (cuota ${pago.numero_cuota}/${pago.total_cuotas})` : ''}</span>
           </p>
         </div>
-        <div className="flex-1 min-w-0 flex items-center gap-2">
+        <div className="flex-1 flex items-center gap-2">
           <EstadoVencimientoChip dias={dias} />
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -779,7 +779,7 @@ function InstrumentoItem({ inst, hoy }: { inst: InstrumentoProximo; hoy: string 
           <span className="text-fg-soft font-normal"> · vence {inst.fecha_fin && formatDate(inst.fecha_fin)}{inst.capitalizable ? ' · capitalizable' : ' · no capitalizable'}</span>
         </p>
       </div>
-      <div className="flex-1 min-w-0 flex items-center gap-2">
+      <div className="flex-1 flex items-center gap-2">
         <EstadoVencimientoChip dias={inst.fecha_fin ? dias : null} />
       </div>
       <div className="flex items-center gap-3 shrink-0">
@@ -845,7 +845,7 @@ function CuotaTcGrupoItem({
             <span className="text-fg-soft font-normal"> · vence {formatMonth(grupo.mes_vencimiento)}</span>
           </p>
         </div>
-        <div className="flex-1 min-w-0 flex items-center gap-2">
+        <div className="flex-1 flex items-center gap-2">
           <EstadoVencimientoChip dias={dias} />
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -920,7 +920,7 @@ function CuotaPrestamoItem({
             <span className="text-fg-soft font-normal"> · vence {formatDate(cuota.fecha_vencimiento)}</span>
           </p>
         </div>
-        <div className="flex-1 min-w-0 flex items-center gap-2">
+        <div className="flex-1 flex items-center gap-2">
           <EstadoVencimientoChip dias={dias} />
           <span className="text-[11px] text-fg-soft whitespace-nowrap hidden md:inline">Cap {formatCurrency(cuota.capital, moneda)} + Int {formatCurrency(cuota.interes, moneda)}</span>
         </div>
@@ -984,7 +984,7 @@ function CuotaPlanAfipItem({
             <span className="text-fg-soft font-normal"> · Débito automático · vence {formatDate(cuota.fecha_vencimiento)}</span>
           </p>
         </div>
-        <div className="flex-1 min-w-0 flex items-center gap-2">
+        <div className="flex-1 flex items-center gap-2">
           <EstadoVencimientoChip dias={dias} />
           <span className="text-[11px] text-fg-soft whitespace-nowrap hidden md:inline">Cap {formatCurrency(cuota.capital)} + Int {formatCurrency(cuota.interes)}</span>
         </div>
@@ -1063,7 +1063,7 @@ function GastoGrupoCargasItem({
             <span className="text-fg-soft font-normal"> · vence {formatDate(fechaVenc)}</span>
           </p>
         </div>
-        <div className="flex-1 min-w-0 flex items-center gap-2">
+        <div className="flex-1 flex items-center gap-2">
           <EstadoVencimientoChip dias={dias} />
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -1242,7 +1242,7 @@ function GastoGrupoServicioItem({ grupo, hoy, onPagoParcial }: {
             <span className="text-fg-soft font-normal"> · {grupo.categoria}</span>
           </p>
         </div>
-        <div className="flex-1 min-w-0 flex items-center gap-2"><EstadoVencimientoChip dias={dias} /></div>
+        <div className="flex-1 flex items-center gap-2"><EstadoVencimientoChip dias={dias} /></div>
         <div className="flex items-center gap-3 shrink-0">
           <p className="font-mono font-bold text-amber-700 whitespace-nowrap">{formatCurrency(grupo.totalSaldo)}</p>
         </div>
@@ -1334,7 +1334,7 @@ function RetiroItem({ retiro, hoy, onRefetch }: { retiro: RetiroProgramado; hoy:
             <span className="text-fg-soft font-normal"> · programado {formatDate(fecha)}</span>
           </p>
         </div>
-        <div className="flex-1 min-w-0 flex items-center gap-2"><EstadoVencimientoChip dias={dias} /></div>
+        <div className="flex-1 flex items-center gap-2"><EstadoVencimientoChip dias={dias} /></div>
         <div className="flex items-center gap-3 shrink-0">
           <p className="font-mono font-bold text-fg whitespace-nowrap">{formatCurrency(monto, moneda)}</p>
           <Button size="sm" variant="success" disabled={isPending} onClick={efectivizar} title="Marcar el retiro como efectivizado (empieza a contar en la cuenta del socio)">
