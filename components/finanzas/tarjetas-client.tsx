@@ -136,6 +136,13 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas, gastosCon
   const [detalleTarjeta, setDetalleTarjeta] = useState<(TarjetaCredito & { socio?: SocioLite | null }) | null>(null)
   const [isPending, startTransition] = useTransition()
 
+  // Retiros que ya tienen cuotas generadas → su deuda de tarjeta se cuenta por las cuotas;
+  // no hay que sumar el retiro aparte (evita el doble conteo retiro + cuotas).
+  const retirosConCuota = useMemo(
+    () => new Set(cuotas.filter((c) => c.origen_id).map((c) => c.origen_id)),
+    [cuotas]
+  )
+
   // Por tarjeta: total agregado pendiente (cuotas + gastos + retiros)
   const consumosPorTarjeta = useMemo(() => {
     const m = new Map<string, {
@@ -166,13 +173,14 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas, gastosCon
     }
     for (const r of retirosConTarjeta) {
       if (!r.tarjeta_id) continue
+      if (retirosConCuota.has(r.id)) continue // ya contado por sus cuotas
       const v = m.get(r.tarjeta_id)
       if (!v) continue
       v.totalRetiros += Number(r.monto_pesos)
       v.qtyRetiros += 1
     }
     return m
-  }, [tarjetas, cuotas, gastosConTarjeta, retirosConTarjeta])
+  }, [tarjetas, cuotas, gastosConTarjeta, retirosConTarjeta, retirosConCuota])
 
   function totalTarjeta(tarjetaId: string): number {
     const v = consumosPorTarjeta.get(tarjetaId)
@@ -213,6 +221,7 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas, gastosCon
     }
 
     for (const r of retirosConTarjeta) {
+      if (retirosConCuota.has(r.id)) continue // ya contado por sus cuotas
       const k = mesVencimiento(r.mes)
       if (!mapa.has(k)) mapa.set(k, { total: 0, cantidad: 0, pagado: 0 })
       const v = mapa.get(k)!
@@ -223,7 +232,7 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas, gastosCon
     return Array.from(mapa.entries())
       .map(([mes, v]) => ({ mes, ...v }))
       .sort((a, b) => a.mes.localeCompare(b.mes))
-  }, [cuotas, gastosConTarjeta, retirosConTarjeta])
+  }, [cuotas, gastosConTarjeta, retirosConTarjeta, retirosConCuota])
 
   const cuotasPendientes = cuotas.filter((c) => !c.pagada)
 
