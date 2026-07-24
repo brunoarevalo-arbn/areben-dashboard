@@ -70,7 +70,10 @@ export async function createPrestamo(input: z.infer<typeof createPrestamoSchema>
   const { error: cuotasErr } = await supabase.from('prestamo_cuotas').insert(cuotaRows)
   if (cuotasErr) throw new Error(cuotasErr.message)
 
-  // Gastos financieros (intereses) — solo para las cuotas PENDIENTES (las pagadas son históricas)
+  // Gastos financieros (intereses) — solo para las cuotas PENDIENTES (las pagadas son históricas).
+  // Nacen DEVENGADO: son el costo financiero (entran al resultado) pero NO son una línea de caja
+  // aparte — la salida de caja es la cuota (capital + interés). Así no duplican en Pendientes ni en
+  // el cierre. Mismo criterio que el interés de las inversiones.
   const cuotasPendientes = data.cuotas.filter((c) => !c.pagada && c.interes > 0)
   if (cuotasPendientes.length > 0) {
     const gastoRows = cuotasPendientes.map((c) => ({
@@ -83,7 +86,7 @@ export async function createPrestamo(input: z.infer<typeof createPrestamoSchema>
       mes: c.fecha_vencimiento.substring(0, 7),
       fecha: c.fecha_vencimiento,
       fecha_pago: c.fecha_vencimiento,
-      estado: 'PENDIENTE',
+      estado: 'DEVENGADO',
       medio_pago: 'TRANSFERENCIA',
       cuenta_id: data.cuenta_pago_id || null,
       iva_incluido: false,
@@ -112,19 +115,8 @@ export async function marcarCuotaPrestamoPagada(cuotaId: string, fechaPago?: str
     .eq('id', cuotaId)
   if (error) throw new Error(error.message)
 
-  const { data: cuota } = await supabase
-    .from('prestamo_cuotas')
-    .select('prestamo_id, fecha_vencimiento')
-    .eq('id', cuotaId)
-    .single()
-  if (cuota) {
-    await supabase
-      .from('gastos')
-      .update({ estado: 'PAGADO', fecha_pago: fecha })
-      .eq('prestamo_id', cuota.prestamo_id)
-      .eq('mes', cuota.fecha_vencimiento.substring(0, 7))
-      .eq('categoria', 'Gastos Financieros')
-  }
+  // El gasto de interés queda DEVENGADO (costo, no caja): no se toca al pagar la cuota.
+  // La salida de caja es la cuota completa (capital + interés); el interés no es una línea aparte.
 
   revalidatePath('/finanzas/prestamos')
   revalidatePath('/finanzas/pendientes')
@@ -140,19 +132,7 @@ export async function desmarcarCuotaPrestamoPagada(cuotaId: string) {
     .eq('id', cuotaId)
   if (error) throw new Error(error.message)
 
-  const { data: cuota } = await supabase
-    .from('prestamo_cuotas')
-    .select('prestamo_id, fecha_vencimiento')
-    .eq('id', cuotaId)
-    .single()
-  if (cuota) {
-    await supabase
-      .from('gastos')
-      .update({ estado: 'PENDIENTE', fecha_pago: cuota.fecha_vencimiento })
-      .eq('prestamo_id', cuota.prestamo_id)
-      .eq('mes', cuota.fecha_vencimiento.substring(0, 7))
-      .eq('categoria', 'Gastos Financieros')
-  }
+  // El gasto de interés queda DEVENGADO (costo, no caja): no se toca al despagar la cuota.
 
   revalidatePath('/finanzas/prestamos')
   revalidatePath('/finanzas/pendientes')
