@@ -18,6 +18,7 @@ import { InfoPopover } from '@/components/ui/info-popover'
 import { formatCurrency, formatMonth, formatDate, getMonthOptions } from '@/lib/utils'
 import { valorRetiroArs, valorRetiroUsd } from '@/lib/retiros'
 import { vencimientoGasto, estaVencido } from '@/lib/gastos-vencimiento'
+import { netoCompraARS } from '@/lib/compras-calc'
 import {
   Lock, Unlock, Loader2, Save, Plus, Trash2, Wallet, Banknote, Receipt,
   CreditCard, AlertCircle, TrendingUp, TrendingDown, Building2,
@@ -41,12 +42,15 @@ interface ProduccionItem {
   monto_total: number
   iva: number
   moneda: string
+  tipo_cambio?: number | null
   categoria_produccion?: string | null
   proveedor?: { nombre: string } | null
 }
 
-// Costo neto de IVA = bruto − IVA (la parte no facturada queda entera, sin restarle IVA)
-const costoNetoProd = (p: { monto_total: number; iva: number }) => Number(p.monto_total) - Number(p.iva)
+// Costo neto de IVA = bruto − IVA (la parte no facturada queda entera, sin restarle IVA).
+// Compras USD con TC → pesificadas.
+const costoNetoProd = (p: { monto_total: number; iva: number; moneda?: string | null; tipo_cambio?: number | null }) =>
+  netoCompraARS(p)
 
 interface GastoPendiente {
   id: string

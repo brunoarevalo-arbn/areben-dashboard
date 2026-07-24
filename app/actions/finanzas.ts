@@ -7,6 +7,7 @@ import { optUuid, optInt } from '@/lib/zod-helpers'
 import { createPagoUnificado } from './pagos'
 import { calcularMesesTarjeta as calcMesesTarjetaPure, calcularMontosCuota } from '@/lib/calc/tarjeta'
 import { calcularMontoNeto } from '@/lib/calc/gasto'
+import { netoCompraARS } from '@/lib/compras-calc'
 
 // ============ GASTOS ============
 
@@ -2284,13 +2285,13 @@ export async function sugerirMovimientoInventario(args: {
 
   const { data: compras } = await supabase
     .from('compras')
-    .select('monto_total, iva')
+    .select('monto_total, iva, moneda, tipo_cambio')
     .eq('negocio', args.marca)
     .gte('fecha', desde)
     .lte('fecha', hasta)
 
-  // Neto de IVA = bruto − iva (la parte no facturada, sin IVA, queda entera)
-  const totalCompras = (compras ?? []).reduce((s, c) => s + (Number(c.monto_total) - Number(c.iva)), 0)
+  // Neto de IVA = bruto − iva (la parte no facturada, sin IVA, queda entera). Compras USD → pesificadas.
+  const totalCompras = (compras ?? []).reduce((s, c) => s + netoCompraARS(c), 0)
 
   // CMV de la marca en el mes
   const { data: ventas } = await supabase
@@ -2378,7 +2379,7 @@ export async function calcularReposicion(grupo: 'BDI' | 'ZATTIA_STUNNED', mes: s
   // Producción pasada a stock imputada a este grupo (una sola lectura; se bucketea por mes de fecha_pasaje).
   const { data: prodPasada } = await supabase
     .from('compras')
-    .select('fecha_pasaje, monto_total, iva')
+    .select('fecha_pasaje, monto_total, iva, moneda, tipo_cambio')
     .eq('negocio', 'PRODUCCION')
     .in('marca_pasaje', marcas)
     .not('fecha_pasaje', 'is', null)
@@ -2391,15 +2392,15 @@ export async function calcularReposicion(grupo: 'BDI' | 'ZATTIA_STUNNED', mes: s
     const hasta = new Date(year, m, 0).toISOString().split('T')[0]
     const { data: compras } = await supabase
       .from('compras')
-      .select('monto_total, iva')
+      .select('monto_total, iva, moneda, tipo_cambio')
       .in('negocio', marcas)
       .gte('fecha', desde)
       .lte('fecha', hasta)
-    // Neto de compras de la marca + neto de producción pasada a stock ESTE mes (por fecha_pasaje).
+    // Neto de compras de la marca + neto de producción pasada a stock ESTE mes (por fecha_pasaje). USD → pesificado.
     const prodPasadaMes = (prodPasada ?? [])
       .filter((p) => p.fecha_pasaje >= desde && p.fecha_pasaje <= hasta)
-      .reduce((s, p) => s + (Number(p.monto_total) - Number(p.iva)), 0)
-    const comprasNetas = (compras ?? []).reduce((s, c) => s + (Number(c.monto_total) - Number(c.iva)), 0) + prodPasadaMes
+      .reduce((s, p) => s + netoCompraARS(p), 0)
+    const comprasNetas = (compras ?? []).reduce((s, c) => s + netoCompraARS(c), 0) + prodPasadaMes
     const { data: ventas } = await supabase
       .from('datos_ventas_gn')
       .select('cmv')

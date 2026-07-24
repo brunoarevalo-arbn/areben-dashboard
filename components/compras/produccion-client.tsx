@@ -9,10 +9,11 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { Plus, Boxes, Loader2, ArrowRightCircle, Undo2, Trash2, Pencil, Factory } from 'lucide-react'
 import { CompraForm } from './compra-form'
 import type { Compra, Proveedor } from './compras-client'
+import { netoCompraARS } from '@/lib/compras-calc'
 
 // Costo neto de IVA = bruto − IVA (la parte no facturada queda entera). No usar monto_neto:
 // ese campo, con facturación parcial, solo guarda la parte facturada neta.
-const costoNeto = (c: Compra) => Number(c.monto_total) - Number(c.iva)
+const costoNeto = (c: Compra) => netoCompraARS(c)
 
 const CAT_LABELS: Record<string, string> = {
   MANO_DE_OBRA: 'Mano de obra',

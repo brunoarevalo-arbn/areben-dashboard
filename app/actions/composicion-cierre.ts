@@ -3,6 +3,7 @@
 import { createClient, requireUser } from '@/lib/supabase/server'
 import { calcularReposicion } from '@/app/actions/finanzas'
 import { valorRetiroUsd } from '@/lib/retiros'
+import { netoCompraARS } from '@/lib/compras-calc'
 import type { CuentaPatrimonial, SaldoCuentaPatrim } from '@/types/database'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -169,7 +170,7 @@ export async function composicionPosicionMercaderia(mes: string): Promise<Seccio
 
     const { data: compras } = await supabase
       .from('compras')
-      .select('fecha, descripcion, monto_total, iva, proveedor:proveedores(nombre)')
+      .select('fecha, descripcion, monto_total, iva, moneda, tipo_cambio, proveedor:proveedores(nombre)')
       .in('negocio', g.marcas)
       .gte('fecha', desde)
       .lte('fecha', hasta)
@@ -179,7 +180,7 @@ export async function composicionPosicionMercaderia(mes: string): Promise<Seccio
       return {
         fecha: c.fecha,
         concepto: [c.descripcion, prov].filter(Boolean).join(' · ') || 'Compra',
-        monto: r2(Number(c.monto_total) - Number(c.iva)), // +neto: sube el inventario
+        monto: r2(netoCompraARS(c)), // +neto (USD pesificado): sube el inventario
       }
     })
     // Si comprasNetas > Σ compras de la marca, la diferencia es producción pasada a stock este mes.

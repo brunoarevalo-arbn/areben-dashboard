@@ -9,6 +9,7 @@ import { Input, Select } from '@/components/ui/input'
 import { MarcaBadge } from '@/components/ui/badge'
 import { useSort, SortTh } from '@/components/ui/sortable'
 import { formatCurrency, formatDate, getMonthOptions } from '@/lib/utils'
+import { netoCompraARS } from '@/lib/compras-calc'
 import {
   Plus, Trash2, ShoppingCart, Loader2,
   CreditCard, Banknote, Building2, FileCheck, AlertCircle, PlusCircle, X, Pencil,
@@ -40,6 +41,7 @@ export interface Compra {
   fecha: string
   negocio: string
   moneda: string
+  tipo_cambio?: number | null
   monto_total: number
   porcentaje_facturacion: number
   monto_neto: number
@@ -549,7 +551,7 @@ export function ComprasClient({
       case 'proveedor': return ((c.proveedor as { nombre: string } | null)?.nombre ?? '').toLowerCase()
       case 'descripcion': return (c.descripcion ?? '').toLowerCase()
       case 'monto_total': return Number(c.monto_total ?? 0)
-      case 'monto_neto': return Number(c.monto_total) - Number(c.iva)
+      case 'monto_neto': return netoCompraARS(c)
       case 'iva': return Number(c.iva ?? 0)
       case 'saldo': return Number(c.saldo_pendiente ?? c.monto_total ?? 0)
       default: return ''
@@ -558,7 +560,7 @@ export function ComprasClient({
 
   const totalMonto = comprasFiltradas.reduce((s, c) => s + c.monto_total, 0)
   // Neto sin IVA = bruto − IVA (NO usar monto_neto: con facturación parcial subvalúa)
-  const totalNeto = comprasFiltradas.reduce((s, c) => s + (c.monto_total - c.iva), 0)
+  const totalNeto = comprasFiltradas.reduce((s, c) => s + netoCompraARS(c), 0)
   const totalIVA = comprasFiltradas.reduce((s, c) => s + c.iva, 0)
   const totalSaldo = comprasFiltradas.reduce((s, c) => s + (c.saldo_pendiente ?? c.monto_total), 0)
 
@@ -764,7 +766,7 @@ export function ComprasClient({
                       )}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-green-700">
-                      {formatCurrency(c.monto_total - c.iva)}
+                      {formatCurrency(netoCompraARS(c))}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-amber-700">
                       {c.iva > 0 ? formatCurrency(c.iva) : '—'}
