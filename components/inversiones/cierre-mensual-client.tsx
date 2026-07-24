@@ -456,33 +456,13 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                         {p.cerrado && i.fecha_fin && venc.necesitaRenovar && (
                           <RenovarInstrumentoButton instrumento={i} saldoActual={Number(p.saldo_cierre)} onDone={setToast} />
                         )}
-                        <a
-                          href={`/api/reportes/periodo/${p.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-border-strong text-xs text-fg-muted hover:bg-surface-2 hover:text-fg transition-colors"
-                          title="Reporte PDF interno (uso contable)"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          PDF
-                        </a>
-                        <a
-                          href={`/api/reportes/periodo/${p.id}/inversor`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-orange-500/40 bg-orange-500/10 text-xs text-orange-700 hover:bg-orange-500/20 transition-colors"
-                          title="Comprobante formal para enviar al inversor"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          PDF Inversor
-                        </a>
-                        {i.plazo_dias ? (
+                        {(i.fecha_fin || i.plazo_dias) ? (
                           <a
                             href={`/api/reportes/instrumento/${i.id}/proyeccion`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-primary/40 bg-primary/10 text-xs text-primary hover:bg-primary/20 transition-colors"
-                            title={`Proyección del rendimiento del instrumento a ${i.plazo_dias} días`}
+                            title={i.plazo_dias ? `Proyección del rendimiento del instrumento a ${i.plazo_dias} días` : 'Proyección del rendimiento hasta el vencimiento'}
                           >
                             <FileText className="w-3.5 h-3.5" />
                             PDF Proyección

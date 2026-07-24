@@ -15,6 +15,15 @@ function addMonths(dateStr: string, months: number): Date {
   return new Date(y, m - 1 + months, d)
 }
 
+function addDays(dateStr: string, days: number): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d + days)
+}
+
+function diffDays(desde: Date, hasta: Date): number {
+  return Math.round((hasta.getTime() - desde.getTime()) / 86_400_000)
+}
+
 function dateToYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
@@ -30,7 +39,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .from('instrumentos_inversion')
     .select(`
       id, codigo, moneda, capital_inicial, tasa_mensual, capitalizable,
-      fecha_inicio, plazo_dias,
+      fecha_inicio, fecha_fin, plazo_dias,
       inversor:inversores(
         nombre, tipo, dni, cuit, domicilio_calle, domicilio_ciudad,
         domicilio_provincia, domicilio_cp, email
@@ -48,9 +57,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return new Response('Inversor no encontrado', { status: 404 })
   }
 
-  if (!inst.plazo_dias) {
+  // La proyección se guía por la fecha de fin (vencimiento) real del instrumento.
+  // Si no está cargada, se cae al plazo en días como respaldo.
+  if (!inst.fecha_fin && !inst.plazo_dias) {
     return new Response(
-      'Este instrumento no tiene plazo definido. Editalo en /inversiones y cargá el campo "Plazo" antes de generar la proyección.',
+      'Este instrumento no tiene fecha de vencimiento ni plazo definido. Editalo en /inversiones y cargá la fecha de vencimiento (o el campo "Plazo") antes de generar la proyección.',
       { status: 400 },
     )
   }
@@ -67,43 +78,65 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // 3. Cálculo de la proyección
+  //
+  // Se recorre el plazo REAL (fecha_inicio → fecha_inicio + plazo_dias) armando un tramo
+  // por cada mes calendario que entra completo, más un último tramo PRORRATEADO por los
+  // días sueltos que sobran. Así un plazo de 15 días muestra ~medio mes de interés y el
+  // vencimiento correcto, 45 días = 1 mes + 15 días, y 30/90 días quedan igual que antes.
+  // El prorrateo por días es consistente con el motor de períodos.
   const capital = Number(inst.capital_inicial)
   const tasa = Number(inst.tasa_mensual)
-  const meses = Math.round(inst.plazo_dias / 30)
+  // Vencimiento real: la fecha de fin acordada manda; si falta, se usa inicio + plazo_dias.
+  const fechaVencDate = inst.fecha_fin
+    ? addDays(inst.fecha_fin, 0)
+    : addDays(inst.fecha_inicio, inst.plazo_dias!)
+  // Plazo en días para mostrar/nombrar el archivo (derivado de las fechas si no está cargado).
+  const plazoDias = inst.plazo_dias ?? diffDays(addDays(inst.fecha_inicio, 0), fechaVencDate)
 
   const proyeccion: ProyeccionMes[] = []
   let saldoCapital = capital  // capital "vivo": en cap. crece, en no cap. queda fijo
   let interesesAcumulados = 0  // sólo se usa visualmente para no cap. — total adeudado al inversor
 
-  for (let i = 0; i < meses; i++) {
+  let cursorStr = inst.fecha_inicio
+  let mesNum = 0
+  // Tope de seguridad por si algún dato quedara inconsistente (plazos hasta ~10 años).
+  while (mesNum < 130) {
+    const cursorDate = addDays(cursorStr, 0)
+    if (cursorDate.getTime() >= fechaVencDate.getTime()) break
+    mesNum++
+
+    const proxMesDate = addMonths(cursorStr, 1)
+    const finTramoDate = proxMesDate.getTime() < fechaVencDate.getTime() ? proxMesDate : fechaVencDate
+    const diasTramo = diffDays(cursorDate, finTramoDate)
+    const diasMesCompleto = diffDays(cursorDate, proxMesDate)
+    const fraccion = diasMesCompleto > 0 ? diasTramo / diasMesCompleto : 1 // 1 = mes entero
+
     const saldoInicio = saldoCapital
-    const interes = Math.round(saldoInicio * tasa * 100) / 100
+    const interes = Math.round(saldoInicio * tasa * fraccion * 100) / 100
     interesesAcumulados = Math.round((interesesAcumulados + interes) * 100) / 100
 
-    // saldo_cierre del PDF = monto TOTAL adeudado al inversor al cierre de este mes.
+    // saldo_cierre del PDF = monto TOTAL adeudado al inversor al cierre de este tramo.
     // - Capitalizable: capital reinvertido = saldoInicio + interés (el capital crece).
-    // - No capitalizable: capital fijo + suma de intereses devengados hasta esta fecha
-    //   (esos intereses se cobran al final del plazo, así que mes a mes muestran cuánto
-    //    se le adeuda al inversor a esa fecha).
+    // - No capitalizable: capital fijo + suma de intereses devengados hasta esta fecha.
     const saldoCierre = inst.capitalizable
       ? Math.round((saldoInicio + interes) * 100) / 100
       : Math.round((capital + interesesAcumulados) * 100) / 100
 
-    const inicio = addMonths(inst.fecha_inicio, i)
-    const finProx = addMonths(inst.fecha_inicio, i + 1)
-    const fin = new Date(finProx.getFullYear(), finProx.getMonth(), finProx.getDate() - 1)
+    // Fecha fin mostrada = último día del tramo (el día previo al inicio del siguiente).
+    const finDisplay = new Date(finTramoDate.getFullYear(), finTramoDate.getMonth(), finTramoDate.getDate() - 1)
 
     proyeccion.push({
-      mes_num: i + 1,
-      fecha_inicio: dateToYMD(inicio),
-      fecha_fin: dateToYMD(fin),
+      mes_num: mesNum,
+      fecha_inicio: dateToYMD(cursorDate),
+      fecha_fin: dateToYMD(finDisplay),
       saldo_inicio: saldoInicio,
       interes_devengado: interes,
       saldo_cierre: saldoCierre,
     })
 
-    // Sólo en capitalizable el capital crece para el próximo mes.
+    // Sólo en capitalizable el capital crece para el próximo tramo.
     if (inst.capitalizable) saldoCapital = saldoCierre
+    cursorStr = dateToYMD(finTramoDate)
   }
 
   const totalIntereses = interesesAcumulados
@@ -115,7 +148,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const totalACobrar = inst.capitalizable
     ? capitalFinal
     : Math.round((capital + totalIntereses) * 100) / 100
-  const fechaVenc = dateToYMD(addMonths(inst.fecha_inicio, meses))
+  const fechaVenc = dateToYMD(fechaVencDate)
 
   // 4. Armar data
   const data: ReporteProyeccionData = {
@@ -150,7 +183,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       tasa_mensual: tasa,
       capitalizable: inst.capitalizable,
       fecha_inicio: inst.fecha_inicio,
-      plazo_dias: inst.plazo_dias,
+      plazo_dias: plazoDias,
       fecha_vencimiento: fechaVenc,
     },
     proyeccion,
