@@ -258,7 +258,7 @@ export async function regenerarPeriodos(instrumentoId: string) {
 // ============ RENOVAR INSTRUMENTO ============
 
 export type RenovarResult =
-  | { ok: true; capitalAnterior: number; capitalNuevo: number; fechaInicio: string; fechaFin: string }
+  | { ok: true; capitalAnterior: number; capitalNuevo: number; fechaInicio: string; fechaFin: string; tasaMensual: number; capitalizable: boolean }
   | { ok: false; error: string }
 
 /**
@@ -272,6 +272,7 @@ export type RenovarResult =
 export async function renovarInstrumento(
   instrumentoId: string,
   nuevaFechaFinCustom?: string,
+  opts?: { tasaMensual?: number; capitalizable?: boolean },
 ): Promise<RenovarResult> {
   await requireUser()
   const supabase = await createClient()
@@ -279,7 +280,7 @@ export async function renovarInstrumento(
   // 1. Cargar instrumento
   const { data: inst, error: errInst } = await supabase
     .from('instrumentos_inversion')
-    .select('id, capital_inicial, fecha_inicio, fecha_fin, plazo_dias, estado, capitalizable, notas')
+    .select('id, capital_inicial, fecha_inicio, fecha_fin, plazo_dias, estado, capitalizable, tasa_mensual, notas')
     .eq('id', instrumentoId)
     .single()
 
@@ -373,9 +374,25 @@ export async function renovarInstrumento(
     nuevaFechaFin = nuevaFechaFinDate.toISOString().substring(0, 10)
   }
 
-  // 6. Update instrumento
+  // 6. Condiciones del nuevo ciclo (tasa y capitalización pueden reacordarse al renovar).
+  //    Por defecto se mantienen las actuales.
+  const tasaAnterior = Number(inst.tasa_mensual)
+  const nuevaTasa = opts?.tasaMensual != null && Number.isFinite(opts.tasaMensual) && opts.tasaMensual >= 0
+    ? opts.tasaMensual
+    : tasaAnterior
+  const nuevoCapitalizable = opts?.capitalizable != null ? opts.capitalizable : inst.capitalizable
+  const tasaCambio = nuevaTasa !== tasaAnterior
+  const capCambio = nuevoCapitalizable !== inst.capitalizable
+
+  // 6b. Update instrumento
   const hoyISO = new Date().toISOString().substring(0, 10)
-  const notaRenovacion = `[${hoyISO}] Renovado. Capital anterior: $${capitalAnterior.toFixed(2)} → Nuevo: $${capitalNuevo.toFixed(2)}. Periodo: ${nuevaFechaInicio} → ${nuevaFechaFin}.`
+  const cambios = [
+    `Capital anterior: $${capitalAnterior.toFixed(2)} → Nuevo: $${capitalNuevo.toFixed(2)}`,
+    `Periodo: ${nuevaFechaInicio} → ${nuevaFechaFin}`,
+    tasaCambio ? `Tasa: ${(tasaAnterior * 100).toFixed(2)}% → ${(nuevaTasa * 100).toFixed(2)}%` : null,
+    capCambio ? `Capitalización: ${inst.capitalizable ? 'sí' : 'no'} → ${nuevoCapitalizable ? 'sí' : 'no'}` : null,
+  ].filter(Boolean).join('. ')
+  const notaRenovacion = `[${hoyISO}] Renovado. ${cambios}.`
   const nuevasNotas = inst.notas ? `${inst.notas}\n${notaRenovacion}` : notaRenovacion
 
   const { error: errUpdate } = await supabase
@@ -385,12 +402,36 @@ export async function renovarInstrumento(
       fecha_inicio: nuevaFechaInicio,
       fecha_fin: nuevaFechaFin,
       plazo_dias: nuevoPlazoDias,
+      tasa_mensual: nuevaTasa,
+      capitalizable: nuevoCapitalizable,
       notas: nuevasNotas,
     })
     .eq('id', instrumentoId)
 
   if (errUpdate) {
     return { ok: false, error: `Error actualizando instrumento: ${errUpdate.message}` }
+  }
+
+  // 6c. Si cambió la tasa, agregar un tramo desde el inicio del nuevo ciclo.
+  //     Los períodos ya cerrados conservan su tasa (se rigen por tramos anteriores);
+  //     el ciclo nuevo usa la tasa reacordada.
+  if (tasaCambio) {
+    const { data: tramoExistente } = await supabase
+      .from('tramos_tasa')
+      .select('id')
+      .eq('instrumento_id', instrumentoId)
+      .eq('fecha_desde', nuevaFechaInicio)
+      .maybeSingle()
+    if (tramoExistente) {
+      await supabase.from('tramos_tasa').update({ tasa_mensual: nuevaTasa }).eq('id', tramoExistente.id)
+    } else {
+      await supabase.from('tramos_tasa').insert({
+        instrumento_id: instrumentoId,
+        tasa_mensual: nuevaTasa,
+        fecha_desde: nuevaFechaInicio,
+        notas: `Tasa acordada al renovar (${hoyISO})`,
+      })
+    }
   }
 
   // 7. Regenerar períodos del nuevo ciclo (los cerrados se preservan)
@@ -409,6 +450,8 @@ export async function renovarInstrumento(
     capitalNuevo,
     fechaInicio: nuevaFechaInicio,
     fechaFin: nuevaFechaFin,
+    tasaMensual: nuevaTasa,
+    capitalizable: nuevoCapitalizable,
   }
 }
 

@@ -46,23 +46,30 @@ export function RenovarModal({
   const [modo, setModo] = useState<'meses' | 'fecha'>('meses')
   const [meses, setMeses] = useState(3)
   const [fechaCustom, setFechaCustom] = useState('')
+  const [tasaPct, setTasaPct] = useState(String((Number(instrumento.tasa_mensual) * 100).toFixed(2)))
+  const [capitalizable, setCapitalizable] = useState(!!instrumento.capitalizable)
   const [error, setError] = useState<string | null>(null)
 
   const nuevoInicio = instrumento.fecha_fin ?? ''
   const nuevoFin = modo === 'meses' && nuevoInicio ? addMonths(nuevoInicio, meses) : fechaCustom
+  const tasaNum = Number(tasaPct.replace(',', '.'))
 
   const handleConfirm = () => {
     setError(null)
     if (!nuevoInicio) { setError('El instrumento no tiene fecha de vencimiento para arrancar el nuevo ciclo. Configurala primero.'); return }
     if (!nuevoFin) { setError('Elegí una fecha de vencimiento.'); return }
     if (nuevoFin <= nuevoInicio) { setError('El vencimiento tiene que ser posterior al inicio del nuevo ciclo.'); return }
+    if (!Number.isFinite(tasaNum) || tasaNum < 0) { setError('Ingresá una tasa mensual válida (%).'); return }
     startTransition(async () => {
-      const r = await renovarInstrumento(instrumento.id, nuevoFin)
+      const r = await renovarInstrumento(instrumento.id, nuevoFin, {
+        tasaMensual: tasaNum / 100,
+        capitalizable,
+      })
       if (!r.ok) { setError(r.error); return }
       onDone({
         kind: 'success',
         message: `Instrumento renovado`,
-        detail: `Capital ${formatMoneda(r.capitalAnterior, instrumento.moneda)} → ${formatMoneda(r.capitalNuevo, instrumento.moneda)} · ${formatDate(r.fechaInicio)} → ${formatDate(r.fechaFin)}`,
+        detail: `Capital ${formatMoneda(r.capitalAnterior, instrumento.moneda)} → ${formatMoneda(r.capitalNuevo, instrumento.moneda)} · ${formatDate(r.fechaInicio)} → ${formatDate(r.fechaFin)} · ${(r.tasaMensual * 100).toFixed(2)}%/mes · ${r.capitalizable ? 'capitaliza' : 'no capitaliza'}`,
       })
       onClose()
     })
@@ -127,6 +134,55 @@ export function RenovarModal({
           />
         )}
       </div>
+
+      {/* Condiciones del nuevo ciclo: tasa y capitalización */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-fg-muted uppercase tracking-wide">Tasa mensual</label>
+          <div className="relative">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              inputMode="decimal"
+              value={tasaPct}
+              onChange={(e) => setTasaPct(e.target.value)}
+              className="w-full bg-surface-2 border border-border-strong rounded-lg pl-3 pr-7 py-1.5 text-sm text-fg focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-fg-soft">%</span>
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-fg-muted uppercase tracking-wide">Capitalización</label>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCapitalizable(false)}
+              className={cn(
+                'flex-1 px-2 py-1.5 rounded-lg text-xs border transition-colors',
+                !capitalizable ? 'bg-primary text-white border-primary' : 'bg-surface-2 border-border-strong text-fg hover:border-primary',
+              )}
+            >
+              No capitaliza
+            </button>
+            <button
+              type="button"
+              onClick={() => setCapitalizable(true)}
+              className={cn(
+                'flex-1 px-2 py-1.5 rounded-lg text-xs border transition-colors',
+                capitalizable ? 'bg-primary text-white border-primary' : 'bg-surface-2 border-border-strong text-fg hover:border-primary',
+              )}
+            >
+              Capitaliza
+            </button>
+          </div>
+        </div>
+      </div>
+      <p className="text-[11px] text-fg-soft leading-snug -mt-2">
+        {capitalizable
+          ? 'Capitaliza: el interés se reinvierte cada mes y el capital crece (interés compuesto).'
+          : 'No capitaliza: el interés mensual es el mismo todos los meses; se acumula y se suma al capital recién al renovar.'}
+      </p>
 
       {/* Preview del vencimiento */}
       <div className="flex items-center justify-center gap-4 bg-primary/5 border border-primary/20 rounded-lg p-4">
