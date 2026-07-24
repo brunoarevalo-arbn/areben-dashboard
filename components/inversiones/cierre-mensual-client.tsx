@@ -16,10 +16,10 @@ import { Modal } from '@/components/ui/modal'
 import { useSort, SortTh } from '@/components/ui/sortable'
 import { RenovarModal } from './renovar-modal'
 import { formatMoneda, estadoVencimiento } from '@/lib/inversiones-calc'
-import { formatMonth, getMonthOptions, formatCurrency } from '@/lib/utils'
+import { formatMonth, getMonthOptions, formatCurrency, formatDate } from '@/lib/utils'
 import {
   Lock, Unlock, AlertTriangle, Loader2, CheckCircle2, PiggyBank, Pencil, Save, X,
-  FileText, XCircle, ArrowRight, RefreshCw,
+  FileText, XCircle, ArrowRight, RefreshCw, Calendar,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -392,13 +392,14 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
               <SortTh col="movimiento" label="Movimiento" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
               <SortTh col="saldo_cierre" label="Saldo cierre" align="right" numeric sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
               <SortTh col="estado" label="Estado" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} className="py-2" />
+              <th className="text-left px-4 py-2 text-xs font-medium text-fg-muted uppercase">Vencimiento</th>
               <th className="text-right px-4 py-2 text-xs font-medium text-fg-muted uppercase">Acción</th>
             </tr>
           </thead>
           <tbody>
             {periodos.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-12 text-center text-fg-soft">
+                <td colSpan={10} className="px-4 py-12 text-center text-fg-soft">
                   No hay instrumentos activos para {formatMonth(mes)}
                 </td>
               </tr>
@@ -406,6 +407,7 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
               periodosOrdenados.map((p) => {
                 const i = p.instrumento
                 if (!i) return null
+                const venc = estadoVencimiento(i.fecha_fin)
                 return (
                   <tr key={p.id} className={cn(
                     'border-b border-border/60',
@@ -434,11 +436,24 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                       }
                     </td>
                     <td className="px-4 py-2">
+                      {i.fecha_fin ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span className={cn('inline-flex items-center gap-1 text-xs whitespace-nowrap', venc.colorClass)}>
+                            {venc.nivel === 'vencido' ? <AlertTriangle className="w-3 h-3" /> : <Calendar className="w-3 h-3" />}
+                            {formatDate(i.fecha_fin)}
+                          </span>
+                          <span className={cn('text-[11px] leading-tight', venc.colorClass)}>{venc.label}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-fg-soft italic">sin fecha</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
                       <div className="flex items-center justify-end gap-2">
                         {!p.cerrado && (
                           <CerrarPeriodoButton p={p} onDone={setToast} />
                         )}
-                        {p.cerrado && i.fecha_fin && estadoVencimiento(i.fecha_fin).necesitaRenovar && (
+                        {p.cerrado && i.fecha_fin && venc.necesitaRenovar && (
                           <RenovarInstrumentoButton instrumento={i} saldoActual={Number(p.saldo_cierre)} onDone={setToast} />
                         )}
                         <a
