@@ -404,80 +404,34 @@ const nominaSchema = z.object({
 })
 
 /**
- * Vencimiento típico para aportes patronales (AFIP): día 15 del mes siguiente.
- */
-function fechaVencimientoAportes(mes: string): string {
-  const [y, m] = mes.split('-').map(Number)
-  const d = new Date(y, m, 15) // m está 0-indexed → m+1 = mes siguiente, día 15
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-15`
-}
-
-/**
- * Sincroniza el gasto pendiente de "Cargas Sociales" (aportes patronales) vinculado a una nómina.
- * - Si aportes_patronales > 0 y no hay gasto: crea uno
- * - Si hay gasto y los aportes cambiaron: actualiza monto/fecha
- * - Si aportes pasan a 0 y hay gasto: lo borra
+ * Los aportes patronales se cargan de forma GRUPAL por concepto (F931 / OSECAC / AEC /
+ * FAECYS / INACAP), NO por empleado, porque el pago es grupal (un F931 para todos, una
+ * OSECAC, etc.). Por eso esta función ya NO crea el gasto de aportes por empleado: solo
+ * limpia cualquier gasto por-empleado que haya quedado de la lógica anterior, para no
+ * duplicar con los conceptos grupales.
+ *
+ * El campo `nomina_mensual.aportes_patronales` se mantiene: alimenta `costo_empresa`
+ * (dato de la sección Nómina, no impacta cierre/caja/resultados).
  */
 async function syncGastoAportesPatronales(nominaId: string) {
   const supabase = await createClient()
   const { data: n } = await supabase
     .from('nomina_mensual')
-    .select(`
-      id, mes, aportes_patronales, gasto_aportes_patronales_id,
-      empleado:empleados(nombre, apellido)
-    `)
+    .select('id, gasto_aportes_patronales_id')
     .eq('id', nominaId)
     .single()
-  if (!n) return
+  if (!n || !n.gasto_aportes_patronales_id) return
 
-  const aportes = Number(n.aportes_patronales ?? 0)
-  const empleado = Array.isArray(n.empleado) ? n.empleado[0] : n.empleado
-  const empleadoLabel = empleado ? `${empleado.nombre} ${empleado.apellido}` : 'empleado'
-
-  if (aportes <= 0) {
-    // No corresponden aportes — borrar el gasto si existe
-    if (n.gasto_aportes_patronales_id) {
-      await supabase.from('gastos').delete().eq('id', n.gasto_aportes_patronales_id)
-      await supabase.from('nomina_mensual').update({ gasto_aportes_patronales_id: null }).eq('id', nominaId)
-    }
-    return
-  }
-
-  const fechaVenc = fechaVencimientoAportes(n.mes)
-  const gastoData = {
-    categoria: 'Cargas Sociales',
-    concepto: `Aportes patronales — ${empleadoLabel} — ${n.mes}`,
-    monto: aportes,
-    monto_neto: aportes,
-    iva_incluido: false,
-    porcentaje_iva: 0,
-    moneda: 'ARS',
-    negocio: 'GENERAL',
-    mes: n.mes,
-    fecha: `${n.mes}-01`,
-    estado: 'PENDIENTE',
-    fecha_pago: fechaVenc,
-    medio_pago: 'TRANSFERENCIA',
-    notas: 'Aportes/contribuciones patronales — generado automáticamente desde la nómina',
-    confirmado: true,
-  }
-
-  if (n.gasto_aportes_patronales_id) {
-    // Actualizar el existente — pero solo si NO está pagado
-    const { data: g } = await supabase
-      .from('gastos')
-      .select('estado')
-      .eq('id', n.gasto_aportes_patronales_id)
-      .single()
-    if (g?.estado !== 'PAGADO') {
-      await supabase.from('gastos').update(gastoData).eq('id', n.gasto_aportes_patronales_id)
-    }
-  } else {
-    // Crear nuevo
-    const { data: nuevo } = await supabase.from('gastos').insert(gastoData).select('id').single()
-    if (nuevo) {
-      await supabase.from('nomina_mensual').update({ gasto_aportes_patronales_id: nuevo.id }).eq('id', nominaId)
-    }
+  // Limpieza de la lógica vieja: borrar el aporte por-empleado y desvincular, salvo que
+  // ya esté PAGADO (en ese caso es un registro histórico real: se deja intacto).
+  const { data: g } = await supabase
+    .from('gastos')
+    .select('estado')
+    .eq('id', n.gasto_aportes_patronales_id)
+    .single()
+  if (g && g.estado !== 'PAGADO') {
+    await supabase.from('gastos').delete().eq('id', n.gasto_aportes_patronales_id)
+    await supabase.from('nomina_mensual').update({ gasto_aportes_patronales_id: null }).eq('id', nominaId)
   }
 }
 
