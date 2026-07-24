@@ -10,11 +10,11 @@ import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { RenovarModal } from './renovar-modal'
-import { formatMoneda } from '@/lib/inversiones-calc'
+import { formatMoneda, estadoVencimiento } from '@/lib/inversiones-calc'
 import { formatDate, cn } from '@/lib/utils'
 import {
   Plus, Pencil, Power, Loader2, PiggyBank, TrendingUp, ChevronRight,
-  Briefcase, User, Filter, Calendar, RefreshCw,
+  Briefcase, User, Filter, Calendar, RefreshCw, AlertTriangle,
 } from 'lucide-react'
 
 interface Props {
@@ -293,13 +293,8 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
                     <div className="space-y-1.5">
                       {insts.map((i) => {
                         const saldoInstr = ultimoSaldo.get(i.id) ?? Number(i.capital_inicial)
-                        const dias = i.fecha_fin
-                          ? Math.ceil((new Date(`${i.fecha_fin}T00:00:00`).getTime() - Date.now()) / 86_400_000)
-                          : null
-                        const vencColor = dias === null ? 'text-fg-muted'
-                          : dias < 0 ? 'text-red-700 font-medium'
-                          : dias <= 7 ? 'text-amber-700 font-medium'
-                          : 'text-fg-muted'
+                        const venc = estadoVencimiento(i.fecha_fin)
+                        const resaltarRenovar = i.estado === 'activo' && venc.necesitaRenovar
                         return (
                           <div key={i.id} className="flex items-center justify-between gap-2 bg-surface-2/30 rounded-lg px-3 py-2 text-sm">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -312,11 +307,11 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
                                 {i.estado}
                               </Badge>
                               {i.fecha_fin && (
-                                <span className={cn('inline-flex items-center gap-1 text-xs', vencColor)}>
-                                  <Calendar className="w-3 h-3" />
+                                <span className={cn('inline-flex items-center gap-1 text-xs', venc.colorClass)}>
+                                  {venc.nivel === 'vencido' ? <AlertTriangle className="w-3 h-3" /> : <Calendar className="w-3 h-3" />}
                                   Vence {formatDate(i.fecha_fin)}
-                                  {dias !== null && dias < 0 && ' · vencido'}
-                                  {dias !== null && dias >= 0 && dias <= 7 && ` · en ${dias}d`}
+                                  {venc.nivel === 'vencido' && venc.dias !== null && ` · vencido hace ${Math.abs(venc.dias)}d`}
+                                  {venc.nivel === 'pronto' && ` · en ${venc.dias}d`}
                                 </span>
                               )}
                             </div>
@@ -325,11 +320,12 @@ export function InversoresClient({ inversores, instrumentos, periodos }: Props) 
                               {i.estado === 'activo' && i.fecha_fin && (
                                 <Button
                                   size="sm"
-                                  variant="ghost"
-                                  title="Renovar"
+                                  variant={resaltarRenovar ? (venc.nivel === 'vencido' ? 'danger' : 'warning') : 'ghost'}
+                                  title={resaltarRenovar ? `${venc.label} — renovar` : 'Renovar'}
                                   onClick={() => setRenovarModal({ instr: i, saldo: saldoInstr })}
                                 >
                                   <RefreshCw className="w-3.5 h-3.5" />
+                                  {resaltarRenovar && <span className="ml-1 text-xs font-medium">Renovar</span>}
                                 </Button>
                               )}
                             </div>

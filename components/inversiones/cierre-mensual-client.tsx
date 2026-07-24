@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { useSort, SortTh } from '@/components/ui/sortable'
 import { RenovarModal } from './renovar-modal'
-import { formatMoneda } from '@/lib/inversiones-calc'
+import { formatMoneda, estadoVencimiento } from '@/lib/inversiones-calc'
 import { formatMonth, getMonthOptions, formatCurrency } from '@/lib/utils'
 import {
   Lock, Unlock, AlertTriangle, Loader2, CheckCircle2, PiggyBank, Pencil, Save, X,
@@ -166,13 +166,16 @@ function RenovarInstrumentoButton({
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  const venc = estadoVencimiento(instrumento.fecha_fin)
 
   return (
     <>
       <Button
-        variant="secondary"
+        variant={venc.nivel === 'vencido' ? 'danger' : venc.nivel === 'pronto' ? 'warning' : 'secondary'}
         onClick={() => setOpen(true)}
-        title="Renovar instrumento (elegir plazo y abrir el nuevo ciclo con el saldo final)"
+        title={venc.necesitaRenovar
+          ? `${venc.label} — renovar (abrir nuevo ciclo con el saldo final)`
+          : 'Renovar instrumento (elegir plazo y abrir el nuevo ciclo con el saldo final)'}
         className="text-xs"
       >
         <RefreshCw className="w-3.5 h-3.5" />
@@ -435,7 +438,7 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                         {!p.cerrado && (
                           <CerrarPeriodoButton p={p} onDone={setToast} />
                         )}
-                        {p.cerrado && i.fecha_fin && (
+                        {p.cerrado && i.fecha_fin && estadoVencimiento(i.fecha_fin).necesitaRenovar && (
                           <RenovarInstrumentoButton instrumento={i} saldoActual={Number(p.saldo_cierre)} onDone={setToast} />
                         )}
                         <a

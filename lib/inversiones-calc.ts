@@ -544,3 +544,45 @@ export function formatMoneda(amount: number, moneda: 'USD' | 'ARS') {
   }).format(amount)
   return moneda === 'USD' ? `U$S ${num}` : `$ ${num}`
 }
+
+// ============ ESTADO DE VENCIMIENTO ============
+
+export type NivelVencimiento = 'vencido' | 'pronto' | 'plazo'
+
+export interface EstadoVencimiento {
+  dias: number | null // días hasta el vencimiento (negativo = ya venció)
+  nivel: NivelVencimiento | null // null si no tiene fecha de vencimiento
+  necesitaRenovar: boolean // true si ya venció o está por vencer
+  label: string // texto corto listo para mostrar
+  colorClass: string // clase de color de texto (Tailwind)
+}
+
+// Ventana en días para considerar que un instrumento está "por vencer".
+export const DIAS_POR_VENCER = 7
+
+/**
+ * Estado del vencimiento de un instrumento a partir de su fecha_fin (YYYY-MM-DD).
+ * - 'vencido' → la fecha ya pasó (rojo) → hay que renovar o retirar
+ * - 'pronto'  → vence dentro de los próximos DIAS_POR_VENCER días (ámbar)
+ * - 'plazo'   → todavía falta bastante (atenuado) → solo se cierra el mes
+ */
+export function estadoVencimiento(
+  fechaFin: string | null | undefined,
+  hoy = new Date(),
+): EstadoVencimiento {
+  if (!fechaFin) {
+    return { dias: null, nivel: null, necesitaRenovar: false, label: 'Sin vencimiento', colorClass: 'text-fg-muted' }
+  }
+  const finMs = new Date(`${fechaFin}T00:00:00`).getTime()
+  const hoyMs = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime()
+  const dias = Math.ceil((finMs - hoyMs) / 86_400_000)
+
+  if (dias < 0) {
+    const n = Math.abs(dias)
+    return { dias, nivel: 'vencido', necesitaRenovar: true, label: `Vencido hace ${n} día${n === 1 ? '' : 's'}`, colorClass: 'text-red-700 font-medium' }
+  }
+  if (dias <= DIAS_POR_VENCER) {
+    return { dias, nivel: 'pronto', necesitaRenovar: true, label: dias === 0 ? 'Vence hoy' : `Vence en ${dias} día${dias === 1 ? '' : 's'}`, colorClass: 'text-amber-700 font-medium' }
+  }
+  return { dias, nivel: 'plazo', necesitaRenovar: false, label: `Vence en ${dias} días`, colorClass: 'text-fg-muted' }
+}

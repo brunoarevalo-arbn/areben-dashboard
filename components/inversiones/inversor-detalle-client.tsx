@@ -9,7 +9,7 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useSort, SortTh } from '@/components/ui/sortable'
-import { formatMoneda } from '@/lib/inversiones-calc'
+import { formatMoneda, estadoVencimiento } from '@/lib/inversiones-calc'
 import { formatMonth, formatDate } from '@/lib/utils'
 import { InstrumentoForm } from './instrumento-form'
 import { CambiarTasaForm } from './cambiar-tasa-form'
@@ -17,7 +17,7 @@ import { SimuladorMovimiento } from './simulador'
 import { RenovarModal } from './renovar-modal'
 import {
   ChevronLeft, Plus, Pencil, Trash2, RotateCw, FileText, Lock, Unlock,
-  TrendingUp, Calendar, User, Briefcase, Percent, ArrowRight, RefreshCw,
+  TrendingUp, Calendar, User, Briefcase, Percent, ArrowRight, RefreshCw, AlertTriangle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -129,6 +129,8 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
             const ps = periodosByInstr.get(i.id) ?? []
             const ultimo = ps[0]
             const saldoActual = ultimo ? Number(ultimo.saldo_cierre) : Number(i.capital_inicial)
+            const venc = estadoVencimiento(i.fecha_fin)
+            const resaltarRenovar = i.estado === 'activo' && venc.necesitaRenovar
             const isSelected = selectedInstr?.id === i.id
             return (
               <div
@@ -170,10 +172,24 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                     <span className="text-fg-muted">Inicio</span>
                     <span className="text-fg-muted">{formatDate(i.fecha_inicio)}</span>
                   </div>
-                  {i.fecha_fin && (
+                  {i.fecha_fin ? (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-fg-muted">Vencimiento acordado</span>
+                        <span className="text-fg font-medium">{formatDate(i.fecha_fin)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-fg-muted">Estado del plazo</span>
+                        <span className={cn('inline-flex items-center gap-1', venc.colorClass)}>
+                          {venc.nivel === 'vencido' ? <AlertTriangle className="w-3 h-3" /> : <Calendar className="w-3 h-3" />}
+                          {venc.label}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
                     <div className="flex justify-between">
                       <span className="text-fg-muted">Vencimiento</span>
-                      <span className="text-fg-muted">{formatDate(i.fecha_fin)}</span>
+                      <span className="text-fg-muted italic">sin fecha acordada</span>
                     </div>
                   )}
                 </div>
@@ -208,15 +224,20 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                   </Button>
                   <Button
                     size="sm"
-                    variant="ghost"
+                    variant={resaltarRenovar ? (venc.nivel === 'vencido' ? 'danger' : 'warning') : 'ghost'}
                     onClick={(e) => {
                       e.stopPropagation()
                       setRenovarModal({ instr: i, saldo: saldoActual })
                     }}
                     disabled={isPending}
-                    title="Renovar instrumento (elegir plazo y abrir el nuevo ciclo con el saldo final)"
+                    title={
+                      resaltarRenovar
+                        ? `${venc.label} — renovar (abrir nuevo ciclo con el saldo final)`
+                        : 'Renovar instrumento (elegir plazo y abrir el nuevo ciclo con el saldo final)'
+                    }
                   >
                     <RefreshCw className="w-3 h-3" />
+                    {resaltarRenovar && <span className="ml-1 text-xs font-medium">Renovar</span>}
                   </Button>
                   <Link href={`/inversiones/reporte?instrumento=${i.id}`}>
                     <Button size="sm" variant="ghost" title="Generar reporte">
