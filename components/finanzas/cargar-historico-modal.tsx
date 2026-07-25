@@ -54,7 +54,7 @@ interface Props {
   onSuccess?: () => void
 }
 
-const CATEGORIAS = ['Alquiler', 'Servicios', 'Sueldos', 'Marketing', 'Logística', 'Impuestos', 'Seguros', 'Mantenimiento', 'Tecnología', 'Otros']
+const CATEGORIAS = ['Alquiler', 'Servicios', 'Sueldos', 'Marketing', 'Logística', 'Impuestos', 'Seguros', 'Mantenimiento', 'Tecnología', 'Equipos', 'Otros']
 
 export function CargarHistoricoModal({ open, tipo, onOpenChange, cuentas, tarjetas = [], proveedores = [], onSuccess }: Props) {
   const [modo, setModo] = useState<'MANUAL' | 'EXCEL'>('MANUAL')

@@ -36,7 +36,7 @@ interface Props {
   configProrrateo: ConfiguracionProrrateo[]
 }
 
-const CATEGORIAS = ['Alquiler', 'Servicios', 'Sueldos', 'Marketing', 'Logística', 'Impuestos', 'Seguros', 'Mantenimiento', 'Tecnología', 'Otros']
+const CATEGORIAS = ['Alquiler', 'Servicios', 'Sueldos', 'Marketing', 'Logística', 'Impuestos', 'Seguros', 'Mantenimiento', 'Tecnología', 'Equipos', 'Otros']
 const MEDIOS_PAGO = [
   { value: 'TRANSFERENCIA', label: 'Transferencia' },
   { value: 'EFECTIVO', label: 'Efectivo' },

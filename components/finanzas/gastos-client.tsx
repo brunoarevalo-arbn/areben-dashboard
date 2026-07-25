@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils'
 
 const CATEGORIAS_COMUNES = [
   'Alquiler', 'Servicios', 'Sueldos', 'Marketing', 'Logística',
-  'Impuestos', 'Seguros', 'Mantenimiento', 'Tecnología', 'Inversiones', 'Otros',
+  'Impuestos', 'Seguros', 'Mantenimiento', 'Tecnología', 'Equipos', 'Inversiones', 'Otros',
 ]
 const MARCAS = ['BDI', 'ZATTIA', 'STUNNED', 'GENERAL']
 // Estado GUARDADO en la base (el que se elige a mano en el form del gasto).
