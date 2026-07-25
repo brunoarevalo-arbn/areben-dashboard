@@ -68,6 +68,24 @@ export function textoRevision(saldo: SaldoRevisable | undefined | null, mesConfi
   return quien ? `Revisado ${f} por ${quien}` : `Revisado ${f}`
 }
 
+/**
+ * El activo en dólares se suma por tres caminos que no se controlan entre sí:
+ * la columna USD de las cuentas, los activos manuales en USD y la caja en dólares
+ * del cierre. Si el mismo efectivo está en más de uno, el activo queda inflado.
+ * Devuelve los lugares donde hay dólares cargados; con 2 o más, conviene avisar.
+ */
+export function lugaresConDolares(opts: {
+  enCuentas?: boolean
+  enManuales?: boolean
+  enCajaCierre?: boolean
+}): string[] {
+  return [
+    opts.enCuentas && 'la columna USD de las cuentas',
+    opts.enManuales && 'otros activos manuales',
+    opts.enCajaCierre && 'la caja en dólares del cierre',
+  ].filter(Boolean) as string[]
+}
+
 /** Variación contra el mes anterior, para detectar saldos que se olvidaron de cargar. */
 export function variacion(actual: number, anterior: number | null | undefined): {
   hay: boolean

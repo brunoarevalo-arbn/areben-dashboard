@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getMesActivo } from '@/lib/mes-activo'
 import { sintetizarSaldosPatrim } from '@/app/actions/composicion-cierre'
+import { lugaresConDolares } from '@/lib/saldos-revision'
 import { CierreMesClient } from '@/components/finanzas/cierre-mes-client'
 
 export default async function CierreMesPage({
@@ -341,7 +342,22 @@ export default async function CierreMesPage({
       mensaje: `${progVencidos.length} pago(s) programado(s) vencidos hace +45 días siguen sin debitar. Si ya se cobraron, marcalos debitados con la fecha real (sino inflan el pasivo).`,
     })
   }
-  // 4) Posible doble conteo de sueldos: pasivo manual de sueldos + sueldos en gastos pendientes
+  // 4) Posible doble conteo de dólares. El activo en USD se suma por tres caminos que no se
+  //    controlan entre sí: columna USD de las cuentas + activos manuales en USD + caja_usd del
+  //    cierre. Si el mismo efectivo está en más de uno, el activo queda inflado.
+  const lugaresConUsd = lugaresConDolares({
+    enCuentas: (saldosMes ?? []).reduce((s, x) => s + Number(x.saldo_usd ?? 0), 0) > 0.01,
+    enManuales: (activosManuales ?? []).some((a: { moneda?: string }) => a.moneda === 'USD'),
+    enCajaCierre: Number(cierreActual?.caja_usd ?? 0) > 0.01,
+  })
+  if (lugaresConUsd.length > 1) {
+    validaciones.push({
+      nivel: 'warning',
+      mensaje: `Hay dólares cargados en ${lugaresConUsd.length} lugares a la vez: ${lugaresConUsd.join(', ')}. Los tres suman al activo — si son los mismos dólares, se están contando de más.`,
+    })
+  }
+
+  // 5) Posible doble conteo de sueldos: pasivo manual de sueldos + sueldos en gastos pendientes
   const pmActual = (Array.isArray(cierreActual?.pasivos_manuales) ? cierreActual.pasivos_manuales : []) as { descripcion?: string; monto?: number }[]
   const manualSueldo = pmActual.some((p) => /sueldo/i.test(p.descripcion ?? '') && Number(p.monto) > 0)
   const gastoSueldo = (gastosNetos ?? []).some((g: { categoria?: string }) => /sueldo/i.test(g.categoria ?? ''))

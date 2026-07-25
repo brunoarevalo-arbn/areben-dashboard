@@ -602,6 +602,13 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, saldosAnteriores
     return variacion(s.saldo_ars, saldosAntByCuenta.get(c.id)?.saldo_ars).cayoACero
   })
 
+  // Dólares cargados por dos caminos distintos. El efectivo en dólares va en la columna
+  // USD de la cuenta; si además está como activo manual, el cierre lo suma dos veces
+  // (totalActivosUsd = saldos de cuentas + activos manuales + caja del cierre).
+  const manualesUsd = activosManuales.filter((a) => a.moneda === 'USD')
+  const cuentasConUsd = cuentasActivas.filter((c) => Math.abs(saldosByCuenta.get(c.id)?.saldo_usd ?? 0) > 0.01)
+  const riesgoDobleUsd = manualesUsd.length > 0 && cuentasConUsd.length > 0
+
   function marcarTodas() {
     startTransition(() => {
       marcarTodosLosSaldosRevisados(mes, !todoRevisado).catch((e) => alert(e.message))
@@ -695,6 +702,13 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, saldosAnteriores
             {cayeronACero.length > 0 && (
               <p className="text-xs text-amber-700 mt-1.5">
                 Quedaron en cero y el mes pasado tenían saldo: {cayeronACero.map((c) => `${c.banco} ${c.nombre}`).join(' · ')}. Verificá que sea correcto.
+              </p>
+            )}
+            {manualesUsd.length > 0 && (
+              <p className={cn('text-xs mt-1.5', riesgoDobleUsd ? 'text-red-700 font-medium' : 'text-amber-700')}>
+                {riesgoDobleUsd
+                  ? <>Hay dólares cargados en dos lados: {manualesUsd.map((a) => `${a.descripcion} (US$ ${Number(a.monto).toLocaleString('es-AR')})`).join(' · ')} como otro activo, y también en la columna USD de {cuentasConUsd.map((c) => `${c.banco} ${c.nombre}`).join(' · ')}. Si son los mismos dólares, el cierre los cuenta dos veces.</>
+                  : <>{manualesUsd.map((a) => `${a.descripcion} (US$ ${Number(a.monto).toLocaleString('es-AR')})`).join(' · ')} está cargado como otro activo. Si es efectivo en caja, va en la columna USD de la cuenta.</>}
               </p>
             )}
             {mesConfirmado && (

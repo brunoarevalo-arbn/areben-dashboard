@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { estadoRevision, textoRevision, nombreRevisor, variacion } from '@/lib/saldos-revision'
+import { estadoRevision, textoRevision, nombreRevisor, variacion, lugaresConDolares } from '@/lib/saldos-revision'
 
 describe('estadoRevision', () => {
   it('sin fila del mes → sin cargar', () => {
@@ -58,6 +58,27 @@ describe('nombreRevisor', () => {
 
   it('sin email → null', () => {
     expect(nombreRevisor(null)).toBeNull()
+  })
+})
+
+describe('lugaresConDolares', () => {
+  it('un solo lugar no es problema', () => {
+    expect(lugaresConDolares({ enCuentas: true })).toHaveLength(1)
+  })
+
+  it('sin dólares en ningún lado', () => {
+    expect(lugaresConDolares({})).toEqual([])
+  })
+
+  it('el caso de mayo: dólares como activo manual Y en la columna USD → dos lugares', () => {
+    const l = lugaresConDolares({ enCuentas: true, enManuales: true })
+    expect(l).toHaveLength(2)
+    expect(l).toContain('la columna USD de las cuentas')
+    expect(l).toContain('otros activos manuales')
+  })
+
+  it('los tres caminos a la vez', () => {
+    expect(lugaresConDolares({ enCuentas: true, enManuales: true, enCajaCierre: true })).toHaveLength(3)
   })
 })
 
