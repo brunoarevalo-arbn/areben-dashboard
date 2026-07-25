@@ -1323,6 +1323,11 @@ export async function upsertSaldoCuenta(
       saldo_ars: saldoArs,
       saldo_usd: saldoUsd,
       notas: notas || null,
+      // Si cambia el monto, lo que se había revisado ya no es lo que está guardado:
+      // se desmarca solo para que el tilde verde no mienta.
+      cerrado: false,
+      fecha_cierre: null,
+      revisado_por: null,
     },
     { onConflict: 'cuenta_id,mes' }
   )
@@ -1346,6 +1351,10 @@ export async function bulkUpsertSaldosCuentas(
     mes,
     saldo_ars: Number(i.saldo_ars) || 0,
     saldo_usd: Number(i.saldo_usd) || 0,
+    // Igual que en el alta individual: editar el monto desmarca el "revisado".
+    cerrado: false,
+    fecha_cierre: null,
+    revisado_por: null,
   }))
   const { error } = await supabase
     .from('saldos_cuentas')
@@ -1355,15 +1364,38 @@ export async function bulkUpsertSaldosCuentas(
   return { ok: items.length }
 }
 
-export async function cerrarSaldoMes(cuentaId: string, mes: string, cerrar: boolean) {
-  await requireUser()
+/**
+ * Marca (o desmarca) un saldo como REVISADO: deja constancia de que alguien ya miró
+ * esa cuenta en ese mes. No traba la edición — es una nota, no un cerrojo.
+ * Sirve sobre todo para distinguir "cargado en $0" de "todavía no lo miré".
+ */
+export async function marcarSaldoRevisado(cuentaId: string, mes: string, revisado: boolean) {
+  const user = await requireUser()
   const supabase = await createClient()
   const { error } = await supabase.from('saldos_cuentas').update({
-    cerrado: cerrar,
-    fecha_cierre: cerrar ? new Date().toISOString() : null,
+    cerrado: revisado,
+    fecha_cierre: revisado ? new Date().toISOString() : null,
+    revisado_por: revisado ? (user.email ?? null) : null,
   }).eq('cuenta_id', cuentaId).eq('mes', mes)
   if (error) throw new Error(error.message)
   revalidatePath('/finanzas/saldos')
+}
+
+/**
+ * Marca todos los saldos YA CARGADOS de un mes como revisados (botón "Marcar todas").
+ * Las cuentas sin saldo cargado no se tocan: no hay nada que revisar todavía.
+ */
+export async function marcarTodosLosSaldosRevisados(mes: string, revisado: boolean) {
+  const user = await requireUser()
+  const supabase = await createClient()
+  const { data, error } = await supabase.from('saldos_cuentas').update({
+    cerrado: revisado,
+    fecha_cierre: revisado ? new Date().toISOString() : null,
+    revisado_por: revisado ? (user.email ?? null) : null,
+  }).eq('mes', mes).select('id')
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/saldos')
+  return { ok: data?.length ?? 0 }
 }
 
 export async function upsertTipoCambioMes(mes: string, tipoCambio: number, fuente?: string | null) {
@@ -2260,12 +2292,57 @@ export async function setSaldoImpositivo(args: {
       saldo_inicio: 0,
       movimiento: signed,
       saldo_cierre: signed,
+      // Cambió el monto → lo que se había revisado ya no es lo que está guardado
+      cerrado: false,
+      fecha_cierre: null,
+      revisado_por: null,
     },
     { onConflict: 'cuenta_id,mes' },
   )
   if (error) throw new Error(error.message)
   revalidatePath('/finanzas/saldos-impositivos')
+  revalidatePath('/finanzas/cuentas-patrimoniales')
   revalidatePath('/finanzas/cierre-mes')
+}
+
+/**
+ * Marca (o desmarca) un saldo impositivo como REVISADO. Mismo criterio que Tesorería:
+ * distingue "cargado" de "ya lo confirmé", sin trabar la edición.
+ */
+export async function marcarSaldoImpositivoRevisado(cuentaId: string, mes: string, revisado: boolean) {
+  const user = await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase.from('saldos_cuentas_patrim').update({
+    cerrado: revisado,
+    fecha_cierre: revisado ? new Date().toISOString() : null,
+    revisado_por: revisado ? (user.email ?? null) : null,
+  }).eq('cuenta_id', cuentaId).eq('mes', mes)
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/cuentas-patrimoniales')
+  revalidatePath('/finanzas/saldos-impositivos')
+}
+
+/**
+ * Marca todos los saldos impositivos YA CARGADOS de un mes como revisados.
+ * Se limita a las cuentas tipo IMPOSITIVO para no pisar inventario/activo fijo,
+ * que se calculan solos y no se revisan a mano.
+ */
+export async function marcarTodosLosImpositivosRevisados(mes: string, revisado: boolean) {
+  const user = await requireUser()
+  const supabase = await createClient()
+  const { data: cuentas } = await supabase
+    .from('cuentas_patrimoniales').select('id').eq('tipo', 'IMPOSITIVO')
+  const ids = (cuentas ?? []).map((c) => c.id)
+  if (!ids.length) return { ok: 0 }
+  const { data, error } = await supabase.from('saldos_cuentas_patrim').update({
+    cerrado: revisado,
+    fecha_cierre: revisado ? new Date().toISOString() : null,
+    revisado_por: revisado ? (user.email ?? null) : null,
+  }).eq('mes', mes).in('cuenta_id', ids).select('id')
+  if (error) throw new Error(error.message)
+  revalidatePath('/finanzas/cuentas-patrimoniales')
+  revalidatePath('/finanzas/saldos-impositivos')
+  return { ok: data?.length ?? 0 }
 }
 
 /**

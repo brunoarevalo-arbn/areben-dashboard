@@ -179,8 +179,10 @@ export interface SaldoCuenta {
   mes: string
   saldo_ars: number
   saldo_usd: number
+  /** Marcado como "revisado" (la UI lo muestra como tilde verde, no traba la edición). */
   cerrado: boolean
   fecha_cierre?: string | null
+  revisado_por?: string | null
   notas?: string | null
   created_at: string
   updated_at: string
@@ -248,6 +250,10 @@ export interface SaldoCuentaPatrim {
   saldo_inicio: number
   movimiento: number
   saldo_cierre: number
+  /** Marcado como "revisado" (ver migración 063). */
+  cerrado?: boolean
+  fecha_cierre?: string | null
+  revisado_por?: string | null
   notas?: string | null
   created_at: string
   updated_at: string

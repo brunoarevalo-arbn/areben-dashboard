@@ -4,14 +4,17 @@ import { useState, useTransition, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   createImpuesto, renameImpuesto, deleteImpuesto, setSaldoImpositivo,
+  marcarSaldoImpositivoRevisado, marcarTodosLosImpositivosRevisados,
 } from '@/app/actions/finanzas'
 import type { CuentaPatrimonial, SaldoCuentaPatrim } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
-import { formatCurrency, getMonthOptions, cn } from '@/lib/utils'
+import { formatCurrency, formatMonth, getMonthOptions, cn } from '@/lib/utils'
+import { estadoRevision, textoRevision, variacion } from '@/lib/saldos-revision'
 import {
   Plus, Pencil, Trash2, Loader2, Save, X, Receipt, Check,
+  CircleDashed, AlertCircle,
 } from 'lucide-react'
 
 type Posicion = 'favor' | 'pagar'
@@ -20,6 +23,8 @@ interface Props {
   mes: string
   cuentas: CuentaPatrimonial[]
   saldos: SaldoCuentaPatrim[]
+  saldosAnteriores: { cuenta_id: string; saldo_cierre: number }[]
+  mesConfirmado: boolean
 }
 
 // De un saldo guardado → posición + monto positivo que ve el usuario
@@ -34,11 +39,15 @@ function leerPosicion(cierre: number | null | undefined): { posicion: Posicion; 
 function ImpuestoRow({
   cuenta,
   saldo,
+  saldoAnterior,
   mes,
+  mesConfirmado,
 }: {
   cuenta: CuentaPatrimonial
   saldo: SaldoCuentaPatrim | undefined
+  saldoAnterior?: number
   mes: string
+  mesConfirmado: boolean
 }) {
   const inicial = leerPosicion(saldo?.saldo_cierre)
   const [editing, setEditing] = useState(false)
@@ -47,6 +56,19 @@ function ImpuestoRow({
   const [posicion, setPosicion] = useState<Posicion>(inicial.posicion)
   const [monto, setMonto] = useState<number>(inicial.monto)
   const [isPending, startTransition] = useTransition()
+  const revisado = estadoRevision(saldo, mesConfirmado) === 'revisado'
+  const v = variacion(Number(saldo?.saldo_cierre ?? 0), saldoAnterior)
+
+  function toggleRevisado() {
+    if (!saldo) return
+    startTransition(async () => {
+      try {
+        await marcarSaldoImpositivoRevisado(cuenta.id, mes, !revisado)
+      } catch (e) {
+        alert((e as Error).message)
+      }
+    })
+  }
 
   function guardarSaldo() {
     startTransition(async () => {
@@ -84,7 +106,11 @@ function ImpuestoRow({
   const esFavor = inicial.posicion === 'favor'
 
   return (
-    <tr className="border-b border-border/60 hover:bg-surface-2/30">
+    <tr className={cn(
+      'border-b border-border/60 hover:bg-surface-2/30',
+      revisado && 'bg-green-500/5',
+      !saldo && 'bg-amber-500/5',
+    )}>
       {/* Nombre */}
       <td className="px-4 py-2.5">
         {renaming ? (
@@ -101,7 +127,27 @@ function ImpuestoRow({
             <button onClick={() => { setRenaming(false); setNombre(cuenta.nombre) }} className="p-1 rounded bg-surface-2 text-fg-muted"><X className="w-3 h-3" /></button>
           </div>
         ) : (
-          <p className="text-fg text-sm font-medium">{cuenta.nombre}</p>
+          <>
+            <p className="text-fg text-sm font-medium">{cuenta.nombre}</p>
+            <div className="mt-0.5">
+              {!saldo ? (
+                <span className="inline-flex items-center gap-1 text-xs text-amber-700 font-medium whitespace-nowrap">
+                  <AlertCircle className="w-3 h-3" />
+                  Sin cargar
+                </span>
+              ) : revisado ? (
+                <span className="inline-flex items-center gap-1 text-xs text-green-700 font-medium whitespace-nowrap" title={textoRevision(saldo, mesConfirmado)}>
+                  <Check className="w-3 h-3" />
+                  {textoRevision(saldo, mesConfirmado)}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-xs text-fg-soft whitespace-nowrap" title="Cargado, pero todavía nadie lo dio por revisado">
+                  <CircleDashed className="w-3 h-3" />
+                  {textoRevision(saldo, mesConfirmado)}
+                </span>
+              )}
+            </div>
+          </>
         )}
       </td>
 
@@ -151,7 +197,17 @@ function ImpuestoRow({
                 )}>
                   {esFavor ? 'A favor' : 'A pagar'}
                 </span>
-                <span className="font-mono text-fg text-sm w-36 text-right">{formatCurrency(inicial.monto)}</span>
+                <div className="w-36 text-right">
+                  <span className="font-mono text-fg text-sm">{formatCurrency(inicial.monto)}</span>
+                  {v.hay && (
+                    <span
+                      className={cn('block text-[11px] font-mono', v.cayoACero ? 'text-amber-700 font-semibold' : 'text-fg-soft')}
+                      title={`Mes anterior: ${formatCurrency(saldoAnterior ?? 0)}`}
+                    >
+                      {v.delta > 0 ? '+' : '−'}{formatCurrency(Math.abs(v.delta))} vs. mes anterior
+                    </span>
+                  )}
+                </div>
               </>
             ) : (
               <span className="text-xs text-fg-soft w-36 text-right italic">sin cargar</span>
@@ -181,6 +237,19 @@ function ImpuestoRow({
               <button onClick={() => setEditing(true)} title="Cargar / editar saldo del mes" className="p-1.5 rounded hover:bg-surface-2 text-primary">
                 <Pencil className="w-3.5 h-3.5" />
               </button>
+              {saldo && (
+                <button
+                  onClick={toggleRevisado}
+                  disabled={isPending}
+                  title={revisado ? 'Quitar el "revisado"' : 'Marcar como revisado (ya miré este impuesto)'}
+                  className={cn(
+                    'p-1.5 rounded hover:bg-surface-2',
+                    revisado ? 'bg-green-600/20 text-green-700 hover:bg-green-600/30' : 'text-fg-muted',
+                  )}
+                >
+                  {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                </button>
+              )}
               <button onClick={() => setRenaming(true)} title="Renombrar impuesto" className="p-1.5 rounded hover:bg-surface-2 text-fg-muted">
                 <Receipt className="w-3.5 h-3.5" />
               </button>
@@ -197,19 +266,45 @@ function ImpuestoRow({
 
 // ─── SaldosImpositivosClient ───────────────────────────────────────────────────
 
-export function SaldosImpositivosClient({ mes, cuentas, saldos }: Props) {
+export function SaldosImpositivosClient({ mes, cuentas, saldos, saldosAnteriores, mesConfirmado }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [modal, setModal] = useState(false)
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [creando, setCreando] = useState(false)
   const [errorCrear, setErrorCrear] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
 
   const saldosByCuenta = useMemo(() => {
     const m = new Map<string, SaldoCuentaPatrim>()
     for (const s of saldos) m.set(s.cuenta_id, s)
     return m
   }, [saldos])
+
+  const saldosAntByCuenta = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const s of saldosAnteriores) m.set(s.cuenta_id, Number(s.saldo_cierre))
+    return m
+  }, [saldosAnteriores])
+
+  // ── Estado de revisión del mes ──
+  const cargadas = cuentas.filter((c) => saldosByCuenta.has(c.id)).length
+  const revisadas = cuentas.filter((c) => estadoRevision(saldosByCuenta.get(c.id), mesConfirmado) === 'revisado').length
+  const sinCargar = cuentas.filter((c) => !saldosByCuenta.has(c.id))
+  // El botón mira lo CARGADO (es lo único que puede marcar); el cartel verde exige
+  // además que no falte ningún impuesto por cargar.
+  const todoRevisado = cargadas > 0 && revisadas >= cargadas
+  const mesCompleto = cuentas.length > 0 && revisadas === cuentas.length
+
+  function marcarTodas() {
+    startTransition(async () => {
+      try {
+        await marcarTodosLosImpositivosRevisados(mes, !todoRevisado)
+      } catch (e) {
+        alert((e as Error).message)
+      }
+    })
+  }
 
   // Totales del mes
   const { totalFavor, totalPagar } = useMemo(() => {
@@ -266,6 +361,52 @@ export function SaldosImpositivosClient({ mes, cuentas, saldos }: Props) {
         </div>
       </div>
 
+      {/* Estado de revisión del mes — estos saldos casi no cambian, así que es fácil
+          olvidarse de cargarlos y que el activo aparezca $42M abajo sin darse cuenta. */}
+      {cuentas.length > 0 && (
+        <div className={cn(
+          'rounded-xl border p-4',
+          mesCompleto ? 'bg-green-500/5 border-green-500/30' : sinCargar.length > 0 ? 'bg-amber-500/5 border-amber-500/30' : 'bg-surface border-border',
+        )}>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-fg flex items-center gap-1.5">
+                {mesCompleto
+                  ? <><Check className="w-4 h-4 text-green-700" /> Impositivos de {formatMonth(mes)} revisados</>
+                  : <><CircleDashed className="w-4 h-4 text-fg-soft" /> Impositivos de {formatMonth(mes)}</>}
+              </p>
+              <p className="text-sm text-fg-muted mt-1">
+                <span className="font-medium text-fg">{cargadas} de {cuentas.length}</span> impuestos cargados
+                {' · '}
+                <span className={cn('font-medium', mesCompleto ? 'text-green-700' : 'text-fg')}>{revisadas} revisados</span>
+              </p>
+              {sinCargar.length > 0 && (
+                <p className="text-xs text-amber-700 mt-1.5">
+                  Falta cargar: {sinCargar.map((c) => c.nombre).join(' · ')}
+                </p>
+              )}
+              {mesConfirmado && (
+                <p className="text-xs text-fg-soft mt-1.5">
+                  El cierre de este mes ya está confirmado, así que los saldos cargados cuentan como revisados.
+                </p>
+              )}
+            </div>
+            {cargadas > 0 && !mesConfirmado && (
+              <Button
+                size="sm"
+                variant={todoRevisado ? 'secondary' : 'success'}
+                onClick={marcarTodas}
+                disabled={isPending}
+                title={todoRevisado ? 'Sacar el "revisado" de todos los impuestos del mes' : 'Dar por revisados todos los impuestos que ya tienen saldo cargado'}
+              >
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {todoRevisado ? 'Desmarcar todos' : 'Marcar todos como revisados'}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Resumen */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="bg-surface border border-green-500/20 rounded-xl p-4">
@@ -298,7 +439,14 @@ export function SaldosImpositivosClient({ mes, cuentas, saldos }: Props) {
             </thead>
             <tbody>
               {cuentas.map((c) => (
-                <ImpuestoRow key={c.id} cuenta={c} saldo={saldosByCuenta.get(c.id)} mes={mes} />
+                <ImpuestoRow
+                  key={c.id}
+                  cuenta={c}
+                  saldo={saldosByCuenta.get(c.id)}
+                  saldoAnterior={saldosAntByCuenta.get(c.id)}
+                  mes={mes}
+                  mesConfirmado={mesConfirmado}
+                />
               ))}
             </tbody>
           </table>

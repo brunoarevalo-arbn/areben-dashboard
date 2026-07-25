@@ -4,7 +4,7 @@ import { useActionState, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   createTitular, createCuenta, updateCuenta, toggleCuentaActiva,
-  upsertSaldoCuenta, cerrarSaldoMes, upsertTipoCambioMes,
+  upsertSaldoCuenta, marcarSaldoRevisado, marcarTodosLosSaldosRevisados, upsertTipoCambioMes,
   createActivoManual, updateActivoManual, deleteActivoManual,
   bulkUpsertSaldosCuentas,
 } from '@/app/actions/finanzas'
@@ -14,10 +14,11 @@ import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatMonth, getMonthOptions } from '@/lib/utils'
+import { estadoRevision, textoRevision, variacion } from '@/lib/saldos-revision'
 import {
-  Plus, Wallet, Building2, Lock, Unlock, Pencil, UserPlus,
+  Plus, Wallet, Building2, Pencil, UserPlus, Check, CircleDashed,
   Loader2, DollarSign, TrendingUp, AlertCircle, Power, Sparkles, Trash2,
-  Zap, Save, X, ChevronDown,
+  Zap, Save, X, ChevronDown, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -26,6 +27,8 @@ interface SaldosClientProps {
   titulares: CuentaTitular[]
   cuentas: CuentaBancaria[]
   saldos: SaldoCuenta[]
+  saldosAnteriores: { cuenta_id: string; saldo_ars: number; saldo_usd: number }[]
+  mesConfirmado: boolean
   tipoCambio: TipoCambioMes | null
   activosManuales: ActivoManual[]
 }
@@ -128,24 +131,80 @@ function CuentaForm({
   )
 }
 
+// ─── Chip de estado de revisión ───────────────────────────────────────────────
+// Resuelve el problema de que un saldo en $0 se vea igual que una cuenta sin mirar.
+
+function ChipRevision({ saldo, mesConfirmado }: { saldo?: SaldoCuenta; mesConfirmado: boolean }) {
+  const estado = estadoRevision(saldo, mesConfirmado)
+  const texto = textoRevision(saldo, mesConfirmado)
+
+  if (estado === 'sin-cargar') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-amber-700 font-medium whitespace-nowrap">
+        <AlertCircle className="w-3 h-3" />
+        {texto}
+      </span>
+    )
+  }
+  if (estado === 'cargado') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-fg-soft whitespace-nowrap" title="Cargado, pero todavía nadie lo dio por revisado">
+        <CircleDashed className="w-3 h-3" />
+        {texto}
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-green-700 font-medium whitespace-nowrap" title={texto}>
+      <Check className="w-3 h-3" />
+      {texto}
+    </span>
+  )
+}
+
+// Variación contra el mes anterior — para cazar la cuenta que quedó sin cargar
+function ChipVariacion({ actual, anterior }: { actual: number; anterior?: number }) {
+  const v = variacion(actual, anterior)
+  if (!v.hay) return null
+  const sube = v.delta > 0
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-0.5 text-[11px] font-mono whitespace-nowrap',
+        v.cayoACero ? 'text-amber-700 font-semibold' : sube ? 'text-green-700' : 'text-fg-soft',
+      )}
+      title={v.cayoACero
+        ? `El mes pasado tenía ${formatCurrency(anterior ?? 0)} y ahora figura en cero. Verificá que sea correcto.`
+        : `Mes anterior: ${formatCurrency(anterior ?? 0)}`}
+    >
+      {sube ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+      {formatCurrency(Math.abs(v.delta))}
+    </span>
+  )
+}
+
 // ─── CuentaRow ────────────────────────────────────────────────────────────────
 
 function CuentaRow({
   cuenta,
   saldo,
+  saldoAnterior,
   mes,
+  mesConfirmado,
   onEdit,
 }: {
   cuenta: CuentaBancaria
   saldo?: SaldoCuenta
+  saldoAnterior?: number
   mes: string
+  mesConfirmado: boolean
   onEdit: () => void
 }) {
   const [editando, setEditando] = useState(false)
   const [ars, setArs] = useState(saldo?.saldo_ars ?? 0)
   const [usd, setUsd] = useState(saldo?.saldo_usd ?? 0)
   const [isPending, startTransition] = useTransition()
-  const cerrado = saldo?.cerrado ?? false
+  const revisado = estadoRevision(saldo, mesConfirmado) === 'revisado'
 
   function guardar() {
     startTransition(() => {
@@ -155,10 +214,10 @@ function CuentaRow({
     })
   }
 
-  function toggleCierre() {
+  function toggleRevisado() {
     if (!saldo) return
     startTransition(() => {
-      cerrarSaldoMes(cuenta.id, mes, !cerrado).catch((e) => alert(e.message))
+      marcarSaldoRevisado(cuenta.id, mes, !revisado).catch((e) => alert(e.message))
     })
   }
 
@@ -166,7 +225,8 @@ function CuentaRow({
     <tr className={cn(
       'border-b border-border/60',
       !cuenta.activo && 'opacity-50',
-      cerrado && 'bg-green-500/5'
+      revisado && 'bg-green-500/5',
+      !saldo && 'bg-amber-500/5',
     )}>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
@@ -182,6 +242,9 @@ function CuentaRow({
           {TIPOS_CUENTA.find((t) => t.value === cuenta.tipo)?.label ?? cuenta.tipo}
         </span>
         {!cuenta.activo && <Badge variant="danger" className="ml-2">Inactiva</Badge>}
+        <div className="mt-1">
+          <ChipRevision saldo={saldo} mesConfirmado={mesConfirmado} />
+        </div>
       </td>
       <td className="px-4 py-3 text-right">
         {editando ? (
@@ -193,7 +256,10 @@ function CuentaRow({
             className="w-32 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
         ) : (
-          <span className="font-mono text-fg text-sm">{formatCurrency(saldo?.saldo_ars ?? 0)}</span>
+          <div className="flex flex-col items-end gap-0.5">
+            <span className="font-mono text-fg text-sm">{formatCurrency(saldo?.saldo_ars ?? 0)}</span>
+            {saldo && <ChipVariacion actual={saldo.saldo_ars} anterior={saldoAnterior} />}
+          </div>
         )}
       </td>
       <td className="px-4 py-3 text-right">
@@ -222,14 +288,19 @@ function CuentaRow({
             </>
           ) : (
             <>
-              {!cerrado && (
-                <Button size="sm" variant="ghost" onClick={() => setEditando(true)} title="Editar saldo">
-                  <Pencil className="w-3.5 h-3.5" />
-                </Button>
-              )}
+              {/* Editar queda siempre habilitado: marcar revisado es una nota, no un cerrojo */}
+              <Button size="sm" variant="ghost" onClick={() => setEditando(true)} title="Editar saldo">
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
               {saldo && (
-                <Button size="sm" variant={cerrado ? 'success' : 'ghost'} onClick={toggleCierre} title={cerrado ? 'Reabrir' : 'Cerrar mes'} disabled={isPending}>
-                  {cerrado ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                <Button
+                  size="sm"
+                  variant={revisado ? 'success' : 'ghost'}
+                  onClick={toggleRevisado}
+                  title={revisado ? 'Quitar el "revisado"' : 'Marcar como revisado (ya miré esta cuenta)'}
+                  disabled={isPending}
+                >
+                  <Check className="w-3.5 h-3.5" />
                 </Button>
               )}
               <Button size="sm" variant="ghost" onClick={onEdit} title="Editar cuenta">
@@ -499,7 +570,7 @@ function BulkSaldosGrid({
 
 // ─── SaldosClient ─────────────────────────────────────────────────────────────
 
-export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, activosManuales }: SaldosClientProps) {
+export function SaldosClient({ mes, titulares, cuentas, saldos, saldosAnteriores, mesConfirmado, tipoCambio, activosManuales }: SaldosClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [titularModal, setTitularModal] = useState(false)
@@ -512,6 +583,30 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
   const [bulkMode, setBulkMode] = useState(false)
 
   const saldosByCuenta = new Map(saldos.map((s) => [s.cuenta_id, s]))
+  const saldosAntByCuenta = new Map(saldosAnteriores.map((s) => [s.cuenta_id, s]))
+
+  // ── Estado de revisión del mes (solo cuentas activas: las inactivas no se cargan) ──
+  const cuentasActivas = cuentas.filter((c) => c.activo)
+  const totalCuentas = cuentasActivas.length
+  const cargadas = cuentasActivas.filter((c) => saldosByCuenta.has(c.id)).length
+  const revisadas = cuentasActivas.filter((c) => estadoRevision(saldosByCuenta.get(c.id), mesConfirmado) === 'revisado').length
+  const sinCargar = cuentasActivas.filter((c) => !saldosByCuenta.has(c.id))
+  // Dos cosas distintas: el botón mira lo CARGADO (es lo único que puede marcar),
+  // el cartel en verde exige además que no falte ninguna cuenta por cargar.
+  const todoRevisado = cargadas > 0 && revisadas >= cargadas
+  const mesCompleto = totalCuentas > 0 && revisadas === totalCuentas
+  // Cuentas que tenían plata el mes pasado y este mes figuran en cero: el error más caro
+  const cayeronACero = cuentasActivas.filter((c) => {
+    const s = saldosByCuenta.get(c.id)
+    if (!s) return false
+    return variacion(s.saldo_ars, saldosAntByCuenta.get(c.id)?.saldo_ars).cayoACero
+  })
+
+  function marcarTodas() {
+    startTransition(() => {
+      marcarTodosLosSaldosRevisados(mes, !todoRevisado).catch((e) => alert(e.message))
+    })
+  }
 
   const totalArsCuentas = cuentas.reduce((s, c) => s + (saldosByCuenta.get(c.id)?.saldo_ars ?? 0), 0)
   const totalUsdCuentas = cuentas.reduce((s, c) => s + (saldosByCuenta.get(c.id)?.saldo_usd ?? 0), 0)
@@ -572,6 +667,54 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
             <Plus className="w-4 h-4" />
             Cuenta
           </Button>
+        </div>
+      </div>
+
+      {/* Estado de revisión del mes — para no confundir "cargado en $0" con "no lo miré" */}
+      <div className={cn(
+        'rounded-xl border p-4',
+        mesCompleto ? 'bg-green-500/5 border-green-500/30' : sinCargar.length > 0 ? 'bg-amber-500/5 border-amber-500/30' : 'bg-surface border-border',
+      )}>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-fg flex items-center gap-1.5">
+              {mesCompleto
+                ? <><Check className="w-4 h-4 text-green-700" /> Tesorería de {formatMonth(mes)} revisada</>
+                : <><CircleDashed className="w-4 h-4 text-fg-soft" /> Tesorería de {formatMonth(mes)}</>}
+            </p>
+            <p className="text-sm text-fg-muted mt-1">
+              <span className="font-medium text-fg">{cargadas} de {totalCuentas}</span> cuentas cargadas
+              {' · '}
+              <span className={cn('font-medium', mesCompleto ? 'text-green-700' : 'text-fg')}>{revisadas} revisadas</span>
+            </p>
+            {sinCargar.length > 0 && (
+              <p className="text-xs text-amber-700 mt-1.5">
+                Falta cargar: {sinCargar.map((c) => `${c.banco} ${c.nombre}`).join(' · ')}
+              </p>
+            )}
+            {cayeronACero.length > 0 && (
+              <p className="text-xs text-amber-700 mt-1.5">
+                Quedaron en cero y el mes pasado tenían saldo: {cayeronACero.map((c) => `${c.banco} ${c.nombre}`).join(' · ')}. Verificá que sea correcto.
+              </p>
+            )}
+            {mesConfirmado && (
+              <p className="text-xs text-fg-soft mt-1.5">
+                El cierre de este mes ya está confirmado, así que los saldos cargados cuentan como revisados.
+              </p>
+            )}
+          </div>
+          {cargadas > 0 && !mesConfirmado && (
+            <Button
+              size="sm"
+              variant={todoRevisado ? 'secondary' : 'success'}
+              onClick={marcarTodas}
+              disabled={isPending}
+              title={todoRevisado ? 'Sacar el "revisado" de todas las cuentas del mes' : 'Dar por revisadas todas las cuentas que ya tienen saldo cargado'}
+            >
+              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {todoRevisado ? 'Desmarcar todas' : 'Marcar todas como revisadas'}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -662,7 +805,9 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
               titular={titular}
               cuentasTit={cuentasTit}
               saldosByCuenta={saldosByCuenta}
+              saldosAntByCuenta={saldosAntByCuenta}
               mes={mes}
+              mesConfirmado={mesConfirmado}
               onEditCuenta={(c) => { setEditCuenta(c); setCuentaModal(true) }}
             />
           )
@@ -775,16 +920,21 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, tipoCambio, acti
 }
 
 // Sección de cuentas de un titular, colapsable, con subtotal ARS/USD en el header.
-function TitularSaldosCard({ titular, cuentasTit, saldosByCuenta, mes, onEditCuenta }: {
+function TitularSaldosCard({ titular, cuentasTit, saldosByCuenta, saldosAntByCuenta, mes, mesConfirmado, onEditCuenta }: {
   titular: CuentaTitular
   cuentasTit: CuentaBancaria[]
   saldosByCuenta: Map<string, SaldoCuenta>
+  saldosAntByCuenta: Map<string, { saldo_ars: number; saldo_usd: number }>
   mes: string
+  mesConfirmado: boolean
   onEditCuenta: (c: CuentaBancaria) => void
 }) {
   const [open, setOpen] = useState(true)
   const subArs = cuentasTit.reduce((s, c) => s + (saldosByCuenta.get(c.id)?.saldo_ars ?? 0), 0)
   const subUsd = cuentasTit.reduce((s, c) => s + (saldosByCuenta.get(c.id)?.saldo_usd ?? 0), 0)
+  // Cuántas de este titular faltan revisar (para verlo sin desplegar la tarjeta)
+  const activas = cuentasTit.filter((c) => c.activo)
+  const pendientes = activas.filter((c) => estadoRevision(saldosByCuenta.get(c.id), mesConfirmado) !== 'revisado').length
   return (
     <div className="bg-surface border border-border rounded-xl overflow-hidden">
       <div
@@ -796,6 +946,9 @@ function TitularSaldosCard({ titular, cuentasTit, saldosByCuenta, mes, onEditCue
           {titular.nombre}
           <Badge variant={titular.tipo === 'EMPRESA' ? 'info' : 'default'}>{titular.tipo}</Badge>
           <span className="text-xs text-fg-soft font-normal">{cuentasTit.length} cuenta(s)</span>
+          {pendientes > 0
+            ? <Badge variant="warning">{pendientes} sin revisar</Badge>
+            : activas.length > 0 && <Check className="w-3.5 h-3.5 text-green-700 shrink-0" />}
         </h2>
         <span className="flex items-center gap-3 font-mono text-xs shrink-0">
           {subArs !== 0 && <span className="text-fg-muted">{formatCurrency(subArs)}</span>}
@@ -820,7 +973,9 @@ function TitularSaldosCard({ titular, cuentasTit, saldosByCuenta, mes, onEditCue
                   key={c.id}
                   cuenta={c}
                   saldo={saldosByCuenta.get(c.id)}
+                  saldoAnterior={saldosAntByCuenta.get(c.id)?.saldo_ars}
                   mes={mes}
+                  mesConfirmado={mesConfirmado}
                   onEdit={() => onEditCuenta(c)}
                 />
               ))}
