@@ -79,3 +79,33 @@ describe('calcularMesesCuotas', () => {
     expect(meses[3].mesCierre).toBe('2026-02')
   })
 })
+
+describe('calcularMesesTarjeta — tarjeta que vence el mismo mes (Mercado Pago: cierra 12, vence 17)', () => {
+  it('compra del 1/7 cierra 07 y vence 07 (mismo mes)', () => {
+    const r = calcularMesesTarjeta('2026-07-01', 12, 17)
+    expect(r.mesCierre).toBe('2026-07')
+    expect(r.mesVenc).toBe('2026-07')
+  })
+
+  it('compra del 15/7 (post cierre) cierra 08 y vence 08', () => {
+    const r = calcularMesesTarjeta('2026-07-15', 12, 17)
+    expect(r.mesCierre).toBe('2026-08')
+    expect(r.mesVenc).toBe('2026-08')
+  })
+
+  it('si vence ANTES del cierre, sigue cayendo el mes siguiente (Galicia: cierra 30, vence 10)', () => {
+    const r = calcularMesesTarjeta('2026-07-01', 30, 10)
+    expect(r.mesCierre).toBe('2026-07')
+    expect(r.mesVenc).toBe('2026-08')
+  })
+
+  it('sin dato de vencimiento mantiene el comportamiento histórico (mes siguiente)', () => {
+    const r = calcularMesesTarjeta('2026-07-01', 12)
+    expect(r.mesVenc).toBe('2026-07' === r.mesCierre ? '2026-08' : r.mesVenc)
+  })
+
+  it('cuotas consecutivas de Mercado Pago avanzan de a un mes', () => {
+    const meses = calcularMesesCuotas('2026-07-01', 12, 3, 17)
+    expect(meses.map((m) => m.mesVencimiento)).toEqual(['2026-07', '2026-08', '2026-09'])
+  })
+})

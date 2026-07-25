@@ -1459,12 +1459,15 @@ export async function generarCuotasTarjeta(args: {
   if (!tarjeta) throw new Error('Tarjeta no encontrada')
 
   const montos = calcularMontosCuota(args.montoTotal, args.cuotasTotal)
-  const { mesCierre } = calcularMesesTarjeta(args.fechaCompra, tarjeta.dia_cierre)
+  const { mesCierre } = calcularMesesTarjeta(args.fechaCompra, tarjeta.dia_cierre, tarjeta.dia_vencimiento)
+  // Si el día de vencimiento cae después del de cierre, el resumen se paga en el MISMO mes
+  // (Mercado Pago: cierra 12, vence 17). Si cae antes, en el mes siguiente (Galicia: cierra 30, vence 10).
+  const offsetVenc = tarjeta.dia_vencimiento != null && tarjeta.dia_vencimiento > tarjeta.dia_cierre ? 0 : 1
 
   const rows = Array.from({ length: args.cuotasTotal }, (_, i) => {
     const mesC = new Date(mesCierre + '-01T00:00:00')
     mesC.setMonth(mesC.getMonth() + i)
-    const mesV = new Date(mesC.getFullYear(), mesC.getMonth() + 1, 1)
+    const mesV = new Date(mesC.getFullYear(), mesC.getMonth() + offsetVenc, 1)
     // Fecha exacta de vencimiento: día_vencimiento de la tarjeta, acotado al último día del mes
     const ultimoDiaMesV = new Date(mesV.getFullYear(), mesV.getMonth() + 1, 0).getDate()
     const diaV = Math.min(Math.max(1, tarjeta.dia_vencimiento || 10), ultimoDiaMesV)
