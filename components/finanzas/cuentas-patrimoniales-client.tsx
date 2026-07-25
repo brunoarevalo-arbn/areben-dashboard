@@ -8,6 +8,7 @@ import {
 } from '@/app/actions/finanzas'
 import type { CuentaPatrimonial, SaldoCuentaPatrim, TipoCuentaPatrim } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
+import { NumberInput } from '@/components/ui/number-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -147,13 +148,13 @@ function CuentaForm({ cuenta, socios, onClose }: { cuenta?: CuentaPatrimonial; s
             { value: 'USD', label: 'USD' },
           ]}
         />
-        <Input label="Orden" name="orden" type="number" defaultValue={cuenta?.orden ?? 0} />
+        <Input label="Orden" name="orden" type="number" defaultValue={cuenta?.orden ?? ''} />
       </div>
 
       <div className="bg-surface-2/40 border border-border-strong/40 rounded-lg p-3 space-y-3">
         <p className="text-xs font-medium text-fg-muted uppercase">Saldo histórico inicial (mes 0)</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Input label="Saldo inicial" name="saldo_inicial" type="number" step="0.01" defaultValue={cuenta?.saldo_inicial ?? 0} />
+          <Input label="Saldo inicial" name="saldo_inicial" type="number" step="0.01" defaultValue={cuenta?.saldo_inicial ?? ''} />
           <Input label="Mes inicial (YYYY-MM)" name="mes_inicial" type="month" defaultValue={cuenta?.mes_inicial ?? ''} />
         </div>
         <p className="text-xs text-fg-soft">
@@ -263,11 +264,10 @@ function SaldoRow({
       </td>
       <td className="px-3 py-2 text-right">
         {editing ? (
-          <input
-            type="number"
+          <NumberInput
             step="0.01"
             value={saldoInicio}
-            onChange={(e) => setSaldoInicio(Number(e.target.value))}
+            onChange={setSaldoInicio}
             className="w-32 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary"
           />
         ) : (
@@ -276,11 +276,10 @@ function SaldoRow({
       </td>
       <td className="px-3 py-2 text-right">
         {editing ? (
-          <input
-            type="number"
+          <NumberInput
             step="0.01"
             value={movimiento}
-            onChange={(e) => setMovimiento(Number(e.target.value))}
+            onChange={setMovimiento}
             className="w-32 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary"
           />
         ) : (

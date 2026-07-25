@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createRetiro, deleteRetiro, registrarPagoSocio, cerrarConvertirRetirosMes } from '@/app/actions/finanzas'
 import type { Socio, RetiroSocio, CategoriaRetiro, TipoCambioMes } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
+import { NumberInput } from '@/components/ui/number-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -539,11 +540,10 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
                         {n}
                       </button>
                     ))}
-                    <input
-                      type="number"
+                    <NumberInput
                       min="1"
                       value={cuotasTotal}
-                      onChange={(e) => setCuotasTotal(Math.max(1, Number(e.target.value)))}
+                      onChange={(nuevoValor) => setCuotasTotal(Math.max(1, nuevoValor))}
                       className="w-20 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
@@ -555,8 +555,8 @@ export function SociosClient({ socios, retiros, categorias, tiposCambio, tarjeta
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <Input label="Monto ARS" name="monto_pesos" type="number" step="0.01" defaultValue="0" />
-            <Input label="Monto USD" name="monto_usd" type="number" step="0.01" defaultValue="0" />
+            <Input label="Monto ARS" name="monto_pesos" type="number" step="0.01" />
+            <Input label="Monto USD" name="monto_usd" type="number" step="0.01" />
           </div>
           <input type="hidden" name="tipo_cambio" value="0" />
           <p className="text-xs text-fg-soft bg-surface-2/40 border border-border-strong/40 rounded-lg px-3 py-2">
@@ -648,12 +648,12 @@ function PagoSocioForm({ socio, categorias, onClose }: { socio: Socio; categoria
       <Input label="Fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="Monto en ARS" type="number" step="0.01" min="0" value={montoArs || ''} onChange={(e) => setMontoArs(Number(e.target.value))} placeholder="0.00" />
-        <Input label="Monto en USD" type="number" step="0.01" min="0" value={montoUsd || ''} onChange={(e) => setMontoUsd(Number(e.target.value))} placeholder="0.00" />
+        <NumberInput label="Monto en ARS" step="0.01" min="0" value={montoArs} onChange={setMontoArs} placeholder="0.00" />
+        <NumberInput label="Monto en USD" step="0.01" min="0" value={montoUsd} onChange={setMontoUsd} placeholder="0.00" />
       </div>
 
       {montoUsd > 0 && (
-        <Input label="Tipo de cambio (1 USD = ? ARS)" type="number" step="0.01" min="0" value={tipoCambio || ''} onChange={(e) => setTipoCambio(Number(e.target.value))} />
+        <NumberInput label="Tipo de cambio (1 USD = ? ARS)" step="0.01" min="0" value={tipoCambio} onChange={setTipoCambio} />
       )}
 
       <Select
@@ -744,7 +744,7 @@ function CierreConversionModal({
           options={mesesDisponibles.length > 0 ? mesesDisponibles.map((m) => ({ value: m, label: formatMonth(m) })) : [{ value: mes, label: formatMonth(mes) }]}
         />
 
-        <Input label="Tipo de cambio de cierre" type="number" step="0.01" value={tc || ''} onChange={(e) => setTc(Number(e.target.value))} />
+        <NumberInput label="Tipo de cambio de cierre" step="0.01" value={tc} onChange={setTc} />
 
         <div className="bg-surface/60 border border-border-strong/40 rounded-lg p-3 grid grid-cols-2 gap-3 text-xs">
           <div>

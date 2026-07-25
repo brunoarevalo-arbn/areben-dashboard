@@ -8,6 +8,7 @@ import {
 } from '@/app/actions/finanzas'
 import type { CuentaPatrimonial, SaldoCuentaPatrim } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
+import { NumberInput } from '@/components/ui/number-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { formatCurrency, formatMonth, getMonthOptions, cn } from '@/lib/utils'
@@ -177,11 +178,12 @@ function ImpuestoRow({
                 </button>
               ))}
             </div>
-            <input
-              type="number"
+            <NumberInput
               step="0.01"
               value={monto}
-              onChange={(e) => setMonto(Number(e.target.value))}
+              onChange={setMonto}
+              // Un impuesto ya cargado en 0 es un dato real: mostrar el 0, no vacío
+              mostrarCero={inicial.cargado}
               placeholder="0"
               className="w-36 px-2 py-1.5 bg-surface-2 border border-border-strong rounded text-fg font-mono text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary"
               autoFocus

@@ -11,6 +11,7 @@ import {
 } from '@/app/actions/finanzas'
 import type { GastoRecurrente, ProrrateoDefault, ProrrateoMarcas, TipoIVA, ConfiguracionProrrateo } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
+import { NumberInput } from '@/components/ui/number-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -129,11 +130,10 @@ function RecurrenteForm({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="col-span-2 space-y-1.5">
             <label className="block text-xs font-medium text-fg-muted">Monto principal</label>
-            <input
-              type="number"
+            <NumberInput
               step="0.01"
-              value={montoEstimado || ''}
-              onChange={(e) => setMontoEstimado(Number(e.target.value))}
+              value={montoEstimado}
+              onChange={setMontoEstimado}
               className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               placeholder="0.00"
               required
@@ -166,11 +166,10 @@ function RecurrenteForm({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pl-6 pt-1">
             <div className="col-span-2 space-y-1.5">
               <label className="block text-xs font-medium text-fg-muted">Monto secundario</label>
-              <input
-                type="number"
+              <NumberInput
                 step="0.01"
-                value={montoSecundario || ''}
-                onChange={(e) => setMontoSecundario(Number(e.target.value))}
+                value={montoSecundario}
+                onChange={setMontoSecundario}
                 className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                 placeholder="0.00"
               />
@@ -433,11 +432,10 @@ function ConfirmacionModal({
           <span>Monto componente {monedaPrincipal}</span>
           <span className="text-xs text-fg-soft font-normal">moneda principal</span>
         </label>
-        <input
-          type="number"
+        <NumberInput
           step="0.01"
           value={montoP}
-          onChange={(e) => setMontoP(Number(e.target.value))}
+          onChange={setMontoP}
           className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary"
         />
         {recurrente.iva_incluido && (
@@ -454,11 +452,10 @@ function ConfirmacionModal({
             <span>Monto componente {monedaSecundaria}</span>
             <span className="text-xs text-fg-soft font-normal">moneda secundaria</span>
           </label>
-          <input
-            type="number"
+          <NumberInput
             step="0.01"
             value={montoS}
-            onChange={(e) => setMontoS(Number(e.target.value))}
+            onChange={setMontoS}
             className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
@@ -470,11 +467,10 @@ function ConfirmacionModal({
           <label className="text-sm font-medium text-fg-muted">
             Tipo de cambio ({monedaSecundaria === 'USD' ? '1 USD = ? ARS' : '1 ARS = ? USD'})
           </label>
-          <input
-            type="number"
+          <NumberInput
             step="0.01"
-            value={tc || ''}
-            onChange={(e) => setTc(Number(e.target.value))}
+            value={tc}
+            onChange={setTc}
             placeholder="Ej: 1080"
             className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary"
           />
@@ -601,12 +597,11 @@ function MontoEditor({
 
   return (
     <div className="flex items-center gap-1 justify-end">
-      <input
-        type="number"
+      <NumberInput
         step="0.01"
         min="0"
-        value={val || ''}
-        onChange={(e) => setVal(Number(e.target.value))}
+        value={val}
+        onChange={setVal}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()
@@ -755,12 +750,11 @@ function BulkEditModal({
       </FieldRow>
 
       <FieldRow apply={applyMonto} setApply={setApplyMonto} label="Monto estimado">
-        <input
-          type="number"
+        <NumberInput
           step="0.01"
           min="0"
-          value={monto || ''}
-          onChange={(e) => setMonto(Number(e.target.value))}
+          value={monto}
+          onChange={setMonto}
           placeholder="0.00"
           className="w-full px-3 py-2 bg-surface border border-border-strong rounded-lg text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
@@ -798,12 +792,11 @@ function BulkEditModal({
       </FieldRow>
 
       <FieldRow apply={applyDiaVenc} setApply={setApplyDiaVenc} label="Día vencimiento">
-        <input
-          type="number"
+        <NumberInput
           min="1"
           max="31"
           value={diaVenc}
-          onChange={(e) => setDiaVenc(Number(e.target.value))}
+          onChange={setDiaVenc}
           className="w-full px-3 py-2 bg-surface border border-border-strong rounded-lg text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </FieldRow>
@@ -872,11 +865,10 @@ function BulkAjustarModal({ ids, onClose }: { ids: string[]; onClose: () => void
       <div className="space-y-1.5">
         <label className="text-sm font-medium text-fg-muted">Porcentaje de ajuste (%)</label>
         <div className="relative">
-          <input
-            type="number"
+          <NumberInput
             step="0.01"
-            value={pct || ''}
-            onChange={(e) => setPct(Number(e.target.value))}
+            value={pct}
+            onChange={setPct}
             placeholder="Ej: 10 = +10%, -5 = -5%"
             className="w-full px-3 py-2 pr-8 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />

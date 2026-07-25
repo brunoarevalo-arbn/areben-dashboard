@@ -8,6 +8,7 @@ import {
 import { aplicarMovimientoSimulado } from '@/app/actions/inversiones'
 import type { Instrumento, TramoTasa, PeriodoInstrumento } from '@/types/database'
 import { Button } from '@/components/ui/button'
+import { NumberInput } from '@/components/ui/number-input'
 import { formatMonth, formatDate } from '@/lib/utils'
 import {
   Calculator, ArrowDown, ArrowUp, Lock, ChevronDown, ChevronUp,
@@ -195,12 +196,11 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
               <label className="block text-xs font-medium text-fg-muted">
                 Monto {tipo === 'RETIRO_TOTAL' && <span className="text-fg-soft">(automático)</span>}
               </label>
-              <input
-                type="number"
+              <NumberInput
                 step="0.01"
                 min="0"
-                value={tipo === 'RETIRO_TOTAL' ? saldoInicioMes : (monto || '')}
-                onChange={(e) => setMonto(Number(e.target.value))}
+                value={tipo === 'RETIRO_TOTAL' ? saldoInicioMes : monto}
+                onChange={setMonto}
                 disabled={tipo === 'RETIRO_TOTAL'}
                 className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm disabled:opacity-60"
                 placeholder="0.00"

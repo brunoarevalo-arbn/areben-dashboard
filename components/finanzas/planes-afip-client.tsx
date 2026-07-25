@@ -4,6 +4,7 @@ import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createPlanAfip, marcarCuotaPlanPagada, desmarcarCuotaPlanPagada, cancelarPlanAfip, eliminarPlanAfip } from '@/app/actions/planes-afip'
 import { Button } from '@/components/ui/button'
+import { NumberInput } from '@/components/ui/number-input'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { formatCurrency, formatDate, formatMonth, labelCuenta, ordenarCuentas } from '@/lib/utils'
@@ -489,32 +490,29 @@ function CrearPlanForm({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-fg-muted">Pago contado (al inicio)</label>
-          <input
-            type="number"
+          <NumberInput
             step="0.01"
-            value={pagoContado || ''}
-            onChange={(e) => setPagoContado(Number(e.target.value))}
+            value={pagoContado}
+            onChange={setPagoContado}
             placeholder="0"
             className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-fg-muted">Cantidad de cuotas</label>
-          <input
-            type="number"
+          <NumberInput
             min="1"
-            value={cantidadCuotas || ''}
-            onChange={(e) => setCantidadCuotas(Number(e.target.value))}
+            value={cantidadCuotas}
+            onChange={setCantidadCuotas}
             className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-fg-muted">Monto de cada cuota</label>
-          <input
-            type="number"
+          <NumberInput
             step="0.01"
-            value={montoCuota || ''}
-            onChange={(e) => setMontoCuota(Number(e.target.value))}
+            value={montoCuota}
+            onChange={setMontoCuota}
             placeholder="0"
             className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           />
@@ -533,11 +531,10 @@ function CrearPlanForm({
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-fg-muted">Día de débito mensual</label>
-          <input
-            type="number"
+          <NumberInput
             min="1" max="31"
             value={diaDebito}
-            onChange={(e) => setDiaDebito(Number(e.target.value))}
+            onChange={setDiaDebito}
             className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           />
         </div>

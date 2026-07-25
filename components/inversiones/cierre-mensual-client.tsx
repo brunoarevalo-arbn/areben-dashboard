@@ -10,6 +10,7 @@ import {
 } from '@/app/actions/inversiones'
 import type { PeriodoInstrumento, Instrumento, Inversor } from '@/types/database'
 import { Button } from '@/components/ui/button'
+import { NumberInput } from '@/components/ui/number-input'
 import { Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
@@ -65,11 +66,10 @@ function MovimientoEditor({ p, onSaved }: { p: PeriodoConRel; onSaved: () => voi
 
   return (
     <div className="flex items-center gap-1 justify-end">
-      <input
-        type="number"
+      <NumberInput
         step="0.01"
         value={val}
-        onChange={(e) => setVal(Number(e.target.value))}
+        onChange={setVal}
         autoFocus
         className="w-28 px-2 py-1 bg-surface border border-border-strong rounded text-fg font-mono text-xs text-right focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-primary/25"
       />

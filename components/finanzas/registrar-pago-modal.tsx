@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { Modal } from '@/components/ui/modal'
+import { NumberInput } from '@/components/ui/number-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { formatCurrency, formatDate, cn, labelCuenta, ordenarCuentas } from '@/lib/utils'
@@ -295,12 +296,11 @@ export function RegistrarPagoModal({
               </button>
             )}
           </div>
-          <input
-            type="number"
+          <NumberInput
             step="0.01"
             min="0.01"
-            value={monto || ''}
-            onChange={(e) => setMonto(Number(e.target.value))}
+            value={monto}
+            onChange={setMonto}
             placeholder="0,00"
             className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary"
           />
@@ -394,12 +394,11 @@ export function RegistrarPagoModal({
                   {interesTipo === 'MONTO' ? 'Monto del recargo ($)' : 'Porcentaje (%)'}
                 </label>
                 <div className="relative">
-                  <input
-                    type="number"
+                  <NumberInput
                     step="0.01"
                     min="0"
-                    value={interesValor || ''}
-                    onChange={(e) => setInteresValor(Math.max(0, Number(e.target.value)))}
+                    value={interesValor}
+                    onChange={(nuevoValor) => setInteresValor(Math.max(0, nuevoValor))}
                     className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
                     placeholder="0"
                   />

@@ -9,6 +9,7 @@ import {
 } from '@/app/actions/rrhh'
 import type { Empleado, EventoEmpleado, TipoEvento, HoraExtraRegistro, AusenciaRegistro, TipoAusencia } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
+import { NumberInput } from '@/components/ui/number-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -126,12 +127,11 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-fg-muted">Sueldo básico (ARS)</label>
-            <input
-              type="number"
+            <NumberInput
               step="0.01"
               name="sueldo_basico"
-              value={sueldoBasico || ''}
-              onChange={(e) => setSueldoBasico(Number(e.target.value))}
+              value={sueldoBasico}
+              onChange={setSueldoBasico}
               className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               placeholder="0.00"
             />
@@ -180,13 +180,12 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
           <div className="grid grid-cols-2 gap-3 pl-6">
             <div className="space-y-1.5">
               <label className="block text-xs font-medium text-fg-muted">Porcentaje mensual (%)</label>
-              <input
-                type="number"
+              <NumberInput
                 step="0.01"
                 min="0"
                 max="100"
                 value={porcentajeAguinaldo}
-                onChange={(e) => setPorcentajeAguinaldo(Number(e.target.value))}
+                onChange={setPorcentajeAguinaldo}
                 className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               />
               <p className="text-xs text-fg-soft">8.33% = 1/12 del básico anual (SAC)</p>
@@ -213,12 +212,11 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
             <label className="block text-xs font-medium text-fg-muted">
               Horas mensuales acordadas
             </label>
-            <input
-              type="number"
+            <NumberInput
               step="0.5"
               min="0"
-              value={horasAcuerdoNegro || ''}
-              onChange={(e) => setHorasAcuerdoNegro(Math.max(0, Number(e.target.value)))}
+              value={horasAcuerdoNegro}
+              onChange={(nuevoValor) => setHorasAcuerdoNegro(Math.max(0, nuevoValor))}
               placeholder="0"
               className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             />
@@ -277,12 +275,11 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
                 {plusNegroTipo === 'MONTO' ? 'Monto fijo mensual ($)' : 'Porcentaje (%)'}
               </label>
               <div className="relative">
-                <input
-                  type="number"
+                <NumberInput
                   step="0.01"
                   min="0"
-                  value={plusNegroValor || ''}
-                  onChange={(e) => setPlusNegroValor(Math.max(0, Number(e.target.value)))}
+                  value={plusNegroValor}
+                  onChange={(nuevoValor) => setPlusNegroValor(Math.max(0, nuevoValor))}
                   className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
                   placeholder="0"
                 />
@@ -325,12 +322,11 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
                 <UtensilsCrossed className="w-3 h-3" />
                 Monto de comidas (mensual)
               </label>
-              <input
-                type="number"
+              <NumberInput
                 step="0.01"
                 min="0"
-                value={montoComidas || ''}
-                onChange={(e) => setMontoComidas(Number(e.target.value))}
+                value={montoComidas}
+                onChange={setMontoComidas}
                 placeholder="0.00"
                 className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               />
@@ -340,13 +336,12 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
                 Presentismo (% sobre básico)
               </label>
               <div className="relative">
-                <input
-                  type="number"
+                <NumberInput
                   step="0.01"
                   min="0"
                   max="100"
-                  value={presentismoPct || ''}
-                  onChange={(e) => setPresentismoPct(Number(e.target.value))}
+                  value={presentismoPct}
+                  onChange={setPresentismoPct}
                   placeholder="0"
                   className="w-full px-3 py-2 pr-7 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                 />
@@ -482,12 +477,11 @@ function AjusteSalarialForm({ empleado, onClose }: { empleado: Empleado; onClose
         </div>
         <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
           <p className="text-xs text-fg-muted mb-1">Sueldo nuevo</p>
-          <input
-            type="number"
+          <NumberInput
             step="0.01"
             min="0"
-            value={sueldoNuevo || ''}
-            onChange={(e) => setSueldoNuevo(Number(e.target.value))}
+            value={sueldoNuevo}
+            onChange={setSueldoNuevo}
             className="w-full px-2 py-1 bg-surface-2 border border-border-strong rounded text-green-700 font-mono focus:outline-none focus:ring-1 focus:ring-primary text-base"
             required
           />
@@ -608,13 +602,12 @@ function HoraExtraForm({ empleado, onClose }: { empleado: Empleado; onClose: () 
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-fg-soft">Otro valor:</span>
-          <input
-            type="number"
+          <NumberInput
             min="0"
             max="200"
             step="1"
             value={porcentaje}
-            onChange={(e) => setPorcentaje(Number(e.target.value))}
+            onChange={setPorcentaje}
             className="w-24 px-2 py-1 bg-surface-2 border border-border-strong rounded text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <span className="text-xs text-fg-soft">% (podés escribir cualquiera, ej: 75, 150, 200)</span>
@@ -708,13 +701,12 @@ function AusenciaForm({ empleado, onClose }: { empleado: Empleado; onClose: () =
         <Input label="Fecha" name="fecha" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-fg-muted">Cantidad de días</label>
-          <input
-            type="number"
+          <NumberInput
             step="0.5"
             min="0.5"
             max="31"
             value={dias}
-            onChange={(e) => setDias(Math.max(0.5, Number(e.target.value)))}
+            onChange={(nuevoValor) => setDias(Math.max(0.5, nuevoValor))}
             className="w-full px-3.5 py-2.5 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             placeholder="Ej: 1 o 0.5 (medio día)"
           />

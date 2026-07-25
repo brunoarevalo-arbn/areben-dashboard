@@ -6,6 +6,7 @@ import {
   addCcMovimiento, deleteCcMovimiento,
 } from '@/app/actions/cuentas-corrientes'
 import { Modal } from '@/components/ui/modal'
+import { NumberInput } from '@/components/ui/number-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -380,7 +381,7 @@ function MovimientoForm({ cuenta, tipo, tcMes, onClose }: { cuenta: CcCuenta; ti
       </p>
       <div className="grid grid-cols-2 gap-3">
         <Input label="Fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
-        <Input label={`Monto (${dolariza ? 'pesos' : cuenta.moneda})`} type="number" step="0.01" value={monto || ''} onChange={(e) => setMonto(Number(e.target.value))} autoFocus />
+        <NumberInput label={`Monto (${dolariza ? 'pesos' : cuenta.moneda})`} step="0.01" value={monto} onChange={setMonto} autoFocus />
       </div>
       {cuenta.moneda === 'USD' && (
         <div className="bg-surface-2/40 border border-border-strong/40 rounded-lg p-3 space-y-2">
@@ -390,7 +391,7 @@ function MovimientoForm({ cuenta, tipo, tcMes, onClose }: { cuenta: CcCuenta; ti
           </label>
           {enPesos && (
             <div className="flex items-center gap-2">
-              <Input label="Tipo de cambio" type="number" step="0.01" value={tc || ''} onChange={(e) => setTc(Number(e.target.value))} className="w-32" />
+              <NumberInput label="Tipo de cambio" step="0.01" value={tc} onChange={setTc} className="w-32" />
               <span className="text-xs text-fg-soft mt-5">= USD {formatCurrency(montoCuenta, 'USD')}</span>
             </div>
           )}

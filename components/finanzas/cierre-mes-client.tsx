@@ -11,6 +11,7 @@ import type {
   CuentaPatrimonial, SaldoCuentaPatrim, TipoCuentaPatrim,
 } from '@/types/database'
 import { Button } from '@/components/ui/button'
+import { NumberInput } from '@/components/ui/number-input'
 import { Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { MoneyInput } from '@/components/ui/money-input'
@@ -960,11 +961,10 @@ export function CierreMesClient(props: Props) {
                       />
                     </td>
                     <td className="px-4 py-1.5 w-40">
-                      <input
-                        type="number"
+                      <NumberInput
                         step="0.01"
-                        value={p.monto || ''}
-                        onChange={(e) => actualizarPasivo(p.id, { monto: Number(e.target.value) })}
+                        value={p.monto}
+                        onChange={(nuevoValor) => actualizarPasivo(p.id, { monto: nuevoValor })}
                         disabled={cerrado}
                         placeholder="0.00"
                         className="w-full px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-amber-700 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"

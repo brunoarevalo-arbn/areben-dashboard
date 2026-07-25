@@ -4,6 +4,7 @@ import { useActionState, useState } from 'react'
 import { agregarTramoTasa } from '@/app/actions/inversiones'
 import type { Instrumento } from '@/types/database'
 import { Button } from '@/components/ui/button'
+import { NumberInput } from '@/components/ui/number-input'
 import { Input, Textarea } from '@/components/ui/input'
 import { formatMoneda } from '@/lib/inversiones-calc'
 import { Loader2, TrendingUp, AlertCircle } from 'lucide-react'
@@ -57,12 +58,11 @@ export function CambiarTasaForm({
         <div className="space-y-1.5">
           <label className="block text-xs font-medium text-fg-muted">Nueva tasa mensual</label>
           <div className="relative">
-            <input
-              type="number"
+            <NumberInput
               step="0.0001"
               min="0"
-              value={tasaPct || ''}
-              onChange={(e) => setTasaPct(Number(e.target.value))}
+              value={tasaPct}
+              onChange={setTasaPct}
               required
               className="w-full px-3 py-2 pr-7 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             />

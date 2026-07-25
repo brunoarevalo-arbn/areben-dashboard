@@ -4,6 +4,7 @@ import { useActionState, useState, useEffect, useMemo, useRef, type FormEvent } 
 import { createNomina, updateNomina } from '@/app/actions/rrhh'
 import type { ConfiguracionAporte, HoraExtraRegistro, NominaMensual } from '@/types/database'
 import { Button } from '@/components/ui/button'
+import { NumberInput } from '@/components/ui/number-input'
 import { Input, Select } from '@/components/ui/input'
 import { formatCurrency, cn } from '@/lib/utils'
 import {
@@ -384,12 +385,11 @@ export function NominaForm({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="block text-xs font-medium text-fg-muted">Neto del recibo oficial</label>
-              <input
-                type="number"
+              <NumberInput
                 step="0.01"
-                value={vals.monto_recibo_oficial || ''}
-                onChange={(e) => {
-                  const nuevo = Number(e.target.value)
+                value={vals.monto_recibo_oficial}
+                onChange={(nuevoValor) => {
+                  const nuevo = nuevoValor
                   const derived = recomputarDerivados({ oficial: nuevo })
                   setVals((v) => ({ ...v, monto_recibo_oficial: nuevo, ...derived }))
                 }}
@@ -405,11 +405,10 @@ export function NominaForm({
                   <span className="text-[10px] text-amber-700">acuerdo: {empleado.horas_acuerdo_negro} hs</span>
                 )}
               </label>
-              <input
-                type="number"
+              <NumberInput
                 step="0.01"
-                value={vals.adicional_no_registrado || ''}
-                onChange={(e) => setVals((v) => ({ ...v, adicional_no_registrado: Number(e.target.value) }))}
+                value={vals.adicional_no_registrado}
+                onChange={(nuevoValor) => setVals((v) => ({ ...v, adicional_no_registrado: nuevoValor }))}
                 className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-amber-700 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
                 placeholder="0.00"
               />
@@ -422,13 +421,12 @@ export function NominaForm({
           </div>
         </div>
       ) : (
-        <Input
+        <NumberInput
           label="Sueldo básico (NEGRO)"
-          name="sueldo_basico"
-          type="number" step="0.01"
+          name="sueldo_basico" step="0.01"
           value={vals.sueldo_basico}
-          onChange={(e) => {
-            const nuevo = Number(e.target.value)
+          onChange={(nuevoValor) => {
+            const nuevo = nuevoValor
             const derived = recomputarDerivados({ basico: nuevo })
             setVals((v) => ({ ...v, sueldo_basico: nuevo, ...derived }))
           }}
@@ -436,30 +434,27 @@ export function NominaForm({
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Input
+        <NumberInput
           label="Horas trabajadas"
-          name="horas_trabajadas"
-          type="number" step="0.5"
+          name="horas_trabajadas" step="0.5"
           value={vals.horas}
-          onChange={(e) => {
-            const nuevo = Number(e.target.value)
+          onChange={(nuevoValor) => {
+            const nuevo = nuevoValor
             const derived = recomputarDerivados({ horas: nuevo })
             setVals((v) => ({ ...v, horas: nuevo, ...derived }))
           }}
         />
-        <Input
+        <NumberInput
           label="Valor hora"
-          name="valor_hora"
-          type="number" step="0.01"
+          name="valor_hora" step="0.01"
           value={vals.valor_hora}
-          onChange={(e) => setVals((v) => ({ ...v, valor_hora: Number(e.target.value) }))}
+          onChange={(nuevoValor) => setVals((v) => ({ ...v, valor_hora: nuevoValor }))}
         />
-        <Input
+        <NumberInput
           label={esBlanco ? 'Comida' : 'Comidas (acuerdo)'}
-          name="comida"
-          type="number" step="0.01"
+          name="comida" step="0.01"
           value={vals.comida}
-          onChange={(e) => setVals((v) => ({ ...v, comida: Number(e.target.value) }))}
+          onChange={(nuevoValor) => setVals((v) => ({ ...v, comida: nuevoValor }))}
         />
       </div>
 
@@ -474,12 +469,11 @@ export function NominaForm({
             Aguinaldo (SAC) a pagar este mes
             <span className="text-xs text-fg-soft font-normal">(se paga ahora, no sale de la caja)</span>
           </label>
-          <Input
+          <NumberInput
             label="Monto del aguinaldo"
-            name="aguinaldo_directo_visible"
-            type="number" step="0.01" min="0"
+            name="aguinaldo_directo_visible" step="0.01" min="0"
             value={vals.aguinaldo_directo}
-            onChange={(e) => setVals((v) => ({ ...v, aguinaldo_directo: Math.max(0, Number(e.target.value)) }))}
+            onChange={(nuevoValor) => setVals((v) => ({ ...v, aguinaldo_directo: Math.max(0, nuevoValor) }))}
             placeholder="0"
           />
           <p className="text-[11px] text-fg-soft">
@@ -502,12 +496,11 @@ export function NominaForm({
               Disponible: {formatCurrency(cajaAguinaldos[empleadoId] ?? 0)}
             </span>
           </label>
-          <Input
+          <NumberInput
             label="Monto a tomar de la caja"
-            name="aguinaldo_desde_caja_visible"
-            type="number" step="0.01" min="0" max={cajaAguinaldos[empleadoId] ?? 0}
+            name="aguinaldo_desde_caja_visible" step="0.01" min="0" max={cajaAguinaldos[empleadoId] ?? 0}
             value={vals.aguinaldo_pagado_de_caja}
-            onChange={(e) => setVals((v) => ({ ...v, aguinaldo_pagado_de_caja: Math.max(0, Math.min(cajaAguinaldos[empleadoId] ?? 0, Number(e.target.value))) }))}
+            onChange={(nuevoValor) => setVals((v) => ({ ...v, aguinaldo_pagado_de_caja: Math.max(0, Math.min(cajaAguinaldos[empleadoId] ?? 0, nuevoValor)) }))}
             placeholder="0"
           />
           <p className="text-[11px] text-fg-soft">
@@ -539,10 +532,9 @@ export function NominaForm({
             const montoLinea = (Number(linea.cantidad) || 0) * vals.valor_hora * (1 + (Number(linea.porcentaje) || 0) / 100)
             return (
               <div key={idx} className="flex items-center gap-2 flex-wrap bg-surface-2/40 rounded-lg p-2">
-                <input
-                  type="number" step="any" min="0"
-                  value={linea.cantidad || ''}
-                  onChange={(e) => setLinea({ cantidad: Number(e.target.value) })}
+                <NumberInput step="any" min="0"
+                  value={linea.cantidad}
+                  onChange={(nuevoValor) => setLinea({ cantidad: nuevoValor })}
                   placeholder="hs"
                   className="w-20 px-2 py-1 bg-surface-2 border border-border-strong rounded text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
@@ -563,10 +555,9 @@ export function NominaForm({
                       {p}%
                     </button>
                   ))}
-                  <input
-                    type="number" min="0" max="200"
+                  <NumberInput min="0" max="200"
                     value={linea.porcentaje}
-                    onChange={(e) => setLinea({ porcentaje: Number(e.target.value) })}
+                    onChange={(nuevoValor) => setLinea({ porcentaje: nuevoValor })}
                     className="w-16 px-2 py-1 bg-surface-2 border border-border-strong rounded text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     title="Podés escribir cualquier porcentaje"
                   />
@@ -616,14 +607,13 @@ export function NominaForm({
             <span className="text-xs text-fg-soft font-normal">(opcional)</span>
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input
+            <NumberInput
               label="Cantidad de horas faltadas"
               name="ausencias_horas"
-              type="number"
               step="0.5"
               min="0"
               value={vals.ausencias_horas}
-              onChange={(e) => setVals((v) => ({ ...v, ausencias_horas: Math.max(0, Number(e.target.value)) }))}
+              onChange={(nuevoValor) => setVals((v) => ({ ...v, ausencias_horas: Math.max(0, nuevoValor) }))}
               placeholder="0"
             />
             <Input
@@ -676,12 +666,11 @@ export function NominaForm({
                 { value: 'OTRO', label: 'Otro' },
               ]}
             />
-            <Input
+            <NumberInput
               label="Monto"
-              name="bono_monto"
-              type="number" step="0.01" min="0"
+              name="bono_monto" step="0.01" min="0"
               value={vals.bono_monto}
-              onChange={(e) => setVals((v) => ({ ...v, bono_monto: Math.max(0, Number(e.target.value)) }))}
+              onChange={(nuevoValor) => setVals((v) => ({ ...v, bono_monto: Math.max(0, nuevoValor) }))}
               placeholder="0"
             />
             <Input
@@ -724,12 +713,11 @@ export function NominaForm({
                 { value: 'OTRO', label: 'Otro' },
               ]}
             />
-            <Input
+            <NumberInput
               label="Monto"
-              name="descuento_otro_monto"
-              type="number" step="0.01" min="0"
+              name="descuento_otro_monto" step="0.01" min="0"
               value={vals.descuento_otro_monto}
-              onChange={(e) => setVals((v) => ({ ...v, descuento_otro_monto: Math.max(0, Number(e.target.value)) }))}
+              onChange={(nuevoValor) => setVals((v) => ({ ...v, descuento_otro_monto: Math.max(0, nuevoValor) }))}
               placeholder="0"
             />
             <Input

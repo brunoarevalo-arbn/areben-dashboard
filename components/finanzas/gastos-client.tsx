@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createGasto, updateGasto, deleteGasto, marcarGastoPagado, updateMontoGasto, revertirPagoGasto } from '@/app/actions/finanzas'
 import type { Gasto, ProrrateoMarcas, ProrrateoDefault, TipoIVA, ConfiguracionProrrateo } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
+import { NumberInput } from '@/components/ui/number-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { EstadoBadge, MarcaBadge, Badge } from '@/components/ui/badge'
@@ -283,11 +284,10 @@ function GastoForm({
                   {n}{n === 1 ? ' (sin cuotas)' : ' cuotas'}
                 </button>
               ))}
-              <input
-                type="number"
+              <NumberInput
                 min="1"
                 value={cuotasTotal}
-                onChange={(e) => setCuotasTotal(Math.max(1, Number(e.target.value)))}
+                onChange={(nuevoValor) => setCuotasTotal(Math.max(1, nuevoValor))}
                 className="w-20 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
@@ -339,12 +339,11 @@ function GastoForm({
                     {interesTipo === 'MONTO' ? 'Monto del interés ($)' : 'Porcentaje (%)'}
                   </label>
                   <div className="relative">
-                    <input
-                      type="number"
+                    <NumberInput
                       step="0.01"
                       min="0"
-                      value={interesValor || ''}
-                      onChange={(e) => setInteresValor(Math.max(0, Number(e.target.value)))}
+                      value={interesValor}
+                      onChange={(nuevoValor) => setInteresValor(Math.max(0, nuevoValor))}
                       className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
                       placeholder="0"
                     />
@@ -636,12 +635,11 @@ function MontoGastoEditor({ gasto, onSaved }: { gasto: Gasto; onSaved: () => voi
 
   return (
     <div className="flex items-center gap-1 justify-end">
-      <input
-        type="number"
+      <NumberInput
         step="0.01"
         min="0"
-        value={val || ''}
-        onChange={(e) => setVal(Number(e.target.value))}
+        value={val}
+        onChange={setVal}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()

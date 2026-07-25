@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { updateProrrateoConfig } from '@/app/actions/finanzas'
 import type { ConfiguracionProrrateo } from '@/types/database'
 import { Button } from '@/components/ui/button'
+import { NumberInput } from '@/components/ui/number-input'
 import { Loader2, Layers, CheckCircle2, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -81,13 +82,12 @@ export function ProrrateoSettingsClient({ configs }: { configs: ConfiguracionPro
               <span className="font-medium text-base">{c.marca}</span>
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <input
-                    type="number"
+                  <NumberInput
                     step="0.01"
                     min="0"
                     max="100"
                     value={valores[c.marca] ?? 0}
-                    onChange={(e) => update(c.marca, Number(e.target.value))}
+                    onChange={(nuevoValor) => update(c.marca, nuevoValor)}
                     className="w-28 px-3 py-1.5 pr-8 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono text-right focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-soft text-sm">%</span>

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { Modal } from '@/components/ui/modal'
+import { NumberInput } from '@/components/ui/number-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { formatCurrency, labelCuenta, ordenarCuentas } from '@/lib/utils'
@@ -278,7 +279,7 @@ function FormCheque({ cuentas, onSuccess, onClose }: { cuentas: Props['cuentas']
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-fg-muted mb-1.5">Monto</label>
-          <input type="number" step="0.01" min="0.01" value={monto || ''} onChange={(e) => setMonto(Number(e.target.value))} placeholder="0,00"
+          <NumberInput step="0.01" min="0.01" value={monto} onChange={setMonto} placeholder="0,00"
             className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
         <Select label="Moneda" value={moneda} onChange={(e) => setMoneda(e.target.value as 'ARS' | 'USD')} options={[{ value: 'ARS', label: 'ARS' }, { value: 'USD', label: 'USD' }]} />
@@ -356,7 +357,7 @@ function FormCuota({ tarjetas, onSuccess, onClose }: { tarjetas: NonNullable<Pro
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-fg-muted mb-1.5">Monto por cuota</label>
-          <input type="number" step="0.01" min="0.01" value={montoCuota || ''} onChange={(e) => setMontoCuota(Number(e.target.value))} placeholder="0,00"
+          <NumberInput step="0.01" min="0.01" value={montoCuota} onChange={setMontoCuota} placeholder="0,00"
             className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
         <div>
@@ -368,17 +369,17 @@ function FormCuota({ tarjetas, onSuccess, onClose }: { tarjetas: NonNullable<Pro
       <div className="grid grid-cols-3 gap-3">
         <div>
           <label className="block text-xs font-medium text-fg-muted mb-1.5">N° cuota actual</label>
-          <input type="number" min="1" value={cuotaActual} onChange={(e) => setCuotaActual(Math.max(1, Number(e.target.value)))}
+          <NumberInput min="1" value={cuotaActual} onChange={(nuevoValor) => setCuotaActual(Math.max(1, nuevoValor))}
             className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
         <div>
           <label className="block text-xs font-medium text-fg-muted mb-1.5">Cuotas total original</label>
-          <input type="number" min="1" value={cuotasTotalOriginal} onChange={(e) => setCuotasTotalOriginal(Math.max(1, Number(e.target.value)))}
+          <NumberInput min="1" value={cuotasTotalOriginal} onChange={(nuevoValor) => setCuotasTotalOriginal(Math.max(1, nuevoValor))}
             className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
         <div>
           <label className="block text-xs font-medium text-fg-muted mb-1.5">Restantes a cargar</label>
-          <input type="number" min="1" max="60" value={cuotasRestantes} onChange={(e) => setCuotasRestantes(Math.max(1, Number(e.target.value)))}
+          <NumberInput min="1" max="60" value={cuotasRestantes} onChange={(nuevoValor) => setCuotasRestantes(Math.max(1, nuevoValor))}
             className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-amber-700 font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
       </div>
@@ -443,7 +444,7 @@ function FormCtaCte({ proveedores, onSuccess, onClose }: { proveedores: NonNulla
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-fg-muted mb-1.5">Monto adeudado</label>
-          <input type="number" step="0.01" min="0.01" value={monto || ''} onChange={(e) => setMonto(Number(e.target.value))} placeholder="0,00"
+          <NumberInput step="0.01" min="0.01" value={monto} onChange={setMonto} placeholder="0,00"
             className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
         <Select label="Moneda" value={moneda} onChange={(e) => setMoneda(e.target.value as 'ARS' | 'USD')} options={[{ value: 'ARS', label: 'ARS' }, { value: 'USD', label: 'USD' }]} />
@@ -522,7 +523,7 @@ function FormGasto({ onSuccess, onClose }: { onSuccess?: () => void; onClose: ()
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-fg-muted mb-1.5">Monto</label>
-          <input type="number" step="0.01" min="0.01" value={monto || ''} onChange={(e) => setMonto(Number(e.target.value))} placeholder="0,00"
+          <NumberInput step="0.01" min="0.01" value={monto} onChange={setMonto} placeholder="0,00"
             className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
         <Select label="Moneda" value={moneda} onChange={(e) => setMoneda(e.target.value as 'ARS' | 'USD')} options={[{ value: 'ARS', label: 'ARS' }, { value: 'USD', label: 'USD' }]} />
@@ -532,7 +533,7 @@ function FormGasto({ onSuccess, onClose }: { onSuccess?: () => void; onClose: ()
         Monto incluye IVA
       </label>
       {ivaIncluido && (
-        <Input label="% IVA" type="number" min="0" max="100" value={porcentajeIva} onChange={(e) => setPorcentajeIva(Number(e.target.value))} />
+        <NumberInput label="% IVA" min="0" max="100" value={porcentajeIva} onChange={setPorcentajeIva} />
       )}
       <div className="grid grid-cols-2 gap-3">
         <Input label="Fecha del gasto" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required />

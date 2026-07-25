@@ -79,7 +79,7 @@ function AporteForm({ aporte, onClose }: { aporte?: ConfiguracionAporte; onClose
             <option value="false">Inactivo</option>
           </select>
         </div>
-        <Input label="Orden" name="orden" type="number" defaultValue={aporte?.orden ?? 0} />
+        <Input label="Orden" name="orden" type="number" defaultValue={aporte?.orden ?? ''} />
       </div>
 
       {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}

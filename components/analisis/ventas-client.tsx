@@ -42,12 +42,12 @@ function VentaForm({ mes, onClose }: { mes: string; onClose: () => void }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <Input label="Ventas brutas" name="ventas_brutas" type="number" step="0.01" defaultValue="0" />
-        <Input label="Devoluciones" name="devoluciones" type="number" step="0.01" defaultValue="0" />
-        <Input label="Ventas netas" name="ventas_netas" type="number" step="0.01" defaultValue="0" />
-        <Input label="CMV" name="cmv" type="number" step="0.01" defaultValue="0" />
-        <Input label="Cantidad vendida" name="cantidad_vendida" type="number" defaultValue="0" />
-        <Input label="Comisiones" name="comisiones" type="number" step="0.01" defaultValue="0" />
+        <Input label="Ventas brutas" name="ventas_brutas" type="number" step="0.01" />
+        <Input label="Devoluciones" name="devoluciones" type="number" step="0.01" />
+        <Input label="Ventas netas" name="ventas_netas" type="number" step="0.01" />
+        <Input label="CMV" name="cmv" type="number" step="0.01" />
+        <Input label="Cantidad vendida" name="cantidad_vendida" type="number" />
+        <Input label="Comisiones" name="comisiones" type="number" step="0.01" />
       </div>
 
       {error && <p className="text-sm text-red-700">{error}</p>}

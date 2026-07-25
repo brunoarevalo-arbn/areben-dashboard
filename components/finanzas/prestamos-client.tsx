@@ -4,6 +4,7 @@ import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createPrestamo, marcarCuotaPrestamoPagada, desmarcarCuotaPrestamoPagada, cancelarPrestamo, eliminarPrestamo } from '@/app/actions/prestamos'
 import { Button } from '@/components/ui/button'
+import { NumberInput } from '@/components/ui/number-input'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { formatCurrency, formatDate, labelCuenta, ordenarCuentas } from '@/lib/utils'
@@ -347,17 +348,17 @@ function CrearPrestamoForm({ cuentas, onClose }: { cuentas: Cuenta[]; onClose: (
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-fg-muted">Capital original</label>
-          <input type="number" step="0.01" value={capitalOriginal || ''} onChange={(e) => setCapitalOriginal(Number(e.target.value))} placeholder="0"
+          <NumberInput step="0.01" value={capitalOriginal} onChange={setCapitalOriginal} placeholder="0"
             className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-fg-muted">Intereses totales</label>
-          <input type="number" step="0.01" value={totalIntereses || ''} onChange={(e) => setTotalIntereses(Number(e.target.value))} placeholder="0"
+          <NumberInput step="0.01" value={totalIntereses} onChange={setTotalIntereses} placeholder="0"
             className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-fg-muted">Cantidad de cuotas</label>
-          <input type="number" min="1" value={cantidadCuotas || ''} onChange={(e) => setCantidadCuotas(Number(e.target.value))}
+          <NumberInput min="1" value={cantidadCuotas} onChange={setCantidadCuotas}
             className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
         </div>
       </div>
@@ -369,7 +370,7 @@ function CrearPrestamoForm({ cuentas, onClose }: { cuentas: Cuenta[]; onClose: (
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-fg-muted">Día de pago</label>
-          <input type="number" min="1" max="31" value={diaPago} onChange={(e) => setDiaPago(Number(e.target.value))}
+          <NumberInput min="1" max="31" value={diaPago} onChange={setDiaPago}
             className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
         </div>
         <div className="space-y-1.5">

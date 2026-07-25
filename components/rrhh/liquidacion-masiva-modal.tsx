@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { liquidacionMasiva } from '@/app/actions/rrhh'
 import { Button } from '@/components/ui/button'
+import { NumberInput } from '@/components/ui/number-input'
 import { Input } from '@/components/ui/input'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Loader2, ListChecks } from 'lucide-react'
@@ -157,20 +158,20 @@ export function LiquidacionMasivaModal({
                     <p className="text-[10px] text-fg-soft">{e.tipo_empleado} · básico {formatCurrency(e.sueldo_basico)}</p>
                   </td>
                   <td className="px-2 py-1.5 text-right">
-                    <input type="number" min="0" step="0.5" disabled={!checked} value={c.he || ''} placeholder="0"
-                      onChange={(ev) => setConcepto(e.id, 'he', Number(ev.target.value))} className={inputCls} />
+                    <NumberInput min="0" step="0.5" disabled={!checked} value={c.he} placeholder="0"
+                      onChange={(nuevoValor) => setConcepto(e.id, 'he', nuevoValor)} className={inputCls} />
                   </td>
                   <td className="px-2 py-1.5 text-right">
-                    <input type="number" min="0" max="200" step="10" disabled={!checked} value={c.pct}
-                      onChange={(ev) => setConcepto(e.id, 'pct', Number(ev.target.value))} className={inputCls} />
+                    <NumberInput min="0" max="200" step="10" disabled={!checked} value={c.pct}
+                      onChange={(nuevoValor) => setConcepto(e.id, 'pct', nuevoValor)} className={inputCls} />
                   </td>
                   <td className="px-2 py-1.5 text-right">
-                    <input type="number" min="0" step="1000" disabled={!checked} value={c.bono || ''} placeholder="0"
-                      onChange={(ev) => setConcepto(e.id, 'bono', Number(ev.target.value))} className={inputCls} />
+                    <NumberInput min="0" step="1000" disabled={!checked} value={c.bono} placeholder="0"
+                      onChange={(nuevoValor) => setConcepto(e.id, 'bono', nuevoValor)} className={inputCls} />
                   </td>
                   <td className="px-2 py-1.5 text-right">
-                    <input type="number" min="0" step="1000" disabled={!checked} value={c.desc || ''} placeholder="0"
-                      onChange={(ev) => setConcepto(e.id, 'desc', Number(ev.target.value))} className={inputCls} />
+                    <NumberInput min="0" step="1000" disabled={!checked} value={c.desc} placeholder="0"
+                      onChange={(nuevoValor) => setConcepto(e.id, 'desc', nuevoValor)} className={inputCls} />
                   </td>
                   <td className="px-3 py-1.5 text-right font-mono text-xs text-green-700 font-medium">
                     {checked ? formatCurrency(netoEstimado(e)) : '—'}

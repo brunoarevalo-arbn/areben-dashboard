@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { deleteCompra, createPago } from '@/app/actions/compras'
 import { Modal } from '@/components/ui/modal'
+import { NumberInput } from '@/components/ui/number-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { MarcaBadge } from '@/components/ui/badge'
@@ -267,12 +268,11 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
                 </button>
               )}
             </label>
-            <input
-              type="number"
+            <NumberInput
               step="0.01"
               min="0.01"
-              value={monto || ''}
-              onChange={(e) => setMonto(Number(e.target.value))}
+              value={monto}
+              onChange={setMonto}
               required
               className="w-full px-3.5 py-2.5 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               placeholder="0.00"
@@ -390,12 +390,11 @@ function PaymentDialog({ compra, onClose }: { compra: Compra; onClose: () => voi
                   <tr key={i} className="border-b border-border-strong/50 last:border-0">
                     <td className="px-2 py-1.5 text-fg-soft font-mono text-xs">{i + 1}</td>
                     <td className="px-2 py-1.5">
-                      <input
-                        type="number"
+                      <NumberInput
                         step="0.01"
                         min="0.01"
-                        value={c.monto || ''}
-                        onChange={(e) => updateCuota(i, 'monto', Number(e.target.value))}
+                        value={c.monto}
+                        onChange={(nuevoValor) => updateCuota(i, 'monto', nuevoValor)}
                         className="w-full px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono focus:outline-none focus:ring-1 focus:ring-primary text-xs"
                       />
                     </td>

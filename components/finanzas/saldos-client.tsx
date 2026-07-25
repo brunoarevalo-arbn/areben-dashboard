@@ -10,6 +10,7 @@ import {
 } from '@/app/actions/finanzas'
 import type { CuentaTitular, CuentaBancaria, SaldoCuenta, TipoCambioMes, ActivoManual } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
+import { NumberInput } from '@/components/ui/number-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -248,11 +249,13 @@ function CuentaRow({
       </td>
       <td className="px-4 py-3 text-right">
         {editando ? (
-          <input
-            type="number"
+          <NumberInput
             step="0.01"
-            value={ars || ''}
-            onChange={(e) => setArs(Number(e.target.value))}
+            value={ars}
+            onChange={setArs}
+            // El saldo ya cargado en $0 es un dato real (ej: una cuenta que cerró
+            // el mes en cero), así que el campo tiene que mostrar el 0, no vacío.
+            mostrarCero={!!saldo}
             className="w-32 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
         ) : (
@@ -265,11 +268,11 @@ function CuentaRow({
       <td className="px-4 py-3 text-right">
         {cuenta.permite_dual && (
           editando ? (
-            <input
-              type="number"
+            <NumberInput
               step="0.01"
-              value={usd || ''}
-              onChange={(e) => setUsd(Number(e.target.value))}
+              value={usd}
+              onChange={setUsd}
+              mostrarCero={!!saldo}
               className="w-32 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-green-700 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           ) : (
@@ -378,7 +381,7 @@ function ActivoManualForm({
         />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="Monto" name="monto" type="number" step="0.01" min="0" defaultValue={activo?.monto ?? 0} required />
+        <Input label="Monto" name="monto" type="number" step="0.01" min="0" defaultValue={activo?.monto ?? ''} required />
         <Select
           label="Moneda"
           name="moneda"
@@ -520,22 +523,22 @@ function BulkSaldosGrid({
                     <td className="px-4 py-2 text-fg-muted">{c.nombre}</td>
                     <td className="px-4 py-2 text-fg-muted text-xs">{c.banco}</td>
                     <td className="px-4 py-2 text-right">
-                      <input
-                        type="number"
+                      <NumberInput
                         step="0.01"
-                        value={v.ars || ''}
-                        onChange={(e) => setVal(c.id, 'ars', Number(e.target.value))}
+                        value={v.ars}
+                        onChange={(nuevoValor) => setVal(c.id, 'ars', nuevoValor)}
+                        mostrarCero={saldosByCuenta.has(c.id)}
                         placeholder="0,00"
                         className="w-32 px-2 py-1 bg-surface-2 border border-border-strong rounded text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
                       />
                     </td>
                     <td className="px-4 py-2 text-right">
                       {c.permite_dual ? (
-                        <input
-                          type="number"
+                        <NumberInput
                           step="0.01"
-                          value={v.usd || ''}
-                          onChange={(e) => setVal(c.id, 'usd', Number(e.target.value))}
+                          value={v.usd}
+                          onChange={(nuevoValor) => setVal(c.id, 'usd', nuevoValor)}
+                          mostrarCero={saldosByCuenta.has(c.id)}
                           placeholder="0,00"
                           className="w-32 px-2 py-1 bg-surface-2 border border-border-strong rounded text-green-700 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
                         />
@@ -771,12 +774,11 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, saldosAnteriores
             <AlertCircle className="w-4 h-4 text-amber-700" />
             <span className="font-medium">Tipo de cambio del mes</span>
           </div>
-          <input
-            type="number"
+          <NumberInput
             step="0.01"
             min="0"
-            value={tcInput || ''}
-            onChange={(e) => setTcInput(Number(e.target.value))}
+            value={tcInput}
+            onChange={setTcInput}
             placeholder="Ej: 1080"
             className="w-32 px-3 py-1.5 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />

@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from 'react'
 import { createCompra, updateCompra } from '@/app/actions/compras'
 import { MoneyInput } from '@/components/ui/money-input'
+import { NumberInput } from '@/components/ui/number-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { formatCurrency, formatDate, cn, labelCuenta, ordenarCuentas } from '@/lib/utils'
@@ -330,13 +331,12 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-fg-muted">% que factura</label>
               <div className="relative">
-                <input
-                  type="number"
+                <NumberInput
                   step="1"
                   min="0"
                   max="100"
                   value={porcentajeFact}
-                  onChange={(e) => setPorcentajeFact(Number(e.target.value))}
+                  onChange={setPorcentajeFact}
                   className="w-full px-3.5 py-2.5 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm pr-8"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-muted text-sm">%</span>
@@ -376,12 +376,11 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
                   <label className="block text-xs font-medium text-fg-muted">
                     Neto sin IVA <span className="text-fg-soft font-normal">(parte facturada)</span>
                   </label>
-                  <input
-                    type="number"
+                  <NumberInput
                     step="0.01"
-                    value={montoNeto || ''}
-                    onChange={(e) => {
-                      const n = Number(e.target.value)
+                    value={montoNeto}
+                    onChange={(nuevoValor) => {
+                      const n = nuevoValor
                       setMontoNeto(n)
                       setIva(Math.round((montoTotal * porcentajeFact / 100 - n) * 100) / 100)
                     }}
@@ -393,12 +392,11 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
                   <label className="block text-xs font-medium text-fg-muted">
                     IVA (21%) <span className="text-fg-soft font-normal">(parte facturada)</span>
                 </label>
-                <input
-                  type="number"
+                <NumberInput
                   step="0.01"
-                  value={iva || ''}
-                  onChange={(e) => {
-                    const iv = Number(e.target.value)
+                  value={iva}
+                  onChange={(nuevoValor) => {
+                    const iv = nuevoValor
                     setIva(iv)
                     setMontoNeto(Math.round((montoTotal * porcentajeFact / 100 - iv) * 100) / 100)
                   }}
@@ -636,11 +634,10 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
                         <div className="grid grid-cols-12 gap-2 items-end">
                           <div className="col-span-3 space-y-1">
                             <label className="block text-xs text-fg-soft">Monto</label>
-                            <input
-                              type="number"
+                            <NumberInput
                               step="0.01"
-                              value={c.monto || ''}
-                              onChange={(e) => updateCuota(i, 'monto', Number(e.target.value))}
+                              value={c.monto}
+                              onChange={(nuevoValor) => updateCuota(i, 'monto', nuevoValor)}
                               className="w-full px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono focus:outline-none focus:ring-1 focus:ring-primary text-xs"
                             />
                           </div>
@@ -758,11 +755,10 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
                         <tr key={i} className="border-b border-border-strong/50 last:border-0">
                           <td className="px-3 py-1.5 text-fg-soft">{i + 1}</td>
                           <td className="px-3 py-1.5">
-                            <input
-                              type="number"
+                            <NumberInput
                               step="0.01"
-                              value={c.monto || ''}
-                              onChange={(e) => updateCuota(i, 'monto', Number(e.target.value))}
+                              value={c.monto}
+                              onChange={(nuevoValor) => updateCuota(i, 'monto', nuevoValor)}
                               className="w-full px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono focus:outline-none focus:ring-1 focus:ring-primary text-xs"
                             />
                           </td>

@@ -4,6 +4,7 @@ import { useActionState, useState } from 'react'
 import { createInstrumento, updateInstrumento } from '@/app/actions/inversiones'
 import type { Instrumento } from '@/types/database'
 import { Button } from '@/components/ui/button'
+import { NumberInput } from '@/components/ui/number-input'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Loader2, TrendingUp, Lock, Unlock } from 'lucide-react'
 import { formatMoneda } from '@/lib/inversiones-calc'
@@ -80,12 +81,11 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-fg-muted">Capital inicial</label>
-            <input
-              type="number"
+            <NumberInput
               step="0.01"
               min="0"
-              value={capital || ''}
-              onChange={(e) => setCapital(Number(e.target.value))}
+              value={capital}
+              onChange={setCapital}
               placeholder="0.00"
               className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               required
@@ -94,12 +94,11 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-fg-muted">Tasa mensual (%)</label>
             <div className="relative">
-              <input
-                type="number"
+              <NumberInput
                 step="0.0001"
                 min="0"
-                value={tasaPct || ''}
-                onChange={(e) => setTasaPct(Number(e.target.value))}
+                value={tasaPct}
+                onChange={setTasaPct}
                 placeholder="2.5"
                 className="w-full px-3 py-2 pr-7 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                 required

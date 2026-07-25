@@ -6,6 +6,7 @@ import { debitarCheque, pagarCtaCteParcial } from '@/app/actions/compras'
 import { marcarCuotaPagada, marcarGastoPagado, efectivizarRetiro } from '@/app/actions/finanzas'
 import type { Instrumento } from '@/types/database'
 import { Button } from '@/components/ui/button'
+import { NumberInput } from '@/components/ui/number-input'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate, formatMonth, labelCuenta, ordenarCuentas } from '@/lib/utils'
 import { fechaVencimientoRecurrente } from '@/lib/gastos-vencimiento'
@@ -678,12 +679,11 @@ function PagarCtaCteInline({ pago, cuentas, onClose, onDone }: { pago: PagoCtaCt
           Pagar todo ({formatCurrency(restante, moneda)})
         </button>
       </div>
-      <input
-        type="number"
+      <NumberInput
         step="0.01"
         min="0.01"
-        value={monto || ''}
-        onChange={(e) => setMonto(Number(e.target.value))}
+        value={monto}
+        onChange={setMonto}
         placeholder="0,00"
         className="w-full px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
       />
@@ -2000,7 +2000,7 @@ function EditCuotaHistoricaModal({ cuota, onClose }: { cuota: CuotaPendiente; on
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-fg-muted mb-1.5">Monto de la cuota</label>
-            <input type="number" step="0.01" min="0.01" value={monto || ''} onChange={(e) => setMonto(Number(e.target.value))}
+            <NumberInput step="0.01" min="0.01" value={monto} onChange={setMonto}
               className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary" />
           </div>
           <div>

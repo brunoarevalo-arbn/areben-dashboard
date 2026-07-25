@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { upsertVacaciones } from '@/app/actions/rrhh'
 import { Modal } from '@/components/ui/modal'
+import { NumberInput } from '@/components/ui/number-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -104,11 +105,10 @@ function VacacionesForm({
         disabled={!!vacacionExistente}
       />
 
-      <Input
+      <NumberInput
         label={`Días disponibles en ${ano}`}
-        type="number"
         value={diasDisponibles}
-        onChange={(e) => setDiasDisponibles(Number(e.target.value))}
+        onChange={setDiasDisponibles}
         min={0}
       />
 

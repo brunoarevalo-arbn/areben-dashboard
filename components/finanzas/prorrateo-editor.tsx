@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { ProrrateoMarcas, ProrrateoDefault } from '@/types/database'
 import { cn } from '@/lib/utils'
+import { NumberInput } from '@/components/ui/number-input'
 
 const MARCAS: (keyof ProrrateoMarcas)[] = ['BDI', 'ZATTIA', 'STUNNED']
 
@@ -47,13 +48,12 @@ export function ProrrateoEditor({ value, onChange, defaults }: Props) {
           <div key={m} className="space-y-1">
             <label className={cn('block text-xs font-medium', COLORES[m])}>{m}</label>
             <div className="relative">
-              <input
-                type="number"
+              <NumberInput
                 step="0.01"
                 min="0"
                 max="100"
                 value={value[m] ?? 0}
-                onChange={(e) => setMarca(m, Number(e.target.value))}
+                onChange={(nuevoValor) => setMarca(m, nuevoValor)}
                 className="w-full px-2 py-1.5 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono text-sm focus:outline-none focus:ring-1 focus:ring-primary pr-6"
               />
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-fg-soft">%</span>
