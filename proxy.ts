@@ -28,8 +28,13 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const isAuthPage = request.nextUrl.pathname.startsWith('/login')
+  // La vuelta de Google (/auth/callback) llega SIN sesión a propósito: trae el
+  // `code` que todavía hay que canjear. Si el guard la tratara como una ruta
+  // privada la mandaría al login y el ingreso nunca cerraría (login → Google →
+  // callback → login → ...).
+  const isOAuthCallback = request.nextUrl.pathname.startsWith('/auth/')
 
-  if (!user && !isAuthPage) {
+  if (!user && !isAuthPage && !isOAuthCallback) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
