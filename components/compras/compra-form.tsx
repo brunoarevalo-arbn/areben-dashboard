@@ -379,8 +379,7 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
                   <NumberInput
                     step="0.01"
                     value={montoNeto}
-                    onChange={(nuevoValor) => {
-                      const n = nuevoValor
+                    onChange={(n) => {
                       setMontoNeto(n)
                       setIva(Math.round((montoTotal * porcentajeFact / 100 - n) * 100) / 100)
                     }}
@@ -395,8 +394,7 @@ export function CompraForm({ compra, proveedores, cuentas, onClose, initialNegoc
                 <NumberInput
                   step="0.01"
                   value={iva}
-                  onChange={(nuevoValor) => {
-                    const iv = nuevoValor
+                  onChange={(iv) => {
                     setIva(iv)
                     setMontoNeto(Math.round((montoTotal * porcentajeFact / 100 - iv) * 100) / 100)
                   }}

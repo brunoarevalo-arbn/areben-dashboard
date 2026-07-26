@@ -388,8 +388,7 @@ export function NominaForm({
               <NumberInput
                 step="0.01"
                 value={vals.monto_recibo_oficial}
-                onChange={(nuevoValor) => {
-                  const nuevo = nuevoValor
+                onChange={(nuevo) => {
                   const derived = recomputarDerivados({ oficial: nuevo })
                   setVals((v) => ({ ...v, monto_recibo_oficial: nuevo, ...derived }))
                 }}
@@ -425,8 +424,7 @@ export function NominaForm({
           label="Sueldo básico (NEGRO)"
           name="sueldo_basico" step="0.01"
           value={vals.sueldo_basico}
-          onChange={(nuevoValor) => {
-            const nuevo = nuevoValor
+          onChange={(nuevo) => {
             const derived = recomputarDerivados({ basico: nuevo })
             setVals((v) => ({ ...v, sueldo_basico: nuevo, ...derived }))
           }}
@@ -438,8 +436,7 @@ export function NominaForm({
           label="Horas trabajadas"
           name="horas_trabajadas" step="0.5"
           value={vals.horas}
-          onChange={(nuevoValor) => {
-            const nuevo = nuevoValor
+          onChange={(nuevo) => {
             const derived = recomputarDerivados({ horas: nuevo })
             setVals((v) => ({ ...v, horas: nuevo, ...derived }))
           }}

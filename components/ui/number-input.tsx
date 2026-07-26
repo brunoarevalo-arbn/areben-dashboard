@@ -39,6 +39,8 @@ interface NumberInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEleme
 /** Texto que le corresponde a un valor guardado. */
 export function textoDeNumero(value: number | null | undefined, mostrarCero?: boolean): string {
   if (value === null || value === undefined) return ''
+  // Un cálculo que se fue a NaN/Infinito se muestra vacío, no con la palabra "NaN"
+  if (!Number.isFinite(value)) return ''
   if (value === 0 && !mostrarCero) return ''
   return String(value)
 }
@@ -63,41 +65,52 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
     // Mientras se edita manda esto, para poder dejarlo vacío o a medio escribir.
     const [textoEditando, setTextoEditando] = useState<string | null>(null)
     const mostrado = textoEditando ?? textoDeNumero(value, mostrarCero)
+    // Con label se comporta como un campo de formulario (mismo estilo que <Input>).
+    // Sin label es un input pelado que usa el className de quien lo llama.
+    const esCampoDeFormulario = !!label || !!error
+
+    const input = (
+      <input
+        id={inputId}
+        ref={ref}
+        type="number"
+        inputMode="decimal"
+        value={mostrado}
+        onFocus={(e) => {
+          if (seleccionarAlEntrar) e.target.select()
+          onFocus?.(e)
+        }}
+        onChange={(e) => {
+          setTextoEditando(e.target.value)
+          onChange(numeroDeTexto(e.target.value))
+        }}
+        onBlur={(e) => {
+          // Se suelta el texto a medias y el campo vuelve a reflejar el valor real
+          setTextoEditando(null)
+          onBlur?.(e)
+        }}
+        className={cn(
+          esCampoDeFormulario &&
+            'w-full px-3.5 py-2.5 bg-surface-2 border rounded-lg text-fg placeholder-fg-soft focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm',
+          esCampoDeFormulario && (error ? 'border-danger' : 'border-border-strong'),
+          className,
+        )}
+        {...props}
+      />
+    )
+
+    // Sin label ni error va SIN envoltorio: agregar un <div> acá rompe el diseño
+    // de las filas y grillas donde el input estaba puesto directo.
+    if (!esCampoDeFormulario) return input
 
     return (
-      <div className={label ? 'space-y-1.5' : undefined}>
+      <div className="space-y-1.5">
         {label && (
           <label htmlFor={inputId} className="block text-sm font-medium text-fg">
             {label}
           </label>
         )}
-        <input
-          id={inputId}
-          ref={ref}
-          type="number"
-          inputMode="decimal"
-          value={mostrado}
-          onFocus={(e) => {
-            if (seleccionarAlEntrar) e.target.select()
-            onFocus?.(e)
-          }}
-          onChange={(e) => {
-            setTextoEditando(e.target.value)
-            onChange(numeroDeTexto(e.target.value))
-          }}
-          onBlur={(e) => {
-            // Se suelta el texto a medias y el campo vuelve a reflejar el valor real
-            setTextoEditando(null)
-            onBlur?.(e)
-          }}
-          className={cn(
-            label &&
-              'w-full px-3.5 py-2.5 bg-surface-2 border rounded-lg text-fg placeholder-fg-soft focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm',
-            label && (error ? 'border-danger' : 'border-border-strong'),
-            className,
-          )}
-          {...props}
-        />
+        {input}
         {error && <p className="text-xs text-danger">{error}</p>}
       </div>
     )

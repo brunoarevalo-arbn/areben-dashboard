@@ -16,6 +16,12 @@ describe('textoDeNumero — qué se ve en el campo', () => {
     expect(textoDeNumero(0, true)).toBe('0')
   })
 
+  it('un cálculo que se fue a NaN se ve vacío, no dice "NaN"', () => {
+    expect(textoDeNumero(NaN)).toBe('')
+    expect(textoDeNumero(NaN, true)).toBe('')
+    expect(textoDeNumero(Infinity)).toBe('')
+  })
+
   it('un número normal se ve tal cual', () => {
     expect(textoDeNumero(28000000)).toBe('28000000')
     expect(textoDeNumero(-34122)).toBe('-34122')
