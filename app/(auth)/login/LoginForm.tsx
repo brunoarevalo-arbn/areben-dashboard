@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
 import { signIn } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/client'
 import { Building2, Loader2 } from 'lucide-react'
@@ -12,16 +12,32 @@ const MENSAJES: Record<string, string> = {
   'sin-codigo': 'El ingreso con Google quedó a medias. Probá de nuevo.',
 }
 
+/**
+ * Marca de que el ingreso en curso salió de un salto entre apps (`?sso=1`) y no
+ * de un click. Sirve para una sola cosa: si el salto no prospera, la vuelta trae
+ * `?error=` y ese error NO hay que mostrarlo — que falle es lo esperable cuando
+ * el navegador no tiene sesión de Google, y no es culpa de nadie.
+ */
+const CLAVE_SALTO = 'areben-sso-salto'
+
 export function LoginForm({ errorInicial }: { errorInicial?: string }) {
   const [error, action, isPending] = useActionState(signIn, null)
   const [googleCargando, setGoogleCargando] = useState(false)
-  const [errorGoogle, setErrorGoogle] = useState<string | null>(
-    errorInicial ? (MENSAJES[errorInicial] ?? MENSAJES.google) : null
-  )
+  const [saltando, setSaltando] = useState(false)
+  const [aviso, setAviso] = useState<string | null>(null)
+  const [errorGoogle, setErrorGoogle] = useState<string | null>(null)
+  const saltoIniciado = useRef(false)
 
-  const entrarConGoogle = async () => {
+  /**
+   * Arranca el ingreso con Google. En modo `silencioso` suma `prompt=none`: si el
+   * navegador ya tiene sesión de Google —el caso de quien viene de otra app de
+   * Areben— Google responde sin mostrar ninguna pantalla y la vuelta es inmediata.
+   * Si NO la tiene, contesta con un error en vez de pedir credenciales, y ahí
+   * caemos al login de siempre.
+   */
+  const entrarConGoogle = async ({ silencioso = false } = {}) => {
     setErrorGoogle(null)
-    setGoogleCargando(true)
+    if (!silencioso) setGoogleCargando(true)
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -30,16 +46,68 @@ export function LoginForm({ errorInicial }: { errorInicial?: string }) {
         // La pantalla de consentimiento ya es "Interna", así que Google solo
         // acepta cuentas de la organización. `hd` es cinturón y tiradores: evita
         // que el selector siquiera ofrezca una cuenta personal.
-        queryParams: { hd: 'arebensrl.com' },
+        queryParams: silencioso
+          ? { hd: 'arebensrl.com', prompt: 'none' }
+          : { hd: 'arebensrl.com' },
       },
     })
     if (error) {
-      setErrorGoogle(MENSAJES.google)
-      setGoogleCargando(false)
+      if (silencioso) {
+        sessionStorage.removeItem(CLAVE_SALTO)
+        setSaltando(false)
+        setAviso('Entrá con Google para continuar.')
+      } else {
+        setErrorGoogle(MENSAJES.google)
+        setGoogleCargando(false)
+      }
     }
   }
 
+  // Vuelta de /auth/callback (?error=sin-acceso|google|sin-codigo) y salto
+  // silencioso desde otra app de Areben (?sso=1).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+
+    if (errorInicial) {
+      const veniaDeSalto = sessionStorage.getItem(CLAVE_SALTO) === '1'
+      sessionStorage.removeItem(CLAVE_SALTO)
+      // `sin-acceso` sí se muestra aunque venga de un salto: ahí Google autenticó
+      // bien y lo que falta es el alta en ESTE sistema. Es información útil.
+      if (veniaDeSalto && errorInicial !== 'sin-acceso') {
+        setAviso('Entrá con Google para continuar.')
+        return
+      }
+      setErrorGoogle(MENSAJES[errorInicial] ?? MENSAJES.google)
+      return
+    }
+
+    if (params.get('sso') !== '1') {
+      sessionStorage.removeItem(CLAVE_SALTO) // visita normal al login: estado limpio
+      return
+    }
+
+    if (saltoIniciado.current) return // en dev React corre los efectos dos veces
+    saltoIniciado.current = true
+    sessionStorage.setItem(CLAVE_SALTO, '1')
+    setSaltando(true)
+    entrarConGoogle({ silencioso: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const mensajeError = errorGoogle ?? error
+
+  // Salto desde otra app: se va a Google y vuelve, así que mostrar el formulario
+  // sería un parpadeo inútil.
+  if (saltando) {
+    return (
+      <div className="w-full max-w-md">
+        <div className="bg-surface border border-border rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4">
+          <Loader2 className="w-5 h-5 animate-spin text-fg-muted" />
+          <p className="text-sm text-fg-muted">Entrando…</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full max-w-md">
@@ -54,7 +122,7 @@ export function LoginForm({ errorInicial }: { errorInicial?: string }) {
 
         <button
           type="button"
-          onClick={entrarConGoogle}
+          onClick={() => entrarConGoogle()}
           disabled={googleCargando}
           className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed border border-border-strong text-slate-800 font-medium rounded-lg transition-colors flex items-center justify-center gap-2.5"
         >
@@ -67,7 +135,11 @@ export function LoginForm({ errorInicial }: { errorInicial?: string }) {
         </button>
 
         <p className="text-center text-xs text-fg-muted mt-3">
-          Si tenés mail <span className="font-medium">@arebensrl.com</span>, entrá con Google.
+          {aviso ?? (
+            <>
+              Si tenés mail <span className="font-medium">@arebensrl.com</span>, entrá con Google.
+            </>
+          )}
         </p>
 
         <div className="flex items-center gap-3 my-6">
