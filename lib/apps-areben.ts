@@ -12,18 +12,20 @@
  * app ya tiene sesión propia, su proxy te rebota directo a su home y el `?sso=1`
  * ni se usa.
  *
- * URLs: `dashboard` y `produccion` ya viven en `arebensrl.com` (CNAME a
- * `cname.vercel-dns.com`, DNS only, 27-jul-2026). Las de `vercel.app` siguen
- * funcionando como alias. El monitor está en la cuenta de Vercel de Darío y
- * espera su propio subdominio.
+ * Las tres apps propias ya viven en `arebensrl.com` (CNAME a Vercel, DNS only,
+ * 27-jul-2026); las URLs de `vercel.app` siguen andando como alias.
+ *
+ * Ojo con la forma del link: el monitor es un catch-all sin ruta de login, así que
+ * su salto va a la raíz (`/?sso=1`). Producción y el dashboard usan `/login?sso=1`.
  */
 
 export type AppInterna = {
   id: string
   nombre: string
   descripcion: string
-  url: string
-  /** Acepta `/login?sso=1` (salto silencioso). Las de Gerardo tienen login propio. */
+  /** Dónde cae el salto. Incluye la ruta, que no es la misma en todas. */
+  href: string
+  /** Acepta el salto silencioso. Las de Gerardo tienen login propio. */
   sso: boolean
 }
 
@@ -35,43 +37,35 @@ export const APPS: AppInterna[] = [
     id: 'monitor',
     nombre: 'Monitor',
     descripcion: 'Ventas, stock, fotos y solicitudes del día',
-    url: 'https://monitorareben.vercel.app',
-    sso: false,
+    href: 'https://monitor.arebensrl.com/?sso=1',
+    sso: true,
   },
   {
     id: 'produccion',
     nombre: 'Producción',
     descripcion: 'Taller: cortes, escandallos, insumos y costos',
-    url: 'https://produccion.arebensrl.com',
+    href: 'https://produccion.arebensrl.com/login?sso=1',
     sso: true,
   },
   {
     id: 'dashboard',
     nombre: 'Dashboard',
     descripcion: 'Finanzas: cierres, gastos, nómina y resultados',
-    url: 'https://dashboard.arebensrl.com',
+    href: 'https://dashboard.arebensrl.com/login?sso=1',
     sso: true,
   },
   {
     id: 'ingresos',
     nombre: 'Ingresos',
     descripcion: 'Ingreso de mercadería (sistema de Gerardo)',
-    url: 'https://ingreso2.arebensrl.com',
+    href: 'https://ingreso2.arebensrl.com',
     sso: false,
   },
   {
     id: 'logistica',
     nombre: 'Logística',
     descripcion: 'Preparación y envíos (sistema de Gerardo)',
-    url: 'https://logistica.arebensrl.com',
+    href: 'https://logistica.arebensrl.com',
     sso: false,
   },
 ]
-
-/**
- * A dónde apunta el link de cada app. Las que soportan el salto entran solas;
- * el resto abre su propia pantalla de ingreso.
- */
-export function linkDe(app: AppInterna): string {
-  return app.sso ? `${app.url}/login?sso=1` : app.url
-}

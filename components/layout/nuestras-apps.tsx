@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { LayoutGrid } from 'lucide-react'
-import { APPS, APP_ACTUAL, linkDe } from '@/lib/apps-areben'
+import { APPS, APP_ACTUAL } from '@/lib/apps-areben'
 
 /**
  * "Nuestras apps": el salto a los otros sistemas internos, desde la barra superior.
@@ -68,7 +68,7 @@ export function NuestrasApps() {
             ) : (
               <a
                 key={app.id}
-                href={linkDe(app)}
+                href={app.href}
                 role="menuitem"
                 onClick={() => setAbierto(false)}
                 className="block px-2.5 py-2 rounded-lg hover:bg-surface-2 transition-colors"
