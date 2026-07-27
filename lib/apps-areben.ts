@@ -12,9 +12,10 @@
  * app ya tiene sesión propia, su proxy te rebota directo a su home y el `?sso=1`
  * ni se usa.
  *
- * URLs: hoy son las de `vercel.app`. Cuando estén los CNAME de `arebensrl.com`
- * (`dashboard` y `produccion` → `cname.vercel-dns.com`, DNS only), se cambian acá
- * y en el archivo gemelo de los otros repos. Nada más depende de esto.
+ * URLs: `dashboard` y `produccion` ya viven en `arebensrl.com` (CNAME a
+ * `cname.vercel-dns.com`, DNS only, 27-jul-2026). Las de `vercel.app` siguen
+ * funcionando como alias. El monitor está en la cuenta de Vercel de Darío y
+ * espera su propio subdominio.
  */
 
 export type AppInterna = {
@@ -41,14 +42,14 @@ export const APPS: AppInterna[] = [
     id: 'produccion',
     nombre: 'Producción',
     descripcion: 'Taller: cortes, escandallos, insumos y costos',
-    url: 'https://areben-produccion.vercel.app',
+    url: 'https://produccion.arebensrl.com',
     sso: true,
   },
   {
     id: 'dashboard',
     nombre: 'Dashboard',
     descripcion: 'Finanzas: cierres, gastos, nómina y resultados',
-    url: 'https://areben-dashboard.vercel.app',
+    url: 'https://dashboard.arebensrl.com',
     sso: true,
   },
   {
