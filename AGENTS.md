@@ -141,6 +141,11 @@ varias veces su tamaño.
   generada, casi nunca hace falta entera).
 - **Tests: uno por vez**, `npx vitest run __tests__/<archivo>.test.ts --reporter=dot`.
 - **Comandos largos van cortados**: `git log`, builds y deploys con `| tail -30`.
+- **Avisar el `/clear` al cerrar cada unidad de trabajo** — Bruno no lo tiene que pedir. El marcador
+  natural es después de deployar y verificar. El criterio no es "cambió el tema" sino **"¿vamos a
+  volver a abrir los mismos archivos?"**. Donde más rinde es justo después de resolver un bug
+  difícil: ese contexto es casi todo intento fallido. Dentro de una tarea sin terminar va
+  `/compact`, no `/clear`.
 
 ## Estilo
 
