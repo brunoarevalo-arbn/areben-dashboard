@@ -219,6 +219,21 @@ function CuentaRow({
   }
 
   function guardar() {
+    // Dejar en cero un monto que YA estaba guardado para este mes borra plata: se pregunta.
+    // Se compara contra el saldo del MES QUE SE ESTÁ MIRANDO, no contra el mes anterior
+    // (eso es el cartel de arriba, que avisa después de guardar y no frena nada).
+    const pisaArs = variacion(ars, saldo?.saldo_ars).cayoACero
+    const pisaUsd = cuenta.permite_dual && variacion(usd, saldo?.saldo_usd).cayoACero
+    if (pisaArs || pisaUsd) {
+      const seVa = [
+        pisaArs && formatCurrency(saldo!.saldo_ars),
+        pisaUsd && formatCurrency(saldo!.saldo_usd, 'USD'),
+      ].filter(Boolean).join(' y ')
+      const ok = confirm(
+        `${cuenta.banco} ${cuenta.nombre} tiene ${seVa} guardado en ${formatMonth(mes)} y lo vas a dejar en cero.\n¿Guardar igual?`,
+      )
+      if (!ok) return
+    }
     startTransition(() => {
       upsertSaldoCuenta(cuenta.id, mes, ars, usd, saldo?.notas ?? null).then(() => {
         setEditando(false)
@@ -440,6 +455,7 @@ function BulkSaldosGrid({
       usd: s?.saldo_usd ?? 0,
     })
   }
+  const cuentasById = new Map(cuentas.map((c) => [c.id, c]))
   const [values, setValues] = useState(initialValues)
   const [isPending, startTransition] = useTransition()
   const [savedAt, setSavedAt] = useState<string | null>(null)
@@ -469,6 +485,23 @@ function BulkSaldosGrid({
     if (items.length === 0) {
       alert('No hay nada para guardar: ninguna cuenta tiene saldo cargado ni se editó ningún campo.')
       return
+    }
+    // Igual que en la fila, pero de a muchas: acá el descuido es más caro porque una sola
+    // pasada puede dejar en cero varias cuentas. Va UNA confirmación con la lista completa.
+    const pisados = items.flatMap((i) => {
+      const s = saldosByCuenta.get(i.cuenta_id)
+      const c = cuentasById.get(i.cuenta_id)
+      const seVa = [
+        variacion(i.saldo_ars, s?.saldo_ars).cayoACero && formatCurrency(s!.saldo_ars),
+        variacion(i.saldo_usd, s?.saldo_usd).cayoACero && formatCurrency(s!.saldo_usd, 'USD'),
+      ].filter(Boolean)
+      return seVa.length ? [`· ${c ? `${c.banco} ${c.nombre}` : 'Cuenta'}: ${seVa.join(' y ')}`] : []
+    })
+    if (pisados.length > 0) {
+      const ok = confirm(
+        `Estas cuentas tienen saldo guardado en ${formatMonth(mes)} y quedan en cero:\n\n${pisados.join('\n')}\n\n¿Guardar igual?`,
+      )
+      if (!ok) return
     }
     startTransition(async () => {
       try {
