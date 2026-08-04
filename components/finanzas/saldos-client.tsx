@@ -207,6 +207,17 @@ function CuentaRow({
   const [isPending, startTransition] = useTransition()
   const revisado = estadoRevision(saldo, mesConfirmado) === 'revisado'
 
+  // El editor SIEMPRE arranca de lo guardado PARA EL MES QUE SE ESTÁ MIRANDO. El estado
+  // local no se puede dar por bueno: sobrevive a cualquier refresco de los props mientras
+  // la fila siga montada. Sin esto pasaba lo feo: mirabas un mes, cambiabas al siguiente,
+  // cargabas sólo los dólares y "Guardar" escribía en el mes nuevo el ARS del mes anterior,
+  // que nunca se tipeó. Un campo vacío tiene que quedar en cero, nunca heredar.
+  function abrirEditor() {
+    setArs(saldo?.saldo_ars ?? 0)
+    setUsd(saldo?.saldo_usd ?? 0)
+    setEditando(true)
+  }
+
   function guardar() {
     startTransition(() => {
       upsertSaldoCuenta(cuenta.id, mes, ars, usd, saldo?.notas ?? null).then(() => {
@@ -292,7 +303,7 @@ function CuentaRow({
           ) : (
             <>
               {/* Editar queda siempre habilitado: marcar revisado es una nota, no un cerrojo */}
-              <Button size="sm" variant="ghost" onClick={() => setEditando(true)} title="Editar saldo">
+              <Button size="sm" variant="ghost" onClick={abrirEditor} title="Editar saldo">
                 <Pencil className="w-3.5 h-3.5" />
               </Button>
               {saldo && (
@@ -432,8 +443,13 @@ function BulkSaldosGrid({
   const [values, setValues] = useState(initialValues)
   const [isPending, startTransition] = useTransition()
   const [savedAt, setSavedAt] = useState<string | null>(null)
+  // Cuentas que se tocaron en esta pasada. Una cuenta que quedó LIBRE (sin saldo del mes y
+  // sin tipear nada) no se guarda: escribirla en 0 la haría figurar como cargada y taparía
+  // el aviso ámbar de "falta cargar", que es justamente lo que avisa el olvido.
+  const [tocados, setTocados] = useState<Set<string>>(new Set())
 
   function setVal(id: string, key: 'ars' | 'usd', v: number) {
+    setTocados((prev) => (prev.has(id) ? prev : new Set(prev).add(id)))
     setValues((prev) => {
       const next = new Map(prev)
       const cur = next.get(id) ?? { ars: 0, usd: 0 }
@@ -443,11 +459,17 @@ function BulkSaldosGrid({
   }
 
   function guardarTodos() {
-    const items = Array.from(values.entries()).map(([cuenta_id, v]) => ({
-      cuenta_id,
-      saldo_ars: v.ars,
-      saldo_usd: v.usd,
-    }))
+    const items = Array.from(values.entries())
+      .filter(([cuenta_id]) => tocados.has(cuenta_id) || saldosByCuenta.has(cuenta_id))
+      .map(([cuenta_id, v]) => ({
+        cuenta_id,
+        saldo_ars: v.ars,
+        saldo_usd: v.usd,
+      }))
+    if (items.length === 0) {
+      alert('No hay nada para guardar: ninguna cuenta tiene saldo cargado ni se editó ningún campo.')
+      return
+    }
     startTransition(async () => {
       try {
         await bulkUpsertSaldosCuentas(mes, items)
@@ -792,6 +814,9 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, saldosAnteriores
 
       {bulkMode ? (
         <BulkSaldosGrid
+          // Igual que las filas: el mes en la key para que la planilla se rearme con los
+          // saldos del mes nuevo y no guarde los números que quedaron tipeados del anterior.
+          key={mes}
           mes={mes}
           cuentas={cuentas.filter((c) => c.activo)}
           titulares={titulares}
@@ -986,7 +1011,10 @@ function TitularSaldosCard({ titular, cuentasTit, saldosByCuenta, saldosAntByCue
             <tbody>
               {cuentasTit.map((c) => (
                 <CuentaRow
-                  key={c.id}
+                  // El mes va en la key a propósito: cambiar de mes tiene que REMONTAR la
+                  // fila. Con key={c.id} sola, React reusaba el componente y el saldo
+                  // tipeado para el mes anterior seguía vivo en el estado local.
+                  key={`${c.id}-${mes}`}
                   cuenta={c}
                   saldo={saldosByCuenta.get(c.id)}
                   saldoAnterior={saldosAntByCuenta.get(c.id)?.saldo_ars}
