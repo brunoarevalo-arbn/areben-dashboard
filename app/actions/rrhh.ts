@@ -76,7 +76,7 @@ export async function createEmpleado(prevState: string | null, formData: FormDat
 }
 
 export async function updateEmpleado(id: string, prevState: string | null, formData: FormData) {
-  await requireUser()
+  const user = await requireUser()
   const raw = {
     ...Object.fromEntries(formData),
     corresponde_aguinaldo: formData.get('corresponde_aguinaldo') === 'true' || formData.get('corresponde_aguinaldo') === 'on',
@@ -85,6 +85,15 @@ export async function updateEmpleado(id: string, prevState: string | null, formD
   if (!result.success) return result.error.issues[0].message
 
   const supabase = await createClient()
+
+  // Estado anterior de la ficha, para el historial. Se lee ANTES del update; si el
+  // update falla no queda ningún evento fantasma.
+  const { data: previo } = await supabase
+    .from('empleados')
+    .select('sueldo_basico, horas_mensuales, valor_hora')
+    .eq('id', id)
+    .maybeSingle()
+
   const { error } = await supabase.from('empleados').update({
     ...result.data,
     dni: result.data.dni || null,
@@ -97,6 +106,23 @@ export async function updateEmpleado(id: string, prevState: string | null, formD
     fecha_nacimiento: result.data.fecha_nacimiento || null,
   }).eq('id', id)
   if (error) return error.message
+
+  // Historial: sólo deja evento si cambió el sueldo básico o las horas mensuales.
+  if (previo) {
+    const { error: evError } = await registrarCambioFicha(supabase, {
+      empleadoId: id,
+      antes: snapshotFicha(previo),
+      despues: snapshotFicha(result.data),
+      actor: user.email ?? null,
+      origen: 'FICHA',
+      descripcion: 'Editado desde la ficha del empleado.',
+    })
+    if (evError) {
+      // Los datos ya se guardaron: decirlo, en vez de perder el historial en silencio.
+      revalidatePath('/rrhh/empleados')
+      return `Se guardaron los cambios, pero no se pudo registrar el historial: ${evError}`
+    }
+  }
 
   revalidatePath('/rrhh/empleados')
   return null
@@ -250,7 +276,7 @@ const ajusteSchema = z.object({
 })
 
 export async function createAjusteSalarial(prevState: string | null, formData: FormData) {
-  await requireUser()
+  const user = await requireUser()
   const raw = Object.fromEntries(formData)
   const result = ajusteSchema.safeParse(raw)
   if (!result.success) return result.error.issues[0].message
@@ -259,34 +285,41 @@ export async function createAjusteSalarial(prevState: string | null, formData: F
 
   const { data: emp } = await supabase
     .from('empleados')
-    .select('sueldo_basico, horas_mensuales')
+    .select('sueldo_basico, horas_mensuales, valor_hora')
     .eq('id', result.data.empleado_id)
     .single()
   if (!emp) return 'Empleado no encontrado'
 
-  const sueldoAnterior = emp.sueldo_basico
-  const horasMensuales = emp.horas_mensuales || 160
-  const nuevoValorHora = result.data.sueldo_nuevo / horasMensuales
+  const antes = snapshotFicha(emp)
+  const horasMensuales = antes.horas_mensuales || 160
+  const despues: SnapshotFicha = {
+    sueldo_basico: result.data.sueldo_nuevo,
+    horas_mensuales: horasMensuales,
+    valor_hora: Math.round((result.data.sueldo_nuevo / horasMensuales) * 100) / 100,
+  }
 
-  const { error: ev } = await supabase.from('eventos_empleado').insert({
-    empleado_id: result.data.empleado_id,
-    tipo: 'AJUSTE_SALARIAL',
-    fecha: result.data.fecha,
-    titulo: `Ajuste salarial: ${formatPesos(sueldoAnterior)} → ${formatPesos(result.data.sueldo_nuevo)}`,
-    descripcion: result.data.descripcion || null,
-    sueldo_anterior: sueldoAnterior,
-    sueldo_nuevo: result.data.sueldo_nuevo,
-  })
-  if (ev) return ev.message
-
+  // Primero el update: si falla, no queda un evento mintiendo en el historial.
   const { error: up } = await supabase
     .from('empleados')
-    .update({
-      sueldo_basico: result.data.sueldo_nuevo,
-      valor_hora: Math.round(nuevoValorHora * 100) / 100,
-    })
+    .update({ sueldo_basico: despues.sueldo_basico, valor_hora: despues.valor_hora })
     .eq('id', result.data.empleado_id)
   if (up) return up.message
+
+  // Acá las horas no cambian ⇒ el helper elige tipo AJUSTE_SALARIAL y arma el mismo
+  // título de siempre. Sin regresión visual para los ajustes ya cargados.
+  const { error: evError } = await registrarCambioFicha(supabase, {
+    empleadoId: result.data.empleado_id,
+    antes,
+    despues,
+    actor: user.email ?? null,
+    origen: 'AJUSTE',
+    fecha: result.data.fecha, // acá sí la elige el usuario
+    descripcion: result.data.descripcion || null,
+  })
+  if (evError) {
+    revalidatePath('/rrhh/empleados')
+    return `Se actualizó el sueldo, pero no se pudo registrar el historial: ${evError}`
+  }
 
   revalidatePath('/rrhh/empleados')
   return null
@@ -304,32 +337,115 @@ function formatPesos(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
 }
 
+// ============ HISTORIAL DE LA FICHA ============
+
+type SnapshotFicha = { sueldo_basico: number; horas_mensuales: number; valor_hora: number }
+
+// Mismo criterio que la guarda de aplicarSueldoAFicha: ignora ruido de centavos.
+const UMBRAL_SUELDO = 0.5
+// El valor hora es ~100x más chico que el sueldo: con 0.5 se taparían cambios reales.
+const UMBRAL_VALOR_HORA = 0.01
+
+/** Normaliza una fila de empleado: PostgREST puede devolver NUMERIC como string. */
+function snapshotFicha(row: { sueldo_basico?: unknown; horas_mensuales?: unknown; valor_hora?: unknown }): SnapshotFicha {
+  return {
+    sueldo_basico: Number(row.sueldo_basico ?? 0) || 0,
+    horas_mensuales: Math.round(Number(row.horas_mensuales ?? 0)) || 0,
+    valor_hora: Number(row.valor_hora ?? 0) || 0,
+  }
+}
+
+/**
+ * Escribe UN evento en eventos_empleado con el antes/después de la ficha.
+ * Único punto de escritura del historial: lo usan updateEmpleado, createAjusteSalarial
+ * y aplicarSueldoAFicha, para que los tres caminos no divergan.
+ *
+ * Sólo dispara si cambió `sueldo_basico` u `horas_mensuales`. El valor hora se guarda
+ * como dato del evento pero NO es gatillo: es derivado, y en fichas viejas puede estar
+ * en 0 o desfasado — si gatillara, el primer guardado de cada empleado legacy generaría
+ * un evento que no representa ninguna decisión de nadie.
+ */
+async function registrarCambioFicha(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  opts: {
+    empleadoId: string
+    antes: SnapshotFicha
+    despues: SnapshotFicha
+    actor: string | null
+    origen: 'FICHA' | 'AJUSTE' | 'NOMINA'
+    fecha?: string
+    descripcion?: string | null
+  },
+): Promise<{ registrado: boolean; error?: string }> {
+  const { antes, despues } = opts
+  const cambioSueldo = Math.abs(despues.sueldo_basico - antes.sueldo_basico) > UMBRAL_SUELDO
+  const cambioHoras = despues.horas_mensuales !== antes.horas_mensuales
+  if (!cambioSueldo && !cambioHoras) return { registrado: false }
+
+  const mismoValorHora = Math.abs(despues.valor_hora - antes.valor_hora) <= UMBRAL_VALOR_HORA
+  const dHoras = `${antes.horas_mensuales} → ${despues.horas_mensuales} hs`
+  const dSueldo = `${formatPesos(antes.sueldo_basico)} → ${formatPesos(despues.sueldo_basico)}`
+
+  let titulo: string
+  if (cambioHoras && cambioSueldo) {
+    titulo = `Cambio de horas: ${dHoras} · ${dSueldo}${mismoValorHora ? ' (mismo valor hora)' : ''}`
+  } else if (cambioHoras) {
+    titulo = `Cambio de horas: ${dHoras}`
+  } else {
+    titulo = `Ajuste salarial: ${dSueldo}`
+  }
+
+  const { error } = await supabase.from('eventos_empleado').insert({
+    empleado_id: opts.empleadoId,
+    // Si se tocaron las horas manda ese tipo, aunque también haya cambiado el sueldo:
+    // el caso real es "sumo horas y subo el sueldo para mantener el valor hora".
+    tipo: cambioHoras ? 'CAMBIO_HORAS' : 'AJUSTE_SALARIAL',
+    fecha: opts.fecha ?? new Date().toISOString().split('T')[0],
+    titulo: titulo.slice(0, 255), // la columna es VARCHAR(255)
+    descripcion: opts.descripcion || null,
+    sueldo_anterior: antes.sueldo_basico,
+    sueldo_nuevo: despues.sueldo_basico,
+    horas_anterior: antes.horas_mensuales,
+    horas_nuevo: despues.horas_mensuales,
+    valor_hora_anterior: antes.valor_hora,
+    valor_hora_nuevo: despues.valor_hora,
+    registrado_por: opts.actor,
+    origen: opts.origen,
+  })
+  if (error) return { registrado: false, error: error.message }
+  return { registrado: true }
+}
+
 // Lleva el sueldo base de una nómina a la ficha del empleado: registra un evento
-// AJUSTE_SALARIAL (historial) y actualiza sueldo_basico + valor_hora. Solo actúa si
-// el monto difiere del de la ficha. Mismo mecanismo que createAjusteSalarial.
+// en el historial y actualiza sueldo_basico + valor_hora. Solo actúa si el monto
+// difiere del de la ficha. Mismo mecanismo que createAjusteSalarial.
 async function aplicarSueldoAFicha(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  empleado: { id: string; sueldo_basico: number; horas_mensuales: number },
+  empleado: { id: string; sueldo_basico: number; horas_mensuales: number; valor_hora?: number | null },
   nuevoBase: number,
   mes: string,
+  actor: string | null,
 ) {
-  if (!nuevoBase || Math.abs(nuevoBase - empleado.sueldo_basico) <= 0.5) return false
-  const horasMensuales = empleado.horas_mensuales || 160
-  const nuevoValorHora = Math.round((nuevoBase / horasMensuales) * 100) / 100
-  const hoy = new Date().toISOString().split('T')[0]
-  await supabase.from('eventos_empleado').insert({
-    empleado_id: empleado.id,
-    tipo: 'AJUSTE_SALARIAL',
-    fecha: hoy,
-    titulo: `Ajuste salarial: ${formatPesos(empleado.sueldo_basico)} → ${formatPesos(nuevoBase)}`,
-    descripcion: `Actualizado desde la nómina de ${mes}`,
-    sueldo_anterior: empleado.sueldo_basico,
-    sueldo_nuevo: nuevoBase,
-  })
+  const antes = snapshotFicha(empleado)
+  if (!nuevoBase || Math.abs(nuevoBase - antes.sueldo_basico) <= UMBRAL_SUELDO) return false
+  const horasMensuales = antes.horas_mensuales || 160
+  const despues: SnapshotFicha = {
+    sueldo_basico: nuevoBase,
+    horas_mensuales: horasMensuales,
+    valor_hora: Math.round((nuevoBase / horasMensuales) * 100) / 100,
+  }
   await supabase
     .from('empleados')
-    .update({ sueldo_basico: nuevoBase, valor_hora: nuevoValorHora })
+    .update({ sueldo_basico: despues.sueldo_basico, valor_hora: despues.valor_hora })
     .eq('id', empleado.id)
+  await registrarCambioFicha(supabase, {
+    empleadoId: empleado.id,
+    antes,
+    despues,
+    actor,
+    origen: 'NOMINA',
+    descripcion: `Actualizado desde la nómina de ${mes}`,
+  })
   return true
 }
 
@@ -561,7 +677,7 @@ async function reconciliarHorasExtras(
 }
 
 export async function createNomina(prevState: string | null, formData: FormData) {
-  await requireUser()
+  const user = await requireUser()
   const raw = {
     ...Object.fromEntries(formData),
     asistencia_completa: formData.get('asistencia_completa') === 'true' || formData.get('asistencia_completa') === 'on',
@@ -710,7 +826,7 @@ export async function createNomina(prevState: string | null, formData: FormData)
 
   // Si se confirmó, llevar este sueldo a la ficha del empleado (registra ajuste salarial)
   if (formData.get('actualizar_sueldo_ficha') === 'true') {
-    await aplicarSueldoAFicha(supabase, empleado, basicoEfectivo, d.mes)
+    await aplicarSueldoAFicha(supabase, empleado, basicoEfectivo, d.mes, user.email ?? null)
   }
 
   revalidatePath('/rrhh/nomina')
@@ -764,7 +880,7 @@ export async function marcarNominaPagada(id: string) {
  *  3. Sin pagos → edit libre, recalcula y sincroniza el gasto vinculado
  */
 export async function updateNomina(id: string, prevState: string | null, formData: FormData) {
-  await requireUser()
+  const user = await requireUser()
   const raw = {
     ...Object.fromEntries(formData),
     asistencia_completa: formData.get('asistencia_completa') === 'true' || formData.get('asistencia_completa') === 'on',
@@ -913,7 +1029,7 @@ export async function updateNomina(id: string, prevState: string | null, formDat
 
   // Si se confirmó, llevar este sueldo a la ficha del empleado (registra ajuste salarial)
   if (formData.get('actualizar_sueldo_ficha') === 'true') {
-    await aplicarSueldoAFicha(supabase, empleado, basicoEfectivo, d.mes)
+    await aplicarSueldoAFicha(supabase, empleado, basicoEfectivo, d.mes, user.email ?? null)
   }
 
   revalidatePath('/rrhh/nomina')

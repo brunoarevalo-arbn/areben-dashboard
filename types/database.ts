@@ -586,7 +586,10 @@ export interface AusenciaRegistro {
   updated_at: string
 }
 
-export type TipoEvento = 'INCIDENCIA' | 'AJUSTE_SALARIAL' | 'LICENCIA' | 'PREMIO' | 'AMONESTACION' | 'OTRO'
+export type TipoEvento = 'INCIDENCIA' | 'AJUSTE_SALARIAL' | 'CAMBIO_HORAS' | 'LICENCIA' | 'PREMIO' | 'AMONESTACION' | 'OTRO'
+
+/** De dónde salió el evento. 'CAMBIO_HORAS' y los automáticos nunca se cargan a mano. */
+export type OrigenEvento = 'FICHA' | 'AJUSTE' | 'NOMINA' | 'MANUAL'
 
 export interface EventoEmpleado {
   id: string
@@ -597,6 +600,14 @@ export interface EventoEmpleado {
   descripcion?: string | null
   sueldo_anterior?: number | null
   sueldo_nuevo?: number | null
+  /** Antes/después de la ficha. Sólo en eventos de cambio de ficha (≥ migración 064). */
+  horas_anterior?: number | null
+  horas_nuevo?: number | null
+  valor_hora_anterior?: number | null
+  valor_hora_nuevo?: number | null
+  /** Email de quien hizo el cambio. NULL en eventos anteriores a la 064. */
+  registrado_por?: string | null
+  origen?: OrigenEvento | null
   created_at: string
 }
 

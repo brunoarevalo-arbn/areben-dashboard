@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { nombreRevisor } from '@/lib/saldos-revision'
 import {
   Plus, Pencil, UserX, UserCheck, Users, Loader2, Phone, Mail,
   Calendar, AlertTriangle, History, ChevronDown, ChevronUp, Trash2,
@@ -27,6 +28,7 @@ const HORAS_OPCIONES = [80, 100, 120, 140, 160, 200]
 const TIPO_EVENTO_LABEL: Record<TipoEvento, string> = {
   INCIDENCIA: 'Incidencia',
   AJUSTE_SALARIAL: 'Ajuste salarial',
+  CAMBIO_HORAS: 'Cambio de horas',
   LICENCIA: 'Licencia',
   PREMIO: 'Premio',
   AMONESTACION: 'Amonestación',
@@ -36,6 +38,7 @@ const TIPO_EVENTO_LABEL: Record<TipoEvento, string> = {
 const TIPO_EVENTO_COLOR: Record<TipoEvento, string> = {
   INCIDENCIA: 'bg-amber-500/15 text-amber-700 border-amber-500/30',
   AJUSTE_SALARIAL: 'bg-green-500/15 text-green-700 border-green-500/30',
+  CAMBIO_HORAS: 'bg-indigo-500/15 text-indigo-700 border-indigo-500/30',
   LICENCIA: 'bg-blue-500/15 text-blue-700 border-blue-500/30',
   PREMIO: 'bg-orange-500/15 text-primary border-orange-500/30',
   AMONESTACION: 'bg-red-500/15 text-red-700 border-red-500/30',
@@ -60,6 +63,20 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
   const [plusNegroValor, setPlusNegroValor] = useState(emp?.plus_negro_valor ?? 0)
 
   const valorHora = horasMensuales > 0 ? Math.round((sueldoBasico / horasMensuales) * 100) / 100 : 0
+  // Valor hora que tenía la ficha antes de tocar nada. En fichas viejas valor_hora puede
+  // estar en 0, así que se cae al derivado.
+  const valorHoraFicha = emp
+    ? (emp.valor_hora || (emp.horas_mensuales > 0 ? emp.sueldo_basico / emp.horas_mensuales : 0))
+    : 0
+  // Sueldo que haría falta para que sumar horas no baje el valor hora.
+  const sueldoMismoValorHora = Math.round(valorHoraFicha * horasMensuales * 100) / 100
+  const sugerirSueldo = !!emp && horasMensuales !== emp.horas_mensuales
+    && valorHoraFicha > 0 && Math.abs(sueldoBasico - sueldoMismoValorHora) > 0.5
+  // El <select> es controlado: si la ficha trae un valor que no está en la lista, sin su
+  // <option> el navegador muestra la primera (80 hs) y al guardar se las pisa en silencio.
+  const opcionesHoras = HORAS_OPCIONES.includes(horasMensuales)
+    ? HORAS_OPCIONES
+    : [...HORAS_OPCIONES, horasMensuales].sort((a, b) => a - b)
   const montoAcuerdoNegro = horasAcuerdoNegro * valorHora
   // Para el preview del plus: si es %, base = sueldo_basico (en form todavía no hay recibo oficial — se asume = básico para el cálculo del aguinaldo)
   const montoPlusNegro = plusNegroTipo === 'MONTO' ? plusNegroValor
@@ -143,7 +160,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
               onChange={(e) => setHorasMensuales(Number(e.target.value))}
               className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             >
-              {HORAS_OPCIONES.map((h) => (
+              {opcionesHoras.map((h) => (
                 <option key={h} value={h}>{h} hs</option>
               ))}
             </select>
@@ -160,6 +177,29 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
             </span>
           </span>
         </div>
+        {sugerirSueldo && (
+          <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2 flex items-center justify-between gap-3">
+            <span className="text-xs text-fg-muted">
+              Para mantener el valor hora en{' '}
+              <span className="font-mono text-fg">{formatCurrency(valorHoraFicha)}</span>,
+              el sueldo sería{' '}
+              <span className="font-mono text-fg">{formatCurrency(sueldoMismoValorHora)}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setSueldoBasico(sueldoMismoValorHora)}
+              className="shrink-0 px-2.5 py-1 rounded-md border border-indigo-500/40 text-indigo-700 text-xs font-medium hover:bg-indigo-500/15 transition-colors"
+            >
+              Usar
+            </button>
+          </div>
+        )}
+        {emp && horasMensuales !== emp.horas_mensuales && (
+          <p className="text-xs text-fg-soft">
+            Cambiar las horas afecta las nóminas que se liquiden de acá en adelante; las ya
+            emitidas quedan como están.
+          </p>
+        )}
       </div>
 
       {/* Aguinaldo (acuerdo contractual) */}
@@ -765,6 +805,57 @@ function AusenciaForm({ empleado, onClose }: { empleado: Empleado; onClose: () =
 
 // ─── HistorialPanel ───────────────────────────────────────────────────────────
 
+/**
+ * Antes/después de un cambio de ficha: sueldo, horas y valor hora.
+ * Muestra también las que NO cambiaron — la fila "Valor hora (sin cambios)" es
+ * justamente la evidencia de que se sumaron horas manteniendo el valor hora.
+ * Los eventos previos a la migración 064 sólo tienen el sueldo, y los manuales nada.
+ */
+function DiffFicha({ ev }: { ev: EventoEmpleado }) {
+  const filas: { label: string; de: string; a: string; cambio: boolean }[] = []
+
+  if (ev.sueldo_anterior != null && ev.sueldo_nuevo != null) {
+    filas.push({
+      label: 'Sueldo',
+      de: formatCurrency(ev.sueldo_anterior),
+      a: formatCurrency(ev.sueldo_nuevo),
+      cambio: Math.abs(ev.sueldo_nuevo - ev.sueldo_anterior) > 0.5,
+    })
+  }
+  if (ev.horas_anterior != null && ev.horas_nuevo != null) {
+    filas.push({
+      label: 'Horas',
+      de: `${ev.horas_anterior} hs`,
+      a: `${ev.horas_nuevo} hs`,
+      cambio: ev.horas_anterior !== ev.horas_nuevo,
+    })
+  }
+  if (ev.valor_hora_anterior != null && ev.valor_hora_nuevo != null) {
+    filas.push({
+      label: 'Valor hora',
+      de: formatCurrency(ev.valor_hora_anterior),
+      a: formatCurrency(ev.valor_hora_nuevo),
+      cambio: Math.abs(ev.valor_hora_nuevo - ev.valor_hora_anterior) > 0.01,
+    })
+  }
+
+  if (filas.length === 0) return null
+
+  return (
+    <div className="mt-2 space-y-0.5">
+      {filas.map((f) => (
+        <div key={f.label} className="flex items-center gap-2 text-xs font-mono">
+          <span className="w-20 shrink-0 font-sans text-fg-soft">{f.label}</span>
+          <span className="text-fg-soft">{f.de}</span>
+          <span className="text-fg-muted">→</span>
+          <span className={f.cambio ? 'text-green-700' : 'text-fg-soft'}>{f.a}</span>
+          {!f.cambio && <span className="font-sans text-fg-soft">(sin cambios)</span>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function HistorialPanel({ eventos }: { eventos: EventoEmpleado[] }) {
   const [isPending, startTransition] = useTransition()
 
@@ -809,12 +900,11 @@ function HistorialPanel({ eventos }: { eventos: EventoEmpleado[] }) {
           {ev.descripcion && (
             <p className="text-xs text-fg-muted mt-1 whitespace-pre-line">{ev.descripcion}</p>
           )}
-          {ev.tipo === 'AJUSTE_SALARIAL' && ev.sueldo_anterior && ev.sueldo_nuevo && (
-            <div className="mt-2 flex items-center gap-2 text-xs font-mono">
-              <span className="text-fg-soft">{formatCurrency(ev.sueldo_anterior)}</span>
-              <span className="text-fg-muted">→</span>
-              <span className="text-green-700">{formatCurrency(ev.sueldo_nuevo)}</span>
-            </div>
+          <DiffFicha ev={ev} />
+          {ev.registrado_por && (
+            <p className="mt-1.5 text-xs text-fg-soft">
+              Registrado por {nombreRevisor(ev.registrado_por)}
+            </p>
           )}
         </div>
       ))}
