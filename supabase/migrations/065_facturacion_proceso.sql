@@ -62,8 +62,13 @@ CREATE TABLE IF NOT EXISTS facturas_emitidas (
 COMMENT ON TABLE facturas_emitidas IS 'Facturas emitidas contra el cobrado del mes. Las de origen ''gn'' son las que Gestión Nube sí tiene cargadas (mayoristas con CAE) y se sincronizan solas: están para no facturarlas dos veces.';
 
 -- Una venta de GN no puede entrar dos veces por más que se resincronice.
+-- El índice NO va parcial (`WHERE venta_gn_id IS NOT NULL`): Postgres no puede usar un índice
+-- parcial para resolver un `ON CONFLICT (venta_gn_id)`, y el upsert del sync fallaba entero.
+-- Sin el WHERE funciona igual, porque en un índice único los NULL no chocan entre sí —
+-- las facturas cargadas a mano (venta_gn_id NULL) conviven sin problema.
+DROP INDEX IF EXISTS idx_facturas_emitidas_venta_gn;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_facturas_emitidas_venta_gn
-  ON facturas_emitidas(venta_gn_id) WHERE venta_gn_id IS NOT NULL;
+  ON facturas_emitidas(venta_gn_id);
 CREATE INDEX IF NOT EXISTS idx_facturas_emitidas_mes ON facturas_emitidas(mes);
 
 -- ─── El detalle técnico al pie de la pantalla, para seguimiento ───

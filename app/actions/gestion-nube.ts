@@ -437,9 +437,12 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
     if (error) return { ok: false, mensaje: error.message }
 
     // Las facturas de GN se refrescan; las cargadas a mano no se tocan nunca.
+    // Va por upsert contra venta_gn_id: una venta cobrada en dos meses distintos cae en la
+    // ventana de los dos, y con un insert pelado el índice único haría fallar el lote entero.
+    // Así la factura queda en el último mes sincronizado y nunca se cuenta dos veces.
     await supabase.from('facturas_emitidas').delete().eq('mes', mes).eq('origen', 'gn')
     if (facturasGn.length) {
-      await supabase.from('facturas_emitidas').insert(
+      const { error: errFac } = await supabase.from('facturas_emitidas').upsert(
         facturasGn.map((f) => ({
           mes,
           numero: f.numero,
@@ -450,7 +453,10 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
           venta_gn_id: f.id,
           notas: 'Ya facturada en Gestión Nube',
         })),
+        { onConflict: 'venta_gn_id' },
       )
+      // Si esto falla en silencio, el mes queda mostrando $0 facturado y todo como pendiente.
+      if (errFac) return { ok: false, mensaje: `No se pudieron guardar las facturas de GN: ${errFac.message}` }
     }
 
     // Detalle técnico para seguimiento.
@@ -475,7 +481,10 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
         cantidad: s.n,
       })),
     ]
-    if (detalle.length) await supabase.from('facturacion_detalle').insert(detalle)
+    if (detalle.length) {
+      const { error: errDet } = await supabase.from('facturacion_detalle').insert(detalle)
+      if (errDet) console.warn('[GN] no se pudo guardar el detalle técnico:', errDet.message)
+    }
 
     revalidatePath('/finanzas/afip')
     revalidatePath('/')

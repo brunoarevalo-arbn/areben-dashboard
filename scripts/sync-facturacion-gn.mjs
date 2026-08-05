@@ -89,10 +89,12 @@ if (error) { console.log('✗ ' + error.message); process.exit(1) }
 
 await supa.from('facturas_emitidas').delete().eq('mes', mes).eq('origen', 'gn')
 if (facturasGn.length) {
-  await supa.from('facturas_emitidas').insert(facturasGn.map((f) => ({
+  // Upsert por venta_gn_id: una venta cobrada en dos meses cae en las dos ventanas.
+  const { error: errFac } = await supa.from('facturas_emitidas').upsert(facturasGn.map((f) => ({
     mes, numero: f.numero, fecha: f.fecha, monto: f.monto,
     origen: 'gn', cuenta_gn: f.alias, venta_gn_id: f.id, notas: 'Ya facturada en Gestión Nube',
-  })))
+  })), { onConflict: 'venta_gn_id' })
+  if (errFac) { console.log('✗ facturas de GN: ' + errFac.message); process.exit(1) }
 }
 
 await supa.from('facturacion_detalle').delete().eq('mes', mes)
