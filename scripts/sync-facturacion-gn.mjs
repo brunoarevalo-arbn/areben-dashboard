@@ -54,7 +54,7 @@ for (const c of cuentasGn || []) {
     if (!d) { console.log(`  ⚠ ${c.alias} página ${p} no respondió`); break }
     for (const v of d.data || []) {
       if (!v.active || v.archived || v.budget) continue
-      let tocaElMes = false
+      let arebenDeLaVenta = 0
       for (const pago of v.payments || []) {
         if (!(pago.date_payment || '').startsWith(mes)) continue
         const cuenta = (pago.account_name || '').trim() || '(cobro sin cuenta)'
@@ -62,14 +62,16 @@ for (const c of cuentasGn || []) {
         const tipo = tipoDe.get(cuenta)
         if (!tipo) { const s = sinClasificar.get(cuenta) || { monto: 0, n: 0 }; s.monto += monto; s.n++; sinClasificar.set(cuenta, s); continue }
         if (tipo !== 'areben') continue
-        tocaElMes = true
+        arebenDeLaVenta += monto
         const key = `${c.alias}::${cuenta}`
         const a = acc.get(key) || { cuenta, cuenta_gn: c.alias, cobrado: 0, n: 0 }
         a.cobrado += monto; a.n++; acc.set(key, a)
       }
-      if (!tocaElMes) continue
+      if (!arebenDeLaVenta) continue
       const numero = String(v.invoice_number || v.bill_number || '').trim()
-      if (numero) facturasGn.push({ id: v.id, numero, fecha: v.date_sale, monto: round2(num(v.total_price)), alias: c.alias })
+      // El monto que descuenta es SOLO lo que entró a cuentas Areben en el mes, no el total
+      // de la venta: los dos lados de la resta miden lo mismo.
+      if (numero) facturasGn.push({ id: v.id, numero, fecha: v.date_sale, monto: round2(arebenDeLaVenta), alias: c.alias })
       if ((v.sale_state || '') === 'Compra Pendiente') compraPendiente.push({ numero: v.number, monto: round2(num(v.total_price)), alias: c.alias, facturada: !!numero })
     }
     if (!d.meta?.has_more_pages) break
@@ -93,7 +95,7 @@ if (facturasGn.length) {
   const { error: errFac } = await supa.from('facturas_emitidas').upsert(facturasGn.map((f) => ({
     mes, numero: f.numero, fecha: f.fecha, monto: f.monto,
     origen: 'gn', cuenta_gn: f.alias, venta_gn_id: f.id, notas: 'Ya facturada en Gestión Nube',
-  })), { onConflict: 'venta_gn_id' })
+  })), { onConflict: 'venta_gn_id,mes' })
   if (errFac) { console.log('✗ facturas de GN: ' + errFac.message); process.exit(1) }
 }
 

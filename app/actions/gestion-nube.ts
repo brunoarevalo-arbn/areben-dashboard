@@ -366,8 +366,8 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
         for (const v of data) {
           if (!v.active || v.archived || v.budget) continue
 
-          // ¿Algún cobro de esta venta cae en el mes y en una cuenta Areben?
-          let tocaElMes = false
+          // ¿Algún cobro de esta venta cae en el mes y en una cuenta Areben? Y cuánto.
+          let arebenDeLaVenta = 0
           for (const pago of v.payments ?? []) {
             if (!(pago.date_payment || '').startsWith(mes)) continue
             // GN devuelve cobros sin cuenta; se avisan igual que una cuenta desconocida.
@@ -382,7 +382,7 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
               continue
             }
             if (tipo !== 'areben') continue // propias y efectivo no se facturan
-            tocaElMes = true
+            arebenDeLaVenta += monto
             const key = `${c.alias}::${cuenta}`
             const a = acc.get(key) ?? { cuenta, cuenta_gn: c.alias, cobrado: 0, n: 0 }
             a.cobrado += monto
@@ -390,17 +390,21 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
             acc.set(key, a)
           }
 
-          if (!tocaElMes) continue
+          if (!arebenDeLaVenta) continue
 
           // Las que GN sí tiene facturadas: el número viene en invoice_number (bill_number
-          // está vacío hasta en esas), y el monto facturado es el total de la venta.
+          // está vacío hasta en esas).
+          // 🔑 El monto que descuenta es SOLO lo que entró a cuentas Areben en el mes, no el
+          // total de la venta: si la venta se cobró mitad en efectivo, esa mitad nunca estuvo
+          // en el saldo y descontarla dejaría el pendiente corto. Los dos lados de la resta
+          // tienen que medir lo mismo — lo que entra a la cuenta.
           const numero = String(v.invoice_number || v.bill_number || '').trim()
           if (numero) {
             facturasGn.push({
               id: v.id,
               numero,
               fecha: v.date_sale,
-              monto: round2(Number(v.total_price) || 0),
+              monto: round2(arebenDeLaVenta),
               alias: c.alias,
             })
           }
@@ -453,7 +457,7 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
           venta_gn_id: f.id,
           notas: 'Ya facturada en Gestión Nube',
         })),
-        { onConflict: 'venta_gn_id' },
+        { onConflict: 'venta_gn_id,mes' },
       )
       // Si esto falla en silencio, el mes queda mostrando $0 facturado y todo como pendiente.
       if (errFac) return { ok: false, mensaje: `No se pudieron guardar las facturas de GN: ${errFac.message}` }
