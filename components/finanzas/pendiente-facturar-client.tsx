@@ -125,7 +125,7 @@ export function PendienteFacturarClient({ mes, cobrado, periodo, facturas, detal
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-surface border border-border rounded-xl p-4">
           <p className="text-xs text-fg-muted mb-1 flex items-center gap-1">
-            Cobrado en cuentas Areben
+            Entró a cuentas Areben — hay que facturar hasta acá
             {cerrado && (
               <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-surface-2 text-fg-muted">
                 <Lock className="w-2.5 h-2.5" /> congelado
@@ -143,8 +143,7 @@ export function PendienteFacturarClient({ mes, cobrado, periodo, facturas, detal
           <p className="text-xs text-fg-muted mb-1">Facturado</p>
           <p className="text-xl font-bold text-green-700">{formatCurrency(totalFacturado)}</p>
           <p className="text-[11px] text-fg-soft mt-1">
-            {facturas.length} factura{facturas.length === 1 ? '' : 's'} cargada
-            {facturas.length === 1 ? '' : 's'}
+            {facturas.length} factura{facturas.length === 1 ? '' : 's'} — de ventas cobradas, no cobradas o libres
           </p>
         </div>
         <div className="bg-surface border border-amber-500/20 rounded-xl p-4">
@@ -330,7 +329,7 @@ export function PendienteFacturarClient({ mes, cobrado, periodo, facturas, detal
                   Ventas en «Compra Pendiente» ya facturadas
                 </p>
                 <p className="text-xs text-fg-soft mb-2">
-                  Cobradas y facturadas, pero todavía sin entregar. Para seguimiento.
+                  Facturadas pero todavía sin entregar. Para seguimiento.
                 </p>
                 <ul className="space-y-1">
                   {compraPendiente.map((d) => (
@@ -347,10 +346,13 @@ export function PendienteFacturarClient({ mes, cobrado, periodo, facturas, detal
       )}
 
       <p className="text-xs text-fg-soft">
-        El cobrado sale de los cobros de Gestión Nube (monto, fecha y cuenta de cada uno), así que una
-        venta pagada mitad en efectivo y mitad por transferencia entra solo por la parte que fue a una
-        cuenta Areben. Se imputa por <b>fecha de cobro</b>, no por fecha de venta — no cuadra con
-        Análisis → Ventas, que mide lo vendido.
+        Los dos lados son independientes. <b>Cobrado</b> es todo lo que entró a cuentas Areben en el
+        mes y marca <b>hasta cuánto</b> hay que facturar: sale de los cobros de Gestión Nube (monto,
+        fecha y cuenta de cada uno), así que una venta pagada mitad en efectivo entra solo por la parte
+        que fue a una cuenta Areben, y se imputa por <b>fecha de cobro</b>. <b>Facturado</b> son{' '}
+        <b>todas</b> las facturas del mes, por su monto completo, sin importar de qué venta salgan ni
+        si esa venta se cobró — incluidas las libres, que se cargan con <i>Cargar factura</i>. Nada de
+        esto cuadra con Análisis → Ventas, que mide lo vendido.
       </p>
     </div>
   )

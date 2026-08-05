@@ -356,7 +356,7 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
     // sin que nadie lo decida, así que se avisan en vez de pasar en silencio.
     const sinClasificar = new Map<string, { monto: number; n: number }>()
     const facturasGn: Array<{ id: number; numero: string; fecha: string; monto: number; alias: string }> = []
-    const compraPendiente: Array<{ numero: number; monto: number; alias: string; facturada: boolean }> = []
+    const compraPendiente: Array<{ numero: number; monto: number; alias: string }> = []
     let truncado = false
 
     for (const c of cuentasGn ?? []) {
@@ -366,8 +366,7 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
         for (const v of data) {
           if (!v.active || v.archived || v.budget) continue
 
-          // ¿Algún cobro de esta venta cae en el mes y en una cuenta Areben? Y cuánto.
-          let arebenDeLaVenta = 0
+          // ── El techo: lo que entró a cuentas Areben este mes ──
           for (const pago of v.payments ?? []) {
             if (!(pago.date_payment || '').startsWith(mes)) continue
             // GN devuelve cobros sin cuenta; se avisan igual que una cuenta desconocida.
@@ -381,8 +380,7 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
               sinClasificar.set(cuenta, s)
               continue
             }
-            if (tipo !== 'areben') continue // propias y efectivo no se facturan
-            arebenDeLaVenta += monto
+            if (tipo !== 'areben') continue // propias y efectivo no son plata a facturar
             const key = `${c.alias}::${cuenta}`
             const a = acc.get(key) ?? { cuenta, cuenta_gn: c.alias, cobrado: 0, n: 0 }
             a.cobrado += monto
@@ -390,30 +388,27 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
             acc.set(key, a)
           }
 
-          if (!arebenDeLaVenta) continue
-
-          // Las que GN sí tiene facturadas: el número viene en invoice_number (bill_number
-          // está vacío hasta en esas).
-          // 🔑 El monto que descuenta es SOLO lo que entró a cuentas Areben en el mes, no el
-          // total de la venta: si la venta se cobró mitad en efectivo, esa mitad nunca estuvo
-          // en el saldo y descontarla dejaría el pendiente corto. Los dos lados de la resta
-          // tienen que medir lo mismo — lo que entra a la cuenta.
+          // ── El otro lado: las facturas ──
+          // 🔑 Van TODAS y por su monto completo. No se filtran por cómo se cobró la venta ni
+          // por si se cobró: una factura puede ser de una venta cobrada, de una no cobrada, o
+          // libre (vender IVA). Los dos lados son independientes — el cobrado dice hasta
+          // cuánto hay que facturar, las facturas dicen cuánto se facturó.
+          // Se imputan por `date_sale` porque GN no expone fecha de factura por separado.
           const numero = String(v.invoice_number || v.bill_number || '').trim()
-          if (numero) {
+          if (numero && (v.date_sale || '').startsWith(mes)) {
             facturasGn.push({
               id: v.id,
               numero,
               fecha: v.date_sale,
-              monto: round2(arebenDeLaVenta),
+              monto: round2(Number(v.total_price) || 0),
               alias: c.alias,
             })
           }
-          if ((v.sale_state || '') === 'Compra Pendiente') {
+          if (numero && (v.date_sale || '').startsWith(mes) && (v.sale_state || '') === 'Compra Pendiente') {
             compraPendiente.push({
               numero: v.number,
               monto: round2(Number(v.total_price) || 0),
               alias: c.alias,
-              facturada: !!numero,
             })
           }
         }
@@ -467,7 +462,6 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
     await supabase.from('facturacion_detalle').delete().eq('mes', mes)
     const detalle = [
       ...compraPendiente
-        .filter((v) => v.facturada)
         .map((v) => ({
           mes,
           tipo: 'compra_pendiente_facturada',
