@@ -32,8 +32,11 @@ async function gn(token, path, tries = 6) {
   return null
 }
 
+// Cerrar congela el TECHO, no las facturas: con el mes cerrado se siguen trayendo las
+// facturas nuevas de GN, pero no se toca facturacion_mes.
 const { data: periodo } = await supa.from('facturacion_periodo').select('estado').eq('mes', mes).maybeSingle()
-if (periodo?.estado === 'cerrado') { console.log(`✗ ${mes} está cerrado (cobrado congelado). Reabrilo para resincronizar.`); process.exit(1) }
+const cerrado = periodo?.estado === 'cerrado'
+if (cerrado) console.log(`ℹ ${mes} está cerrado: se actualizan solo las facturas, el cobrado queda congelado.`)
 
 const { data: cuentasGn } = await supa.from('cuentas_gn').select('alias')
 const { data: cc } = await supa.from('cuentas_cobro_gn').select('nombre, tipo')
@@ -78,15 +81,17 @@ for (const c of cuentasGn || []) {
   }
 }
 
-if (!acc.size) { console.log('✗ No hay cobros en cuentas Areben para ese mes'); process.exit(1) }
+if (!acc.size && !facturasGn.length) { console.log('✗ No hay cobros ni facturas para ese mes'); process.exit(1) }
 
-await supa.from('facturacion_mes').delete().eq('mes', mes)
 const filas = [...acc.values()].map((a) => ({
   mes, cuenta: a.cuenta, cuenta_gn: a.cuenta_gn,
   cobrado: round2(a.cobrado), cantidad: a.n, fecha_sincronizacion: new Date().toISOString(),
 }))
-const { error } = await supa.from('facturacion_mes').insert(filas)
-if (error) { console.log('✗ ' + error.message); process.exit(1) }
+if (!cerrado) {
+  await supa.from('facturacion_mes').delete().eq('mes', mes)
+  const { error } = await supa.from('facturacion_mes').insert(filas)
+  if (error) { console.log('✗ ' + error.message); process.exit(1) }
+}
 
 await supa.from('facturas_emitidas').delete().eq('mes', mes).eq('origen', 'gn')
 if (facturasGn.length) {

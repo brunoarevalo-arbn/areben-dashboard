@@ -326,18 +326,15 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
 
   const supabase = await createClient()
 
-  // Con el mes cerrado el cobrado está congelado: se está facturando contra ese número.
+  // Cerrar congela el TECHO, no las facturas. Con el mes cerrado se sigue sincronizando —
+  // es justo cuando se está facturando y las facturas nuevas de GN tienen que entrar — pero
+  // no se toca `facturacion_mes`: se factura contra un número que no se mueve.
   const { data: periodo } = await supabase
     .from('facturacion_periodo')
     .select('estado')
     .eq('mes', mes)
     .maybeSingle()
-  if (periodo?.estado === 'cerrado') {
-    return {
-      ok: false,
-      mensaje: 'El mes está cerrado y el cobrado quedó congelado. Reabrilo si necesitás volver a sincronizar.',
-    }
-  }
+  const cerrado = periodo?.estado === 'cerrado'
 
   const { data: cuentasGn } = await supabase.from('cuentas_gn').select('alias')
   const { data: ccRows } = await supabase.from('cuentas_cobro_gn').select('nombre, tipo')
@@ -418,22 +415,28 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
       }
     }
 
-    if (!acc.size) return { ok: false, mensaje: 'No hay cobros en cuentas Areben para ese mes' }
+    if (!acc.size && !facturasGn.length) {
+      return { ok: false, mensaje: 'No hay cobros en cuentas Areben ni facturas para ese mes' }
+    }
 
-    // Reemplazo completo del mes: si una cuenta se reclasifica o deja de tener cobros, la
-    // fila vieja tiene que desaparecer, no quedar pegada mostrando datos que ya no existen.
-    await supabase.from('facturacion_mes').delete().eq('mes', mes)
-    const { error } = await supabase.from('facturacion_mes').insert(
-      [...acc.values()].map((a) => ({
-        mes,
-        cuenta: a.cuenta,
-        cuenta_gn: a.cuenta_gn,
-        cobrado: round2(a.cobrado),
-        cantidad: a.n,
-        fecha_sincronizacion: new Date().toISOString(),
-      })),
-    )
-    if (error) return { ok: false, mensaje: error.message }
+    // El techo solo se reescribe con el mes abierto. Cerrado, se factura contra el número
+    // congelado y una sincronización no puede moverlo por debajo.
+    if (!cerrado) {
+      // Reemplazo completo del mes: si una cuenta se reclasifica o deja de tener cobros, la
+      // fila vieja tiene que desaparecer, no quedar pegada mostrando datos que ya no existen.
+      await supabase.from('facturacion_mes').delete().eq('mes', mes)
+      const { error } = await supabase.from('facturacion_mes').insert(
+        [...acc.values()].map((a) => ({
+          mes,
+          cuenta: a.cuenta,
+          cuenta_gn: a.cuenta_gn,
+          cobrado: round2(a.cobrado),
+          cantidad: a.n,
+          fecha_sincronizacion: new Date().toISOString(),
+        })),
+      )
+      if (error) return { ok: false, mensaje: error.message }
+    }
 
     // Las facturas de GN se refrescan; las cargadas a mano no se tocan nunca.
     // Va por upsert contra venta_gn_id: una venta cobrada en dos meses distintos cae en la
@@ -488,6 +491,9 @@ export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSy
     revalidatePath('/')
 
     const avisos: string[] = []
+    if (cerrado) {
+      avisos.push('El mes está cerrado: se actualizaron las facturas, el cobrado quedó congelado.')
+    }
     if (sinClasificar.size) {
       avisos.push(
         `${sinClasificar.size} cuenta(s) de cobro sin clasificar: ${[...sinClasificar.keys()].join(', ')}. ` +

@@ -86,8 +86,12 @@ export function PendienteFacturarClient({ mes, cobrado, periodo, facturas, detal
           <Button
             variant="secondary"
             onClick={() => correr(() => sincronizarFacturacionGN(mes), 'Sincronizado.')}
-            disabled={pending || cerrado}
-            title={cerrado ? 'El mes está cerrado: el cobrado quedó congelado' : undefined}
+            disabled={pending}
+            title={
+              cerrado
+                ? 'Con el mes cerrado trae las facturas nuevas de GN; el cobrado no se mueve'
+                : undefined
+            }
           >
             {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}{' '}
             Sincronizar
@@ -144,6 +148,7 @@ export function PendienteFacturarClient({ mes, cobrado, periodo, facturas, detal
           <p className="text-xl font-bold text-green-700">{formatCurrency(totalFacturado)}</p>
           <p className="text-[11px] text-fg-soft mt-1">
             {facturas.length} factura{facturas.length === 1 ? '' : 's'} — de ventas cobradas, no cobradas o libres
+            {cerrado && '. Sincronizar trae las nuevas de GN'}
           </p>
         </div>
         <div className="bg-surface border border-amber-500/20 rounded-xl p-4">
