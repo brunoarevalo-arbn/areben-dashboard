@@ -54,7 +54,7 @@ for (const c of cuentasGn || []) {
     if (!d) { console.log(`  ⚠ ${c.alias} página ${p} no respondió`); break }
     for (const v of d.data || []) {
       if (!v.active || v.archived || v.budget) continue
-      let arebenDeLaVenta = 0
+      // El techo: lo que entró a cuentas Areben este mes.
       for (const pago of v.payments || []) {
         if (!(pago.date_payment || '').startsWith(mes)) continue
         const cuenta = (pago.account_name || '').trim() || '(cobro sin cuenta)'
@@ -62,17 +62,16 @@ for (const c of cuentasGn || []) {
         const tipo = tipoDe.get(cuenta)
         if (!tipo) { const s = sinClasificar.get(cuenta) || { monto: 0, n: 0 }; s.monto += monto; s.n++; sinClasificar.set(cuenta, s); continue }
         if (tipo !== 'areben') continue
-        arebenDeLaVenta += monto
         const key = `${c.alias}::${cuenta}`
         const a = acc.get(key) || { cuenta, cuenta_gn: c.alias, cobrado: 0, n: 0 }
         a.cobrado += monto; a.n++; acc.set(key, a)
       }
-      if (!arebenDeLaVenta) continue
+      // Las facturas van TODAS y por su monto completo: no se filtran por cómo se cobró la
+      // venta ni por si se cobró. Se imputan por date_sale (GN no da fecha de factura aparte).
       const numero = String(v.invoice_number || v.bill_number || '').trim()
-      // El monto que descuenta es SOLO lo que entró a cuentas Areben en el mes, no el total
-      // de la venta: los dos lados de la resta miden lo mismo.
-      if (numero) facturasGn.push({ id: v.id, numero, fecha: v.date_sale, monto: round2(arebenDeLaVenta), alias: c.alias })
-      if ((v.sale_state || '') === 'Compra Pendiente') compraPendiente.push({ numero: v.number, monto: round2(num(v.total_price)), alias: c.alias, facturada: !!numero })
+      const delMes = (v.date_sale || '').startsWith(mes)
+      if (numero && delMes) facturasGn.push({ id: v.id, numero, fecha: v.date_sale, monto: round2(num(v.total_price)), alias: c.alias })
+      if (numero && delMes && (v.sale_state || '') === 'Compra Pendiente') compraPendiente.push({ numero: v.number, monto: round2(num(v.total_price)), alias: c.alias })
     }
     if (!d.meta?.has_more_pages) break
     await sleep(700)
@@ -101,7 +100,7 @@ if (facturasGn.length) {
 
 await supa.from('facturacion_detalle').delete().eq('mes', mes)
 const detalle = [
-  ...compraPendiente.filter((v) => v.facturada).map((v) => ({
+  ...compraPendiente.map((v) => ({
     mes, tipo: 'compra_pendiente_facturada', referencia: `${v.alias} · venta ${v.numero}`,
     detalle: 'Venta en «Compra Pendiente» que ya está facturada en GN', monto: v.monto, cantidad: null,
   })),
@@ -123,7 +122,7 @@ if (sinClasificar.size) {
   console.log('\n⚠ Cuentas de cobro sin clasificar (no se facturan):')
   for (const [k, s] of sinClasificar) console.log(`   ${k.padEnd(42)} ${M(s.monto)} · ${s.n} cobros`)
 }
-if (compraPendiente.filter((v) => v.facturada).length) {
+if (compraPendiente.length) {
   console.log('\nVentas en «Compra Pendiente» ya facturadas:')
-  for (const v of compraPendiente.filter((x) => x.facturada)) console.log(`   [${v.alias}] venta ${v.numero} · ${M(v.monto)}`)
+  for (const v of compraPendiente) console.log(`   [${v.alias}] venta ${v.numero} · ${M(v.monto)}`)
 }
