@@ -869,17 +869,59 @@ export interface CuentaCobroGN {
   updated_at: string
 }
 
+/** Cobrado por cuenta de cobro Areben y MES DE COBRO. Sale de payments[] de GN. */
 export interface FacturacionMes {
   id: string
   mes: string
   cuenta: string
   cuenta_gn: string
   cobrado: number
-  facturado: number
-  pendiente: number
-  cantidad: number
-  cantidad_sin_facturar: number
+  cantidad: number // cantidad de COBROS, no de ventas
   fecha_sincronizacion: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type EstadoFacturacion = 'abierto' | 'cerrado'
+
+/** Estado del mes: cerrado = el cobrado quedó congelado y se está facturando contra él. */
+export interface FacturacionPeriodo {
+  mes: string
+  estado: EstadoFacturacion
+  cobrado_congelado: number | null
+  cerrado_por: string | null
+  cerrado_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type TipoDetalleFacturacion = 'compra_pendiente_facturada' | 'cuenta_sin_clasificar'
+
+/** Detalle técnico que deja la sincronización para mirar a mano. */
+export interface FacturacionDetalle {
+  id: string
+  mes: string
+  tipo: TipoDetalleFacturacion
+  referencia: string
+  detalle: string | null
+  monto: number | null
+  cantidad: number | null
+  created_at: string
+}
+
+/** Facturas emitidas contra el cobrado del mes. Las de origen 'gn' las trae la sincronización. */
+export interface FacturaEmitida {
+  id: string
+  mes: string
+  numero: string | null
+  fecha: string | null
+  monto: number
+  notas: string | null
+  origen: 'manual' | 'gn'
+  cuenta_gn: string | null
+  venta_gn_id: number | null
+  cargado_por: string | null
+  cargado_at: string
   created_at: string
   updated_at: string
 }

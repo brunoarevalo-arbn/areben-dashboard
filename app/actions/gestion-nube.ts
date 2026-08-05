@@ -16,6 +16,12 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const MAX_PAGINAS = 200 // backstop anti loop; si se corta, se avisa
 const round2 = (n: number) => Math.round(n * 100) / 100
 
+/**
+ * Resultado de una sincronización. `ok: true` con mensaje es un aviso, no un error:
+ * la sincronización anduvo pero hay algo para mirar (una cuenta sin clasificar, por ejemplo).
+ */
+export type ResultadoSync = { ok: boolean; mensaje?: string }
+
 async function getCuenta(alias: string): Promise<CuentaGN | null> {
   const supabase = await createClient()
   const { data } = await supabase.from('cuentas_gn').select('*').eq('alias', alias).maybeSingle()
@@ -281,68 +287,328 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
   }
 }
 
+// Cuánto se retrocede para buscar cobros de ventas viejas: un cobro de julio sobre una venta
+// de junio es cobro de julio, y si la ventana no llega a junio esa plata no se ve.
+// Medido en abril-agosto 2026: el desfasaje entre mes de cobro y mes de venta es CERO — nadie
+// está a cuenta corriente (`total_due` da $0 en todas las ventas). Un mes alcanza y sobra;
+// subirlo multiplica las páginas contra una API que limita por tasa. Si algún día se vende a
+// 30/60 días, esto hay que subirlo.
+const VENTANA_MESES = 1
+
+/** 'YYYY-MM' menos n meses. */
+function mesMenos(mes: string, n: number): string {
+  const [y, m] = mes.split('-').map(Number)
+  const d = new Date(y, m - 1 - n, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+/** Último día del mes, 'YYYY-MM-DD'. */
+function ultimoDia(mes: string): string {
+  const [y, m] = mes.split('-').map(Number)
+  return `${mes}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`
+}
+
 /**
- * Pendiente de facturar: por cada cuenta de cobro Areben (las que se facturan), suma lo
- * cobrado y lo ya facturado (ventas con comprobante) en el mes, para todas las cuentas GN.
- * pendiente = cobrado − facturado. Escribe a facturacion_mes.
+ * Lo cobrado en cuentas Areben durante el mes, por cuenta de cobro y cuenta GN.
+ *
+ * Se apoya en los COBROS (`payments[]`, con `include_payments=1`), no en el total de la
+ * venta. Eso importa por dos razones:
+ *  - una venta se puede cobrar en dos cuentas (GN la etiqueta "2 Cuentas" y `account_display`
+ *    deja de servir para atribuir la plata: hay que ir cobro por cobro);
+ *  - el cobro tiene su propia fecha, así que se imputa por MES DE COBRO. El contador pide
+ *    facturar lo que entra a la cuenta, no lo que se vendió.
+ *
+ * De paso deja en facturas_emitidas las pocas facturas que GN sí tiene (mayoristas con CAE),
+ * para no facturarlas dos veces, y en facturacion_detalle lo que conviene mirar a mano.
  */
-export async function sincronizarFacturacionGN(mes: string): Promise<string | null> {
+export async function sincronizarFacturacionGN(mes: string): Promise<ResultadoSync> {
   await requireUser()
-  if (!/^\d{4}-\d{2}$/.test(mes)) return 'Mes inválido'
+  if (!/^\d{4}-\d{2}$/.test(mes)) return { ok: false, mensaje: 'Mes inválido' }
 
   const supabase = await createClient()
+
+  // Con el mes cerrado el cobrado está congelado: se está facturando contra ese número.
+  const { data: periodo } = await supabase
+    .from('facturacion_periodo')
+    .select('estado')
+    .eq('mes', mes)
+    .maybeSingle()
+  if (periodo?.estado === 'cerrado') {
+    return {
+      ok: false,
+      mensaje: 'El mes está cerrado y el cobrado quedó congelado. Reabrilo si necesitás volver a sincronizar.',
+    }
+  }
+
   const { data: cuentasGn } = await supabase.from('cuentas_gn').select('alias')
   const { data: ccRows } = await supabase.from('cuentas_cobro_gn').select('nombre, tipo')
-  const arebenSet = new Set((ccRows ?? []).filter((r) => r.tipo === 'areben').map((r) => r.nombre))
-  if (!arebenSet.size) return 'No hay cuentas de cobro tipo Areben configuradas'
+  const tipoDe = new Map((ccRows ?? []).map((r) => [r.nombre, r.tipo as string]))
+  if (![...tipoDe.values()].includes('areben')) {
+    return { ok: false, mensaje: 'No hay cuentas de cobro tipo Areben configuradas' }
+  }
 
   try {
-    const desde = `${mes}-01`
-    type Agg = { cuenta: string; cuenta_gn: string; cobrado: number; facturado: number; n: number; nSin: number }
+    const desde = `${mesMenos(mes, VENTANA_MESES)}-01`
+    const hasta = ultimoDia(mes)
+
+    type Agg = { cuenta: string; cuenta_gn: string; cobrado: number; n: number }
     const acc = new Map<string, Agg>()
+    // Cuentas que aparecen cobrando y no están en el catálogo: caen como no-facturables
+    // sin que nadie lo decida, así que se avisan en vez de pasar en silencio.
+    const sinClasificar = new Map<string, { monto: number; n: number }>()
+    const facturasGn: Array<{ id: number; numero: string; fecha: string; monto: number; alias: string }> = []
+    const compraPendiente: Array<{ numero: number; monto: number; alias: string; facturada: boolean }> = []
+    let truncado = false
+
     for (const c of cuentasGn ?? []) {
       const token = tokenParaCuenta(c.alias)
       for (let page = 1; page <= MAX_PAGINAS; page++) {
-        const { data, hayMas } = await paginaVentas(token, desde, page)
+        const { data, hayMas } = await paginaVentas(token, desde, page, { hasta, cobros: true })
         for (const v of data) {
-          if (!(v.date_sale || '').startsWith(mes)) continue
           if (!v.active || v.archived || v.budget) continue
-          const cuenta = (v.account_display || '').trim()
-          if (!arebenSet.has(cuenta)) continue // solo cuentas Areben (facturables)
-          const key = `${c.alias}::${cuenta}`
-          const monto = Number(v.total_price) || 0
-          const facturada = !!(String(v.bill_number || '').trim() || v.invoice_number)
-          const a = acc.get(key) ?? { cuenta, cuenta_gn: c.alias, cobrado: 0, facturado: 0, n: 0, nSin: 0 }
-          a.cobrado += monto
-          if (facturada) a.facturado += monto
-          else a.nSin++
-          a.n++
-          acc.set(key, a)
+
+          // ¿Algún cobro de esta venta cae en el mes y en una cuenta Areben? Y cuánto.
+          let arebenDeLaVenta = 0
+          for (const pago of v.payments ?? []) {
+            if (!(pago.date_payment || '').startsWith(mes)) continue
+            // GN devuelve cobros sin cuenta; se avisan igual que una cuenta desconocida.
+            const cuenta = (pago.account_name || '').trim() || '(cobro sin cuenta)'
+            const monto = Number(pago.amount) || 0
+            const tipo = tipoDe.get(cuenta)
+            if (!tipo) {
+              const s = sinClasificar.get(cuenta) ?? { monto: 0, n: 0 }
+              s.monto += monto
+              s.n++
+              sinClasificar.set(cuenta, s)
+              continue
+            }
+            if (tipo !== 'areben') continue // propias y efectivo no se facturan
+            arebenDeLaVenta += monto
+            const key = `${c.alias}::${cuenta}`
+            const a = acc.get(key) ?? { cuenta, cuenta_gn: c.alias, cobrado: 0, n: 0 }
+            a.cobrado += monto
+            a.n++
+            acc.set(key, a)
+          }
+
+          if (!arebenDeLaVenta) continue
+
+          // Las que GN sí tiene facturadas: el número viene en invoice_number (bill_number
+          // está vacío hasta en esas).
+          // 🔑 El monto que descuenta es SOLO lo que entró a cuentas Areben en el mes, no el
+          // total de la venta: si la venta se cobró mitad en efectivo, esa mitad nunca estuvo
+          // en el saldo y descontarla dejaría el pendiente corto. Los dos lados de la resta
+          // tienen que medir lo mismo — lo que entra a la cuenta.
+          const numero = String(v.invoice_number || v.bill_number || '').trim()
+          if (numero) {
+            facturasGn.push({
+              id: v.id,
+              numero,
+              fecha: v.date_sale,
+              monto: round2(arebenDeLaVenta),
+              alias: c.alias,
+            })
+          }
+          if ((v.sale_state || '') === 'Compra Pendiente') {
+            compraPendiente.push({
+              numero: v.number,
+              monto: round2(Number(v.total_price) || 0),
+              alias: c.alias,
+              facturada: !!numero,
+            })
+          }
         }
         if (!hayMas) break
+        if (page === MAX_PAGINAS) truncado = true
         await sleep(700)
       }
     }
 
-    if (!acc.size) return 'No hay ventas en cuentas Areben para ese mes'
-    const filas = [...acc.values()].map((a) => ({
-      mes,
-      cuenta: a.cuenta,
-      cuenta_gn: a.cuenta_gn,
-      cobrado: round2(a.cobrado),
-      facturado: round2(a.facturado),
-      pendiente: round2(a.cobrado - a.facturado),
-      cantidad: a.n,
-      cantidad_sin_facturar: a.nSin,
-      fecha_sincronizacion: new Date().toISOString(),
-    }))
-    const { error } = await supabase.from('facturacion_mes').upsert(filas, { onConflict: 'mes,cuenta,cuenta_gn' })
-    if (error) return error.message
+    if (!acc.size) return { ok: false, mensaje: 'No hay cobros en cuentas Areben para ese mes' }
+
+    // Reemplazo completo del mes: si una cuenta se reclasifica o deja de tener cobros, la
+    // fila vieja tiene que desaparecer, no quedar pegada mostrando datos que ya no existen.
+    await supabase.from('facturacion_mes').delete().eq('mes', mes)
+    const { error } = await supabase.from('facturacion_mes').insert(
+      [...acc.values()].map((a) => ({
+        mes,
+        cuenta: a.cuenta,
+        cuenta_gn: a.cuenta_gn,
+        cobrado: round2(a.cobrado),
+        cantidad: a.n,
+        fecha_sincronizacion: new Date().toISOString(),
+      })),
+    )
+    if (error) return { ok: false, mensaje: error.message }
+
+    // Las facturas de GN se refrescan; las cargadas a mano no se tocan nunca.
+    // Va por upsert contra venta_gn_id: una venta cobrada en dos meses distintos cae en la
+    // ventana de los dos, y con un insert pelado el índice único haría fallar el lote entero.
+    // Así la factura queda en el último mes sincronizado y nunca se cuenta dos veces.
+    await supabase.from('facturas_emitidas').delete().eq('mes', mes).eq('origen', 'gn')
+    if (facturasGn.length) {
+      const { error: errFac } = await supabase.from('facturas_emitidas').upsert(
+        facturasGn.map((f) => ({
+          mes,
+          numero: f.numero,
+          fecha: f.fecha,
+          monto: f.monto,
+          origen: 'gn',
+          cuenta_gn: f.alias,
+          venta_gn_id: f.id,
+          notas: 'Ya facturada en Gestión Nube',
+        })),
+        { onConflict: 'venta_gn_id,mes' },
+      )
+      // Si esto falla en silencio, el mes queda mostrando $0 facturado y todo como pendiente.
+      if (errFac) return { ok: false, mensaje: `No se pudieron guardar las facturas de GN: ${errFac.message}` }
+    }
+
+    // Detalle técnico para seguimiento.
+    await supabase.from('facturacion_detalle').delete().eq('mes', mes)
+    const detalle = [
+      ...compraPendiente
+        .filter((v) => v.facturada)
+        .map((v) => ({
+          mes,
+          tipo: 'compra_pendiente_facturada',
+          referencia: `${v.alias} · venta ${v.numero}`,
+          detalle: 'Venta en «Compra Pendiente» que ya está facturada en GN',
+          monto: v.monto,
+          cantidad: null,
+        })),
+      ...[...sinClasificar.entries()].map(([cuenta, s]) => ({
+        mes,
+        tipo: 'cuenta_sin_clasificar',
+        referencia: cuenta,
+        detalle: 'Cobra en GN pero no está en el catálogo de cuentas de cobro: hoy no se factura',
+        monto: round2(s.monto),
+        cantidad: s.n,
+      })),
+    ]
+    if (detalle.length) {
+      const { error: errDet } = await supabase.from('facturacion_detalle').insert(detalle)
+      if (errDet) console.warn('[GN] no se pudo guardar el detalle técnico:', errDet.message)
+    }
 
     revalidatePath('/finanzas/afip')
     revalidatePath('/')
-    return null
+
+    const avisos: string[] = []
+    if (sinClasificar.size) {
+      avisos.push(
+        `${sinClasificar.size} cuenta(s) de cobro sin clasificar: ${[...sinClasificar.keys()].join(', ')}. ` +
+          'Cargalas en Configuración → Cuentas de cobro.',
+      )
+    }
+    if (truncado) avisos.push(`Se cortó en ${MAX_PAGINAS} páginas: puede faltar información.`)
+    return { ok: true, mensaje: avisos.length ? avisos.join(' ') : undefined }
   } catch (e) {
-    return e instanceof GestionNubeError ? e.message : (e as Error).message
+    return { ok: false, mensaje: e instanceof GestionNubeError ? e.message : (e as Error).message }
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// El proceso de facturación del mes
+// ═══════════════════════════════════════════════════════════════════════════
+// Se calcula lo cobrado → se CIERRA (queda congelado) → se van cargando las facturas
+// emitidas desde AFIP y el saldo baja. La factura es de Areben, no de la marca: un solo
+// saldo por mes para las dos cuentas GN.
+
+/** Total cobrado del mes según el último desglose sincronizado. */
+async function cobradoDelMes(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  mes: string,
+): Promise<number> {
+  const { data } = await supabase.from('facturacion_mes').select('cobrado').eq('mes', mes)
+  return round2((data ?? []).reduce((s, r) => s + Number(r.cobrado), 0))
+}
+
+/**
+ * Cierra el cálculo del mes: congela el cobrado para empezar a facturar contra ese número.
+ * Sin congelar, una sincronización posterior movería el total a mitad del proceso.
+ */
+export async function cerrarCalculoFacturacion(mes: string): Promise<ResultadoSync> {
+  await requireUser()
+  if (!/^\d{4}-\d{2}$/.test(mes)) return { ok: false, mensaje: 'Mes inválido' }
+
+  const supabase = await createClient()
+  const cobrado = await cobradoDelMes(supabase, mes)
+  if (!cobrado) return { ok: false, mensaje: 'No hay nada cobrado en el mes: sincronizá antes de cerrar.' }
+
+  const { data: { user } } = await supabase.auth.getUser()
+  const { error } = await supabase.from('facturacion_periodo').upsert(
+    {
+      mes,
+      estado: 'cerrado',
+      cobrado_congelado: cobrado,
+      cerrado_por: user?.email ?? null,
+      cerrado_at: new Date().toISOString(),
+    },
+    { onConflict: 'mes' },
+  )
+  if (error) return { ok: false, mensaje: error.message }
+
+  revalidatePath('/finanzas/afip')
+  return { ok: true }
+}
+
+/**
+ * Reabre el mes. Hace falta cuando aparece una venta cargada tarde en GN: sin esto el mes
+ * queda trabado con un cobrado incompleto y no hay forma de corregirlo.
+ * Las facturas ya cargadas no se tocan.
+ */
+export async function reabrirCalculoFacturacion(mes: string): Promise<ResultadoSync> {
+  await requireUser()
+  if (!/^\d{4}-\d{2}$/.test(mes)) return { ok: false, mensaje: 'Mes inválido' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('facturacion_periodo')
+    .update({ estado: 'abierto', cobrado_congelado: null, cerrado_por: null, cerrado_at: null })
+    .eq('mes', mes)
+  if (error) return { ok: false, mensaje: error.message }
+
+  revalidatePath('/finanzas/afip')
+  return { ok: true }
+}
+
+/** Carga una factura emitida contra el saldo del mes. */
+export async function agregarFactura(input: {
+  mes: string
+  numero: string
+  fecha: string
+  monto: number
+  notas?: string
+}): Promise<ResultadoSync> {
+  await requireUser()
+  if (!/^\d{4}-\d{2}$/.test(input.mes)) return { ok: false, mensaje: 'Mes inválido' }
+  if (!(input.monto > 0)) return { ok: false, mensaje: 'El monto tiene que ser mayor a cero' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { error } = await supabase.from('facturas_emitidas').insert({
+    mes: input.mes,
+    numero: input.numero.trim() || null,
+    fecha: input.fecha || null,
+    monto: round2(input.monto),
+    notas: input.notas?.trim() || null,
+    origen: 'manual',
+    cargado_por: user?.email ?? null,
+  })
+  if (error) return { ok: false, mensaje: error.message }
+
+  revalidatePath('/finanzas/afip')
+  return { ok: true }
+}
+
+/** Borra una factura cargada a mano. Las de origen GN no se borran: las maneja el sync. */
+export async function eliminarFactura(id: string): Promise<ResultadoSync> {
+  await requireUser()
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('facturas_emitidas').delete().eq('id', id).eq('origen', 'manual')
+  if (error) return { ok: false, mensaje: error.message }
+
+  revalidatePath('/finanzas/afip')
+  return { ok: true }
 }

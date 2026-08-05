@@ -3,8 +3,9 @@
 // parámetro (no hay un único GESTIONNUBE_TOKEN global). Cada cuenta tiene su
 // token en una env var GN_TOKEN_<ALIAS> (ej. GN_TOKEN_BDI, GN_TOKEN_ZATTIA).
 //
-// La API es inestable (500 intermitentes) y solo banca páginas chicas
-// (per_page <= 50), así que todo va con retry/backoff.
+// La API es inestable (500 intermitentes) y limita por tasa (429 con `retry_after`),
+// así que todo va con retry/backoff. `per_page=100` sí funciona en /ventas (la meta
+// vuelve con per_page: 100); el techo de 50 vale para el resto de los endpoints.
 
 const BASE = 'https://www.gestionnube.com/api/v1'
 
@@ -37,6 +38,17 @@ export async function gnGet<T = unknown>(token: string, path: string, tries = 4)
     if (r.ok) return r.json() as Promise<T>
     if (r.status === 401) throw new GestionNubeError('Token inválido o expirado (401)')
     if (r.status === 403) throw new GestionNubeError('El token no tiene permiso para este endpoint (403)')
+    // 429: GN limita por tasa y dice cuánto esperar. Con el backoff corto de un 500
+    // se le vuelve a pegar antes de tiempo y se agotan los intentos sin avanzar.
+    if (r.status === 429) {
+      const retry = await r
+        .json()
+        .then((b: { retry_after?: number }) => Number(b?.retry_after) || 0)
+        .catch(() => 0)
+      last = 'HTTP 429 (demasiadas solicitudes)'
+      await sleep(Math.max(5_000, retry * 1000 + 1_000))
+      continue
+    }
     last = `HTTP ${r.status}`
     await sleep(500 * (i + 1))
   }
@@ -74,8 +86,18 @@ export interface GnVentaLinea {
   size?: string
   size_info?: { name?: string }
 }
+/** Un cobro de una venta. Llega solo con `include_payments=1`. */
+export interface GnCobro {
+  id: number
+  date_payment: string  // fecha del cobro — puede caer en otro mes que la venta
+  amount: number
+  account_id: number
+  account_name: string  // cuenta de cobro REAL (una venta puede tener cobros en varias)
+  description?: string
+}
 export interface GnVenta {
   id: number
+  number: number        // nº de venta que se ve en la pantalla de GN
   date_sale: string
   net_price: number     // ventas netas (sin IVA) de toda la venta
   total_price: number   // total (con IVA/envío)
@@ -85,17 +107,24 @@ export interface GnVenta {
   shipping_cost: number // envíos
   total_payment: number // cobrado
   total_due: number     // falta cobrar
-  account_display: string   // cuenta de cobro (define si se factura)
+  // Etiqueta de la cuenta de cobro. Ojo: cuando la venta se cobra en dos cuentas dice
+  // literalmente "2 Cuentas" y no sirve para atribuir la plata — para eso van `payments`.
+  account_display: string
+  sale_state: string        // Entregado / Cerrado / Compra Pendiente / Pedido / Sin Estado
   payment_method: string    // medio de pago (MercadoPago / Pago Nube / Efectivo…) — para comisiones
   channel: string           // canal de venta (Tienda Nube / local / ML)
   sale_type: string         // minorista / mayorista
-  bill_number: string       // nro de comprobante (vacío = no facturada)
+  // Comprobante. En la práctica GN casi no tiene facturas cargadas (se factura desde
+  // AFIP a fin de mes) y las pocas que hay traen el número en `invoice_number`, con
+  // `bill_number` vacío. Por eso se miran los dos.
+  bill_number: string
   invoice_number: string | null
   active: boolean
   archived: boolean
   budget: boolean
   items?: GnVentaLinea[]
   detalles?: GnVentaLinea[]
+  payments?: GnCobro[]      // solo con include_payments=1
 }
 
 /** Una página del catálogo de productos (incluye `provider`). */
@@ -129,15 +158,22 @@ export async function paginaInventario(
   return { data: d.data || [], hayMas: !!d.meta?.has_more_pages }
 }
 
-/** Una página de ventas desde `from` (YYYY-MM-DD), con líneas de detalle. */
+/**
+ * Una página de ventas entre `from` y `hasta` (YYYY-MM-DD), acotada por `date_sale`.
+ * `opts.cobros` agrega `payments[]`: el listado de cobros con su fecha, monto y cuenta
+ * — la única forma de saber a qué cuenta entró la plata cuando la venta se cobró en dos.
+ */
 export async function paginaVentas(
   token: string,
   fromISO: string,
   page: number,
+  opts: { hasta?: string; cobros?: boolean } = {},
 ): Promise<{ data: GnVenta[]; hayMas: boolean }> {
+  const hasta = opts.hasta ? `&to=${opts.hasta}` : ''
+  const cobros = opts.cobros ? '&include_payments=1' : ''
   const d = await gnGet<Paginado<GnVenta>>(
     token,
-    `/ventas/obtener?from=${fromISO}&include_details=1&per_page=100&page=${page}`,
+    `/ventas/obtener?from=${fromISO}${hasta}&include_details=1${cobros}&per_page=100&page=${page}`,
   )
   return { data: d.data || [], hayMas: !!d.meta?.has_more_pages }
 }
