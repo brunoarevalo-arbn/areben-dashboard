@@ -62,6 +62,8 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
   }
 
   const saldoInicioMes = Number(periodoMesActual.saldo_inicio)
+  // El mes guarda un solo movimiento con su fecha: si ya hay uno, no se puede agregar otro.
+  const yaTieneMovimiento = Number(periodoMesActual.movimiento ?? 0) !== 0
 
   const tramosArr = tramos
     .filter((t) => t.instrumento_id === instrumento.id)
@@ -155,6 +157,24 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
 
       {open && (
         <div className="p-5 space-y-4">
+          {yaTieneMovimiento && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex gap-2 text-xs text-fg-muted">
+              <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>
+                Este mes ya tiene un movimiento cargado
+                ({formatMoneda(Number(periodoMesActual.movimiento), instrumento.moneda)}
+                {periodoMesActual.fecha_movimiento ? ` el ${formatDate(periodoMesActual.fecha_movimiento)}` : ''}).
+                Solo entra uno por mes, porque cada uno necesita su propio día para calcular
+                el interés. Podés simular igual, pero no aplicarlo.
+              </span>
+            </div>
+          )}
+
+          <p className="text-xs text-fg-soft">
+            La plata que sale deja de generar interés desde el día que sale, y la que entra
+            empieza a generarlo desde el día que entra.
+          </p>
+
           {/* Tipo */}
           <div className="grid grid-cols-2 gap-2">
             {TIPOS.map((t) => {
@@ -312,7 +332,7 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
             <Button
               size="sm"
               onClick={ejecutar}
-              disabled={tieneError || isPending || (!result.totalIntereses && !result.movimientoSignado) || !!exitoMsg}
+              disabled={tieneError || isPending || yaTieneMovimiento || (!result.totalIntereses && !result.movimientoSignado) || !!exitoMsg}
               title="Aplicar este movimiento al período"
             >
               {isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}

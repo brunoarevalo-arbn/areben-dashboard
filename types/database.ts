@@ -485,6 +485,8 @@ export interface PeriodoInstrumento {
   int_inicio_prorrateado: number
   int_fin_prorrateado: number
   movimiento: number
+  /** Día en que entró o salió la plata (mig 069). Sin fecha, el movimiento no ajusta el interés. */
+  fecha_movimiento?: string | null
   saldo_cierre: number
   tasa_aplicada: number
   cerrado: boolean

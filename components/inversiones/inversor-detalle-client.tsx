@@ -409,7 +409,16 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                       )}
                     </td>
                     <td className="px-4 py-2 text-right font-mono text-fg-muted">
-                      {Number(p.movimiento) !== 0 ? formatMoneda(Number(p.movimiento), selectedInstr.moneda) : '—'}
+                      {Number(p.movimiento) !== 0 ? (
+                        <>
+                          {formatMoneda(Number(p.movimiento), selectedInstr.moneda)}
+                          <p className="text-[10px] text-fg-soft font-sans">
+                            {p.fecha_movimiento
+                              ? formatDate(p.fecha_movimiento)
+                              : 'sin fecha — no ajusta el interés'}
+                          </p>
+                        </>
+                      ) : '—'}
                     </td>
                     <td className="px-4 py-2 text-right font-mono text-fg font-medium">
                       {formatMoneda(Number(p.saldo_cierre), selectedInstr.moneda)}

@@ -36,6 +36,12 @@ interface CalcArgs {
   capitalizable: boolean
   hasta: string // YYYY-MM
   movimientosByMes?: Record<string, number>
+  /**
+   * Día en que se movió la plata, por mes (YYYY-MM → YYYY-MM-DD).
+   * Con la fecha, lo que se retira cobra interés solo por los días que estuvo.
+   * Sin fecha, el movimiento no ajusta el interés (así ningún número viejo se mueve).
+   */
+  fechasMovimiento?: Record<string, string | null>
   tramos: TramoEntrada[] // ordenados ASC por fecha_desde
   plazoDias?: number | null // plazo contractual del ciclo (para el modelo plano)
 }
@@ -177,6 +183,47 @@ function addMonthsDate(d: Date, meses: number): Date {
   return target
 }
 
+/** Movimientos que tienen fecha conocida y caen dentro del ciclo [start, fin). */
+function fechados(
+  montos: Record<string, number>,
+  fechas: Record<string, string | null>,
+  start: Date,
+  fin: Date,
+): { fecha: Date; monto: number }[] {
+  const out: { fecha: Date; monto: number }[] = []
+  for (const [mes, monto] of Object.entries(montos)) {
+    const f = fechas[mes]
+    if (!f || !monto) continue
+    const fecha = parseDate(f)
+    if (fecha < start || fecha >= fin) continue
+    out.push({ fecha, monto })
+  }
+  return out.sort((a, b) => a.fecha.getTime() - b.fecha.getTime())
+}
+
+/** Días que un movimiento hecho en `fecha` queda vigente hasta el fin del ciclo. */
+function diasVigente(fecha: Date, start: Date, fin: Date): number {
+  const desde = fecha > start ? fecha : start
+  return Math.max(0, daysBetween(desde, fin))
+}
+
+/** Suma de (capital vigente × 1 día) sobre un tramo de días. */
+function capitalDias(
+  desde: Date,
+  dias: number,
+  capitalInicial: number,
+  movs: { fecha: Date; monto: number }[],
+): number {
+  let total = 0
+  for (let t = 0; t < dias; t++) {
+    const dia = new Date(desde.getTime() + t * 86400000)
+    let capital = capitalInicial
+    for (const m of movs) if (m.fecha <= dia) capital += m.monto
+    total += capital
+  }
+  return total
+}
+
 export function generarPeriodos(args: CalcArgs): PeriodoCalc[] {
   if (args.tramos.length === 0) return []
   const start = parseDate(args.fechaInicio)
@@ -198,7 +245,7 @@ export function generarPeriodos(args: CalcArgs): PeriodoCalc[] {
  * Si el ciclo se corta antes del plazo (retiro anticipado), se prorratea real (días/30).
  */
 function generarPeriodosPlano(args: CalcArgs, start: Date, fin: Date): PeriodoCalc[] {
-  const { capitalInicial, hasta, movimientosByMes = {}, tramos, plazoDias } = args
+  const { capitalInicial, hasta, movimientosByMes = {}, fechasMovimiento = {}, tramos, plazoDias } = args
   const [yHasta, mHasta] = hasta.split('-').map(Number)
 
   const diasCiclo = daysBetween(start, fin) // fin exclusivo
@@ -219,10 +266,21 @@ function generarPeriodosPlano(args: CalcArgs, start: Date, fin: Date): PeriodoCa
   }
   const tasaProm = sumaTasa / diasCiclo
 
-  // Interés total del ciclo: plano si se cumplió; prorrateado real si se cortó antes
-  const interesTotalCiclo = completo
-    ? round(capitalInicial * tasaProm * mesesPlan)
-    : round(capitalInicial * tasaProm * (diasCiclo / 30))
+  // Movimientos con fecha conocida dentro del ciclo. Los que no tienen fecha no ajustan
+  // el interés: mueven el saldo nomás, como antes de la migración 069.
+  const movsConFecha = fechados(movimientosByMes, fechasMovimiento, start, fin)
+
+  // Cuánto rinde el ciclo, medido en "meses" de la tasa. Si se cortó antes del plazo
+  // (retiro anticipado), se prorratea real por los días que corrió.
+  const mesesEquivalentes = completo ? mesesPlan : diasCiclo / 30
+
+  // Lo que se retira cobra interés por los días que estuvo y deja de cobrar desde que
+  // salió: cada movimiento rinde en proporción a los días que quedó vigente. Con capital
+  // quieto esto es exactamente el plano de siempre.
+  const capitalPonderado = capitalInicial + movsConFecha.reduce(
+    (s, m) => s + m.monto * (diasVigente(m.fecha, start, fin) / diasCiclo), 0,
+  )
+  const interesTotalCiclo = round(capitalPonderado * tasaProm * mesesEquivalentes)
 
   // Meses de calendario que toca el ciclo, con sus días activos
   const filas: { mes: string; dias: number; activoStart: Date; primeroDelMes: boolean; ultimoDelCiclo: boolean }[] = []
@@ -247,11 +305,16 @@ function generarPeriodosPlano(args: CalcArgs, start: Date, fin: Date): PeriodoCa
     ;[cy, cm] = nextMonth(cy, cm)
   }
 
-  // Reparto proporcional por días. Si el ciclo entero quedó generado, el último mes
-  // absorbe el residuo de redondeo para que la suma sea exacta = interesTotalCiclo.
+  // Reparto entre meses por "capital × días": un mes en que el capital estuvo más alto
+  // se lleva más interés. Sin movimientos, capital-día es proporcional a los días y el
+  // reparto queda idéntico al de siempre.
   const totalDiasGen = filas.reduce((s, f) => s + f.dias, 0)
   const cicloCompletoGenerado = totalDiasGen >= diasCiclo
-  const shares = filas.map((f) => round(interesTotalCiclo * f.dias / diasCiclo))
+  const pesos = filas.map((f) => capitalDias(f.activoStart, f.dias, capitalInicial, movsConFecha))
+  const pesoTotal = pesos.reduce((a, b) => a + b, 0)
+  const shares = pesoTotal > 0
+    ? pesos.map((peso) => round(interesTotalCiclo * peso / pesoTotal))
+    : filas.map((f) => round(interesTotalCiclo * f.dias / diasCiclo))
   if (cicloCompletoGenerado && shares.length > 0) {
     const suma = shares.reduce((a, b) => a + b, 0)
     shares[shares.length - 1] = round(shares[shares.length - 1] + (interesTotalCiclo - suma))
@@ -284,11 +347,37 @@ function generarPeriodosPlano(args: CalcArgs, start: Date, fin: Date): PeriodoCa
 }
 
 /**
+ * Cuánto interés suma (o resta) un movimiento por los días que quedó vigente dentro de
+ * su mes. Un retiro a mitad de mes devuelve negativo: esa plata dejó de trabajar.
+ */
+function ajusteIntraMes(
+  movimiento: number,
+  fechaMov: string | null | undefined,
+  mes: string,
+  start: Date,
+  fin: Date | null,
+  tasa: number,
+): number {
+  if (!movimiento || !fechaMov || !tasa) return 0
+  const [year, month] = mes.split('-').map(Number)
+  const monthEnd = new Date(year, month, 0)
+  const dim = monthEnd.getDate()
+  const fecha = parseDate(fechaMov)
+  if (fecha.getFullYear() !== year || fecha.getMonth() + 1 !== month) return 0
+
+  const activoEnd = fin && fin < monthEnd ? fin : monthEnd
+  const desde = fecha > start ? fecha : start
+  if (desde > activoEnd) return 0
+  const diasVigentes = Math.round((activoEnd.getTime() - desde.getTime()) / 86400000) + 1
+  return movimiento * tasa * (diasVigentes / dim)
+}
+
+/**
  * MODELO COMPUESTO (histórico) — capitalizables o instrumentos sin vencimiento.
  * Interés por mes de calendario, prorrateado por días, con capitalización mensual.
  */
 function generarPeriodosCompuesto(args: CalcArgs, start: Date, fin: Date | null): PeriodoCalc[] {
-  const { capitalInicial, capitalizable, hasta, movimientosByMes = {}, tramos } = args
+  const { capitalInicial, capitalizable, hasta, movimientosByMes = {}, fechasMovimiento = {}, tramos } = args
   const [yHasta, mHasta] = hasta.split('-').map(Number)
 
   const periodos: PeriodoCalc[] = []
@@ -308,12 +397,15 @@ function generarPeriodosCompuesto(args: CalcArgs, start: Date, fin: Date | null)
     const calc = calcularInteresMes(baseInteres, mes, start, fin, tramos)
 
     const movimiento = movimientosByMes[mes] ?? 0
-    const saldoCierre = saldoInicio + calc.interes + movimiento
+    // Si se sabe qué día se movió la plata, lo movido rinde solo por los días que
+    // estuvo dentro de este mes. Sin fecha, el interés del mes no se toca.
+    const interesMes = round(calc.interes + ajusteIntraMes(movimiento, fechasMovimiento[mes], mes, start, fin, calc.tasaPromedio))
+    const saldoCierre = saldoInicio + interesMes + movimiento
 
     periodos.push({
       mes,
       saldo_inicio: round(saldoInicio),
-      interes_devengado: round(calc.interes),
+      interes_devengado: interesMes,
       int_inicio_prorrateado: round(calc.intInicio),
       int_fin_prorrateado: round(calc.intFin),
       movimiento: round(movimiento),

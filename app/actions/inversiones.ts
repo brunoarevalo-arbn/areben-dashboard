@@ -123,13 +123,19 @@ async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createCli
   // Cargar movimientos existentes para preservarlos
   const { data: existentes } = await supabase
     .from('periodos_instrumento')
-    .select('mes, movimiento, cerrado')
+    .select('mes, movimiento, fecha_movimiento, cerrado')
     .eq('instrumento_id', instrumentoId)
   const movs: Record<string, number> = {}
+  const fechasMov: Record<string, string | null> = {}
   const cerrados = new Set<string>()
+  const fechasPorMes: Record<string, string | null> = {}
   for (const p of existentes ?? []) {
-    if (p.movimiento && p.movimiento !== 0) movs[p.mes] = Number(p.movimiento)
+    if (p.movimiento && p.movimiento !== 0) {
+      movs[p.mes] = Number(p.movimiento)
+      fechasMov[p.mes] = p.fecha_movimiento ?? null
+    }
     if (p.cerrado) cerrados.add(p.mes)
+    fechasPorMes[p.mes] = p.fecha_movimiento ?? null
   }
 
   const hasta = inst.fecha_fin && inst.fecha_fin <= getCurrentMonthBoundary()
@@ -143,6 +149,7 @@ async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createCli
     capitalizable: inst.capitalizable,
     hasta,
     movimientosByMes: movs,
+    fechasMovimiento: fechasMov,
     tramos: tramosArr,
     plazoDias: inst.plazo_dias,
   })
@@ -160,6 +167,7 @@ async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createCli
       int_inicio_prorrateado: p.int_inicio_prorrateado,
       int_fin_prorrateado: p.int_fin_prorrateado,
       movimiento: p.movimiento,
+      fecha_movimiento: fechasPorMes[p.mes] ?? null,
       saldo_cierre: p.saldo_cierre,
       tasa_aplicada: p.tasa_aplicada,
       cerrado: false,
@@ -542,19 +550,35 @@ async function armarDevolucion(
     return { ok: false, error: 'La fecha de devolución no deja ni un día de plazo.' }
   }
 
+  const { data: movsPrevios } = await supabase
+    .from('periodos_instrumento')
+    .select('mes, movimiento, fecha_movimiento')
+    .eq('instrumento_id', instrumentoId)
+    .neq('movimiento', 0)
+
+  // Los retiros parciales del ciclo bajan el interés desde el día que salieron.
+  const movimientosByMes: Record<string, number> = {}
+  const fechasMovimiento: Record<string, string | null> = {}
+  for (const m of movsPrevios ?? []) {
+    movimientosByMes[m.mes] = Number(m.movimiento)
+    fechasMovimiento[m.mes] = m.fecha_movimiento ?? null
+  }
+
   const periodosGenerados = generarPeriodos({
     capitalInicial: Number(inst.capital_inicial),
     fechaInicio: inst.fecha_inicio,
     fechaFin: finGenerador,
     capitalizable: inst.capitalizable,
     hasta: fechaCorte.substring(0, 7),
+    movimientosByMes,
+    fechasMovimiento,
     tramos: tramosArr,
     plazoDias: inst.plazo_dias,
   })
 
   const { data: actuales } = await supabase
     .from('periodos_instrumento')
-    .select('mes, saldo_inicio, interes_devengado, movimiento, saldo_cierre, cerrado')
+    .select('mes, saldo_inicio, interes_devengado, movimiento, fecha_movimiento, saldo_cierre, cerrado')
     .eq('instrumento_id', instrumentoId)
     .order('mes', { ascending: true })
 
@@ -855,12 +879,23 @@ export async function aplicarMovimientoSimulado(args: {
     }
   }
 
+  // El mes guarda UN movimiento. Si ya hay otro cargado, avisar antes de pisarlo:
+  // sumarlos en silencio dejaría una sola fecha para dos movimientos y el interés
+  // saldría mal sin que se note.
+  if (Number(periodo.movimiento ?? 0) !== 0) {
+    throw new Error(
+      `Este mes ya tiene un movimiento cargado (${Number(periodo.movimiento)}). ` +
+      'Solo se puede registrar uno por mes: corregí el que está o hacé el movimiento en otro mes.'
+    )
+  }
+
   const signedMov = args.tipoMovimiento === 'INGRESO' ? args.monto : -args.monto
 
-  // Actualizar movimiento del período (regenerarPeriodosDB usa este movimiento)
+  // Se guarda el DÍA del movimiento: con la fecha, lo que se retira cobra interés solo
+  // por los días que estuvo (lo usa regenerarPeriodosDB al recalcular).
   const { error: errPeriodo } = await supabase
     .from('periodos_instrumento')
-    .update({ movimiento: signedMov })
+    .update({ movimiento: signedMov, fecha_movimiento: args.fechaMovimiento })
     .eq('id', periodo.id)
   if (errPeriodo) throw new Error(errPeriodo.message)
 
