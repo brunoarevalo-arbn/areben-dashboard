@@ -1,7 +1,11 @@
 // Cálculo del vencimiento y estado "vencido" de un gasto — COMPUTADO (no se guarda en la base),
 // así siempre está exacto sin tener que marcar nada a mano.
 
+import { esCuentaCorriente } from '@/lib/cuentas-corrientes'
+
 export interface GastoVencInput {
+  /** Necesario para reconocer los gastos sueltos de cuenta corriente (CC_GASTOS). */
+  concepto?: string | null
   estado?: string | null
   mes?: string | null
   fecha?: string | null
@@ -12,6 +16,7 @@ export interface GastoVencInput {
 export interface RecurrenteVenc {
   dia_vencimiento?: number | null
   tipo_mes?: string | null // 'CORRIENTE' (vence en el mes) | 'VENCIDO' (vence el mes siguiente)
+  es_cuenta_corriente?: boolean | null
 }
 
 // Fecha de vencimiento de un recurrente para un mes dado (misma lógica que
@@ -28,7 +33,15 @@ export function fechaVencimientoRecurrente(mes: string, diaVenc?: number | null,
 }
 
 // Vencimiento real del gasto: del recurrente (día + tipo_mes) si existe; si no, fecha_pago; si no, fecha.
+// Excepción: los de CUENTA CORRIENTE no vencen — la deuda se acumula y se paga cuando hay caja,
+// así que no tienen fecha tope y nunca deben pintarse como vencidos (ver lib/cuentas-corrientes.ts).
 export function vencimientoGasto(g: GastoVencInput, rec?: RecurrenteVenc | null): string | null {
+  const esCC = esCuentaCorriente({
+    concepto: g.concepto ?? '',
+    recurrente_id: g.recurrente_id,
+    recurrenteEsCC: rec?.es_cuenta_corriente,
+  })
+  if (esCC) return null
   if (rec && g.mes) return fechaVencimientoRecurrente(g.mes, rec.dia_vencimiento, rec.tipo_mes)
   if (g.fecha_pago) return g.fecha_pago
   if (g.fecha) return g.fecha

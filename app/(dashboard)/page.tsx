@@ -57,7 +57,7 @@ export default async function DashboardPage({
       .eq('activo', true)
       .order('orden'),
     supabase.from('existencias_marca').select('marca, unidades, valuacion').eq('mes', mes),
-    supabase.from('gastos_recurrentes').select('id, dia_vencimiento, tipo_mes'),
+    supabase.from('gastos_recurrentes').select('id, dia_vencimiento, tipo_mes, es_cuenta_corriente'),
   ])
 
   // Vencidos = impagos cuyo vencimiento ya pasó (computado, no por estado en la base).

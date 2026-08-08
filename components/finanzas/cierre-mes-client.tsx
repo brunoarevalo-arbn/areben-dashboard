@@ -122,7 +122,7 @@ interface Props {
   comprasPendientes: ComprasPendiente[]
   produccionEnProceso: ProduccionItem[]
   gastosPendientes: GastoPendiente[]
-  gastosRecurrentes?: { id: string; dia_vencimiento?: number | null; tipo_mes?: string | null }[]
+  gastosRecurrentes?: { id: string; dia_vencimiento?: number | null; tipo_mes?: string | null; es_cuenta_corriente?: boolean | null }[]
   hoy?: string
   cuotasPendientes: CuotaPend[]
   retirosMes: (RetiroSocio & { categoria?: CategoriaRetiro | null })[]
@@ -1310,7 +1310,7 @@ function VencidoBadge() {
 // Un servicio con varios meses impagos → renglón desplegable con el detalle por mes/vencimiento.
 function GrupoGastoRow({ items, recurrentesMap, hoy }: {
   items: GastoPendiente[]
-  recurrentesMap: Map<string, { dia_vencimiento?: number | null; tipo_mes?: string | null }>
+  recurrentesMap: Map<string, { dia_vencimiento?: number | null; tipo_mes?: string | null; es_cuenta_corriente?: boolean | null }>
   hoy: string
 }) {
   const [open, setOpen] = useState(false)
@@ -1362,7 +1362,7 @@ function GrupoGastoRow({ items, recurrentesMap, hoy }: {
 // Servicios con varios meses impagos → renglón desplegable; los de un solo mes → línea plana. No cambia el total.
 function GastosPendientesBlock({ gastos, recurrentesMap, hoy }: {
   gastos: GastoPendiente[]
-  recurrentesMap: Map<string, { dia_vencimiento?: number | null; tipo_mes?: string | null }>
+  recurrentesMap: Map<string, { dia_vencimiento?: number | null; tipo_mes?: string | null; es_cuenta_corriente?: boolean | null }>
   hoy: string
 }) {
   const totalArs = gastos.filter((g) => g.moneda !== 'USD').reduce((s, g) => s + Number(g.monto), 0)

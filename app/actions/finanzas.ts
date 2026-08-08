@@ -999,7 +999,10 @@ export async function confirmarRecurrentesMasivo(recurrenteIds: string[], mes: s
 
       const tieneSec = !!rec.monto_secundario && rec.monto_secundario > 0 && !!rec.moneda_secundaria
       const monedaP = (rec.moneda || 'ARS') as 'ARS' | 'USD'
-      const fechaPagoMasivo = calcularFechaPagoRecurrente(mes, rec.dia_vencimiento, rec.tipo_mes)
+      // Cuenta corriente = deuda sin fecha tope (se paga cuando hay caja) → sin fecha de pago.
+      const fechaPagoMasivo = rec.es_cuenta_corriente
+        ? null
+        : calcularFechaPagoRecurrente(mes, rec.dia_vencimiento, rec.tipo_mes)
       const fechaDevengoMasivo = `${mes}-01`
 
       function buildGastoMasivo(monto: number, moneda: 'ARS' | 'USD', sufijo?: string) {
@@ -1142,7 +1145,10 @@ export async function confirmarRecurrente(args: {
   }
 
   const modo = args.modo ?? 'PRINCIPAL_SOLO'
-  const fechaPago = calcularFechaPagoRecurrente(args.mes, rec.dia_vencimiento, rec.tipo_mes)
+  // Cuenta corriente = deuda sin fecha tope (se paga cuando hay caja) → sin fecha de pago.
+  const fechaPago = rec.es_cuenta_corriente
+    ? null
+    : calcularFechaPagoRecurrente(args.mes, rec.dia_vencimiento, rec.tipo_mes)
   const fechaDevengo = `${args.mes}-01`
 
   function buildGasto(monto: number, moneda: 'ARS' | 'USD', sufijo?: string) {

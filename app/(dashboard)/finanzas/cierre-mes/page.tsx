@@ -83,7 +83,7 @@ export default async function CierreMesPage({
       .order('mes', { ascending: false })
       .limit(1500),
     // Recurrentes (para calcular el vencimiento real de los gastos y unificar los repetidos)
-    supabase.from('gastos_recurrentes').select('id, dia_vencimiento, tipo_mes'),
+    supabase.from('gastos_recurrentes').select('id, dia_vencimiento, tipo_mes, es_cuenta_corriente'),
     // Cuotas de tarjeta: pasivo del mes en que se CONSUMIÓ (mes_cierre), si no estaba pagada al corte.
     // (No por mes_vencimiento ni por el tilde de hoy: el consumo de mayo que se paga en junio es pasivo de mayo.)
     supabase
