@@ -69,14 +69,15 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica',
     fontSize: 10,
     padding: 36,
+    paddingBottom: 46,
     color: COLOR_TEXT,
   },
   // ── Encabezado ──
   header: {
     borderBottomWidth: 2,
     borderBottomColor: COLOR_PRIMARY,
-    paddingBottom: 12,
-    marginBottom: 18,
+    paddingBottom: 10,
+    marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
@@ -119,15 +120,15 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 10,
     color: COLOR_MUTED,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   // ── Bloque de datos clave ──
   keyBlock: {
     backgroundColor: COLOR_BG_SOFT,
     borderLeftWidth: 4,
     borderLeftColor: COLOR_ACCENT,
-    padding: 14,
-    marginBottom: 18,
+    padding: 10,
+    marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
@@ -149,7 +150,7 @@ const styles = StyleSheet.create({
   },
   // ── Secciones ──
   section: {
-    marginBottom: 18,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 11,
@@ -165,7 +166,7 @@ const styles = StyleSheet.create({
   // ── Filas de datos ──
   row: {
     flexDirection: 'row',
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderBottomWidth: 0.5,
     borderBottomColor: COLOR_BORDER,
   },
@@ -194,7 +195,7 @@ const styles = StyleSheet.create({
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: COLOR_PRIMARY,
-    padding: 6,
+    padding: 5,
   },
   tableHeaderCell: {
     color: '#ffffff',
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
   },
   tableRow: {
     flexDirection: 'row',
-    padding: 6,
+    padding: 4,
     borderBottomWidth: 0.5,
     borderBottomColor: COLOR_BORDER,
   },
@@ -524,7 +525,7 @@ export function ReportePeriodoPDF({ data }: { data: ReportePeriodoData }) {
         {/* Footer */}
         <View style={styles.footer} fixed>
           <Text>Reporte generado automáticamente por Areben Dashboard · Documento interno</Text>
-          <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
+          <Text>Reporte de período</Text>
         </View>
       </Page>
     </Document>

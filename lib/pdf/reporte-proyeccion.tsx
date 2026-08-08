@@ -68,8 +68,8 @@ const COLOR_BORDER = '#d6d0c4'
 const COLOR_BG_SOFT = '#f7f4ed'
 
 const styles = StyleSheet.create({
-  page: { fontFamily: 'Helvetica', fontSize: 10, padding: 40, paddingBottom: 80, color: COLOR_TEXT, lineHeight: 1.4 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 2, borderBottomColor: COLOR_PRIMARY, paddingBottom: 12, marginBottom: 18 },
+  page: { fontFamily: 'Helvetica', fontSize: 10, padding: 36, paddingBottom: 46, color: COLOR_TEXT, lineHeight: 1.4 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 2, borderBottomColor: COLOR_PRIMARY, paddingBottom: 10, marginBottom: 12 },
   empresaBlock: { flexDirection: 'column', maxWidth: '60%' },
   empresaName: { fontSize: 16, fontWeight: 700, color: COLOR_PRIMARY },
   empresaFantasia: { fontSize: 9, color: COLOR_MUTED, marginTop: 1 },
@@ -78,14 +78,14 @@ const styles = StyleSheet.create({
   emisionLabel: { fontSize: 7, color: COLOR_MUTED, letterSpacing: 1 },
   emisionCiudad: { fontSize: 10, color: COLOR_TEXT, marginTop: 4, fontWeight: 700 },
   emisionFecha: { fontSize: 9, color: COLOR_TEXT, marginTop: 2 },
-  title: { fontSize: 16, fontWeight: 700, color: COLOR_TEXT, textAlign: 'center', marginVertical: 14, textTransform: 'uppercase', letterSpacing: 0.5 },
-  subtitle: { fontSize: 11, color: COLOR_MUTED, textAlign: 'center', marginBottom: 18 },
-  destBox: { borderWidth: 1, borderColor: COLOR_BORDER, borderRadius: 4, padding: 12, marginBottom: 16 },
+  title: { fontSize: 15, fontWeight: 700, color: COLOR_TEXT, textAlign: 'center', marginVertical: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  subtitle: { fontSize: 10, color: COLOR_MUTED, textAlign: 'center', marginBottom: 10 },
+  destBox: { borderWidth: 1, borderColor: COLOR_BORDER, borderRadius: 4, padding: 10, marginBottom: 10 },
   destLabel: { fontSize: 8, color: COLOR_MUTED, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
   destNombre: { fontSize: 12, fontWeight: 700, color: COLOR_TEXT },
   destData: { fontSize: 9, color: COLOR_TEXT, marginTop: 6, lineHeight: 1.5 },
-  paragraph: { fontSize: 10, color: COLOR_TEXT, marginBottom: 12, textAlign: 'justify', lineHeight: 1.5 },
-  keyBlock: { backgroundColor: COLOR_BG_SOFT, borderLeftWidth: 4, borderLeftColor: COLOR_ACCENT, padding: 12, marginBottom: 14, flexDirection: 'row', justifyContent: 'space-between' },
+  paragraph: { fontSize: 10, color: COLOR_TEXT, marginBottom: 8, textAlign: 'justify', lineHeight: 1.4 },
+  keyBlock: { backgroundColor: COLOR_BG_SOFT, borderLeftWidth: 4, borderLeftColor: COLOR_ACCENT, padding: 10, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between' },
   keyCol: { flexDirection: 'column', flex: 1 },
   keyLabel: { fontSize: 8, color: COLOR_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
   keyValue: { fontSize: 11, fontWeight: 700, color: COLOR_TEXT },
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   // Tabla de proyección
   tHeader: { flexDirection: 'row', backgroundColor: COLOR_PRIMARY, paddingVertical: 6, paddingHorizontal: 4 },
   tHeaderCell: { color: '#ffffff', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3 },
-  tRow: { flexDirection: 'row', paddingVertical: 5, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: COLOR_BORDER },
+  tRow: { flexDirection: 'row', paddingVertical: 3, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: COLOR_BORDER },
   tRowZebra: { backgroundColor: '#fafbfd' },
   tCell: { fontSize: 9, color: COLOR_TEXT },
   tCellMono: { fontSize: 9, color: COLOR_TEXT, fontFamily: 'Courier', textAlign: 'right' },
@@ -104,23 +104,23 @@ const styles = StyleSheet.create({
   colInteres: { width: '20%', textAlign: 'right' as const },
   colSaldoCierre: { width: '20%', textAlign: 'right' as const },
   // Totales
-  totalBox: { backgroundColor: COLOR_BG_SOFT, borderWidth: 1, borderColor: COLOR_BORDER, borderRadius: 4, padding: 12, marginTop: 14 },
+  totalBox: { backgroundColor: COLOR_BG_SOFT, borderWidth: 1, borderColor: COLOR_BORDER, borderRadius: 4, padding: 10, marginTop: 10 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
   totalLabel: { fontSize: 10, color: COLOR_TEXT },
   totalLabelStrong: { fontSize: 11, color: COLOR_TEXT, fontWeight: 700 },
   totalValue: { fontSize: 10, color: COLOR_TEXT, fontFamily: 'Courier', fontWeight: 700 },
   totalValueAccent: { fontSize: 13, color: COLOR_ACCENT, fontFamily: 'Courier', fontWeight: 700 },
-  noticeBox: { borderLeftWidth: 3, borderLeftColor: COLOR_PRIMARY, backgroundColor: '#f1f5fb', padding: 8, marginTop: 12, fontSize: 9, color: COLOR_TEXT },
+  noticeBox: { borderLeftWidth: 3, borderLeftColor: COLOR_PRIMARY, backgroundColor: '#f1f5fb', padding: 8, marginTop: 8, fontSize: 9, color: COLOR_TEXT },
   warningBox: { backgroundColor: '#fff7eb', borderLeftWidth: 3, borderLeftColor: COLOR_ACCENT, padding: 10, marginBottom: 14, fontSize: 9, color: COLOR_TEXT },
   // Firma
-  firmaContainer: { marginTop: 28, flexDirection: 'row', justifyContent: 'flex-end' },
+  firmaContainer: { marginTop: 14, flexDirection: 'row', justifyContent: 'flex-end' },
   firmaBox: { width: 220, alignItems: 'center' },
-  firmaLinea: { borderTopWidth: 0.5, borderTopColor: COLOR_TEXT, width: '100%', marginBottom: 4, marginTop: 50 },
+  firmaLinea: { borderTopWidth: 0.5, borderTopColor: COLOR_TEXT, width: '100%', marginBottom: 4, marginTop: 26 },
   firmaLabel: { fontSize: 9, color: COLOR_MUTED },
   firmaNombre: { fontSize: 11, color: COLOR_TEXT, marginTop: 4, fontWeight: 700 },
   firmaCargo: { fontSize: 9, color: COLOR_MUTED, marginTop: 1 },
   // Footer
-  footer: { position: 'absolute', bottom: 28, left: 40, right: 40, borderTopWidth: 0.5, borderTopColor: COLOR_BORDER, paddingTop: 8, flexDirection: 'row', justifyContent: 'space-between', fontSize: 7, color: COLOR_MUTED },
+  footer: { position: 'absolute', bottom: 22, left: 36, right: 36, borderTopWidth: 0.5, borderTopColor: COLOR_BORDER, paddingTop: 8, flexDirection: 'row', justifyContent: 'space-between', fontSize: 7, color: COLOR_MUTED },
 })
 
 // Helpers
@@ -235,7 +235,7 @@ export function ReporteProyeccionPDF({ data }: { data: ReporteProyeccionData }) 
           <View key={p.mes_num} style={[styles.tRow, idx % 2 === 1 ? styles.tRowZebra : {}]}>
             <Text style={[styles.tCell, styles.colMes]}>{p.mes_num}</Text>
             <Text style={[styles.tCell, styles.colPeriodo]}>
-              {formatDateShort(p.fecha_inicio)} → {formatDateShort(p.fecha_fin)}
+              {formatDateShort(p.fecha_inicio)} al {formatDateShort(p.fecha_fin)}
             </Text>
             <Text style={[styles.tCellMono, styles.colSaldoInicio]}>{formatMoney(p.saldo_inicio, instrumento.moneda)}</Text>
             <Text style={[styles.tCellMono, styles.colInteres, { color: COLOR_ACCENT, fontWeight: 700 }]}>
@@ -277,7 +277,7 @@ export function ReporteProyeccionPDF({ data }: { data: ReporteProyeccionData }) 
         </View>
 
         {/* Firma */}
-        <View style={styles.firmaContainer}>
+        <View style={styles.firmaContainer} wrap={false}>
           <View style={styles.firmaBox}>
             <Text style={styles.firmaLabel}>Por {empresa.razon_social}</Text>
             <Text style={styles.firmaNombre}>Darío Arévalo</Text>
@@ -290,7 +290,7 @@ export function ReporteProyeccionPDF({ data }: { data: ReporteProyeccionData }) 
           <Text>
             {empresa.razon_social}{empresa.email ? ` · ${empresa.email}` : ''}{empresa.telefono ? ` · ${empresa.telefono}` : ''}{empresa.sitio_web ? ` · ${empresa.sitio_web}` : ''}
           </Text>
-          <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
+          <Text>Proyección de rendimiento</Text>
         </View>
       </Page>
     </Document>

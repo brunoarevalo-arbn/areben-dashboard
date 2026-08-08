@@ -67,8 +67,8 @@ const styles = StyleSheet.create({
   page: {
     fontFamily: 'Helvetica',
     fontSize: 10,
-    padding: 40,
-    paddingBottom: 80,
+    padding: 36,
+    paddingBottom: 46,
     color: COLOR_TEXT,
     lineHeight: 1.4,
   },
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   },
   // ── Firma ──
   firmaContainer: {
-    marginTop: 36,
+    marginTop: 18,
     flexDirection: 'row',
     justifyContent: 'flex-end',
   },
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     borderTopColor: COLOR_TEXT,
     width: '100%',
     marginBottom: 4,
-    marginTop: 50,
+    marginTop: 28,
   },
   firmaLabel: {
     fontSize: 9,
@@ -265,9 +265,9 @@ const styles = StyleSheet.create({
   // ── Footer ──
   footer: {
     position: 'absolute',
-    bottom: 28,
-    left: 40,
-    right: 40,
+    bottom: 22,
+    left: 36,
+    right: 36,
     borderTopWidth: 0.5,
     borderTopColor: COLOR_BORDER,
     paddingTop: 8,
@@ -445,7 +445,7 @@ export function ReporteInversorPDF({ data }: { data: ReporteInversorData }) {
         </Text>
 
         {/* Firma */}
-        <View style={styles.firmaContainer}>
+        <View style={styles.firmaContainer} wrap={false}>
           <View style={styles.firmaBox}>
             <Text style={styles.firmaLabel}>Por {empresa.razon_social}</Text>
             <Text style={styles.firmaNombre}>Darío Arévalo</Text>
@@ -458,7 +458,7 @@ export function ReporteInversorPDF({ data }: { data: ReporteInversorData }) {
           <Text>
             {empresa.razon_social}{empresa.email ? ` · ${empresa.email}` : ''}{empresa.telefono ? ` · ${empresa.telefono}` : ''}{empresa.sitio_web ? ` · ${empresa.sitio_web}` : ''}
           </Text>
-          <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
+          <Text>Comprobante de intereses</Text>
         </View>
       </Page>
     </Document>
