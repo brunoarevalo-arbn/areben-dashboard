@@ -106,6 +106,7 @@ interface InstrumentoActivo {
   codigo?: string | null
   moneda: 'USD' | 'ARS'
   capital_inicial: number
+  estado?: string
   inversor?: { nombre: string } | null
 }
 
@@ -288,9 +289,11 @@ export function CierreMesClient(props: Props) {
 
   // El saldo_cierre de cada periodo YA incluye el interés devengado acumulado (el motor
   // de inversiones lo acumula mes a mes, capitalice o no) → es la deuda real al corte.
+  // Sin período del mes: si sigue activo se asume el capital; si ya está cerrado (se le
+  // devolvió la plata) no se le inventa deuda.
   const inversionesConSaldo = props.instrumentosActivos.map((i) => ({
     ...i,
-    saldoCierre: saldosInvMap.get(i.id) ?? Number(i.capital_inicial),
+    saldoCierre: saldosInvMap.get(i.id) ?? (i.estado && i.estado !== 'activo' ? 0 : Number(i.capital_inicial)),
   }))
 
   const pasivosInversionesArs = inversionesConSaldo

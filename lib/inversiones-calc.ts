@@ -335,7 +335,9 @@ function generarPeriodosCompuesto(args: CalcArgs, start: Date, fin: Date | null)
 // Simulador de movimientos (retiro parcial / total / ingreso)
 // ────────────────────────────────────────────────────────────
 
-export type TipoMovimiento = 'RETIRO_PARCIAL' | 'RETIRO_TOTAL' | 'INGRESO'
+// El retiro total no se simula: se hace con `planDevolucion` + "Devolver y cerrar",
+// que corta bien los intereses y deja el saldo en cero.
+export type TipoMovimiento = 'RETIRO_PARCIAL' | 'INGRESO'
 
 export interface SimuladorInput {
   saldoInicioMes: number
@@ -356,9 +358,6 @@ export interface ResultadoSimulacion {
   totalIntereses: number
   movimientoSignado: number
   saldoCierre: number
-  esRetiroTotal: boolean
-  capitalAlMomento?: number
-  totalAPagar?: number
   error?: string
 }
 
@@ -426,14 +425,13 @@ export function simularMovimiento(args: SimuladorInput): ResultadoSimulacion {
 
   const fechaMov = parseDate(args.fechaMovimiento)
   const tipoMov = args.tipoMovimiento
-  const monto = tipoMov === 'RETIRO_TOTAL' ? args.saldoInicioMes : args.monto
+  const monto = args.monto
 
   // Validar fecha dentro del rango activo
   if (fechaMov < activoStart || fechaMov > activoEnd) {
     return {
       tramos: [], saldoInicio: args.saldoInicioMes, diasMes,
       totalIntereses: 0, movimientoSignado: 0, saldoCierre: args.saldoInicioMes,
-      esRetiroTotal: false,
       error: 'La fecha está fuera del rango activo del instrumento en este mes',
     }
   }
@@ -443,7 +441,6 @@ export function simularMovimiento(args: SimuladorInput): ResultadoSimulacion {
     return {
       tramos: [], saldoInicio: args.saldoInicioMes, diasMes,
       totalIntereses: 0, movimientoSignado: 0, saldoCierre: args.saldoInicioMes,
-      esRetiroTotal: false,
       error: 'El monto supera el saldo disponible',
     }
   }
@@ -452,25 +449,7 @@ export function simularMovimiento(args: SimuladorInput): ResultadoSimulacion {
     return {
       tramos: [], saldoInicio: args.saldoInicioMes, diasMes,
       totalIntereses: 0, movimientoSignado: 0, saldoCierre: args.saldoInicioMes,
-      esRetiroTotal: false,
       error: 'Ingresá un monto mayor a cero',
-    }
-  }
-
-  // Retiro total: solo Tramo 1, hasta fecha_movimiento
-  if (tipoMov === 'RETIRO_TOTAL') {
-    const segs = segmentarPorTramos(activoStart, fechaMov, args.saldoInicioMes, args.tramosTasa, diasMes)
-    const totalInt = segs.reduce((s, x) => s + x.interes, 0)
-    return {
-      tramos: segs,
-      saldoInicio: args.saldoInicioMes,
-      diasMes,
-      totalIntereses: round(totalInt),
-      movimientoSignado: -args.saldoInicioMes,
-      saldoCierre: 0,
-      esRetiroTotal: true,
-      capitalAlMomento: args.saldoInicioMes,
-      totalAPagar: round(args.saldoInicioMes + totalInt),
     }
   }
 
@@ -502,8 +481,156 @@ export function simularMovimiento(args: SimuladorInput): ResultadoSimulacion {
     totalIntereses: round(totalInt),
     movimientoSignado: signedMov,
     saldoCierre: round(saldoCierre),
-    esRetiroTotal: false,
   }
+}
+
+// ────────────────────────────────────────────────────────────
+// Devolución y cierre del instrumento
+// ────────────────────────────────────────────────────────────
+
+export interface FilaPeriodo {
+  mes: string // YYYY-MM
+  saldo_inicio: number
+  interes_devengado: number
+  movimiento: number
+  saldo_cierre: number
+  cerrado: boolean
+}
+
+export interface PlanDevolucion {
+  /** Filas finales del instrumento, ordenadas por mes. Las cerradas no se tocan. */
+  filas: FilaPeriodo[]
+  /** Lo que hay que pagarle al inversor: capital pendiente + intereses del ciclo. */
+  totalADevolver: number
+  /** Intereses del ciclo que todavía no se le habían pagado. */
+  interesesCiclo: number
+  /** Capital pendiente al momento de la devolución (sin intereses). */
+  capitalPendiente: number
+  /**
+   * Ajuste imputado al último mes abierto para que el total del ciclo cierre exacto.
+   * Aparece cuando meses ya cerrados devengaron con otro plazo (ej. retiro anticipado).
+   */
+  ajusteUltimoMes: number
+  /**
+   * Movimientos de meses cerrados que quedaron fuera del cálculo por ser del ciclo
+   * anterior. Se muestran para que se pueda revisar si el capital arranca bien.
+   */
+  movimientosDelCicloAnterior: { mes: string; monto: number }[]
+}
+
+/**
+ * Arma la devolución total de un instrumento: deja cada mes encadenado con el
+ * anterior y saca el saldo a cero en el mes en que se paga.
+ *
+ * Reglas:
+ * - **Solo se mira el ciclo vigente**, del `mesInicioCiclo` en adelante. Los meses
+ *   anteriores son de ciclos ya renovados: sus intereses ya se capitalizaron dentro
+ *   del capital actual, así que contarlos otra vez sería duplicar.
+ * - **Lo que cobra el inversor son los intereses del ciclo** (`periodosGenerados`,
+ *   recalculado con la fecha de corte real) más el capital que le quede.
+ * - **Los meses cerrados no se reescriben.** Son foto contable ya publicada; si
+ *   devengaron con el plazo viejo, la diferencia se imputa al último mes abierto para
+ *   que el total que cobra el inversor sea el correcto.
+ * - El pago se imputa en `mesDevolucion`, que puede ser un mes POSTERIOR al último con
+ *   interés: un plazo que vence el 1/9 devenga hasta el 31/8 y se paga el 1/9. En ese
+ *   caso se abre una fila de septiembre con interés 0 — así al 31/8 la deuda sigue viva.
+ */
+export function planDevolucion(args: {
+  /** Períodos del ciclo recalculados con la fecha de corte, en orden. */
+  periodosGenerados: { mes: string; interes_devengado: number }[]
+  /** Períodos como están hoy en la base, en orden. */
+  periodosActuales: FilaPeriodo[]
+  /** Capital con el que arrancó el ciclo vigente. */
+  capitalInicial: number
+  /** Día en que arrancó el ciclo vigente (YYYY-MM-DD). */
+  fechaInicioCiclo: string
+  /** Mes en que se le paga (YYYY-MM). */
+  mesDevolucion: string
+}): PlanDevolucion {
+  const { periodosGenerados, periodosActuales, capitalInicial, fechaInicioCiclo, mesDevolucion } = args
+  const mesInicioCiclo = fechaInicioCiclo.substring(0, 7)
+  // Si el ciclo arrancó a mitad de mes, ese mes está partido entre el ciclo viejo y el
+  // nuevo: lo que quedó cerrado ahí es del viejo y no cuenta como interés de este ciclo.
+  const mesInicioPartido = !fechaInicioCiclo.endsWith('-01')
+
+  const delCiclo = (mes: string) => mes >= mesInicioCiclo && mes <= mesDevolucion
+  const interesGenerado = new Map(periodosGenerados.map((p) => [p.mes, round(p.interes_devengado)]))
+  const actualesPorMes = new Map(periodosActuales.map((p) => [p.mes, p]))
+
+  const meses = [...new Set([
+    ...periodosGenerados.map((p) => p.mes),
+    ...periodosActuales.map((p) => p.mes),
+    mesDevolucion,
+  ])].filter(delCiclo).sort()
+
+  // Interés de cada mes. El mes en que arranca el ciclo puede venir cerrado con el
+  // interés del ciclo ANTERIOR (una renovación a mitad de mes parte el mes en dos):
+  // ahí manda el recalculado, y la diferencia la absorbe el último mes abierto.
+  // Una fila CERRADA en el mes de inicio partido es del ciclo anterior: al renovar, su
+  // interés y su movimiento ya se sumaron dentro de capital_inicial. Contarlos otra vez
+  // sería duplicar.
+  const esDelCicloAnterior = (mes: string) =>
+    !!actualesPorMes.get(mes)?.cerrado && mes === mesInicioCiclo && mesInicioPartido
+
+  const interesPorMes = new Map<string, number>()
+  for (const mes of meses) {
+    const actual = actualesPorMes.get(mes)
+    const usarCerrado = actual?.cerrado && !esDelCicloAnterior(mes)
+    interesPorMes.set(mes, usarCerrado ? round(actual.interes_devengado) : (interesGenerado.get(mes) ?? 0))
+  }
+
+  // Lo que cobra el inversor: los intereses del ciclo, sí o sí.
+  const interesesCiclo = round(periodosGenerados.reduce((s, p) => s + p.interes_devengado, 0))
+
+  // El último mes abierto ajusta para que la suma mensual dé ese total. Se prefiere el
+  // último mes que devengó: si el pago cae en un mes que ya no devenga (vencimiento el
+  // 1/9), meterle el ajuste ahí lo mostraría con un interés que no existe.
+  const mesesAbiertos = meses.filter((m) => !actualesPorMes.get(m)?.cerrado)
+  const conInteres = mesesAbiertos.filter((m) => (interesPorMes.get(m) ?? 0) !== 0)
+  const ultimoAbierto = (conInteres.length ? conInteres : mesesAbiertos)[
+    (conInteres.length ? conInteres : mesesAbiertos).length - 1
+  ]
+  let ajusteUltimoMes = 0
+  if (ultimoAbierto) {
+    const suma = meses.reduce((s, m) => s + (interesPorMes.get(m) ?? 0), 0)
+    ajusteUltimoMes = round(interesesCiclo - suma)
+    if (ajusteUltimoMes !== 0) {
+      interesPorMes.set(ultimoAbierto, round((interesPorMes.get(ultimoAbierto) ?? 0) + ajusteUltimoMes))
+    }
+  }
+
+  // Encadenar los saldos del ciclo desde el capital inicial
+  const filas: FilaPeriodo[] = []
+  let saldo = capitalInicial
+  for (const mes of meses) {
+    const actual = actualesPorMes.get(mes)
+    const interes = interesPorMes.get(mes) ?? 0
+    const movimiento = mes === mesDevolucion || esDelCicloAnterior(mes) ? 0 : round(actual?.movimiento ?? 0)
+    const saldoCierre = round(saldo + interes + movimiento)
+    filas.push({
+      mes,
+      saldo_inicio: round(saldo),
+      interes_devengado: interes,
+      movimiento,
+      saldo_cierre: saldoCierre,
+      cerrado: !!actual?.cerrado,
+    })
+    saldo = saldoCierre
+  }
+
+  // El mes del pago se lleva todo el saldo → queda en cero
+  const filaPago = filas[filas.length - 1]
+  const totalADevolver = round(filaPago.saldo_inicio + filaPago.interes_devengado)
+  filaPago.movimiento = round(-totalADevolver)
+  filaPago.saldo_cierre = 0
+
+  const capitalPendiente = round(totalADevolver - interesesCiclo)
+
+  const movimientosDelCicloAnterior = meses
+    .filter((m) => esDelCicloAnterior(m) && round(actualesPorMes.get(m)?.movimiento ?? 0) !== 0)
+    .map((m) => ({ mes: m, monto: round(actualesPorMes.get(m)!.movimiento) }))
+
+  return { filas, totalADevolver, interesesCiclo, capitalPendiente, ajusteUltimoMes, movimientosDelCicloAnterior }
 }
 
 /**

@@ -3,7 +3,7 @@
 import { createClient, requireUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { generarPeriodos, getCurrentMonth } from '@/lib/inversiones-calc'
+import { generarPeriodos, getCurrentMonth, planDevolucion, type FilaPeriodo } from '@/lib/inversiones-calc'
 
 // ============ INVERSORES ============
 
@@ -455,6 +455,254 @@ export async function renovarInstrumento(
   }
 }
 
+// ============ DEVOLVER Y CERRAR ============
+
+export interface DetalleDevolucion {
+  /** Fecha en que se le paga al inversor. */
+  fechaPago: string
+  /** Primer día que ya NO devenga interés (el día del pago no devenga). */
+  fechaCorte: string
+  /** Vencimiento acordado, si tenía. */
+  vencimientoAcordado: string | null
+  /** true si se devuelve antes del vencimiento acordado → los intereses se prorratean. */
+  anticipada: boolean
+  capitalPendiente: number
+  interesesCiclo: number
+  totalADevolver: number
+  moneda: 'ARS' | 'USD'
+  mesDevolucion: string
+  /** Meses abiertos que quedan por cerrar para que el interés llegue a Gastos. */
+  mesesAbiertos: string[]
+  /** Diferencia imputada al último mes abierto (meses cerrados con el plazo viejo). */
+  ajusteUltimoMes: number
+  /** Movimientos del ciclo anterior que quedaron fuera del cálculo (ya están en el capital). */
+  movimientosDelCicloAnterior: { mes: string; monto: number }[]
+  inversorNombre: string
+  codigo: string | null
+}
+
+export type DevolucionResult =
+  | { ok: true; detalle: DetalleDevolucion }
+  | { ok: false; error: string }
+
+function sumarDias(fecha: string, dias: number): string {
+  const d = new Date(`${fecha}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + dias)
+  return d.toISOString().substring(0, 10)
+}
+
+/**
+ * Arma la devolución total de un instrumento SIN escribir nada.
+ * La usan tanto la previsualización como la ejecución, así el número que ve
+ * Bruno en pantalla es exactamente el que se aplica.
+ */
+async function armarDevolucion(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  instrumentoId: string,
+  fechaPago: string,
+): Promise<{ ok: false; error: string } | { ok: true; detalle: DetalleDevolucion; filas: FilaPeriodo[] }> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaPago)) {
+    return { ok: false, error: 'Fecha de devolución inválida (formato AAAA-MM-DD).' }
+  }
+
+  const { data: inst } = await supabase
+    .from('instrumentos_inversion')
+    .select('*, inversor:inversores(nombre)')
+    .eq('id', instrumentoId)
+    .single()
+  if (!inst) return { ok: false, error: 'No se encontró el instrumento' }
+  if (inst.estado !== 'activo') {
+    return { ok: false, error: `El instrumento ya no está activo (estado: ${inst.estado}). No hay nada que devolver.` }
+  }
+  if (fechaPago <= inst.fecha_inicio) {
+    return { ok: false, error: `La devolución (${fechaPago}) tiene que ser posterior al inicio del ciclo (${inst.fecha_inicio}).` }
+  }
+
+  // El día del pago NO devenga interés: es el día en que se cierra el trato.
+  // Si se paga después del vencimiento, el devengamiento igual corta en el vencimiento.
+  const vencimiento: string | null = inst.fecha_fin ?? null
+  const fechaCorte = vencimiento && fechaPago > vencimiento ? vencimiento : fechaPago
+  const anticipada = !!vencimiento && fechaPago < vencimiento
+
+  const { data: tramos } = await supabase
+    .from('tramos_tasa')
+    .select('fecha_desde, tasa_mensual')
+    .eq('instrumento_id', instrumentoId)
+    .order('fecha_desde', { ascending: true })
+  const tramosArr = (tramos ?? []).length > 0
+    ? (tramos ?? []).map((t) => ({ fecha_desde: t.fecha_desde, tasa_mensual: Number(t.tasa_mensual) }))
+    : [{ fecha_desde: inst.fecha_inicio, tasa_mensual: Number(inst.tasa_mensual) }]
+
+  // El motor plano toma fecha_fin como exclusiva (no devenga ese día) y el compuesto
+  // como inclusiva. Para que las dos ramas corten el mismo día, al compuesto se le
+  // pasa el día anterior.
+  const usaPlano = !inst.capitalizable && !!vencimiento
+  const finGenerador = usaPlano ? fechaCorte : sumarDias(fechaCorte, -1)
+  if (finGenerador < inst.fecha_inicio) {
+    return { ok: false, error: 'La fecha de devolución no deja ni un día de plazo.' }
+  }
+
+  const periodosGenerados = generarPeriodos({
+    capitalInicial: Number(inst.capital_inicial),
+    fechaInicio: inst.fecha_inicio,
+    fechaFin: finGenerador,
+    capitalizable: inst.capitalizable,
+    hasta: fechaCorte.substring(0, 7),
+    tramos: tramosArr,
+    plazoDias: inst.plazo_dias,
+  })
+
+  const { data: actuales } = await supabase
+    .from('periodos_instrumento')
+    .select('mes, saldo_inicio, interes_devengado, movimiento, saldo_cierre, cerrado')
+    .eq('instrumento_id', instrumentoId)
+    .order('mes', { ascending: true })
+
+  const periodosActuales: FilaPeriodo[] = (actuales ?? []).map((p) => ({
+    mes: p.mes,
+    saldo_inicio: Number(p.saldo_inicio ?? 0),
+    interes_devengado: Number(p.interes_devengado ?? 0),
+    movimiento: Number(p.movimiento ?? 0),
+    saldo_cierre: Number(p.saldo_cierre ?? 0),
+    cerrado: !!p.cerrado,
+  }))
+
+  const mesDevolucion = fechaPago.substring(0, 7)
+
+  // Un mes cerrado posterior al pago es una foto que ya no se puede reescribir.
+  const cerradosPosteriores = periodosActuales.filter((p) => p.cerrado && p.mes > mesDevolucion)
+  if (cerradosPosteriores.length > 0) {
+    return {
+      ok: false,
+      error: `Hay meses ya cerrados posteriores a la devolución (${cerradosPosteriores.map((p) => p.mes).join(', ')}). Reabrilos desde Inversiones → Cierre mensual y volvé a intentar.`,
+    }
+  }
+  if (periodosActuales.some((p) => p.cerrado && p.mes === mesDevolucion)) {
+    return {
+      ok: false,
+      error: `El mes del pago (${mesDevolucion}) ya está cerrado. Reabrilo desde Inversiones → Cierre mensual y volvé a intentar.`,
+    }
+  }
+
+  const plan = planDevolucion({
+    periodosGenerados,
+    periodosActuales,
+    capitalInicial: Number(inst.capital_inicial),
+    fechaInicioCiclo: inst.fecha_inicio,
+    mesDevolucion,
+  })
+
+  const inversor = Array.isArray(inst.inversor) ? inst.inversor[0] : inst.inversor
+
+  return {
+    ok: true,
+    filas: plan.filas,
+    detalle: {
+      fechaPago,
+      fechaCorte,
+      vencimientoAcordado: vencimiento,
+      anticipada,
+      capitalPendiente: plan.capitalPendiente,
+      interesesCiclo: plan.interesesCiclo,
+      totalADevolver: plan.totalADevolver,
+      moneda: inst.moneda as 'ARS' | 'USD',
+      mesDevolucion,
+      mesesAbiertos: plan.filas.filter((f) => !f.cerrado && f.interes_devengado !== 0).map((f) => f.mes),
+      ajusteUltimoMes: plan.ajusteUltimoMes,
+      movimientosDelCicloAnterior: plan.movimientosDelCicloAnterior,
+      inversorNombre: inversor?.nombre ?? 'Inversor s/d',
+      codigo: inst.codigo ?? null,
+    },
+  }
+}
+
+/**
+ * Calcula cuánto hay que devolverle al inversor a una fecha dada, sin tocar nada.
+ * Es el mismo cálculo que ejecuta `devolverYCerrarInstrumento`.
+ */
+export async function previsualizarDevolucion(
+  instrumentoId: string,
+  fechaPago: string,
+): Promise<DevolucionResult> {
+  await requireUser()
+  const supabase = await createClient()
+  const r = await armarDevolucion(supabase, instrumentoId, fechaPago)
+  if (!r.ok) return r
+  return { ok: true, detalle: r.detalle }
+}
+
+/**
+ * Devuelve la plata al inversor y cierra el instrumento.
+ *
+ * - Los meses ya cerrados no se tocan; los abiertos se reescriben encadenados.
+ * - El saldo queda en CERO exacto en el mes del pago.
+ * - El instrumento pasa a 'cerrado' y su vencimiento queda en la fecha de corte.
+ *
+ * La salida de plata no se registra acá a propósito: devolver capital no es un gasto,
+ * es que baja una deuda. Se refleja en Tesorería al cargar el saldo de fin de mes.
+ */
+export async function devolverYCerrarInstrumento(
+  instrumentoId: string,
+  fechaPago: string,
+): Promise<DevolucionResult> {
+  await requireUser()
+  const supabase = await createClient()
+
+  const r = await armarDevolucion(supabase, instrumentoId, fechaPago)
+  if (!r.ok) return r
+  const { detalle, filas } = r
+
+  // Reescribir los períodos abiertos (los cerrados quedan intactos)
+  const { error: errDel } = await supabase
+    .from('periodos_instrumento')
+    .delete()
+    .eq('instrumento_id', instrumentoId)
+    .eq('cerrado', false)
+  if (errDel) return { ok: false, error: `No se pudieron actualizar los períodos: ${errDel.message}` }
+
+  const rows = filas
+    .filter((f) => !f.cerrado)
+    .map((f) => ({
+      instrumento_id: instrumentoId,
+      mes: f.mes,
+      saldo_inicio: f.saldo_inicio,
+      interes_devengado: f.interes_devengado,
+      int_inicio_prorrateado: 0,
+      int_fin_prorrateado: 0,
+      movimiento: f.movimiento,
+      saldo_cierre: f.saldo_cierre,
+      cerrado: false,
+    }))
+  if (rows.length > 0) {
+    const { error: errIns } = await supabase.from('periodos_instrumento').insert(rows)
+    if (errIns) return { ok: false, error: `No se pudieron guardar los períodos: ${errIns.message}` }
+  }
+
+  const nota = `[${fechaPago}] Devuelto y cerrado. Capital ${detalle.capitalPendiente.toFixed(2)} + intereses ${detalle.interesesCiclo.toFixed(2)} = ${detalle.totalADevolver.toFixed(2)} ${detalle.moneda}${detalle.anticipada ? ' (devolución anticipada, intereses prorrateados)' : ''}.`
+  const { data: instNotas } = await supabase
+    .from('instrumentos_inversion')
+    .select('notas')
+    .eq('id', instrumentoId)
+    .single()
+
+  const { error: errInst } = await supabase
+    .from('instrumentos_inversion')
+    .update({
+      estado: 'cerrado',
+      fecha_fin: detalle.fechaCorte,
+      notas: instNotas?.notas ? `${instNotas.notas}\n${nota}` : nota,
+    })
+    .eq('id', instrumentoId)
+  if (errInst) return { ok: false, error: `No se pudo cerrar el instrumento: ${errInst.message}` }
+
+  revalidatePath('/inversiones')
+  revalidatePath('/inversiones/cierre')
+  revalidatePath('/inversiones/gastos')
+  revalidatePath('/finanzas/cierre-mes')
+
+  return { ok: true, detalle }
+}
+
 // ============ TRAMOS DE TASA ============
 
 const tramoSchema = z.object({
@@ -567,12 +815,16 @@ export async function cerrarPeriodos(mes: string) {
 
 /**
  * Aplica un movimiento simulado al período del mes correspondiente.
- * Si es RETIRO_TOTAL, además marca el instrumento como cerrado y setea fecha_fin.
+ *
+ * Solo movimientos que dejan el instrumento VIVO. Devolverle todo al inversor va por
+ * `devolverYCerrarInstrumento`: el retiro total que vivía acá congelaba el interés del
+ * plazo completo y después recalculaba prorrateado, así que pagaba de más y dejaba el
+ * saldo en negativo.
  */
 export async function aplicarMovimientoSimulado(args: {
   instrumentoId: string
   mes: string
-  tipoMovimiento: 'RETIRO_PARCIAL' | 'RETIRO_TOTAL' | 'INGRESO'
+  tipoMovimiento: 'RETIRO_PARCIAL' | 'INGRESO'
   fechaMovimiento: string
   monto: number
 }) {
@@ -597,12 +849,6 @@ export async function aplicarMovimientoSimulado(args: {
 
   // Validar monto si es retiro
   if (args.tipoMovimiento !== 'INGRESO') {
-    if (args.tipoMovimiento === 'RETIRO_TOTAL') {
-      // El RETIRO_TOTAL debe vaciar el período: retirar saldo_inicio + interes_devengado
-      // para que saldo_cierre quede en 0. Antes solo retiraba saldo_inicio y dejaba el
-      // interés como residual.
-      args.monto = Number(periodo.saldo_inicio) + Number(periodo.interes_devengado)
-    }
     const tope = Number(periodo.saldo_inicio) + Number(periodo.interes_devengado)
     if (args.monto > tope) {
       throw new Error('El monto supera el saldo disponible (capital + interés del período)')
@@ -610,18 +856,6 @@ export async function aplicarMovimientoSimulado(args: {
   }
 
   const signedMov = args.tipoMovimiento === 'INGRESO' ? args.monto : -args.monto
-
-  // Para RETIRO_TOTAL → cerrar instrumento y fijar fecha_fin
-  if (args.tipoMovimiento === 'RETIRO_TOTAL') {
-    const { error: errInst } = await supabase
-      .from('instrumentos_inversion')
-      .update({
-        estado: 'cerrado',
-        fecha_fin: args.fechaMovimiento,
-      })
-      .eq('id', args.instrumentoId)
-    if (errInst) throw new Error(errInst.message)
-  }
 
   // Actualizar movimiento del período (regenerarPeriodosDB usa este movimiento)
   const { error: errPeriodo } = await supabase

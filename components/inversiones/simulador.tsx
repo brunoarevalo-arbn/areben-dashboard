@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { NumberInput } from '@/components/ui/number-input'
 import { formatMonth, formatDate } from '@/lib/utils'
 import {
-  Calculator, ArrowDown, ArrowUp, Lock, ChevronDown, ChevronUp,
+  Calculator, ArrowDown, ArrowUp, ChevronDown, ChevronUp,
   AlertTriangle, RotateCw, Play, Printer, CheckCircle2, Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -23,9 +23,11 @@ interface Props {
   inversorNombre: string
 }
 
+// El retiro total NO está acá: devolverle todo al inversor se hace con "Devolver y
+// cerrar" (botón de la ficha), que calcula bien el corte de intereses, deja el saldo
+// en cero y cierra el instrumento. Acá solo van los movimientos que lo dejan vivo.
 const TIPOS: { v: TipoMovimiento; label: string; icon: React.ElementType; color: string }[] = [
   { v: 'RETIRO_PARCIAL', label: 'Retiro parcial', icon: ArrowDown, color: 'text-amber-700' },
-  { v: 'RETIRO_TOTAL', label: 'Retiro total', icon: Lock, color: 'text-red-700' },
   { v: 'INGRESO', label: 'Ingreso', icon: ArrowUp, color: 'text-green-700' },
 ]
 
@@ -75,7 +77,7 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
       tramosTasa: tramosArr.length > 0 ? tramosArr : [{ fecha_desde: instrumento.fecha_inicio, tasa_mensual: Number(instrumento.tasa_mensual) }],
       tipoMovimiento: tipo,
       fechaMovimiento: fecha,
-      monto: tipo === 'RETIRO_TOTAL' ? saldoInicioMes : monto,
+      monto,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipo, fecha, monto, saldoInicioMes, instrumento.id, tramos.length])
@@ -102,7 +104,7 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
           mes: mesActual,
           tipoMovimiento: tipo,
           fechaMovimiento: fecha,
-          monto: tipo === 'RETIRO_TOTAL' ? saldoInicioMes : monto,
+          monto,
         })
         setExitoMsg('Movimiento aplicado correctamente. Los períodos se recalcularon.')
         // No limpiar para que vea lo que ejecutó
@@ -135,9 +137,7 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
   }
 
   const moneda = instrumento.moneda
-  const tipoDescripcion = tipo === 'RETIRO_PARCIAL' ? 'Retiro parcial'
-    : tipo === 'RETIRO_TOTAL' ? 'Cierre anticipado'
-    : 'Ingreso'
+  const tipoDescripcion = tipo === 'RETIRO_PARCIAL' ? 'Retiro parcial' : 'Ingreso'
 
   return (
     <div className="bg-surface border border-orange-500/20 rounded-xl overflow-x-auto">
@@ -156,7 +156,7 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
       {open && (
         <div className="p-5 space-y-4">
           {/* Tipo */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {TIPOS.map((t) => {
               const Icon = t.icon
               const active = tipo === t.v
@@ -193,15 +193,12 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
               />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-fg-muted">
-                Monto {tipo === 'RETIRO_TOTAL' && <span className="text-fg-soft">(automático)</span>}
-              </label>
+              <label className="block text-xs font-medium text-fg-muted">Monto</label>
               <NumberInput
                 step="0.01"
                 min="0"
-                value={tipo === 'RETIRO_TOTAL' ? saldoInicioMes : monto}
+                value={monto}
                 onChange={setMonto}
-                disabled={tipo === 'RETIRO_TOTAL'}
                 className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm disabled:opacity-60"
                 placeholder="0.00"
               />
@@ -259,54 +256,31 @@ export function SimuladorMovimiento({ instrumento, tramos, periodoMesActual, inv
 
                 {/* Resultado final */}
                 <div className="border-t border-border-strong/60 pt-3 space-y-1.5">
-                  {result.esRetiroTotal ? (
-                    <>
-                      <p className="text-xs text-fg-soft mb-1 uppercase tracking-wide">── Total a pagar al inversor ──</p>
-                      <div className="row flex justify-between">
-                        <span className="text-fg-muted">Capital</span>
-                        <span className="font-mono text-fg">{formatMoneda(result.capitalAlMomento ?? 0, moneda)}</span>
-                      </div>
-                      <div className="row flex justify-between">
-                        <span className="text-fg-muted">Intereses devengados</span>
-                        <span className="font-mono text-amber-700">{formatMoneda(result.totalIntereses, moneda)}</span>
-                      </div>
-                      <div className="total bg-bg border border-orange-500/40 rounded-lg px-3 py-2 flex justify-between text-base font-bold mt-2">
-                        <span className="text-fg">TOTAL A PAGAR</span>
-                        <span className="font-mono text-primary">{formatMoneda(result.totalAPagar ?? 0, moneda)}</span>
-                      </div>
-                      <p className="text-xs text-fg-soft mt-2">
-                        El instrumento quedará cerrado a partir del {formatDate(fecha)}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-xs text-fg-soft mb-1 uppercase tracking-wide">── Resultado del mes ──</p>
-                      <div className="row flex justify-between">
-                        <span className="text-fg-muted">Total intereses devengados</span>
-                        <span className="font-mono text-amber-700">{formatMoneda(result.totalIntereses, moneda)}</span>
-                      </div>
-                      <div className="row flex justify-between">
-                        <span className="text-fg-muted">{tipo === 'INGRESO' ? 'Ingreso' : 'Retiro'}</span>
-                        <span className={cn(
-                          'font-mono',
-                          tipo === 'INGRESO' ? 'text-green-700' : 'text-red-700'
-                        )}>
-                          {tipo === 'INGRESO' ? '+' : '-'}{formatMoneda(monto, moneda)}
-                        </span>
-                      </div>
-                      <div className="row flex justify-between text-base font-semibold pt-1">
-                        <span className="text-fg">Saldo al cierre del mes</span>
-                        <span className="font-mono text-fg flex items-center gap-1.5">
-                          {formatMoneda(result.saldoCierre, moneda)}
-                          <CheckCircle2 className="w-4 h-4 text-green-700" />
-                        </span>
-                      </div>
-                      <div className="row flex justify-between text-xs pt-2 mt-2 border-t border-border-strong/40">
-                        <span className="text-fg-muted">Gasto financiero del mes</span>
-                        <span className="font-mono text-amber-700">{formatMoneda(result.totalIntereses, moneda)}</span>
-                      </div>
-                    </>
-                  )}
+                    <p className="text-xs text-fg-soft mb-1 uppercase tracking-wide">── Resultado del mes ──</p>
+                    <div className="row flex justify-between">
+                      <span className="text-fg-muted">Total intereses devengados</span>
+                      <span className="font-mono text-amber-700">{formatMoneda(result.totalIntereses, moneda)}</span>
+                    </div>
+                    <div className="row flex justify-between">
+                      <span className="text-fg-muted">{tipo === 'INGRESO' ? 'Ingreso' : 'Retiro'}</span>
+                      <span className={cn(
+                        'font-mono',
+                        tipo === 'INGRESO' ? 'text-green-700' : 'text-red-700'
+                      )}>
+                        {tipo === 'INGRESO' ? '+' : '-'}{formatMoneda(monto, moneda)}
+                      </span>
+                    </div>
+                    <div className="row flex justify-between text-base font-semibold pt-1">
+                      <span className="text-fg">Saldo al cierre del mes</span>
+                      <span className="font-mono text-fg flex items-center gap-1.5">
+                        {formatMoneda(result.saldoCierre, moneda)}
+                        <CheckCircle2 className="w-4 h-4 text-green-700" />
+                      </span>
+                    </div>
+                    <div className="row flex justify-between text-xs pt-2 mt-2 border-t border-border-strong/40">
+                      <span className="text-fg-muted">Gasto financiero del mes</span>
+                      <span className="font-mono text-amber-700">{formatMoneda(result.totalIntereses, moneda)}</span>
+                    </div>
                 </div>
               </>
             )}

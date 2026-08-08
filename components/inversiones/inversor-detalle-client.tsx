@@ -15,9 +15,10 @@ import { InstrumentoForm } from './instrumento-form'
 import { CambiarTasaForm } from './cambiar-tasa-form'
 import { SimuladorMovimiento } from './simulador'
 import { RenovarModal } from './renovar-modal'
+import { DevolverModal } from './devolver-modal'
 import {
   ChevronLeft, Plus, Pencil, Trash2, RotateCw, FileText, Lock, Unlock,
-  TrendingUp, Calendar, User, Briefcase, Percent, ArrowRight, RefreshCw, AlertTriangle,
+  TrendingUp, Calendar, User, Briefcase, Percent, ArrowRight, RefreshCw, AlertTriangle, HandCoins,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -33,6 +34,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
   const [editInstr, setEditInstr] = useState<Instrumento | undefined>()
   const [tasaModal, setTasaModal] = useState<Instrumento | undefined>()
   const [renovarModal, setRenovarModal] = useState<{ instr: Instrumento; saldo: number } | undefined>()
+  const [devolverModal, setDevolverModal] = useState<Instrumento | undefined>()
   const [selectedInstr, setSelectedInstr] = useState<Instrumento | undefined>(instrumentos[0])
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
@@ -239,6 +241,17 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                     <RefreshCw className="w-3 h-3" />
                     {resaltarRenovar && <span className="ml-1 text-xs font-medium">Renovar</span>}
                   </Button>
+                  {i.estado === 'activo' && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => { e.stopPropagation(); setDevolverModal(i) }}
+                      disabled={isPending}
+                      title="Devolver la plata y cerrar el instrumento"
+                    >
+                      <HandCoins className="w-3 h-3" />
+                    </Button>
+                  )}
                   <Link href={`/inversiones/reporte?instrumento=${i.id}`}>
                     <Button size="sm" variant="ghost" title="Generar reporte">
                       <FileText className="w-3 h-3" />
@@ -455,6 +468,29 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
               else { alert(`✓ ${r.message}\n\n${r.detail ?? ''}`); router.refresh() }
             }}
             onClose={() => setRenovarModal(undefined)}
+          />
+        </Modal>
+      )}
+
+      {devolverModal && (
+        <Modal
+          open={!!devolverModal}
+          onOpenChange={(o) => { if (!o) setDevolverModal(undefined) }}
+          title={`Devolver y cerrar ${devolverModal.codigo ?? 'instrumento'}`}
+          className="max-w-lg"
+        >
+          <DevolverModal
+            instrumento={devolverModal}
+            onDone={(d) => {
+              alert(
+                `✓ Devuelto y cerrado\n\n` +
+                `${d.inversorNombre} — ${formatMoneda(d.totalADevolver, d.moneda)} el ${formatDate(d.fechaPago)}\n` +
+                `Capital ${formatMoneda(d.capitalPendiente, d.moneda)} + intereses ${formatMoneda(d.interesesCiclo, d.moneda)}` +
+                (d.anticipada ? '\n\nDevolución anticipada: los intereses se prorratearon.' : '')
+              )
+              router.refresh()
+            }}
+            onClose={() => setDevolverModal(undefined)}
           />
         </Modal>
       )}

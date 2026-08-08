@@ -120,11 +120,15 @@ export default async function CierreMesPage({
       .or(`debitado.eq.false,fecha_debito.gt.${mesFin}`)
       .not('fecha_vencimiento', 'is', null)
       .order('fecha_vencimiento', { ascending: true }),
-    // Inversiones de terceros activas (deuda con inversores)
+    // Inversiones de terceros: deuda con inversores AL CORTE, no la de hoy.
+    // Entra el que arrancó antes del cierre y todavía no estaba devuelto: los que
+    // siguen activos, y los que se cerraron después del corte (un plazo que vence el
+    // 1/9 al 31/8 seguía siendo deuda). El saldo lo pone el período del mes.
     supabase
       .from('instrumentos_inversion')
       .select('*, inversor:inversores(nombre)')
-      .eq('estado', 'activo'),
+      .lte('fecha_inicio', mesFin)
+      .or(`estado.eq.activo,fecha_fin.gt.${mesFin}`),
     // Saldo de cierre del mes para esos instrumentos (ya incluye el interés acumulado)
     supabase.from('periodos_instrumento').select('instrumento_id, saldo_cierre').eq('mes', mes),
     // Producción en proceso (activo): compras de producción todavía no pasadas a stock
