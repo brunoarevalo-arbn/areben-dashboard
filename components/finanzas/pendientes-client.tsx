@@ -19,6 +19,7 @@ import { editCuotaHistorica } from '@/app/actions/historicos'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { acreedorDe } from '@/lib/cuentas-corrientes'
 import { RegistrarPagoModal, type PagoTarget } from './registrar-pago-modal'
 import { CargarHistoricoModal, type HistoricoTipo } from './cargar-historico-modal'
 import { ConfirmarPagoModal } from './confirmar-pago-modal'
@@ -1237,8 +1238,10 @@ function GastoGrupoServicioItem({ grupo, hoy, onPagoParcial }: {
           </button>
           <Receipt className="w-5 h-5 text-amber-700 shrink-0" />
           <p className="text-fg font-medium truncate min-w-0">
-            {grupo.concepto}
-            <span className="text-fg-soft font-normal text-xs ml-2">({grupo.cantidad} meses)</span>
+            {grupo.acreedor ?? grupo.concepto}
+            <span className="text-fg-soft font-normal text-xs ml-2">
+              ({grupo.cantidad} {grupo.acreedor && new Set(grupo.gastos.map((g) => g.concepto)).size > 1 ? 'ítems' : 'meses'})
+            </span>
             <span className="text-fg-soft font-normal"> · {grupo.categoria}</span>
           </p>
         </div>
@@ -1255,6 +1258,8 @@ function GastoGrupoServicioItem({ grupo, hoy, onPagoParcial }: {
               <div key={g.id} className="px-4 py-2 pl-12 flex items-center justify-between text-sm">
                 <div className="min-w-0 flex items-center gap-2 flex-wrap">
                   <span className="text-fg-muted text-xs font-medium">{formatMonth(g.mes)}</span>
+                  {/* Con varios conceptos del mismo acreedor, el mes solo no alcanza para saber qué es cada línea */}
+                  {grupo.acreedor && <span className="text-fg-muted text-xs truncate">{g.concepto}</span>}
                   <EstadoVencimientoChip dias={diasDe(v)} />
                   <span className="text-fg-soft text-xs">vence {formatDate(v)}</span>
                   {g.total_pagado && g.total_pagado > 0 && (
@@ -1305,6 +1310,8 @@ interface GastoGrupoServicio {
   gastos: GastoPend[]
   totalSaldo: number
   cantidad: number
+  /** Nombre del acreedor, cuando el grupo junta varios conceptos de la misma persona. */
+  acreedor?: string
 }
 
 // ─── RetiroItem (retiro de socio programado) ─────────────────────────────────
@@ -1669,21 +1676,24 @@ export function PendientesClient({
     for (const c of comprasSinPlanPago) {
       list.push({ fecha: c.fecha, grupo: 'ESTE_MES', tipo: 'compra_sin_plan', prioridad: 10, data: c })
     }
-    const porRecurrente = new Map<string, GastoPend[]>()
+    // Se agrupa por ACREEDOR cuando el concepto tiene uno declarado (una misma persona puede
+    // tener deuda por varios conceptos: el abono mensual y los honorarios de un juicio, por
+    // ejemplo). Si no lo tiene, se agrupa por recurrente, que es el comportamiento de siempre.
+    const grupos = new Map<string, { titulo: string; acreedor?: string; gastos: GastoPend[] }>()
     const sueltos: GastoPend[] = []
     for (const g of gastosCC) {
-      if (g.recurrente_id) {
-        const arr = porRecurrente.get(g.recurrente_id) ?? []
-        arr.push(g)
-        porRecurrente.set(g.recurrente_id, arr)
-      } else {
-        sueltos.push(g)
-      }
+      const acreedor = acreedorDe(g.concepto) ?? undefined
+      const clave = acreedor ? `acreedor:${acreedor}` : g.recurrente_id ? `recurrente:${g.recurrente_id}` : null
+      if (!clave) { sueltos.push(g); continue }
+      const grupo = grupos.get(clave) ?? { titulo: acreedor ?? g.concepto, acreedor, gastos: [] }
+      grupo.gastos.push(g)
+      grupos.set(clave, grupo)
     }
     const pushGasto = (g: GastoPend) => {
       list.push({ fecha: vencimientoDeGasto(g), grupo: 'ESTE_MES', tipo: 'gasto', prioridad: 50, data: g })
     }
-    for (const [recId, gs] of porRecurrente.entries()) {
+    for (const [clave, grupo] of grupos.entries()) {
+      const gs = grupo.gastos
       if (gs.length === 1) { pushGasto(gs[0]); continue }
       const ordenados = [...gs].sort((a, b) => (a.mes < b.mes ? -1 : 1))
       const totalSaldo = gs.reduce((s, x) => s + (x.saldo_pendiente ?? Number(x.monto)), 0)
@@ -1692,7 +1702,10 @@ export function PendientesClient({
         grupo: 'ESTE_MES',
         tipo: 'gasto_grupo_servicio',
         prioridad: 50,
-        data: { recurrenteId: recId, concepto: ordenados[0].concepto, categoria: ordenados[0].categoria, gastos: ordenados, totalSaldo, cantidad: gs.length } as GastoGrupoServicio,
+        data: {
+          recurrenteId: clave, concepto: ordenados[0].concepto, categoria: ordenados[0].categoria,
+          gastos: ordenados, totalSaldo, cantidad: gs.length, acreedor: grupo.acreedor,
+        } as GastoGrupoServicio,
       })
     }
     for (const g of sueltos) pushGasto(g)

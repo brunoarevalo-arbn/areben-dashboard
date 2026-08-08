@@ -16,6 +16,22 @@ export const CC_GASTOS = new Set<string>([
   'Honorarios abogado Santiago Gómez - litigio laboral',
 ])
 
+// A un mismo acreedor se le puede deber por varios conceptos a la vez: el abono mensual del
+// abogado y, aparte, los honorarios de un juicio. Sin esto, la pantalla de Cuentas corrientes
+// los muestra como dos deudas distintas y no hay forma de ver cuánto se le debe a la persona.
+//
+// Acá se declara qué conceptos son del mismo acreedor. Los que no figuran siguen agrupándose
+// por su recurrente, como siempre.
+export const ACREEDOR_POR_CONCEPTO: Record<string, string> = {
+  'Abogado - Santiago Gomez': 'Santiago Gómez (abogado)',
+  'Honorarios abogado Santiago Gómez - litigio laboral': 'Santiago Gómez (abogado)',
+}
+
+/** Nombre del acreedor de un concepto, o null si no está declarado. */
+export function acreedorDe(concepto: string): string | null {
+  return ACREEDOR_POR_CONCEPTO[concepto] ?? null
+}
+
 export function esCuentaCorriente(g: {
   concepto: string
   recurrente_id?: string | null
