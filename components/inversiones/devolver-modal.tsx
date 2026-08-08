@@ -45,6 +45,8 @@ export function DevolverModal({
     startGuardado(async () => {
       const r = await devolverYCerrarInstrumento(instrumento.id, fecha)
       if (!r.ok) { setError(r.error); return }
+      // El comprobante se abre solo: es lo que se imprime para que el inversor firme.
+      window.open(`/api/reportes/instrumento/${instrumento.id}/devolucion`, '_blank')
       onDone(r.detalle)
       onClose()
     })
@@ -144,6 +146,7 @@ export function DevolverModal({
       )}
 
       <p className="text-[11px] text-fg-soft leading-snug">
+        Al confirmar se abre el comprobante para imprimir y que el inversor firme el recibo.
         La plata que sale no se carga como gasto: devolver capital no es un gasto, es que baja una
         deuda. Se refleja solo cuando cargás el saldo de Tesorería de fin de mes.
       </p>

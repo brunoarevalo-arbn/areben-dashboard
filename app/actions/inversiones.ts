@@ -694,6 +694,9 @@ export async function devolverYCerrarInstrumento(
       int_inicio_prorrateado: 0,
       int_fin_prorrateado: 0,
       movimiento: f.movimiento,
+      // El día del pago queda en la fila, no solo en las notas: de ahí lo lee el
+      // comprobante. No afecta el interés (cae fuera del ciclo, que corta ese día).
+      fecha_movimiento: f.mes === detalle.mesDevolucion ? detalle.fechaPago : null,
       saldo_cierre: f.saldo_cierre,
       cerrado: false,
     }))

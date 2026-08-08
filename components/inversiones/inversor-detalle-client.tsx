@@ -241,7 +241,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                     <RefreshCw className="w-3 h-3" />
                     {resaltarRenovar && <span className="ml-1 text-xs font-medium">Renovar</span>}
                   </Button>
-                  {i.estado === 'activo' && (
+                  {i.estado === 'activo' ? (
                     <Button
                       size="sm"
                       variant="ghost"
@@ -251,7 +251,18 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                     >
                       <HandCoins className="w-3 h-3" />
                     </Button>
-                  )}
+                  ) : i.estado === 'cerrado' ? (
+                    <a
+                      href={`/api/reportes/instrumento/${i.id}/devolucion`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Button size="sm" variant="ghost" title="Comprobante de devolución (para que firme el inversor)">
+                        <HandCoins className="w-3 h-3" />
+                      </Button>
+                    </a>
+                  ) : null}
                   <Link href={`/inversiones/reporte?instrumento=${i.id}`}>
                     <Button size="sm" variant="ghost" title="Generar reporte">
                       <FileText className="w-3 h-3" />
