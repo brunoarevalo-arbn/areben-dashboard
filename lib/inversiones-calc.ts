@@ -29,21 +29,56 @@ export interface TramoEntrada {
   tasa_mensual: number
 }
 
+/**
+ * Un movimiento de plata dentro del instrumento: un retiro o un ingreso.
+ * Puede haber varios en el mismo mes, cada uno con su día.
+ */
+export interface MovimientoCalc {
+  mes: string // YYYY-MM al que se imputa
+  /**
+   * Día en que se movió la plata (YYYY-MM-DD).
+   * Con la fecha, lo que se retira cobra interés solo por los días que estuvo.
+   * Sin fecha, el movimiento no ajusta el interés (así ningún número viejo se mueve).
+   */
+  fecha?: string | null
+  monto: number // con signo: negativo sale
+}
+
 interface CalcArgs {
   capitalInicial: number
   fechaInicio: string
   fechaFin?: string | null
   capitalizable: boolean
   hasta: string // YYYY-MM
+  movimientos?: MovimientoCalc[]
+  /** @deprecated Entrada vieja de un movimiento por mes. Usar `movimientos`. */
   movimientosByMes?: Record<string, number>
-  /**
-   * Día en que se movió la plata, por mes (YYYY-MM → YYYY-MM-DD).
-   * Con la fecha, lo que se retira cobra interés solo por los días que estuvo.
-   * Sin fecha, el movimiento no ajusta el interés (así ningún número viejo se mueve).
-   */
+  /** @deprecated Entrada vieja de un movimiento por mes. Usar `movimientos`. */
   fechasMovimiento?: Record<string, string | null>
   tramos: TramoEntrada[] // ordenados ASC por fecha_desde
   plazoDias?: number | null // plazo contractual del ciclo (para el modelo plano)
+}
+
+/**
+ * Deja la entrada en una sola forma: la lista de movimientos. Acepta todavía el par
+ * `movimientosByMes` / `fechasMovimiento` (un movimiento por mes) para no romper a los
+ * llamadores viejos; con un solo movimiento por mes las dos formas dan lo mismo.
+ */
+function normalizarMovs(args: CalcArgs): MovimientoCalc[] {
+  if (args.movimientos) return args.movimientos.filter((m) => m.monto !== 0)
+  const out: MovimientoCalc[] = []
+  for (const [mes, monto] of Object.entries(args.movimientosByMes ?? {})) {
+    if (!monto) continue
+    out.push({ mes, fecha: args.fechasMovimiento?.[mes] ?? null, monto })
+  }
+  return out
+}
+
+/** Cuánta plata neta se movió en cada mes. */
+function totalesPorMes(movs: MovimientoCalc[]): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const m of movs) out.set(m.mes, (out.get(m.mes) ?? 0) + m.monto)
+  return out
 }
 
 const round = (n: number) => Math.round(n * 100) / 100
@@ -185,18 +220,29 @@ function addMonthsDate(d: Date, meses: number): Date {
 
 /** Movimientos que tienen fecha conocida y caen dentro del ciclo [start, fin). */
 function fechados(
-  montos: Record<string, number>,
-  fechas: Record<string, string | null>,
+  movs: MovimientoCalc[],
   start: Date,
   fin: Date,
 ): { fecha: Date; monto: number }[] {
   const out: { fecha: Date; monto: number }[] = []
-  for (const [mes, monto] of Object.entries(montos)) {
-    const f = fechas[mes]
-    if (!f || !monto) continue
-    const fecha = parseDate(f)
+  for (const m of movs) {
+    if (!m.fecha || !m.monto) continue
+    const fecha = parseDate(m.fecha)
     if (fecha < start || fecha >= fin) continue
-    out.push({ fecha, monto })
+    out.push({ fecha, monto: m.monto })
+  }
+  return out.sort((a, b) => a.fecha.getTime() - b.fecha.getTime())
+}
+
+/** Los movimientos con fecha que caen dentro de un mes de calendario. */
+function conFechaEnMes(movs: MovimientoCalc[], mes: string): { fecha: Date; monto: number }[] {
+  const [year, month] = mes.split('-').map(Number)
+  const out: { fecha: Date; monto: number }[] = []
+  for (const m of movs) {
+    if (!m.fecha || !m.monto) continue
+    const fecha = parseDate(m.fecha)
+    if (fecha.getFullYear() !== year || fecha.getMonth() + 1 !== month) continue
+    out.push({ fecha, monto: m.monto })
   }
   return out.sort((a, b) => a.fecha.getTime() - b.fecha.getTime())
 }
@@ -228,13 +274,15 @@ export function generarPeriodos(args: CalcArgs): PeriodoCalc[] {
   if (args.tramos.length === 0) return []
   const start = parseDate(args.fechaInicio)
   const fin = args.fechaFin ? parseDate(args.fechaFin) : null
+  const movs = normalizarMovs(args)
+  const totales = totalesPorMes(movs)
 
   // PF NO capitalizables con vencimiento → modelo PLANO (1,75% por mes completo,
   // repartido proporcional por días). Capitalizables o sin vencimiento → compuesto histórico.
   if (!args.capitalizable && fin) {
-    return generarPeriodosPlano(args, start, fin)
+    return generarPeriodosPlano(args, start, fin, movs, totales)
   }
-  return generarPeriodosCompuesto(args, start, fin)
+  return generarPeriodosCompuesto(args, start, fin, movs, totales)
 }
 
 /**
@@ -244,8 +292,14 @@ export function generarPeriodos(args: CalcArgs): PeriodoCalc[] {
  * El día del vencimiento (fechaFin) NO cuenta: arranca el ciclo siguiente (fin exclusivo).
  * Si el ciclo se corta antes del plazo (retiro anticipado), se prorratea real (días/30).
  */
-function generarPeriodosPlano(args: CalcArgs, start: Date, fin: Date): PeriodoCalc[] {
-  const { capitalInicial, hasta, movimientosByMes = {}, fechasMovimiento = {}, tramos, plazoDias } = args
+function generarPeriodosPlano(
+  args: CalcArgs,
+  start: Date,
+  fin: Date,
+  movs: MovimientoCalc[],
+  totales: Map<string, number>,
+): PeriodoCalc[] {
+  const { capitalInicial, hasta, tramos, plazoDias } = args
   const [yHasta, mHasta] = hasta.split('-').map(Number)
 
   const diasCiclo = daysBetween(start, fin) // fin exclusivo
@@ -268,7 +322,7 @@ function generarPeriodosPlano(args: CalcArgs, start: Date, fin: Date): PeriodoCa
 
   // Movimientos con fecha conocida dentro del ciclo. Los que no tienen fecha no ajustan
   // el interés: mueven el saldo nomás, como antes de la migración 069.
-  const movsConFecha = fechados(movimientosByMes, fechasMovimiento, start, fin)
+  const movsConFecha = fechados(movs, start, fin)
 
   // Cuánto rinde el ciclo, medido en "meses" de la tasa. Si se cortó antes del plazo
   // (retiro anticipado), se prorratea real por los días que corrió.
@@ -328,7 +382,7 @@ function generarPeriodosPlano(args: CalcArgs, start: Date, fin: Date): PeriodoCa
     let sumaTasaMes = 0
     for (let t = 0; t < f.dias; t++) sumaTasaMes += tasaEnFecha(tramos, new Date(f.activoStart.getTime() + t * 86400000))
     const tasaMes = f.dias > 0 ? sumaTasaMes / f.dias : 0
-    const movimiento = movimientosByMes[f.mes] ?? 0
+    const movimiento = totales.get(f.mes) ?? 0
     const saldoInicio = saldoAcum
     const saldoCierre = round(saldoInicio + shares[idx] + movimiento)
     saldoAcum = saldoCierre
@@ -347,37 +401,45 @@ function generarPeriodosPlano(args: CalcArgs, start: Date, fin: Date): PeriodoCa
 }
 
 /**
- * Cuánto interés suma (o resta) un movimiento por los días que quedó vigente dentro de
- * su mes. Un retiro a mitad de mes devuelve negativo: esa plata dejó de trabajar.
+ * Cuánto interés suman (o restan) los movimientos del mes por los días que quedaron
+ * vigentes dentro de él. Un retiro a mitad de mes resta: esa plata dejó de trabajar.
+ * Se suma sin redondear en el medio; el redondeo va una sola vez sobre el total.
  */
 function ajusteIntraMes(
-  movimiento: number,
-  fechaMov: string | null | undefined,
+  movsDelMes: { fecha: Date; monto: number }[],
   mes: string,
   start: Date,
   fin: Date | null,
   tasa: number,
 ): number {
-  if (!movimiento || !fechaMov || !tasa) return 0
+  if (!tasa || movsDelMes.length === 0) return 0
   const [year, month] = mes.split('-').map(Number)
   const monthEnd = new Date(year, month, 0)
   const dim = monthEnd.getDate()
-  const fecha = parseDate(fechaMov)
-  if (fecha.getFullYear() !== year || fecha.getMonth() + 1 !== month) return 0
-
   const activoEnd = fin && fin < monthEnd ? fin : monthEnd
-  const desde = fecha > start ? fecha : start
-  if (desde > activoEnd) return 0
-  const diasVigentes = Math.round((activoEnd.getTime() - desde.getTime()) / 86400000) + 1
-  return movimiento * tasa * (diasVigentes / dim)
+
+  let total = 0
+  for (const m of movsDelMes) {
+    const desde = m.fecha > start ? m.fecha : start
+    if (desde > activoEnd) continue
+    const diasVigentes = Math.round((activoEnd.getTime() - desde.getTime()) / 86400000) + 1
+    total += m.monto * tasa * (diasVigentes / dim)
+  }
+  return total
 }
 
 /**
  * MODELO COMPUESTO (histórico) — capitalizables o instrumentos sin vencimiento.
  * Interés por mes de calendario, prorrateado por días, con capitalización mensual.
  */
-function generarPeriodosCompuesto(args: CalcArgs, start: Date, fin: Date | null): PeriodoCalc[] {
-  const { capitalInicial, capitalizable, hasta, movimientosByMes = {}, fechasMovimiento = {}, tramos } = args
+function generarPeriodosCompuesto(
+  args: CalcArgs,
+  start: Date,
+  fin: Date | null,
+  movs: MovimientoCalc[],
+  totales: Map<string, number>,
+): PeriodoCalc[] {
+  const { capitalInicial, capitalizable, hasta, tramos } = args
   const [yHasta, mHasta] = hasta.split('-').map(Number)
 
   const periodos: PeriodoCalc[] = []
@@ -396,10 +458,10 @@ function generarPeriodosCompuesto(args: CalcArgs, start: Date, fin: Date | null)
 
     const calc = calcularInteresMes(baseInteres, mes, start, fin, tramos)
 
-    const movimiento = movimientosByMes[mes] ?? 0
+    const movimiento = totales.get(mes) ?? 0
     // Si se sabe qué día se movió la plata, lo movido rinde solo por los días que
     // estuvo dentro de este mes. Sin fecha, el interés del mes no se toca.
-    const interesMes = round(calc.interes + ajusteIntraMes(movimiento, fechasMovimiento[mes], mes, start, fin, calc.tasaPromedio))
+    const interesMes = round(calc.interes + ajusteIntraMes(conFechaEnMes(movs, mes), mes, start, fin, calc.tasaPromedio))
     const saldoCierre = saldoInicio + interesMes + movimiento
 
     periodos.push({
@@ -421,159 +483,6 @@ function generarPeriodosCompuesto(args: CalcArgs, start: Date, fin: Date | null)
   }
 
   return periodos
-}
-
-// ────────────────────────────────────────────────────────────
-// Simulador de movimientos (retiro parcial / total / ingreso)
-// ────────────────────────────────────────────────────────────
-
-// El retiro total no se simula: se hace con `planDevolucion` + "Devolver y cerrar",
-// que corta bien los intereses y deja el saldo en cero.
-export type TipoMovimiento = 'RETIRO_PARCIAL' | 'INGRESO'
-
-export interface SimuladorInput {
-  saldoInicioMes: number
-  capitalizable: boolean
-  fechaInicio: string
-  fechaFin?: string | null
-  mes: string // YYYY-MM
-  tramosTasa: TramoEntrada[]
-  tipoMovimiento: TipoMovimiento
-  fechaMovimiento: string // YYYY-MM-DD
-  monto: number // siempre positivo; el tipo aplica el signo
-}
-
-export interface ResultadoSimulacion {
-  tramos: SegmentoCalc[]
-  saldoInicio: number
-  diasMes: number
-  totalIntereses: number
-  movimientoSignado: number
-  saldoCierre: number
-  error?: string
-}
-
-function segmentarPorTramos(
-  desde: Date,
-  hasta: Date,
-  base: number,
-  tramos: TramoEntrada[],
-  diasMes: number,
-): SegmentoCalc[] {
-  if (hasta < desde) return []
-
-  const cambios: Date[] = []
-  for (const t of tramos) {
-    const tDate = parseDate(t.fecha_desde)
-    if (tDate > desde && tDate <= hasta) cambios.push(tDate)
-  }
-  cambios.sort((a, b) => a.getTime() - b.getTime())
-
-  const segmentos: SegmentoCalc[] = []
-  let segStart = new Date(desde)
-
-  for (const c of cambios) {
-    const segEnd = new Date(c.getTime() - 86400000)
-    if (segEnd >= segStart) {
-      const tasa = tasaEnFecha(tramos, segStart)
-      const dias = Math.round((segEnd.getTime() - segStart.getTime()) / 86400000) + 1
-      segmentos.push({
-        desde: fmtDate(segStart),
-        hasta: fmtDate(segEnd),
-        tasa,
-        dias,
-        interes: round(base * tasa * (dias / diasMes)),
-      })
-    }
-    segStart = new Date(c)
-  }
-
-  const tasaUlt = tasaEnFecha(tramos, segStart)
-  const diasUlt = Math.round((hasta.getTime() - segStart.getTime()) / 86400000) + 1
-  if (diasUlt > 0) {
-    segmentos.push({
-      desde: fmtDate(segStart),
-      hasta: fmtDate(hasta),
-      tasa: tasaUlt,
-      dias: diasUlt,
-      interes: round(base * tasaUlt * (diasUlt / diasMes)),
-    })
-  }
-
-  return segmentos
-}
-
-export function simularMovimiento(args: SimuladorInput): ResultadoSimulacion {
-  const [year, month] = args.mes.split('-').map(Number)
-  const monthStart = new Date(year, month - 1, 1)
-  const monthEnd = new Date(year, month, 0)
-  const diasMes = monthEnd.getDate()
-
-  const instStart = parseDate(args.fechaInicio)
-  const instEnd = args.fechaFin ? parseDate(args.fechaFin) : null
-
-  const activoStart = instStart > monthStart ? instStart : monthStart
-  const activoEnd = instEnd && instEnd < monthEnd ? instEnd : monthEnd
-
-  const fechaMov = parseDate(args.fechaMovimiento)
-  const tipoMov = args.tipoMovimiento
-  const monto = args.monto
-
-  // Validar fecha dentro del rango activo
-  if (fechaMov < activoStart || fechaMov > activoEnd) {
-    return {
-      tramos: [], saldoInicio: args.saldoInicioMes, diasMes,
-      totalIntereses: 0, movimientoSignado: 0, saldoCierre: args.saldoInicioMes,
-      error: 'La fecha está fuera del rango activo del instrumento en este mes',
-    }
-  }
-
-  // Validar monto
-  if (tipoMov !== 'INGRESO' && monto > args.saldoInicioMes) {
-    return {
-      tramos: [], saldoInicio: args.saldoInicioMes, diasMes,
-      totalIntereses: 0, movimientoSignado: 0, saldoCierre: args.saldoInicioMes,
-      error: 'El monto supera el saldo disponible',
-    }
-  }
-
-  if (monto <= 0) {
-    return {
-      tramos: [], saldoInicio: args.saldoInicioMes, diasMes,
-      totalIntereses: 0, movimientoSignado: 0, saldoCierre: args.saldoInicioMes,
-      error: 'Ingresá un monto mayor a cero',
-    }
-  }
-
-  // Parcial / Ingreso → dos sub-rangos
-  const signedMov = tipoMov === 'INGRESO' ? monto : -monto
-  const segmentos: SegmentoCalc[] = []
-
-  // Tramo 1: activoStart → (fechaMov - 1)
-  const t1End = new Date(fechaMov.getTime() - 86400000)
-  if (t1End >= activoStart) {
-    segmentos.push(...segmentarPorTramos(activoStart, t1End, args.saldoInicioMes, args.tramosTasa, diasMes))
-  }
-
-  // Tramo 2: fechaMov → activoEnd, con base actualizada
-  const baseT2 = args.saldoInicioMes + signedMov
-  if (fechaMov <= activoEnd && baseT2 > 0) {
-    segmentos.push(...segmentarPorTramos(fechaMov, activoEnd, baseT2, args.tramosTasa, diasMes))
-  }
-
-  const totalInt = segmentos.reduce((s, x) => s + x.interes, 0)
-  const saldoCierre = args.capitalizable
-    ? args.saldoInicioMes + totalInt + signedMov
-    : args.saldoInicioMes + signedMov
-
-  return {
-    tramos: segmentos,
-    saldoInicio: args.saldoInicioMes,
-    diasMes,
-    totalIntereses: round(totalInt),
-    movimientoSignado: signedMov,
-    saldoCierre: round(saldoCierre),
-  }
 }
 
 // ────────────────────────────────────────────────────────────

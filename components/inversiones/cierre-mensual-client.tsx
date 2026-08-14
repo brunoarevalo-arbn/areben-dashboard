@@ -2,15 +2,14 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import {
-  actualizarMovimientoPeriodo,
   cerrarPeriodoYCrearGasto,
   reabrirPeriodos,
   type CerrarPeriodoResult,
 } from '@/app/actions/inversiones'
 import type { PeriodoInstrumento, Instrumento, Inversor } from '@/types/database'
 import { Button } from '@/components/ui/button'
-import { NumberInput } from '@/components/ui/number-input'
 import { Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
@@ -19,7 +18,7 @@ import { RenovarModal } from './renovar-modal'
 import { formatMoneda, estadoVencimiento } from '@/lib/inversiones-calc'
 import { formatMonth, getMonthOptions, formatCurrency, formatDate } from '@/lib/utils'
 import {
-  Lock, Unlock, AlertTriangle, Loader2, CheckCircle2, PiggyBank, Pencil, Save, X,
+  Lock, Unlock, AlertTriangle, Loader2, CheckCircle2, PiggyBank, X,
   FileText, XCircle, ArrowRight, RefreshCw, Calendar,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -36,65 +35,36 @@ interface Props {
   mesesAbiertosAnteriores: string[]
 }
 
-function MovimientoEditor({ p, onSaved }: { p: PeriodoConRel; onSaved: () => void }) {
-  const [editing, setEditing] = useState(false)
-  const [val, setVal] = useState(Number(p.movimiento ?? 0))
-  const [isPending, startTransition] = useTransition()
+/**
+ * La plata que entra y sale ya no se edita acá. Se carga desde la ficha del inversor,
+ * donde se le pide el día: sin el día, el interés no se ajusta y se le termina pagando
+ * de más al inversor por plata que ya se llevó.
+ */
+function MovimientoCelda({ p }: { p: PeriodoConRel }) {
   const moneda = p.instrumento?.moneda ?? 'ARS'
+  const monto = Number(p.movimiento ?? 0)
+  const inversorId = p.instrumento?.inversor?.id ?? p.instrumento?.inversor_id
 
-  if (p.cerrado) {
-    return <span className="font-mono text-fg-muted">{Number(p.movimiento) !== 0 ? formatMoneda(Number(p.movimiento), moneda) : '—'}</span>
-  }
-
-  if (!editing) {
-    return (
-      <div className="flex items-center justify-end gap-1.5 group">
-        <span className="font-mono text-fg-muted">
-          {Number(p.movimiento) !== 0 ? formatMoneda(Number(p.movimiento), moneda) : '—'}
-        </span>
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-surface-2 text-fg-soft hover:text-fg-muted transition-all"
-          title="Editar movimiento"
-        >
-          <Pencil className="w-3 h-3" />
-        </button>
-      </div>
-    )
-  }
+  if (monto === 0) return <span className="font-mono text-fg-soft">—</span>
 
   return (
-    <div className="flex items-center gap-1 justify-end">
-      <NumberInput
-        step="0.01"
-        value={val}
-        onChange={setVal}
-        autoFocus
-        className="w-28 px-2 py-1 bg-surface border border-border-strong rounded text-fg font-mono text-xs text-right focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-primary/25"
-      />
-      <button
-        type="button"
-        disabled={isPending}
-        onClick={() => {
-          startTransition(async () => {
-            await actualizarMovimientoPeriodo(p.id, val)
-            setEditing(false)
-            onSaved()
-          })
-        }}
-        className="p-1 rounded bg-green-600/20 text-green-700 hover:bg-green-600/30"
-        title="Guardar"
-      >
-        {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-      </button>
-      <button
-        type="button"
-        onClick={() => { setVal(Number(p.movimiento ?? 0)); setEditing(false) }}
-        className="p-1 rounded bg-[#efeae0] text-fg-soft hover:bg-[#e3ddd0]"
-      >
-        <X className="w-3 h-3" />
-      </button>
+    <div className="flex flex-col items-end gap-0.5">
+      <span className={cn('font-mono', monto < 0 ? 'text-red-700' : 'text-green-700')}>
+        {formatMoneda(monto, moneda)}
+      </span>
+      {p.fecha_movimiento ? (
+        <span className="text-[10px] text-fg-soft">el {formatDate(p.fecha_movimiento)}</span>
+      ) : (
+        <span className="text-[10px] text-fg-soft">sin día — no cambia el interés</span>
+      )}
+      {inversorId && (
+        <Link
+          href={`/inversiones/${inversorId}`}
+          className="text-[10px] text-primary hover:underline"
+        >
+          Ver movimientos
+        </Link>
+      )}
     </div>
   )
 }
@@ -426,7 +396,7 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
                     <td className="px-4 py-2 text-right font-mono text-fg-muted">{formatMoneda(Number(p.saldo_inicio), i.moneda)}</td>
                     <td className="px-4 py-2 text-right font-mono text-amber-700 font-medium">{formatMoneda(Number(p.interes_devengado), i.moneda)}</td>
                     <td className="px-4 py-2 text-right">
-                      <MovimientoEditor p={p} onSaved={() => router.refresh()} />
+                      <MovimientoCelda p={p} />
                     </td>
                     <td className="px-4 py-2 text-right font-mono text-fg font-bold">{formatMoneda(Number(p.saldo_cierre), i.moneda)}</td>
                     <td className="px-4 py-2">

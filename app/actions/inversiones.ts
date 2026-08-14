@@ -3,7 +3,8 @@
 import { createClient, requireUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { generarPeriodos, getCurrentMonth, planDevolucion, type FilaPeriodo } from '@/lib/inversiones-calc'
+import { generarPeriodos, getCurrentMonth, planDevolucion, type FilaPeriodo, type MovimientoCalc } from '@/lib/inversiones-calc'
+import type { MotivoMovimiento } from '@/types/database'
 
 // ============ INVERSORES ============
 
@@ -104,6 +105,51 @@ const instrumentoSchema = z.object({
   ),
 })
 
+/**
+ * Los movimientos de plata del instrumento, que son la fuente de verdad del cálculo.
+ * `excluirDevolucion` saca el movimiento que genera "Devolver y cerrar": al recalcular
+ * la devolución, contarlo restaría la plata dos veces.
+ */
+async function leerMovimientos(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  instrumentoId: string,
+  opts?: { excluirDevolucion?: boolean },
+): Promise<MovimientoCalc[]> {
+  let q = supabase
+    .from('movimientos_instrumento')
+    .select('mes, fecha, monto')
+    .eq('instrumento_id', instrumentoId)
+  if (opts?.excluirDevolucion) q = q.neq('origen', 'devolucion_cierre')
+  const { data } = await q
+  return (data ?? []).map((m) => ({ mes: m.mes, fecha: m.fecha ?? null, monto: Number(m.monto) }))
+}
+
+/**
+ * El cache que se guarda en cada fila de período: cuánto se movió en el mes y, si se
+ * puede, qué día. Con varios movimientos no hay "una" fecha, así que queda vacía —
+ * ponerle una sería mentir. La devolución tiene prioridad porque su fecha es la que
+ * usa el comprobante que firma el inversor.
+ */
+function cacheDeMovimientos(
+  movs: { mes: string; fecha?: string | null; monto: number; motivo?: string }[],
+): { totales: Record<string, number>; fechas: Record<string, string | null> } {
+  const totales: Record<string, number> = {}
+  const fechas: Record<string, string | null> = {}
+  const porMes = new Map<string, typeof movs>()
+  for (const m of movs) {
+    totales[m.mes] = round2((totales[m.mes] ?? 0) + m.monto)
+    porMes.set(m.mes, [...(porMes.get(m.mes) ?? []), m])
+  }
+  for (const [mes, lista] of porMes) {
+    const devolucion = lista.find((m) => m.motivo === 'devolucion' && m.fecha)
+    const conFecha = lista.filter((m) => m.fecha)
+    fechas[mes] = devolucion?.fecha ?? (conFecha.length === 1 ? conFecha[0].fecha! : null)
+  }
+  return { totales, fechas }
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+
 async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createClient>>, instrumentoId: string) {
   const { data: inst } = await supabase.from('instrumentos_inversion').select('*').eq('id', instrumentoId).single()
   if (!inst) return
@@ -120,23 +166,27 @@ async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createCli
     ? (tramos ?? []).map((t) => ({ fecha_desde: t.fecha_desde, tasa_mensual: Number(t.tasa_mensual) }))
     : [{ fecha_desde: inst.fecha_inicio, tasa_mensual: Number(inst.tasa_mensual) }]
 
-  // Cargar movimientos existentes para preservarlos
+  // Los movimientos salen de su tabla; del período solo se necesita saber qué meses
+  // están cerrados, porque esos no se tocan nunca.
+  const { data: movRows } = await supabase
+    .from('movimientos_instrumento')
+    .select('mes, fecha, monto, motivo')
+    .eq('instrumento_id', instrumentoId)
+  const movimientos: MovimientoCalc[] = (movRows ?? []).map((m) => ({
+    mes: m.mes,
+    fecha: m.fecha ?? null,
+    monto: Number(m.monto),
+  }))
+  const cache = cacheDeMovimientos(
+    (movRows ?? []).map((m) => ({ mes: m.mes, fecha: m.fecha ?? null, monto: Number(m.monto), motivo: m.motivo })),
+  )
+
   const { data: existentes } = await supabase
     .from('periodos_instrumento')
-    .select('mes, movimiento, fecha_movimiento, cerrado')
+    .select('mes, cerrado')
     .eq('instrumento_id', instrumentoId)
-  const movs: Record<string, number> = {}
-  const fechasMov: Record<string, string | null> = {}
   const cerrados = new Set<string>()
-  const fechasPorMes: Record<string, string | null> = {}
-  for (const p of existentes ?? []) {
-    if (p.movimiento && p.movimiento !== 0) {
-      movs[p.mes] = Number(p.movimiento)
-      fechasMov[p.mes] = p.fecha_movimiento ?? null
-    }
-    if (p.cerrado) cerrados.add(p.mes)
-    fechasPorMes[p.mes] = p.fecha_movimiento ?? null
-  }
+  for (const p of existentes ?? []) if (p.cerrado) cerrados.add(p.mes)
 
   const hasta = inst.fecha_fin && inst.fecha_fin <= getCurrentMonthBoundary()
     ? inst.fecha_fin.substring(0, 7)
@@ -148,8 +198,7 @@ async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createCli
     fechaFin: inst.fecha_fin,
     capitalizable: inst.capitalizable,
     hasta,
-    movimientosByMes: movs,
-    fechasMovimiento: fechasMov,
+    movimientos,
     tramos: tramosArr,
     plazoDias: inst.plazo_dias,
   })
@@ -166,8 +215,8 @@ async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createCli
       interes_devengado: p.interes_devengado,
       int_inicio_prorrateado: p.int_inicio_prorrateado,
       int_fin_prorrateado: p.int_fin_prorrateado,
-      movimiento: p.movimiento,
-      fecha_movimiento: fechasPorMes[p.mes] ?? null,
+      movimiento: cache.totales[p.mes] ?? 0,
+      fecha_movimiento: cache.fechas[p.mes] ?? null,
       saldo_cierre: p.saldo_cierre,
       tasa_aplicada: p.tasa_aplicada,
       cerrado: false,
@@ -550,19 +599,10 @@ async function armarDevolucion(
     return { ok: false, error: 'La fecha de devolución no deja ni un día de plazo.' }
   }
 
-  const { data: movsPrevios } = await supabase
-    .from('periodos_instrumento')
-    .select('mes, movimiento, fecha_movimiento')
-    .eq('instrumento_id', instrumentoId)
-    .neq('movimiento', 0)
-
-  // Los retiros parciales del ciclo bajan el interés desde el día que salieron.
-  const movimientosByMes: Record<string, number> = {}
-  const fechasMovimiento: Record<string, string | null> = {}
-  for (const m of movsPrevios ?? []) {
-    movimientosByMes[m.mes] = Number(m.movimiento)
-    fechasMovimiento[m.mes] = m.fecha_movimiento ?? null
-  }
+  // Los retiros parciales del ciclo bajan el interés desde el día que salieron. Se
+  // excluye la devolución anterior (si la hubo): esa plata ya sale por este mismo
+  // cálculo, contarla otra vez la restaría dos veces.
+  const movimientos = await leerMovimientos(supabase, instrumentoId, { excluirDevolucion: true })
 
   const periodosGenerados = generarPeriodos({
     capitalInicial: Number(inst.capital_inicial),
@@ -570,8 +610,7 @@ async function armarDevolucion(
     fechaFin: finGenerador,
     capitalizable: inst.capitalizable,
     hasta: fechaCorte.substring(0, 7),
-    movimientosByMes,
-    fechasMovimiento,
+    movimientos,
     tramos: tramosArr,
     plazoDias: inst.plazo_dias,
   })
@@ -675,6 +714,26 @@ export async function devolverYCerrarInstrumento(
   const r = await armarDevolucion(supabase, instrumentoId, fechaPago)
   if (!r.ok) return r
   const { detalle, filas } = r
+
+  // La plata que sale queda como un movimiento más, con su día y su motivo. Se borra el
+  // de una devolución anterior (puede haber quedado de reabrir y rehacer) para no
+  // duplicarlo. Cae el día del vencimiento, así que no toca el interés del ciclo.
+  await supabase
+    .from('movimientos_instrumento')
+    .delete()
+    .eq('instrumento_id', instrumentoId)
+    .eq('origen', 'devolucion_cierre')
+
+  const { error: errMov } = await supabase.from('movimientos_instrumento').insert({
+    instrumento_id: instrumentoId,
+    mes: detalle.mesDevolucion,
+    fecha: detalle.fechaPago,
+    monto: -detalle.totalADevolver,
+    motivo: 'devolucion',
+    nota: `Capital ${detalle.capitalPendiente.toFixed(2)} + intereses ${detalle.interesesCiclo.toFixed(2)}.`,
+    origen: 'devolucion_cierre',
+  })
+  if (errMov) return { ok: false, error: `No se pudo guardar el movimiento: ${errMov.message}` }
 
   // Reescribir los períodos abiertos (los cerrados quedan intactos)
   const { error: errDel } = await supabase
@@ -801,30 +860,239 @@ export async function deleteTramoTasa(id: string) {
 
 // ============ PERIODOS ============
 
-export async function actualizarMovimientoPeriodo(periodoId: string, movimiento: number) {
-  await requireUser()
-  const supabase = await createClient()
-  const { data: p } = await supabase.from('periodos_instrumento').select('*, instrumento:instrumentos_inversion(*)').eq('id', periodoId).single()
-  if (!p) throw new Error('Período no encontrado')
+// ============ MOVIMIENTOS DE PLATA ============
+//
+// Antes había dos caminos para cargar un retiro y solo uno guardaba el día. El que
+// estaba más a mano (el lápiz de la grilla de cierre) no lo pedía, y sin día el interés
+// no se ajusta: se le terminaba pagando de más al inversor por plata que ya se había
+// llevado. Ahora hay un solo camino y el día es obligatorio.
 
-  const inst = (p as { instrumento: { capitalizable: boolean } }).instrumento
-  const saldoCierre = inst.capitalizable
-    ? Number(p.saldo_inicio) + Number(p.interes_devengado) + movimiento
-    : Number(p.saldo_inicio) + movimiento
+export type MovimientoResult = { ok: true } | { ok: false; error: string }
 
-  const { error } = await supabase.from('periodos_instrumento').update({
-    movimiento,
-    saldo_cierre: Math.round(saldoCierre * 100) / 100,
-  }).eq('id', periodoId)
-  if (error) throw new Error(error.message)
+const movimientoSchema = z.object({
+  instrumentoId: z.string().uuid(),
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Falta el día del movimiento'),
+  monto: z.number().refine((n) => n !== 0, 'El monto no puede ser cero'),
+  motivo: z.enum(['retiro_parcial', 'aporte_nuevo', 'devolucion', 'ajuste']),
+  nota: z.string().optional().nullable(),
+})
 
-  // Si capitalizable, los periodos siguientes (no cerrados) deben recalcularse
-  if (inst.capitalizable) {
-    await regenerarPeriodosDB(supabase, p.instrumento_id)
+/**
+ * Chequea todo lo que tiene que dar bien para poder cargar (o mover) un movimiento.
+ * `ignorarId` sirve al editar: el movimiento que se está tocando no cuenta contra el tope.
+ */
+async function validarMovimiento(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: { instrumentoId: string; fecha: string; monto: number; ignorarId?: string },
+): Promise<{ ok: true; mes: string } | { ok: false; error: string }> {
+  const mes = args.fecha.substring(0, 7)
+
+  const { data: inst } = await supabase
+    .from('instrumentos_inversion')
+    .select('id, estado, fecha_inicio, fecha_fin, capital_inicial')
+    .eq('id', args.instrumentoId)
+    .single()
+  if (!inst) return { ok: false, error: 'No se encontró el plazo fijo.' }
+  if (inst.estado !== 'activo') {
+    return { ok: false, error: 'Este plazo fijo ya está cerrado. No se le pueden cargar movimientos.' }
   }
 
-  revalidatePath('/inversiones/cierre')
+  // El día tiene que caer dentro del plazo. El día del vencimiento no cuenta: ese día
+  // ya arranca el ciclo siguiente.
+  if (args.fecha < inst.fecha_inicio) {
+    return { ok: false, error: `El plazo fijo arrancó el ${fmtDia(inst.fecha_inicio)}. No se puede mover plata antes de esa fecha.` }
+  }
+  if (inst.fecha_fin && args.fecha >= inst.fecha_fin) {
+    return { ok: false, error: `El plazo fijo vence el ${fmtDia(inst.fecha_fin)}. Para cerrarlo usá "Devolver y cerrar".` }
+  }
+
+  const { data: periodos } = await supabase
+    .from('periodos_instrumento')
+    .select('mes, saldo_inicio, interes_devengado, cerrado')
+    .eq('instrumento_id', args.instrumentoId)
+    .order('mes')
+
+  // El mes del movimiento no puede estar cerrado: es una foto contable ya publicada.
+  const periodoDelMes = (periodos ?? []).find((p) => p.mes === mes)
+  if (periodoDelMes?.cerrado) {
+    return {
+      ok: false,
+      error: `El mes de ${mes} ya está cerrado. Reabrilo desde Inversiones → Cierre mensual y volvé a cargar el movimiento.`,
+    }
+  }
+
+  // Y tampoco puede haber meses cerrados DESPUÉS: el movimiento les cambiaría el
+  // interés y esos meses no se vuelven a calcular, así que quedarían mal en silencio.
+  const cerradosPosteriores = (periodos ?? []).filter((p) => p.cerrado && p.mes > mes).map((p) => p.mes)
+  if (cerradosPosteriores.length > 0) {
+    return {
+      ok: false,
+      error:
+        `Hay meses ya cerrados después de ese día (${cerradosPosteriores.join(', ')}). ` +
+        'Reabrilos desde Inversiones → Cierre mensual, si no el interés de esos meses queda mal.',
+    }
+  }
+
+  // Si saca plata, que no saque más de la que hay.
+  if (args.monto < 0) {
+    let q = supabase
+      .from('movimientos_instrumento')
+      .select('monto')
+      .eq('instrumento_id', args.instrumentoId)
+      .lte('mes', mes)
+    if (args.ignorarId) q = q.neq('id', args.ignorarId)
+    const { data: previos } = await q
+    const movidoAntes = (previos ?? []).reduce((s, m) => s + Number(m.monto), 0)
+    const tope = periodoDelMes
+      ? Number(periodoDelMes.saldo_inicio) + Number(periodoDelMes.interes_devengado)
+      : Number(inst.capital_inicial) + movidoAntes
+    if (Math.abs(args.monto) > tope + 0.01) {
+      return { ok: false, error: `Estás sacando más de lo que hay en el plazo fijo. Como mucho podés sacar ${tope.toFixed(2)}.` }
+    }
+  }
+
+  return { ok: true, mes }
+}
+
+function fmtDia(iso: string) {
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
+}
+
+async function refrescarInversiones(supabase: Awaited<ReturnType<typeof createClient>>, instrumentoId: string) {
+  await regenerarPeriodosDB(supabase, instrumentoId)
+  const { data: inst } = await supabase
+    .from('instrumentos_inversion')
+    .select('inversor_id')
+    .eq('id', instrumentoId)
+    .single()
   revalidatePath('/inversiones')
+  if (inst?.inversor_id) revalidatePath(`/inversiones/${inst.inversor_id}`)
+  revalidatePath('/inversiones/cierre')
+  revalidatePath('/inversiones/gastos')
+  revalidatePath('/finanzas/cierre-mes')
+}
+
+export async function crearMovimiento(args: {
+  instrumentoId: string
+  fecha: string
+  monto: number
+  motivo: MotivoMovimiento
+  nota?: string | null
+}): Promise<MovimientoResult> {
+  await requireUser()
+  const parsed = movimientoSchema.safeParse(args)
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
+
+  const supabase = await createClient()
+  const check = await validarMovimiento(supabase, args)
+  if (!check.ok) return check
+
+  const { error } = await supabase.from('movimientos_instrumento').insert({
+    instrumento_id: args.instrumentoId,
+    mes: check.mes,
+    fecha: args.fecha,
+    monto: args.monto,
+    motivo: args.motivo,
+    nota: blank(args.nota),
+    origen: 'manual',
+  })
+  if (error) return { ok: false, error: `No se pudo guardar el movimiento: ${error.message}` }
+
+  await refrescarInversiones(supabase, args.instrumentoId)
+  return { ok: true }
+}
+
+export async function editarMovimiento(
+  id: string,
+  patch: { fecha: string; monto: number; motivo: MotivoMovimiento; nota?: string | null },
+): Promise<MovimientoResult> {
+  await requireUser()
+  const supabase = await createClient()
+
+  const { data: actual } = await supabase
+    .from('movimientos_instrumento')
+    .select('id, instrumento_id, mes, origen')
+    .eq('id', id)
+    .single()
+  if (!actual) return { ok: false, error: 'No se encontró el movimiento.' }
+  if (actual.origen === 'devolucion_cierre') {
+    return { ok: false, error: 'Este movimiento lo generó "Devolver y cerrar". Para cambiarlo hay que reabrir el mes y volver a hacer la devolución.' }
+  }
+
+  const parsed = movimientoSchema.safeParse({ ...patch, instrumentoId: actual.instrumento_id })
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
+
+  // Se chequea contra el mes nuevo, y aparte que el mes viejo tampoco esté cerrado:
+  // sacar un movimiento de un mes publicado le cambiaría el número.
+  const check = await validarMovimiento(supabase, {
+    instrumentoId: actual.instrumento_id,
+    fecha: patch.fecha,
+    monto: patch.monto,
+    ignorarId: id,
+  })
+  if (!check.ok) return check
+
+  if (check.mes !== actual.mes) {
+    const { data: viejo } = await supabase
+      .from('periodos_instrumento')
+      .select('cerrado')
+      .eq('instrumento_id', actual.instrumento_id)
+      .eq('mes', actual.mes)
+      .maybeSingle()
+    if (viejo?.cerrado) {
+      return { ok: false, error: `El movimiento está en ${actual.mes}, que ya está cerrado. Reabrí ese mes antes de moverlo.` }
+    }
+  }
+
+  const { error } = await supabase
+    .from('movimientos_instrumento')
+    .update({
+      fecha: patch.fecha,
+      mes: check.mes,
+      monto: patch.monto,
+      motivo: patch.motivo,
+      nota: blank(patch.nota),
+    })
+    .eq('id', id)
+  if (error) return { ok: false, error: `No se pudo guardar el cambio: ${error.message}` }
+
+  await refrescarInversiones(supabase, actual.instrumento_id)
+  return { ok: true }
+}
+
+export async function borrarMovimiento(id: string): Promise<MovimientoResult> {
+  await requireUser()
+  const supabase = await createClient()
+
+  const { data: mov } = await supabase
+    .from('movimientos_instrumento')
+    .select('id, instrumento_id, mes, origen')
+    .eq('id', id)
+    .single()
+  if (!mov) return { ok: false, error: 'No se encontró el movimiento.' }
+  if (mov.origen === 'devolucion_cierre') {
+    return { ok: false, error: 'Este movimiento lo generó "Devolver y cerrar". No se borra a mano: hay que reabrir el mes y rehacer la devolución.' }
+  }
+
+  const { data: periodos } = await supabase
+    .from('periodos_instrumento')
+    .select('mes, cerrado')
+    .eq('instrumento_id', mov.instrumento_id)
+    .eq('cerrado', true)
+  const bloqueantes = (periodos ?? []).filter((p) => p.mes >= mov.mes).map((p) => p.mes)
+  if (bloqueantes.length > 0) {
+    return {
+      ok: false,
+      error: `No se puede borrar: ${bloqueantes.join(', ')} ya está cerrado y el número quedaría mal. Reabrilo desde Inversiones → Cierre mensual.`,
+    }
+  }
+
+  const { error } = await supabase.from('movimientos_instrumento').delete().eq('id', id)
+  if (error) return { ok: false, error: `No se pudo borrar: ${error.message}` }
+
+  await refrescarInversiones(supabase, mov.instrumento_id)
+  return { ok: true }
 }
 
 export async function cerrarPeriodos(mes: string) {
@@ -836,77 +1104,6 @@ export async function cerrarPeriodos(mes: string) {
     .eq('mes', mes)
     .eq('cerrado', false)
   if (error) throw new Error(error.message)
-  revalidatePath('/inversiones/cierre')
-  revalidatePath('/inversiones/gastos')
-}
-
-/**
- * Aplica un movimiento simulado al período del mes correspondiente.
- *
- * Solo movimientos que dejan el instrumento VIVO. Devolverle todo al inversor va por
- * `devolverYCerrarInstrumento`: el retiro total que vivía acá congelaba el interés del
- * plazo completo y después recalculaba prorrateado, así que pagaba de más y dejaba el
- * saldo en negativo.
- */
-export async function aplicarMovimientoSimulado(args: {
-  instrumentoId: string
-  mes: string
-  tipoMovimiento: 'RETIRO_PARCIAL' | 'INGRESO'
-  fechaMovimiento: string
-  monto: number
-}) {
-  await requireUser()
-  const supabase = await createClient()
-
-  const { data: inst } = await supabase
-    .from('instrumentos_inversion')
-    .select('*')
-    .eq('id', args.instrumentoId)
-    .single()
-  if (!inst) throw new Error('Instrumento no encontrado')
-
-  const { data: periodo } = await supabase
-    .from('periodos_instrumento')
-    .select('*')
-    .eq('instrumento_id', args.instrumentoId)
-    .eq('mes', args.mes)
-    .single()
-  if (!periodo) throw new Error('No existe período para este mes')
-  if (periodo.cerrado) throw new Error('El período ya está cerrado')
-
-  // Validar monto si es retiro
-  if (args.tipoMovimiento !== 'INGRESO') {
-    const tope = Number(periodo.saldo_inicio) + Number(periodo.interes_devengado)
-    if (args.monto > tope) {
-      throw new Error('El monto supera el saldo disponible (capital + interés del período)')
-    }
-  }
-
-  // El mes guarda UN movimiento. Si ya hay otro cargado, avisar antes de pisarlo:
-  // sumarlos en silencio dejaría una sola fecha para dos movimientos y el interés
-  // saldría mal sin que se note.
-  if (Number(periodo.movimiento ?? 0) !== 0) {
-    throw new Error(
-      `Este mes ya tiene un movimiento cargado (${Number(periodo.movimiento)}). ` +
-      'Solo se puede registrar uno por mes: corregí el que está o hacé el movimiento en otro mes.'
-    )
-  }
-
-  const signedMov = args.tipoMovimiento === 'INGRESO' ? args.monto : -args.monto
-
-  // Se guarda el DÍA del movimiento: con la fecha, lo que se retira cobra interés solo
-  // por los días que estuvo (lo usa regenerarPeriodosDB al recalcular).
-  const { error: errPeriodo } = await supabase
-    .from('periodos_instrumento')
-    .update({ movimiento: signedMov, fecha_movimiento: args.fechaMovimiento })
-    .eq('id', periodo.id)
-  if (errPeriodo) throw new Error(errPeriodo.message)
-
-  // Recalcular todos los períodos abiertos (esto recalcula intereses con el nuevo movimiento)
-  await regenerarPeriodosDB(supabase, args.instrumentoId)
-
-  revalidatePath('/inversiones')
-  revalidatePath(`/inversiones/${inst.inversor_id}`)
   revalidatePath('/inversiones/cierre')
   revalidatePath('/inversiones/gastos')
 }

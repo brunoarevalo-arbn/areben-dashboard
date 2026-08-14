@@ -6,7 +6,7 @@ export default async function InversorDetallePage({ params }: { params: Promise<
   const { id } = await params
   const supabase = await createClient()
 
-  const [{ data: inversor }, { data: instrumentos }, { data: periodos }, { data: tramos }] = await Promise.all([
+  const [{ data: inversor }, { data: instrumentos }, { data: periodos }, { data: tramos }, { data: movimientos }] = await Promise.all([
     supabase.from('inversores').select('*').eq('id', id).single(),
     supabase.from('instrumentos_inversion').select('*').eq('inversor_id', id).order('created_at', { ascending: false }),
     supabase.from('periodos_instrumento').select('*, instrumento:instrumentos_inversion!inner(inversor_id)').eq('instrumento.inversor_id', id).order('mes', { ascending: false }),
@@ -15,6 +15,11 @@ export default async function InversorDetallePage({ params }: { params: Promise<
       .select('*, instrumento:instrumentos_inversion!inner(inversor_id)')
       .eq('instrumento.inversor_id', id)
       .order('fecha_desde', { ascending: true }),
+    supabase
+      .from('movimientos_instrumento')
+      .select('*, instrumento:instrumentos_inversion!inner(inversor_id)')
+      .eq('instrumento.inversor_id', id)
+      .order('mes', { ascending: false }),
   ])
 
   if (!inversor) notFound()
@@ -25,6 +30,7 @@ export default async function InversorDetallePage({ params }: { params: Promise<
       instrumentos={instrumentos ?? []}
       periodos={periodos ?? []}
       tramos={tramos ?? []}
+      movimientos={movimientos ?? []}
     />
   )
 }

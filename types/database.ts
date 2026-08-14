@@ -484,13 +484,44 @@ export interface PeriodoInstrumento {
   interes_devengado: number
   int_inicio_prorrateado: number
   int_fin_prorrateado: number
+  /** CACHE: suma de los movimientos del mes. La fuente de verdad es MovimientoInstrumento (mig 075). */
   movimiento: number
-  /** Día en que entró o salió la plata (mig 069). Sin fecha, el movimiento no ajusta el interés. */
+  /** CACHE: el día, solo si el mes tiene un único movimiento con fecha. NULL si hay varios (mig 075). */
   fecha_movimiento?: string | null
   saldo_cierre: number
   tasa_aplicada: number
   cerrado: boolean
   fecha_cierre?: string | null
+  created_at: string
+  updated_at: string
+  instrumento?: Instrumento
+}
+
+/** Por qué se movió la plata. */
+export type MotivoMovimiento = 'retiro_parcial' | 'aporte_nuevo' | 'devolucion' | 'ajuste'
+
+export const MOTIVOS_MOVIMIENTO: { valor: MotivoMovimiento; label: string; ayuda: string }[] = [
+  { valor: 'retiro_parcial', label: 'Sacó plata', ayuda: 'El inversor retiró una parte' },
+  { valor: 'aporte_nuevo', label: 'Puso más plata', ayuda: 'El inversor sumó capital' },
+  { valor: 'devolucion', label: 'Devolución', ayuda: 'Se le devolvió y se cerró el plazo' },
+  { valor: 'ajuste', label: 'Ajuste', ayuda: 'Una corrección de saldo' },
+]
+
+/**
+ * Un movimiento de plata dentro de un instrumento (mig 075).
+ * Puede haber varios en el mismo mes, cada uno con su día y su motivo.
+ */
+export interface MovimientoInstrumento {
+  id: string
+  instrumento_id: string
+  /** Día en que se movió la plata. Sin día, el movimiento no ajusta el interés. */
+  fecha?: string | null
+  mes: string
+  /** Con signo: negativo sale, positivo entra. */
+  monto: number
+  motivo: MotivoMovimiento
+  nota?: string | null
+  origen: 'manual' | 'devolucion_cierre' | 'migracion_069'
   created_at: string
   updated_at: string
   instrumento?: Instrumento

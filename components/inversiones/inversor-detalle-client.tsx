@@ -4,7 +4,7 @@ import { useState, useTransition, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { deleteInstrumento, regenerarPeriodos, deleteTramoTasa } from '@/app/actions/inversiones'
-import type { Inversor, Instrumento, PeriodoInstrumento, TramoTasa } from '@/types/database'
+import type { Inversor, Instrumento, PeriodoInstrumento, TramoTasa, MovimientoInstrumento } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,12 +13,12 @@ import { formatMoneda, estadoVencimiento } from '@/lib/inversiones-calc'
 import { formatMonth, formatDate } from '@/lib/utils'
 import { InstrumentoForm } from './instrumento-form'
 import { CambiarTasaForm } from './cambiar-tasa-form'
-import { SimuladorMovimiento } from './simulador'
+import { MovimientosInstrumento } from './movimientos-instrumento'
 import { RenovarModal } from './renovar-modal'
 import { DevolverModal } from './devolver-modal'
 import {
   ChevronLeft, Plus, Pencil, Trash2, RotateCw, FileText, Lock, Unlock,
-  TrendingUp, Calendar, User, Briefcase, Percent, ArrowRight, RefreshCw, AlertTriangle, HandCoins,
+  TrendingUp, Calendar, User, Briefcase, Percent, ArrowRight, RefreshCw, AlertTriangle, HandCoins, ClipboardList,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -27,9 +27,10 @@ interface Props {
   instrumentos: Instrumento[]
   periodos: PeriodoInstrumento[]
   tramos: TramoTasa[]
+  movimientos: MovimientoInstrumento[]
 }
 
-export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos }: Props) {
+export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos, movimientos }: Props) {
   const [modal, setModal] = useState(false)
   const [editInstr, setEditInstr] = useState<Instrumento | undefined>()
   const [tasaModal, setTasaModal] = useState<Instrumento | undefined>()
@@ -57,8 +58,18 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
     return map
   }, [tramos])
 
+  const movimientosByInstr = useMemo(() => {
+    const map = new Map<string, MovimientoInstrumento[]>()
+    for (const m of movimientos) {
+      if (!map.has(m.instrumento_id)) map.set(m.instrumento_id, [])
+      map.get(m.instrumento_id)!.push(m)
+    }
+    return map
+  }, [movimientos])
+
   const periodosSelectedRaw = selectedInstr ? periodosByInstr.get(selectedInstr.id) ?? [] : []
   const tramosSelected = selectedInstr ? tramosByInstr.get(selectedInstr.id) ?? [] : []
+  const movimientosSelected = selectedInstr ? movimientosByInstr.get(selectedInstr.id) ?? [] : []
 
   const { sortKey, sortDir, toggleSort, sortRows } = useSort<'mes' | 'saldo_inicio' | 'tasa' | 'interes' | 'movimiento' | 'saldo_cierre' | 'estado'>('mes', 'desc')
   const periodosSelected = sortRows(periodosSelectedRaw, (p, k): string | number => {
@@ -263,6 +274,17 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                       </Button>
                     </a>
                   ) : null}
+                  {/* La ficha sirve igual para plazos vivos y cerrados */}
+                  <a
+                    href={`/api/reportes/instrumento/${i.id}/ficha`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button size="sm" variant="ghost" title="Ficha del plazo fijo: cómo arrancó, cuánto rindió y todo lo que se movió">
+                      <ClipboardList className="w-3 h-3" />
+                    </Button>
+                  </a>
                   <Link href={`/inversiones/reporte?instrumento=${i.id}`}>
                     <Button size="sm" variant="ghost" title="Generar reporte">
                       <FileText className="w-3 h-3" />
@@ -354,20 +376,15 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
         </div>
       )}
 
-      {/* Simulador de movimientos */}
-      {selectedInstr && (() => {
-        const mesAct = new Date()
-        const mesActStr = `${mesAct.getFullYear()}-${String(mesAct.getMonth() + 1).padStart(2, '0')}`
-        const periodoActual = periodosSelected.find((p) => p.mes === mesActStr)
-        return (
-          <SimuladorMovimiento
-            instrumento={selectedInstr}
-            tramos={tramos}
-            periodoMesActual={periodoActual}
-            inversorNombre={inversor.nombre}
-          />
-        )
-      })()}
+      {/* Movimientos de plata del instrumento */}
+      {selectedInstr && (
+        <MovimientosInstrumento
+          instrumento={selectedInstr}
+          tramos={tramosSelected}
+          movimientos={movimientosSelected}
+          periodos={periodosSelectedRaw}
+        />
+      )}
 
       {/* Timeline de períodos del instrumento seleccionado */}
       {selectedInstr && periodosSelected.length > 0 && (

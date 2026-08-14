@@ -22,7 +22,13 @@ un error caro o una búsqueda repetida. Techo: 160 líneas.
 `node scripts/apply-migrations.mjs 063_saldos_revisados` (nombre sin `.sql`, admite varios). Lee
 `DATABASE_URL` de `.env.local` y corre cada archivo en su propia transacción. Los `.sql` de
 `supabase/migrations/` se escriben **idempotentes** (`IF NOT EXISTS` / `ON CONFLICT`) porque se
-re-corren. Van numerados correlativos; el último es el 063.
+re-corren. Van numerados correlativos (con un hueco en 066-068); el último es el 075.
+
+**Los movimientos de plata de un instrumento viven en `movimientos_instrumento`** (mig 075), uno por
+renglón, con su día y su motivo. `periodos_instrumento.movimiento` y `.fecha_movimiento` quedaron
+como **caché derivada** que recalcula `regenerarPeriodosDB`: se leen, no se escriben a mano. Un
+movimiento **sin fecha mueve el saldo pero no ajusta el interés** — es la semántica de los que venían
+de antes, y por eso se migraron sin día: inventarles uno cambiaría meses ya cerrados.
 
 **Toda server action mutadora arranca con `await requireUser()`** (`lib/supabase/server.ts`). Es
 defensa en profundidad sobre la RLS `authenticated_all`: sin eso, la action queda invocable sin
