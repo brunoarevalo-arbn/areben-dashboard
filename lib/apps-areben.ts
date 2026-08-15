@@ -1,7 +1,7 @@
 /**
  * Registro de los sistemas internos de Areben (sección "Nuestras apps").
  *
- * Se repite igual en los tres repos a propósito: son proyectos separados, sin
+ * Se repite igual en los cuatro repos a propósito: son proyectos separados, sin
  * paquete compartido, y este archivo es chico y estable. Duplicarlo cuesta menos
  * que montar y mantener un paquete común.
  *
@@ -12,11 +12,11 @@
  * app ya tiene sesión propia, su proxy te rebota directo a su home y el `?sso=1`
  * ni se usa.
  *
- * Las tres apps propias ya viven en `arebensrl.com` (CNAME a Vercel, DNS only,
+ * Las cuatro apps propias ya viven en `arebensrl.com` (CNAME a Vercel, DNS only,
  * 27-jul-2026); las URLs de `vercel.app` siguen andando como alias.
  *
  * Ojo con la forma del link: el monitor es un catch-all sin ruta de login, así que
- * su salto va a la raíz (`/?sso=1`). Producción y el dashboard usan `/login?sso=1`.
+ * su salto va a la raíz (`/?sso=1`). Producción, el dashboard y Maketa usan `/login?sso=1`.
  */
 
 export type AppInterna = {
@@ -38,6 +38,13 @@ export const APPS: AppInterna[] = [
     nombre: 'Monitor',
     descripcion: 'Ventas, stock, fotos y solicitudes del día',
     href: 'https://monitor.arebensrl.com/?sso=1',
+    sso: true,
+  },
+  {
+    id: 'maketa',
+    nombre: 'Maketa',
+    descripcion: 'Piezas, calendario y redes de las tres marcas',
+    href: 'https://maketa.arebensrl.com/login?sso=1',
     sso: true,
   },
   {
