@@ -10,13 +10,22 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 import React from 'react'
 
+export interface FichaTramo {
+  desde: string
+  hasta: string
+  dias: number
+  base: number
+  interes: number
+}
+
 export interface FichaMes {
   mes: string // YYYY-MM
   saldo_inicio: number
   interes_devengado: number
   movimiento: number
   saldo_cierre: number
-  cerrado: boolean
+  /** Cómo se partió el mes cuando se movió plata. Vacío si no hubo movimientos. */
+  tramos?: FichaTramo[]
 }
 
 export interface FichaMovimiento {
@@ -25,6 +34,8 @@ export interface FichaMovimiento {
   monto: number
   motivo: string
   nota: string | null
+  /** Interés que ese retiro dejó de generar por salir antes del vencimiento. */
+  interesResignado?: number | null
 }
 
 export interface FichaPlazoFijoData {
@@ -70,6 +81,10 @@ export interface FichaPlazoFijoData {
     movimientosNetos: number
     saldoActual: number
   }
+  /** Tasa anual equivalente, ya calculada según capitalice o no. */
+  tasaAnual: number
+  /** Fecha del último día calculado, para titular el total. */
+  fechaSaldo: string | null
   generadoEn: string
   ciudadEmision?: string
 }
@@ -84,30 +99,31 @@ const COLOR_SALE = '#a02020'
 const COLOR_ENTRA = '#1d6b34'
 
 const styles = StyleSheet.create({
-  page: { fontFamily: 'Helvetica', fontSize: 10, padding: 30, paddingBottom: 40, color: COLOR_TEXT, lineHeight: 1.35 },
+  page: { fontFamily: 'Helvetica', fontSize: 10, padding: 26, paddingBottom: 36, color: COLOR_TEXT, lineHeight: 1.3 },
   header: { flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 2, borderBottomColor: COLOR_PRIMARY, paddingBottom: 8, marginBottom: 9 },
   empresaBlock: { flexDirection: 'column', maxWidth: '60%' },
-  empresaName: { fontSize: 16, fontWeight: 700, color: COLOR_PRIMARY },
+  empresaName: { fontSize: 14, fontWeight: 700, color: COLOR_PRIMARY },
   empresaFantasia: { fontSize: 9, color: COLOR_MUTED, marginTop: 1 },
-  empresaData: { fontSize: 8, color: COLOR_TEXT, marginTop: 6, lineHeight: 1.5 },
+  empresaData: { fontSize: 7.5, color: COLOR_TEXT, marginTop: 4, lineHeight: 1.4 },
   emisionBlock: { flexDirection: 'column', alignItems: 'flex-end' },
   emisionLabel: { fontSize: 7, color: COLOR_MUTED, letterSpacing: 1 },
   emisionCiudad: { fontSize: 10, color: COLOR_TEXT, marginTop: 4, fontWeight: 700 },
   emisionFecha: { fontSize: 9, color: COLOR_TEXT, marginTop: 2 },
   title: { fontSize: 14, fontWeight: 700, color: COLOR_TEXT, textAlign: 'center', marginVertical: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   subtitle: { fontSize: 9, color: COLOR_MUTED, textAlign: 'center', marginBottom: 8 },
-  destBox: { borderWidth: 1, borderColor: COLOR_BORDER, borderRadius: 4, padding: 8, marginBottom: 8 },
-  destLabel: { fontSize: 8, color: COLOR_MUTED, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  destNombre: { fontSize: 12, fontWeight: 700, color: COLOR_TEXT },
+  destBox: { borderWidth: 1, borderColor: COLOR_BORDER, borderRadius: 4, padding: 6, marginBottom: 6 },
+  destLabel: { fontSize: 7, color: COLOR_MUTED, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 },
+  destNombre: { fontSize: 11, fontWeight: 700, color: COLOR_TEXT },
   destData: { fontSize: 8.5, color: COLOR_TEXT, marginTop: 3, lineHeight: 1.35 },
-  keyBlock: { backgroundColor: COLOR_BG_SOFT, borderLeftWidth: 4, borderLeftColor: COLOR_ACCENT, padding: 8, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between' },
+  keyBlock: { backgroundColor: COLOR_BG_SOFT, borderLeftWidth: 4, borderLeftColor: COLOR_ACCENT, padding: 7, marginBottom: 7, flexDirection: 'row', justifyContent: 'space-between' },
   keyCol: { flexDirection: 'column', flex: 1 },
   keyLabel: { fontSize: 8, color: COLOR_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
-  keyValue: { fontSize: 11, fontWeight: 700, color: COLOR_TEXT },
+  keyValue: { fontSize: 10, fontWeight: 700, color: COLOR_TEXT },
+  keySub: { fontSize: 7.5, color: COLOR_MUTED, marginTop: 1 },
   sectionTitle: { fontSize: 9.5, fontWeight: 700, color: COLOR_PRIMARY, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3, marginTop: 7 },
   tHeader: { flexDirection: 'row', backgroundColor: COLOR_PRIMARY, paddingVertical: 4.5, paddingHorizontal: 4 },
   tHeaderCell: { color: '#ffffff', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3 },
-  tRow: { flexDirection: 'row', paddingVertical: 2, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: COLOR_BORDER },
+  tRow: { flexDirection: 'row', paddingVertical: 1.8, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: COLOR_BORDER },
   tRowZebra: { backgroundColor: '#fafbfd' },
   tCell: { fontSize: 9, color: COLOR_TEXT },
   tCellMono: { fontSize: 9, color: COLOR_TEXT, fontFamily: 'Courier', textAlign: 'right' },
@@ -123,21 +139,31 @@ const styles = StyleSheet.create({
   // paddingRight para que el monto (alineado a la derecha) no quede pegado a la nota
   colMonto: { width: '24%', textAlign: 'right' as const, paddingRight: 10 },
   colNota: { width: '41%' },
-  totalBox: { backgroundColor: COLOR_BG_SOFT, borderWidth: 1, borderColor: COLOR_BORDER, borderRadius: 4, padding: 8, marginTop: 8 },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2.5 },
+  totalBox: { backgroundColor: COLOR_BG_SOFT, borderWidth: 1, borderColor: COLOR_BORDER, borderRadius: 4, padding: 7, marginTop: 7 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
   totalLabel: { fontSize: 10, color: COLOR_TEXT },
   totalLabelStrong: { fontSize: 11, color: COLOR_TEXT, fontWeight: 700 },
+  totalSub: { fontSize: 8, color: COLOR_MUTED, marginTop: 1 },
   totalValue: { fontSize: 10, color: COLOR_TEXT, fontFamily: 'Courier', fontWeight: 700 },
   totalValueAccent: { fontSize: 13, color: COLOR_ACCENT, fontFamily: 'Courier', fontWeight: 700 },
-  noticeBox: { borderLeftWidth: 3, borderLeftColor: COLOR_PRIMARY, backgroundColor: '#f1f5fb', padding: 7, marginTop: 6, fontSize: 8.5, color: COLOR_TEXT },
-  firmaContainer: { marginTop: 8, flexDirection: 'row', justifyContent: 'flex-end' },
+  noticeBox: { borderLeftWidth: 3, borderLeftColor: COLOR_PRIMARY, backgroundColor: '#f1f5fb', padding: 6, marginTop: 5, fontSize: 8, color: COLOR_TEXT },
+  firmaContainer: { marginTop: 6, flexDirection: 'row', justifyContent: 'flex-end' },
   firmaBox: { width: 210, alignItems: 'center' },
-  firmaLinea: { borderTopWidth: 0.5, borderTopColor: COLOR_TEXT, width: '100%', marginBottom: 3, marginTop: 14 },
+  firmaLinea: { borderTopWidth: 0.5, borderTopColor: COLOR_TEXT, width: '100%', marginBottom: 3, marginTop: 11 },
   firmaLabel: { fontSize: 9, color: COLOR_MUTED },
   firmaNombre: { fontSize: 11, color: COLOR_TEXT, marginTop: 2, fontWeight: 700 },
   firmaCargo: { fontSize: 9, color: COLOR_MUTED, marginTop: 1 },
   vacio: { fontSize: 9, color: COLOR_MUTED, paddingVertical: 6 },
-  footer: { position: 'absolute', bottom: 18, left: 30, right: 30, borderTopWidth: 0.5, borderTopColor: COLOR_BORDER, paddingTop: 8, flexDirection: 'row', justifyContent: 'space-between', fontSize: 7, color: COLOR_MUTED },
+  // Sub-filas del desglose de un mes con movimiento
+  tSubRow: { flexDirection: 'row', paddingVertical: 1.5, paddingLeft: 14, paddingRight: 4, backgroundColor: '#f4f7fc' },
+  tSubCell: { fontSize: 7.5, color: COLOR_MUTED },
+  tSubMono: { fontSize: 7.5, color: COLOR_MUTED, fontFamily: 'Courier', textAlign: 'right' },
+  // Anchos calcados de la tabla de arriba: el interés del tramo cae justo debajo de
+  // la columna INTERÉS, no de otra, para que se lea como lo que es.
+  colSubDetalle: { width: '43%' },
+  colSubInteres: { width: '19%', textAlign: 'right' as const },
+  resignado: { fontSize: 7.5, color: COLOR_SALE, marginTop: 1 },
+  footer: { position: 'absolute', bottom: 15, left: 26, right: 26, borderTopWidth: 0.5, borderTopColor: COLOR_BORDER, paddingTop: 8, flexDirection: 'row', justifyContent: 'space-between', fontSize: 7, color: COLOR_MUTED },
 })
 
 function formatMoney(amount: number, currency: 'ARS' | 'USD'): string {
@@ -146,6 +172,14 @@ function formatMoney(amount: number, currency: 'ARS' | 'USD'): string {
 }
 function formatPercent(rate: number): string {
   return `${(rate * 100).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} %`
+}
+function formatPercentCorto(rate: number): string {
+  return `${(rate * 100).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`
+}
+/** Día y mes, sin el año: la fila ya dice de qué mes se trata. */
+function formatDiaMes(yyyyMMdd: string): string {
+  const [, m, d] = yyyyMMdd.split('-')
+  return `${d}/${m}`
 }
 function formatDateShort(yyyyMMdd: string): string {
   const [y, m, d] = yyyyMMdd.split('-')
@@ -173,7 +207,7 @@ const ETIQUETA_MOTIVO: Record<string, string> = {
 }
 
 export function FichaPlazoFijoPDF({ data }: { data: FichaPlazoFijoData }) {
-  const { empresa, inversor, instrumento, detalle, movimientos, totales, generadoEn, ciudadEmision } = data
+  const { empresa, inversor, instrumento, detalle, movimientos, totales, tasaAnual, fechaSaldo, generadoEn, ciudadEmision } = data
   const ciudad = ciudadEmision || empresa.domicilio_ciudad || 'Buenos Aires'
   const domEmp = buildDomicilio(empresa)
   const domInv = buildDomicilio(inversor)
@@ -181,6 +215,8 @@ export function FichaPlazoFijoPDF({ data }: { data: FichaPlazoFijoData }) {
   const moneda = instrumento.moneda
   const cerrado = instrumento.estado === 'cerrado'
   const haySinDia = movimientos.some((m) => !m.fecha)
+  // ¿El último mes calculado llega hasta el vencimiento? Si sí, el total ES lo que va a cobrar.
+  const venceEnEsteCorte = !!instrumento.fecha_fin && !!fechaSaldo && fechaSaldo >= instrumento.fecha_fin
 
   return (
     <Document title={`Ficha ${inversor.nombre} ${instrumento.codigo ?? ''}`.trim()} author={empresa.razon_social}>
@@ -228,12 +264,14 @@ export function FichaPlazoFijoPDF({ data }: { data: FichaPlazoFijoData }) {
         {/* Cómo arrancó */}
         <View style={styles.keyBlock}>
           <View style={styles.keyCol}>
-            <Text style={styles.keyLabel}>Capital al inicio</Text>
+            <Text style={styles.keyLabel}>Capital al inicio de este plazo</Text>
             <Text style={styles.keyValue}>{formatMoney(instrumento.capital_inicial, moneda)}</Text>
+            <Text style={styles.keySub}>el {formatDateShort(instrumento.fecha_inicio)}</Text>
           </View>
           <View style={styles.keyCol}>
             <Text style={styles.keyLabel}>Tasa mensual</Text>
             <Text style={[styles.keyValue, { color: COLOR_ACCENT }]}>{formatPercent(instrumento.tasa_mensual)}</Text>
+            <Text style={styles.keySub}>{formatPercentCorto(tasaAnual)} anual</Text>
           </View>
           <View style={styles.keyCol}>
             <Text style={styles.keyLabel}>Plazo pactado</Text>
@@ -250,6 +288,9 @@ export function FichaPlazoFijoPDF({ data }: { data: FichaPlazoFijoData }) {
           <View style={styles.keyCol}>
             <Text style={styles.keyLabel}>Interés</Text>
             <Text style={styles.keyValue}>{instrumento.capitalizable ? 'Capitaliza' : 'No capitaliza'}</Text>
+            <Text style={styles.keySub}>
+              {instrumento.capitalizable ? 'se suma al capital' : 'siempre sobre el capital'}
+            </Text>
           </View>
         </View>
 
@@ -267,21 +308,31 @@ export function FichaPlazoFijoPDF({ data }: { data: FichaPlazoFijoData }) {
               <Text style={[styles.tHeaderCell, styles.colSaldoCierre]}>Saldo cierre</Text>
             </View>
             {detalle.map((d, idx) => (
-              <View key={d.mes} style={[styles.tRow, idx % 2 === 1 ? styles.tRowZebra : {}]}>
-                <Text style={[styles.tCell, styles.colMes]}>
-                  {formatMesLargo(d.mes)}{d.cerrado ? '' : ' *'}
-                </Text>
-                <Text style={[styles.tCellMono, styles.colSaldoInicio]}>{formatMoney(d.saldo_inicio, moneda)}</Text>
-                <Text style={[styles.tCellMono, styles.colInteres, { color: COLOR_ACCENT, fontWeight: 700 }]}>
-                  {formatMoney(d.interes_devengado, moneda)}
-                </Text>
-                <Text style={[styles.tCellMono, styles.colMovMes, d.movimiento < 0 ? { color: COLOR_SALE } : d.movimiento > 0 ? { color: COLOR_ENTRA } : {}]}>
-                  {d.movimiento === 0 ? '-' : formatMoney(d.movimiento, moneda)}
-                </Text>
-                <Text style={[styles.tCellMono, styles.colSaldoCierre, { fontWeight: 700 }]}>
-                  {formatMoney(d.saldo_cierre, moneda)}
-                </Text>
-              </View>
+              <React.Fragment key={d.mes}>
+                <View style={[styles.tRow, idx % 2 === 1 ? styles.tRowZebra : {}]}>
+                  <Text style={[styles.tCell, styles.colMes]}>{formatMesLargo(d.mes)}</Text>
+                  <Text style={[styles.tCellMono, styles.colSaldoInicio]}>{formatMoney(d.saldo_inicio, moneda)}</Text>
+                  <Text style={[styles.tCellMono, styles.colInteres, { color: COLOR_ACCENT, fontWeight: 700 }]}>
+                    {formatMoney(d.interes_devengado, moneda)}
+                  </Text>
+                  <Text style={[styles.tCellMono, styles.colMovMes, d.movimiento < 0 ? { color: COLOR_SALE } : d.movimiento > 0 ? { color: COLOR_ENTRA } : {}]}>
+                    {d.movimiento === 0 ? '-' : formatMoney(d.movimiento, moneda)}
+                  </Text>
+                  <Text style={[styles.tCellMono, styles.colSaldoCierre, { fontWeight: 700 }]}>
+                    {formatMoney(d.saldo_cierre, moneda)}
+                  </Text>
+                </View>
+                {/* Cuando se movió plata, se muestra cómo quedó partido el mes: hasta el
+                    día del movimiento rindió un capital, y desde ese día rindió otro. */}
+                {(d.tramos ?? []).map((t) => (
+                  <View key={t.desde} style={styles.tSubRow}>
+                    <Text style={[styles.tSubCell, styles.colSubDetalle]}>
+                      del {formatDiaMes(t.desde)} al {formatDiaMes(t.hasta)} · {t.dias} {t.dias === 1 ? 'día' : 'días'} sobre {formatMoney(t.base, moneda)}
+                    </Text>
+                    <Text style={[styles.tSubMono, styles.colSubInteres]}>{formatMoney(t.interes, moneda)}</Text>
+                  </View>
+                ))}
+              </React.Fragment>
             ))}
           </>
         )}
@@ -307,7 +358,14 @@ export function FichaPlazoFijoPDF({ data }: { data: FichaPlazoFijoData }) {
                 <Text style={[styles.tCellMono, styles.colMonto, m.monto < 0 ? { color: COLOR_SALE } : { color: COLOR_ENTRA }]}>
                   {m.monto > 0 ? '+ ' : ''}{formatMoney(m.monto, moneda)}
                 </Text>
-                <Text style={[styles.tCell, styles.colNota]}>{m.nota ?? ''}</Text>
+                <View style={styles.colNota}>
+                  {m.nota && <Text style={styles.tCell}>{m.nota}</Text>}
+                  {!!m.interesResignado && m.interesResignado > 0 && (
+                    <Text style={styles.resignado}>
+                      Al sacarla antes del vencimiento dejó de generar {formatMoney(m.interesResignado, moneda)} de interés.
+                    </Text>
+                  )}
+                </View>
               </View>
             ))}
           </>
@@ -316,7 +374,7 @@ export function FichaPlazoFijoPDF({ data }: { data: FichaPlazoFijoData }) {
         {/* Totales */}
         <View style={styles.totalBox}>
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Capital al inicio</Text>
+            <Text style={styles.totalLabel}>Capital al inicio de este plazo</Text>
             <Text style={styles.totalValue}>{formatMoney(instrumento.capital_inicial, moneda)}</Text>
           </View>
           <View style={styles.totalRow}>
@@ -330,7 +388,14 @@ export function FichaPlazoFijoPDF({ data }: { data: FichaPlazoFijoData }) {
             </Text>
           </View>
           <View style={[styles.totalRow, { borderTopWidth: 1, borderTopColor: COLOR_PRIMARY, paddingTop: 8, marginTop: 4 }]}>
-            <Text style={styles.totalLabelStrong}>{cerrado ? 'TOTAL DEVUELTO' : 'SALDO A HOY'}</Text>
+            <View>
+              <Text style={styles.totalLabelStrong}>
+                {cerrado ? 'TOTAL DEVUELTO' : venceEnEsteCorte ? 'VA A COBRAR AL VENCIMIENTO' : 'SALDO ACUMULADO'}
+              </Text>
+              {!cerrado && fechaSaldo && (
+                <Text style={styles.totalSub}>el {formatDateShort(fechaSaldo)}</Text>
+              )}
+            </View>
             <Text style={styles.totalValueAccent}>{formatMoney(totales.saldoActual, moneda)}</Text>
           </View>
         </View>
@@ -342,7 +407,6 @@ export function FichaPlazoFijoPDF({ data }: { data: FichaPlazoFijoData }) {
             {haySinDia
               ? ' Los movimientos marcados como "sin día" no cambian el cálculo del interés: solo mueven el saldo.'
               : ''}
-            {detalle.some((d) => !d.cerrado) ? ' Los meses con asterisco todavía no están cerrados.' : ''}
           </Text>
         </View>
 

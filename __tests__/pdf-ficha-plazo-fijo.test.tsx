@@ -41,15 +41,23 @@ export const DATA_FICHA: FichaPlazoFijoData = {
     estado: 'activo',
   },
   detalle: [
-    { mes: '2026-06', saldo_inicio: 45000000, interes_devengado: 1408695.65, movimiento: -1000, saldo_cierre: 46407695.65, cerrado: true },
-    { mes: '2026-07', saldo_inicio: 46408695.65, interes_devengado: 1361739.13, movimiento: -5000000, saldo_cierre: 42770434.78, cerrado: false },
-    { mes: '2026-08', saldo_inicio: 42770434.78, interes_devengado: 1293913.05, movimiento: 0, saldo_cierre: 44063347.83, cerrado: false },
+    { mes: '2026-06', saldo_inicio: 45000000, interes_devengado: 1408695.65, movimiento: -1000, saldo_cierre: 46407695.65 },
+    {
+      mes: '2026-07', saldo_inicio: 46408695.65, interes_devengado: 1361739.13, movimiento: -5000000, saldo_cierre: 42770434.78,
+      tramos: [
+        { desde: '2026-07-01', hasta: '2026-07-13', dias: 13, base: 46408695.65, interes: 730303.03 },
+        { desde: '2026-07-14', hasta: '2026-07-31', dias: 18, base: 41408695.65, interes: 631436.10 },
+      ],
+    },
+    { mes: '2026-08', saldo_inicio: 42770434.78, interes_devengado: 1293913.05, movimiento: 0, saldo_cierre: 44063347.83 },
   ],
   movimientos: [
-    { fecha: '2026-07-14', mes: '2026-07', monto: -5000000, motivo: 'retiro_parcial', nota: 'Se lo llevó para la obra' },
+    { fecha: '2026-07-14', mes: '2026-07', monto: -5000000, motivo: 'retiro_parcial', nota: 'Se lo llevó para la obra', interesResignado: 255652.17 },
     { fecha: null, mes: '2026-06', monto: -1000, motivo: 'ajuste', nota: 'Movimiento viejo sin día' },
   ],
   totales: { intereses: 4064347.83, movimientosNetos: -5001000, saldoActual: 44063347.83 },
+  tasaAnual: 0.4593,
+  fechaSaldo: '2026-09-01',
   generadoEn: '2026-08-14T12:00:00.000Z',
 }
 
@@ -70,7 +78,7 @@ describe('la ficha del plazo fijo se dibuja entera', () => {
 
   it('no se rompe cuando el plazo todavía no tiene meses ni movimientos', async () => {
     const buffer = await renderToBuffer(
-      <FichaPlazoFijoPDF data={{ ...DATA_FICHA, detalle: [], movimientos: [], totales: { intereses: 0, movimientosNetos: 0, saldoActual: 45000000 } }} />,
+      <FichaPlazoFijoPDF data={{ ...DATA_FICHA, detalle: [], movimientos: [], fechaSaldo: null, totales: { intereses: 0, movimientosNetos: 0, saldoActual: 45000000 } }} />,
     )
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-')
   })

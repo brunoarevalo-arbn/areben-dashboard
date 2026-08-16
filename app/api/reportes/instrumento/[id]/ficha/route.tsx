@@ -7,6 +7,7 @@ import {
   type FichaMes,
   type FichaMovimiento,
 } from '@/lib/pdf/ficha-plazo-fijo'
+import { desgloseDelMes, tasaAnualEquivalente, generarPeriodos } from '@/lib/inversiones-calc'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -48,13 +49,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .gte('mes', mesInicioCiclo)
     .order('mes', { ascending: true })
 
-  const detalle: FichaMes[] = (periodos ?? []).map((p) => ({
+  const detallePlano = (periodos ?? []).map((p) => ({
     mes: p.mes,
     saldo_inicio: Number(p.saldo_inicio ?? 0),
     interes_devengado: Number(p.interes_devengado ?? 0),
     movimiento: Number(p.movimiento ?? 0),
     saldo_cierre: Number(p.saldo_cierre ?? 0),
-    cerrado: !!p.cerrado,
   }))
 
   const { data: movsRaw } = await supabase
@@ -76,6 +76,56 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }))
     .sort((a, b) => (a.fecha ?? `${a.mes}-00`).localeCompare(b.fecha ?? `${b.mes}-00`))
 
+  // Cómo quedó partido cada mes en el que se movió plata: hasta el día del movimiento
+  // rindió un capital, y desde ese día rindió otro. Es lo que le permite al inversor
+  // rehacer la cuenta sin preguntar.
+  const detalle: FichaMes[] = detallePlano.map((d) => ({
+    ...d,
+    tramos: desgloseDelMes({
+      mes: d.mes,
+      saldoInicio: d.saldo_inicio,
+      interesMes: d.interes_devengado,
+      movimientos: movimientos
+        .filter((m) => m.fecha && m.mes === d.mes)
+        .map((m) => ({ fecha: m.fecha as string, monto: m.monto })),
+      fechaInicio: inst.fecha_inicio,
+      fechaFin: inst.fecha_fin,
+    }),
+  }))
+
+  // Cuánto interés dejó de generar cada retiro por salir antes del vencimiento: se
+  // corre el mismo cálculo con y sin ese movimiento y se mira la diferencia.
+  const { data: tramosTasa } = await supabase
+    .from('tramos_tasa')
+    .select('fecha_desde, tasa_mensual')
+    .eq('instrumento_id', instrumentoId)
+    .order('fecha_desde', { ascending: true })
+
+  const tramosArr = (tramosTasa ?? []).length > 0
+    ? (tramosTasa ?? []).map((t) => ({ fecha_desde: t.fecha_desde, tasa_mensual: Number(t.tasa_mensual) }))
+    : [{ fecha_desde: inst.fecha_inicio, tasa_mensual: Number(inst.tasa_mensual) }]
+
+  const baseCalc = {
+    capitalInicial: Number(inst.capital_inicial),
+    fechaInicio: inst.fecha_inicio,
+    fechaFin: inst.fecha_fin,
+    capitalizable: inst.capitalizable,
+    hasta: (inst.fecha_fin ?? new Date().toISOString()).substring(0, 7),
+    tramos: tramosArr,
+    plazoDias: inst.plazo_dias,
+  }
+  const sumaInteres = (ms: { mes: string; fecha: string | null; monto: number }[]) =>
+    round(generarPeriodos({ ...baseCalc, movimientos: ms }).reduce((s, p) => s + p.interes_devengado, 0))
+
+  const todosLosMovs = movimientos.map((m) => ({ mes: m.mes, fecha: m.fecha, monto: m.monto }))
+  const conTodos = sumaInteres(todosLosMovs)
+  for (const m of movimientos) {
+    if (!m.fecha || m.monto >= 0 || m.motivo === 'devolucion') continue
+    const sinEste = sumaInteres(todosLosMovs.filter((x) => !(x.fecha === m.fecha && x.monto === m.monto)))
+    const resignado = round(sinEste - conTodos)
+    if (resignado > 0.01) m.interesResignado = resignado
+  }
+
   const { data: empresa } = await supabase
     .from('configuracion_empresa')
     .select('*')
@@ -91,6 +141,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const saldoActual = detalle.length > 0
     ? detalle[detalle.length - 1].saldo_cierre
     : round(Number(inst.capital_inicial))
+
+  // A qué día corresponde ese saldo: al vencimiento si el plazo ya llegó hasta ahí,
+  // o al último día del último mes calculado. Nunca es "hoy": el mes en curso ya trae
+  // devengado todo su interés.
+  const ultimoMes = detalle.length > 0 ? detalle[detalle.length - 1].mes : null
+  const finDeMes = ultimoMes
+    ? (() => { const [y, m] = ultimoMes.split('-').map(Number); const d = new Date(y, m, 0)
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })()
+    : null
+  const ultimoDiaCalculado = finDeMes && inst.fecha_fin && inst.fecha_fin < finDeMes ? inst.fecha_fin : finDeMes
 
   const data: FichaPlazoFijoData = {
     empresa: {
@@ -131,6 +191,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     detalle,
     movimientos,
     totales: { intereses, movimientosNetos, saldoActual },
+    tasaAnual: tasaAnualEquivalente(Number(inst.tasa_mensual), inst.capitalizable),
+    fechaSaldo: ultimoDiaCalculado,
     generadoEn: new Date().toISOString(),
   }
 

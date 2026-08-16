@@ -634,6 +634,111 @@ export function planDevolucion(args: {
   return { filas, totalADevolver, interesesCiclo, capitalPendiente, ajusteUltimoMes, movimientosDelCicloAnterior }
 }
 
+// ────────────────────────────────────────────────────────────
+// Desglose de un mes en el que se movió plata (para el reporte del inversor)
+// ────────────────────────────────────────────────────────────
+
+export interface TramoMes {
+  desde: string // YYYY-MM-DD
+  hasta: string // YYYY-MM-DD
+  dias: number
+  /** Capital sobre el que rindió ese tramo. */
+  base: number
+  interes: number
+}
+
+/**
+ * Parte el mes en tramos por cada día en que se movió plata, para que el inversor
+ * pueda rehacer la cuenta: "hasta el 10 me rindió todo, desde el 11 me rinde lo que
+ * quedó". El interés del mes se reparte entre los tramos en proporción a
+ * capital × días, que es exactamente el criterio con el que se calculó — así el
+ * desglose SIEMPRE suma el interés del mes, sea el modelo plano o el compuesto.
+ */
+export function desgloseDelMes(args: {
+  mes: string // YYYY-MM
+  saldoInicio: number
+  interesMes: number
+  /** Movimientos del mes que tienen día, en cualquier orden. */
+  movimientos: { fecha: string; monto: number }[]
+  fechaInicio: string
+  fechaFin?: string | null
+}): TramoMes[] {
+  const conFecha = args.movimientos
+    .filter((m) => m.fecha && m.monto)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha))
+  if (conFecha.length === 0 || !args.interesMes) return []
+
+  const [year, month] = args.mes.split('-').map(Number)
+  const monthStart = new Date(year, month - 1, 1)
+  const monthEnd = new Date(year, month, 0)
+  const instStart = parseDate(args.fechaInicio)
+  const instEnd = args.fechaFin ? parseDate(args.fechaFin) : null
+
+  const activoStart = instStart > monthStart ? instStart : monthStart
+  const activoEnd = instEnd && instEnd < monthEnd ? instEnd : monthEnd
+  if (activoStart > activoEnd) return []
+
+  // Días en que cambia el capital, dentro del rango activo
+  const cortes = conFecha
+    .map((m) => parseDate(m.fecha))
+    .filter((d) => d > activoStart && d <= activoEnd)
+  if (cortes.length === 0) return []
+
+  const tramos: { desde: Date; hasta: Date; dias: number; base: number }[] = []
+  let segStart = new Date(activoStart)
+  let base = args.saldoInicio
+  // Lo que ya se movió antes del arranque del rango activo also cuenta
+  for (const m of conFecha) if (parseDate(m.fecha) <= activoStart) base += m.monto
+
+  for (const corte of cortes) {
+    const segEnd = new Date(corte.getTime() - 86400000)
+    if (segEnd >= segStart) {
+      tramos.push({
+        desde: new Date(segStart),
+        hasta: segEnd,
+        dias: daysBetween(segStart, segEnd) + 1,
+        base,
+      })
+    }
+    for (const m of conFecha) if (parseDate(m.fecha).getTime() === corte.getTime()) base += m.monto
+    segStart = new Date(corte)
+  }
+  if (segStart <= activoEnd) {
+    tramos.push({
+      desde: new Date(segStart),
+      hasta: new Date(activoEnd),
+      dias: daysBetween(segStart, activoEnd) + 1,
+      base,
+    })
+  }
+  if (tramos.length < 2) return []
+
+  // Repartir el interés del mes proporcional a capital × días
+  const pesos = tramos.map((t) => t.base * t.dias)
+  const pesoTotal = pesos.reduce((a, b) => a + b, 0)
+  if (pesoTotal === 0) return []
+
+  const out: TramoMes[] = tramos.map((t, i) => ({
+    desde: fmtDate(t.desde),
+    hasta: fmtDate(t.hasta),
+    dias: t.dias,
+    base: round(t.base),
+    interes: round((args.interesMes * pesos[i]) / pesoTotal),
+  }))
+  // El último absorbe el redondeo para que la suma dé el interés del mes, exacto
+  const suma = out.reduce((s, t) => s + t.interes, 0)
+  out[out.length - 1].interes = round(out[out.length - 1].interes + (args.interesMes - suma))
+  return out
+}
+
+/**
+ * Tasa anual equivalente, según cómo capitalice el instrumento.
+ * Capitalizable → interés compuesto mes a mes. Si no → tasa simple por 12.
+ */
+export function tasaAnualEquivalente(tasaMensual: number, capitalizable: boolean): number {
+  return capitalizable ? Math.pow(1 + tasaMensual, 12) - 1 : tasaMensual * 12
+}
+
 /**
  * Calcula los segmentos de un único mes — útil para mostrar el desglose
  * en el reporte cuando hubo cambio de tasa intra-mes.
