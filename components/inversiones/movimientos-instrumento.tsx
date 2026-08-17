@@ -38,6 +38,11 @@ export function MovimientosInstrumento({
   const [borrando, setBorrando] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pendiente, startBorrado] = useTransition()
+  const [verTna, setVerTna] = useState(true)
+  const [verCapitalizacion, setVerCapitalizacion] = useState(true)
+
+  const params = [verTna ? null : 'tna=0', verCapitalizacion ? null : 'cap=0'].filter(Boolean)
+  const urlFicha = `/api/reportes/instrumento/${instrumento.id}/ficha${params.length ? `?${params.join('&')}` : ''}`
 
   const mesesCerrados = new Set(periodos.filter((p) => p.cerrado).map((p) => p.mes))
   const ordenados = [...movimientos].sort((a, b) => {
@@ -72,11 +77,29 @@ export function MovimientosInstrumento({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <a
-            href={`/api/reportes/instrumento/${instrumento.id}/ficha`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          {/* Qué sale en la ficha. Se elige antes de abrirla porque con algunos
+              inversores conviene mostrarlo y con otros abre una charla que no va. */}
+          <div className="flex items-center gap-3 mr-1">
+            <label className="flex items-center gap-1.5 text-[11px] text-fg-muted cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={verTna}
+                onChange={(e) => setVerTna(e.target.checked)}
+                className="accent-primary"
+              />
+              Tasa anual
+            </label>
+            <label className="flex items-center gap-1.5 text-[11px] text-fg-muted cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={verCapitalizacion}
+                onChange={(e) => setVerCapitalizacion(e.target.checked)}
+                className="accent-primary"
+              />
+              Si capitaliza
+            </label>
+          </div>
+          <a href={urlFicha} target="_blank" rel="noopener noreferrer">
             <Button size="sm" variant="secondary">
               <FileText className="w-3.5 h-3.5" /> Ficha PDF
             </Button>

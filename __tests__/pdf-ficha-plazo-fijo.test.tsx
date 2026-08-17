@@ -3,6 +3,7 @@ import { renderToBuffer } from '@react-pdf/renderer'
 import { FichaPlazoFijoPDF, type FichaPlazoFijoData } from '@/lib/pdf/ficha-plazo-fijo'
 import React from 'react'
 
+
 // Datos del plazo real de Fredy, con un retiro a mitad de período.
 export const DATA_FICHA: FichaPlazoFijoData = {
   empresa: {
@@ -57,6 +58,7 @@ export const DATA_FICHA: FichaPlazoFijoData = {
   ],
   totales: { intereses: 4064347.83, movimientosNetos: -5001000, saldoActual: 44063347.83 },
   tasaAnual: 0.4593,
+  mostrar: { tna: true, capitalizacion: true },
   fechaSaldo: '2026-09-01',
   generadoEn: '2026-08-14T12:00:00.000Z',
 }
@@ -81,6 +83,29 @@ describe('la ficha del plazo fijo se dibuja entera', () => {
       <FichaPlazoFijoPDF data={{ ...DATA_FICHA, detalle: [], movimientos: [], fechaSaldo: null, totales: { intereses: 0, movimientosNetos: 0, saldoActual: 45000000 } }} />,
     )
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-')
+  })
+
+  // No se puede buscar el texto adentro del PDF: react-pdf embebe las fuentes y las
+  // letras quedan como glifos, no como texto. Se verifica que el selector tenga
+  // efecto — que saque contenido — y el resultado se mira a ojo al cambiarlo.
+  it('ocultar la tasa anual y la capitalización achica la ficha', async () => {
+    const completa = await renderToBuffer(<FichaPlazoFijoPDF data={DATA_FICHA} />)
+    const recortada = await renderToBuffer(
+      <FichaPlazoFijoPDF data={{ ...DATA_FICHA, mostrar: { tna: false, capitalizacion: false } }} />,
+    )
+    expect(recortada.subarray(0, 5).toString()).toBe('%PDF-')
+    expect(recortada.length).toBeLessThan(completa.length)
+  })
+
+  it('cada opción por separado también cambia el resultado', async () => {
+    const render = (tna: boolean, capitalizacion: boolean) =>
+      renderToBuffer(<FichaPlazoFijoPDF data={{ ...DATA_FICHA, mostrar: { tna, capitalizacion } }} />)
+    const [ambas, soloTna, soloCap, ninguna] = await Promise.all([
+      render(true, true), render(true, false), render(false, true), render(false, false),
+    ])
+    const tamaños = [ambas.length, soloTna.length, soloCap.length, ninguna.length]
+    expect(new Set(tamaños).size).toBe(4) // las cuatro combinaciones dan algo distinto
+    expect(ninguna.length).toBeLessThan(ambas.length)
   })
 
   it('un plazo cerrado también se dibuja', async () => {

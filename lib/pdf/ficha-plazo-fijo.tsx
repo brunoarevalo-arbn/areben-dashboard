@@ -83,6 +83,11 @@ export interface FichaPlazoFijoData {
   }
   /** Tasa anual equivalente, ya calculada según capitalice o no. */
   tasaAnual: number
+  /**
+   * Datos que se eligen mostrar o no al generar la ficha. Con algunos inversores
+   * conviene tenerlos a la vista y con otros abren una discusión que no hace falta.
+   */
+  mostrar: { tna: boolean; capitalizacion: boolean }
   /** Fecha del último día calculado, para titular el total. */
   fechaSaldo: string | null
   generadoEn: string
@@ -207,7 +212,7 @@ const ETIQUETA_MOTIVO: Record<string, string> = {
 }
 
 export function FichaPlazoFijoPDF({ data }: { data: FichaPlazoFijoData }) {
-  const { empresa, inversor, instrumento, detalle, movimientos, totales, tasaAnual, fechaSaldo, generadoEn, ciudadEmision } = data
+  const { empresa, inversor, instrumento, detalle, movimientos, totales, tasaAnual, mostrar, fechaSaldo, generadoEn, ciudadEmision } = data
   const ciudad = ciudadEmision || empresa.domicilio_ciudad || 'Buenos Aires'
   const domEmp = buildDomicilio(empresa)
   const domInv = buildDomicilio(inversor)
@@ -271,7 +276,7 @@ export function FichaPlazoFijoPDF({ data }: { data: FichaPlazoFijoData }) {
           <View style={styles.keyCol}>
             <Text style={styles.keyLabel}>Tasa mensual</Text>
             <Text style={[styles.keyValue, { color: COLOR_ACCENT }]}>{formatPercent(instrumento.tasa_mensual)}</Text>
-            <Text style={styles.keySub}>{formatPercentCorto(tasaAnual)} anual</Text>
+            {mostrar.tna && <Text style={styles.keySub}>{formatPercentCorto(tasaAnual)} anual</Text>}
           </View>
           <View style={styles.keyCol}>
             <Text style={styles.keyLabel}>Plazo pactado</Text>
@@ -285,13 +290,15 @@ export function FichaPlazoFijoPDF({ data }: { data: FichaPlazoFijoData }) {
               {instrumento.fecha_fin ? formatDateShort(instrumento.fecha_fin) : 'sin vencimiento'}
             </Text>
           </View>
-          <View style={styles.keyCol}>
-            <Text style={styles.keyLabel}>Interés</Text>
-            <Text style={styles.keyValue}>{instrumento.capitalizable ? 'Capitaliza' : 'No capitaliza'}</Text>
-            <Text style={styles.keySub}>
-              {instrumento.capitalizable ? 'se suma al capital' : 'siempre sobre el capital'}
-            </Text>
-          </View>
+          {mostrar.capitalizacion && (
+            <View style={styles.keyCol}>
+              <Text style={styles.keyLabel}>Interés</Text>
+              <Text style={styles.keyValue}>{instrumento.capitalizable ? 'Capitaliza' : 'No capitaliza'}</Text>
+              <Text style={styles.keySub}>
+                {instrumento.capitalizable ? 'se suma al capital' : 'siempre sobre el capital'}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Intereses mes a mes */}

@@ -14,9 +14,14 @@ export const dynamic = 'force-dynamic'
 
 const round = (n: number) => Math.round(n * 100) / 100
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await requireUser()
   const { id: instrumentoId } = await params
+
+  // Qué mostrar. Por defecto van los dos; se ocultan con ?tna=0 y ?cap=0 desde el
+  // selector de la pantalla, para no abrir discusiones que con ese inversor no van.
+  const sp = req.nextUrl.searchParams
+  const mostrar = { tna: sp.get('tna') !== '0', capitalizacion: sp.get('cap') !== '0' }
 
   const supabase = await createClient()
 
@@ -192,6 +197,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     movimientos,
     totales: { intereses, movimientosNetos, saldoActual },
     tasaAnual: tasaAnualEquivalente(Number(inst.tasa_mensual), inst.capitalizable),
+    mostrar,
     fechaSaldo: ultimoDiaCalculado,
     generadoEn: new Date().toISOString(),
   }
