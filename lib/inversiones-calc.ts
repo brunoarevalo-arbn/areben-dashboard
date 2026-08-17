@@ -105,6 +105,48 @@ function nextMonth(year: number, month: number): [number, number] {
 }
 
 /**
+ * El vencimiento de un plazo de N MESES: 14-ago + 3 meses = 14-nov, no 14-ago + 90 días.
+ * Un plazo se pacta en meses, y un mes es un mes tenga 28, 30 o 31 días. Si el día no
+ * existe en el mes destino (un 31 que cae en un mes de 30), cae en el último día.
+ * Ojo: el vencimiento NO devenga — es el día del pago y el arranque del ciclo siguiente.
+ */
+export function sumarMeses(fechaISO: string, meses: number): string {
+  const d = parseDate(fechaISO)
+  const dia = d.getDate()
+  const target = new Date(d.getFullYear(), d.getMonth() + meses, 1)
+  const ultimoDia = diasEnMes(target.getFullYear(), target.getMonth() + 1)
+  target.setDate(Math.min(dia, ultimoDia))
+  return fmtDate(target)
+}
+
+/** Suma días de calendario. Solo para plazos pactados en días, no en meses. */
+export function sumarDias(fechaISO: string, dias: number): string {
+  const d = parseDate(fechaISO)
+  d.setDate(d.getDate() + dias)
+  return fmtDate(d)
+}
+
+/** Días de calendario entre dos fechas (lo que se guarda como `plazo_dias`). */
+export function diasEntre(desdeISO: string, hastaISO: string): number {
+  return Math.round((parseDate(hastaISO).getTime() - parseDate(desdeISO).getTime()) / 86400000)
+}
+
+/**
+ * Cuántos meses redondos hay entre dos fechas, o `null` si el vencimiento no cae en un
+ * aniversario mensual del inicio (una fecha pactada a mano). Sirve para renovar un ciclo
+ * por el mismo plazo que traía, sin que se corra dos días en cada vuelta.
+ */
+export function mesesEntre(desdeISO: string, hastaISO: string): number | null {
+  if (hastaISO <= desdeISO) return null
+  const a = parseDate(desdeISO), b = parseDate(hastaISO)
+  const meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth())
+  for (const m of [meses, meses - 1, meses + 1]) {
+    if (m > 0 && sumarMeses(desdeISO, m) === hastaISO) return m
+  }
+  return null
+}
+
+/**
  * Devuelve la tasa aplicable a una fecha dada según los tramos.
  * El tramo aplicable es el más reciente cuya fecha_desde sea ≤ fecha.
  */
@@ -336,11 +378,16 @@ function generarPeriodosPlano(
   )
   const interesTotalCiclo = round(capitalPonderado * tasaProm * mesesEquivalentes)
 
-  // Meses de calendario que toca el ciclo, con sus días activos
+  // Meses de calendario que toca el ciclo, con sus días activos.
+  // Se recorre SIEMPRE el ciclo entero, aunque `hasta` corte antes: el interés del ciclo
+  // se reparte entre todos sus meses, y recién al final se devuelven los que entran en
+  // `hasta`. Si se repartiera solo entre los meses generados, el mes en curso se llevaría
+  // el interés de los meses que todavía no existen (un ciclo de 3 meses recién empezado
+  // cargaba los 3 meses de interés en el primero).
   const filas: { mes: string; dias: number; activoStart: Date; primeroDelMes: boolean; ultimoDelCiclo: boolean }[] = []
   let cy = start.getFullYear()
   let cm = start.getMonth() + 1
-  while (cy < yHasta || (cy === yHasta && cm <= mHasta)) {
+  for (;;) {
     const monthStart = new Date(cy, cm - 1, 1)
     const monthStartNext = new Date(cy, cm, 1)
     const activoStart = start > monthStart ? start : monthStart
@@ -362,14 +409,12 @@ function generarPeriodosPlano(
   // Reparto entre meses por "capital × días": un mes en que el capital estuvo más alto
   // se lleva más interés. Sin movimientos, capital-día es proporcional a los días y el
   // reparto queda idéntico al de siempre.
-  const totalDiasGen = filas.reduce((s, f) => s + f.dias, 0)
-  const cicloCompletoGenerado = totalDiasGen >= diasCiclo
   const pesos = filas.map((f) => capitalDias(f.activoStart, f.dias, capitalInicial, movsConFecha))
   const pesoTotal = pesos.reduce((a, b) => a + b, 0)
   const shares = pesoTotal > 0
     ? pesos.map((peso) => round(interesTotalCiclo * peso / pesoTotal))
     : filas.map((f) => round(interesTotalCiclo * f.dias / diasCiclo))
-  if (cicloCompletoGenerado && shares.length > 0) {
+  if (shares.length > 0) {
     const suma = shares.reduce((a, b) => a + b, 0)
     shares[shares.length - 1] = round(shares[shares.length - 1] + (interesTotalCiclo - suma))
   }
@@ -377,6 +422,7 @@ function generarPeriodosPlano(
   // Aunque no capitalice (interés simple sobre el capital), el interés se ACUMULA al
   // saldo como deuda hasta que el inversor retira → el saldo cierre crece mes a mes y
   // el saldo inicio del mes siguiente arrastra ese acumulado.
+  const mesTope = mesKey(yHasta, mHasta)
   let saldoAcum = capitalInicial
   return filas.map((f, idx) => {
     let sumaTasaMes = 0
@@ -397,7 +443,7 @@ function generarPeriodosPlano(
       tasa_aplicada: round(tasaMes * 1000000) / 1000000,
       segmentos: [],
     }
-  })
+  }).filter((p) => p.mes <= mesTope)
 }
 
 /**

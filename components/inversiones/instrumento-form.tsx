@@ -6,9 +6,11 @@ import type { Instrumento } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { NumberInput } from '@/components/ui/number-input'
 import { Input, Select, Textarea } from '@/components/ui/input'
-import { Loader2, TrendingUp, Lock, Unlock } from 'lucide-react'
-import { formatMoneda } from '@/lib/inversiones-calc'
-import { cn } from '@/lib/utils'
+import { Loader2, TrendingUp, Lock, Unlock, CalendarCheck } from 'lucide-react'
+import { formatMoneda, sumarMeses, diasEntre, mesesEntre } from '@/lib/inversiones-calc'
+import { formatDate, cn } from '@/lib/utils'
+
+const PLAZOS = [1, 2, 3, 6, 9, 12]
 
 interface Props {
   instrumento?: Instrumento
@@ -24,6 +26,26 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
   const [tasaPct, setTasaPct] = useState(instrumento ? instrumento.tasa_mensual * 100 : 2.5)
   const [capitalizable, setCapitalizable] = useState(instrumento?.capitalizable ?? true)
 
+  // El plazo se pacta en MESES y el vencimiento sale solo (14-ago a 3 meses vence el
+  // 14-nov, no a los 90 días contados). Queda el modo "fecha exacta" para los pocos
+  // casos en que se pacta un día puntual de entrada.
+  const mesesGuardados = instrumento?.fecha_inicio && instrumento?.fecha_fin
+    ? mesesEntre(instrumento.fecha_inicio, instrumento.fecha_fin)
+    : null
+  const [fechaInicio, setFechaInicio] = useState(instrumento?.fecha_inicio ?? '')
+  const [modoPlazo, setModoPlazo] = useState<'meses' | 'fecha' | 'sin'>(
+    !instrumento?.fecha_fin ? (instrumento ? 'sin' : 'meses') : mesesGuardados ? 'meses' : 'fecha'
+  )
+  const [meses, setMeses] = useState(mesesGuardados ?? 3)
+  const [fechaFinCustom, setFechaFinCustom] = useState(instrumento?.fecha_fin ?? '')
+
+  const fechaFin = modoPlazo === 'sin'
+    ? ''
+    : modoPlazo === 'fecha'
+      ? fechaFinCustom
+      : fechaInicio ? sumarMeses(fechaInicio, meses) : ''
+  const plazoDias = fechaInicio && fechaFin ? diasEntre(fechaInicio, fechaFin) : null
+
   const tasaDecimal = tasaPct / 100
   const interesEstimado = capital * tasaDecimal
 
@@ -34,6 +56,10 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
       fd.set('capital_inicial', String(capital))
       fd.set('tasa_mensual', String(tasaDecimal))
       fd.set('capitalizable', capitalizable ? 'true' : 'false')
+      fd.set('fecha_inicio', fechaInicio)
+      fd.set('fecha_fin', fechaFin)
+      fd.set('plazo_dias', plazoDias && plazoDias > 0 ? String(plazoDias) : '')
+      if (modoPlazo !== 'sin' && !fechaFin) return 'Falta el vencimiento: elegí la fecha de inicio y el plazo.'
       const r = await action(prev, fd)
       if (!r) onClose()
       return r
@@ -159,24 +185,89 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Input label="Fecha de inicio" name="fecha_inicio" type="date" defaultValue={instrumento?.fecha_inicio ?? ''} required />
-        <Input label="Fecha de fin (opcional)" name="fecha_fin" type="date" defaultValue={instrumento?.fecha_fin ?? ''} />
-        <Select
-          label="Plazo"
-          name="plazo_dias"
-          defaultValue={instrumento?.plazo_dias ? String(instrumento.plazo_dias) : ''}
-          options={[
-            { value: '', label: 'Sin plazo definido' },
-            { value: '30', label: '30 días (1 mes)' },
-            { value: '60', label: '60 días (2 meses)' },
-            { value: '90', label: '90 días (3 meses)' },
-            { value: '120', label: '120 días (4 meses)' },
-            { value: '180', label: '180 días (6 meses)' },
-            { value: '270', label: '270 días (9 meses)' },
-            { value: '365', label: '365 días (1 año)' },
-          ]}
-        />
+      {/* Plazo y vencimiento */}
+      <div className="bg-surface-2/40 border border-border-strong/40 rounded-xl p-4 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Input
+            label="Fecha de inicio"
+            type="date"
+            value={fechaInicio}
+            onChange={(e) => setFechaInicio(e.target.value)}
+            required
+          />
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-fg-muted">Plazo</label>
+            <div className="flex flex-wrap gap-1.5">
+              {PLAZOS.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => { setModoPlazo('meses'); setMeses(m) }}
+                  className={cn(
+                    'px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors',
+                    modoPlazo === 'meses' && meses === m
+                      ? 'bg-primary/15 border-primary/40 text-primary'
+                      : 'bg-surface-2 border-border-strong text-fg-muted hover:text-fg'
+                  )}
+                >
+                  {m === 12 ? '1 año' : `${m} ${m === 1 ? 'mes' : 'meses'}`}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => { setModoPlazo('fecha'); if (!fechaFinCustom && fechaInicio) setFechaFinCustom(sumarMeses(fechaInicio, meses)) }}
+                className={cn(
+                  'px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors',
+                  modoPlazo === 'fecha'
+                    ? 'bg-primary/15 border-primary/40 text-primary'
+                    : 'bg-surface-2 border-border-strong text-fg-muted hover:text-fg'
+                )}
+              >
+                Fecha exacta
+              </button>
+              <button
+                type="button"
+                onClick={() => setModoPlazo('sin')}
+                className={cn(
+                  'px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors',
+                  modoPlazo === 'sin'
+                    ? 'bg-surface-2 border-border-strong text-fg'
+                    : 'bg-surface-2 border-border-strong text-fg-soft hover:text-fg-muted'
+                )}
+              >
+                Sin vencimiento
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {modoPlazo === 'fecha' && (
+          <Input
+            label="Vencimiento pactado"
+            type="date"
+            value={fechaFinCustom}
+            onChange={(e) => setFechaFinCustom(e.target.value)}
+          />
+        )}
+
+        {modoPlazo !== 'sin' && fechaFin && plazoDias != null && plazoDias > 0 && (
+          <div className="bg-primary/5 border border-primary/20 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
+            <span className="text-fg-muted flex items-center gap-1.5">
+              <CalendarCheck className="w-3.5 h-3.5" />
+              Vence el <strong className="text-fg">{formatDate(fechaFin)}</strong>
+            </span>
+            <span className="text-fg-soft">
+              {plazoDias} días · devenga hasta el día anterior
+            </span>
+          </div>
+        )}
+
+        {modoPlazo === 'sin' && (
+          <p className="text-xs text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+            Sin vencimiento no se puede renovar ni calcular el plazo: los intereses se van
+            devengando mes a mes sin fecha de corte.
+          </p>
+        )}
       </div>
 
       <Textarea label="Notas del acuerdo" name="notas" defaultValue={instrumento?.notas ?? ''} placeholder="Condiciones, particularidades..." rows={3} />
