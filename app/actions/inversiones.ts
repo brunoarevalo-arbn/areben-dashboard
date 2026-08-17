@@ -3,7 +3,7 @@
 import { createClient, requireUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { generarPeriodos, getCurrentMonth, planDevolucion, type FilaPeriodo, type MovimientoCalc } from '@/lib/inversiones-calc'
+import { generarPeriodos, getCurrentMonth, planDevolucion, sumarMeses, sumarDias, diasEntre, mesesEntre, type FilaPeriodo, type MovimientoCalc } from '@/lib/inversiones-calc'
 import type { MotivoMovimiento } from '@/types/database'
 
 // ============ INVERSORES ============
@@ -422,13 +422,17 @@ export async function renovarInstrumento(
     }
     nuevaFechaFin = nuevaFechaFinCustom
     // Recalcular plazo_dias según las fechas elegidas (queda de referencia para la próxima)
-    const diffMs = new Date(`${nuevaFechaFin}T00:00:00Z`).getTime() - new Date(`${nuevaFechaInicio}T00:00:00Z`).getTime()
-    nuevoPlazoDias = Math.round(diffMs / 86_400_000)
+    nuevoPlazoDias = diasEntre(nuevaFechaInicio, nuevaFechaFin)
   } else {
-    const fechaInicioDate = new Date(`${nuevaFechaInicio}T00:00:00Z`)
-    const nuevaFechaFinDate = new Date(fechaInicioDate)
-    nuevaFechaFinDate.setUTCDate(nuevaFechaFinDate.getUTCDate() + Number(inst.plazo_dias))
-    nuevaFechaFin = nuevaFechaFinDate.toISOString().substring(0, 10)
+    // Renovar por el MISMO plazo que traía. Si el ciclo que termina era de meses
+    // redondos (lo normal), se suman meses: un plazo de 3 meses que arrancó un 14
+    // vuelve a vencer un 14. Sumar los días literales corría el vencimiento un par de
+    // días para atrás en cada renovación, y a la cuarta vuelta ya era una semana.
+    const mesesDelCiclo = mesesEntre(inst.fecha_inicio, inst.fecha_fin)
+    nuevaFechaFin = mesesDelCiclo
+      ? sumarMeses(nuevaFechaInicio, mesesDelCiclo)
+      : sumarDias(nuevaFechaInicio, Number(inst.plazo_dias))
+    nuevoPlazoDias = diasEntre(nuevaFechaInicio, nuevaFechaFin)
   }
 
   // 6. Condiciones del nuevo ciclo (tasa y capitalización pueden reacordarse al renovar).
@@ -541,12 +545,6 @@ export interface DetalleDevolucion {
 export type DevolucionResult =
   | { ok: true; detalle: DetalleDevolucion }
   | { ok: false; error: string }
-
-function sumarDias(fecha: string, dias: number): string {
-  const d = new Date(`${fecha}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + dias)
-  return d.toISOString().substring(0, 10)
-}
 
 /**
  * Arma la devolución total de un instrumento SIN escribir nada.

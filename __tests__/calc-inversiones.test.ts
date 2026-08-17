@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generarPeriodos } from '@/lib/inversiones-calc'
+import { generarPeriodos, sumarMeses, diasEntre, mesesEntre } from '@/lib/inversiones-calc'
 
 const TASA = 0.0175 // 1,75% mensual
 const tramo = (fecha: string, tasa = TASA) => [{ fecha_desde: fecha, tasa_mensual: tasa }]
@@ -98,5 +98,68 @@ describe('modelo plano — 1,75% por mes completo, repartido proporcional por d�
     // Cada ciclo rinde exactamente un mes plano; el 18-jun pertenece solo al ciclo 2
     expect(sum(c1.map((x) => x.interes_devengado))).toBe(175.0)
     expect(sum(c2.map((x) => x.interes_devengado))).toBe(175.0)
+  })
+
+  it('un mes del ciclo devenga lo mismo se lo mire cuando se lo mire', () => {
+    // Elisa INV-001 real: 01/07 → 01/10, 3 meses de 1,75% = 289,05 en todo el ciclo.
+    // Mirado en julio (con el ciclo recién arrancado) julio tiene que dar los mismos
+    // 97,40 que da mirado en septiembre: el mes en curso NO se lleva el interés de los
+    // meses que todavía no pasaron.
+    const args = {
+      capitalInicial: 5505.77,
+      fechaInicio: '2026-07-01',
+      fechaFin: '2026-10-01',
+      capitalizable: false,
+      tramos: tramo('2026-07-01'),
+      plazoDias: 92,
+    }
+    for (const hasta of ['2026-07', '2026-08', '2026-09']) {
+      const p = generarPeriodos({ ...args, hasta })
+      expect(p[0].interes_devengado).toBe(97.4) // julio, 31 días de 92
+    }
+    // Y el ciclo entero sigue sumando el plano exacto
+    const completo = generarPeriodos({ ...args, hasta: '2026-09' })
+    expect(sum(completo.map((x) => x.interes_devengado))).toBe(289.05)
+  })
+})
+
+describe('el plazo se cuenta en meses, no en días', () => {
+  it('3 meses desde el 14-ago vence el 14-nov (no el 12, que son 90 días contados)', () => {
+    expect(sumarMeses('2026-08-14', 3)).toBe('2026-11-14')
+    expect(diasEntre('2026-08-14', '2026-11-14')).toBe(92)
+  })
+
+  it('un mes es un mes tenga 28 o 31 días', () => {
+    expect(sumarMeses('2026-01-31', 1)).toBe('2026-02-28') // no existe el 31 de febrero
+    expect(sumarMeses('2026-02-28', 1)).toBe('2026-03-28')
+    expect(sumarMeses('2026-12-15', 3)).toBe('2027-03-15') // cruza el año
+  })
+
+  it('renovar sumando meses no corre el vencimiento; sumando días sí', () => {
+    // Cuatro renovaciones de 3 meses arrancando el 14-ago: siempre cae un 14
+    let fecha = '2026-08-14'
+    for (let i = 0; i < 4; i++) fecha = sumarMeses(fecha, 3)
+    expect(fecha).toBe('2027-08-14')
+  })
+
+  it('reconoce el plazo en meses de un ciclo ya cargado, y avisa cuando no lo es', () => {
+    expect(mesesEntre('2026-08-14', '2026-11-14')).toBe(3)
+    expect(mesesEntre('2026-01-31', '2026-02-28')).toBe(1) // fin de mes
+    expect(mesesEntre('2026-08-14', '2026-11-12')).toBeNull() // 90 días contados
+    expect(mesesEntre('2026-08-14', '2026-08-29')).toBeNull() // 15 días pactados a mano
+  })
+
+  it('un plazo de 3 meses rinde 3 meses de tasa, tenga 90, 92 o 93 días', () => {
+    const base = {
+      capitalInicial: 10000, capitalizable: false,
+      tramos: [{ fecha_desde: '2026-01-01', tasa_mensual: TASA }],
+    }
+    // 3 meses desde el 1-dic = 92 días; desde el 1-feb = 89 días. Los dos pagan 3 × 1,75%
+    const dic = generarPeriodos({ ...base, fechaInicio: '2026-12-01', fechaFin: '2027-03-01',
+      hasta: '2027-03', plazoDias: diasEntre('2026-12-01', '2027-03-01') })
+    const feb = generarPeriodos({ ...base, fechaInicio: '2027-02-01', fechaFin: '2027-05-01',
+      hasta: '2027-05', plazoDias: diasEntre('2027-02-01', '2027-05-01') })
+    expect(sum(dic.map((x) => x.interes_devengado))).toBe(525.0)
+    expect(sum(feb.map((x) => x.interes_devengado))).toBe(525.0)
   })
 })
