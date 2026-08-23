@@ -597,7 +597,7 @@ function HoraExtraRow({ he, valorHora }: { he: HoraExtraRegistro; valorHora: num
 const PORCENTAJES_HE = [0, 30, 50, 100]
 
 function HoraExtraForm({ empleado, onClose }: { empleado: Empleado; onClose: () => void }) {
-  const [porcentaje, setPorcentaje] = useState(50)
+  const [porcentaje, setPorcentaje] = useState(30)
   const [error, formAction, isPending] = useActionState(
     async (prev: string | null, fd: FormData) => {
       fd.set('empleado_id', empleado.id)

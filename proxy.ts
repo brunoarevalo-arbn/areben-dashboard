@@ -33,8 +33,13 @@ export async function proxy(request: NextRequest) {
   // privada la mandaría al login y el ingreso nunca cerraría (login → Google →
   // callback → login → ...).
   const isOAuthCallback = request.nextUrl.pathname.startsWith('/auth/')
+  // `/horas/<token>` es la carga de horas extras del propio empleado: entra SIN sesión
+  // a propósito, porque los empleados no tienen usuario del dashboard. La autorización
+  // es el token del link, y del otro lado todo lo que llega nace PENDIENTE: sin que
+  // alguien lo apruebe no se paga nada. Ver `app/actions/horas-publicas.ts`.
+  const isCargaHoras = request.nextUrl.pathname.startsWith('/horas/')
 
-  if (!user && !isAuthPage && !isOAuthCallback) {
+  if (!user && !isAuthPage && !isOAuthCallback && !isCargaHoras) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

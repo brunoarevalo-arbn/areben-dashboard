@@ -134,7 +134,7 @@ const horaExtraSchema = z.object({
   empleado_id: z.string().uuid(),
   fecha: z.string().min(1),
   cantidad: z.coerce.number().positive(),
-  porcentaje: z.coerce.number().min(0).max(200).default(50),
+  porcentaje: z.coerce.number().min(0).max(200).default(30),
   notas: z.string().optional().nullable(),
 })
 
@@ -147,6 +147,10 @@ export async function createHoraExtra(prevState: string | null, formData: FormDa
   const { error } = await supabase.from('horas_extras_registros').insert({
     ...result.data,
     notas: result.data.notas || null,
+    // Cargada de adentro: nace aprobada. Sólo lo que llega por el link del empleado
+    // (app/actions/horas-publicas.ts) nace PENDIENTE y hay que aprobarlo.
+    estado: 'APROBADA',
+    origen: 'ADMIN',
   })
   if (error) return error.message
   revalidatePath('/rrhh/empleados')
@@ -161,6 +165,95 @@ export async function deleteHoraExtra(id: string) {
   if (error) throw new Error(error.message)
   revalidatePath('/rrhh/empleados')
   revalidatePath('/rrhh/nomina')
+}
+
+// ============ APROBACIÓN DE HORAS EXTRAS ============
+// Lo que el empleado carga desde su link (/horas/<token>) entra PENDIENTE y no lo ve la
+// liquidación hasta que se aprueba acá y se le pone el porcentaje.
+
+/** Aprueba una o varias cargas, todas al mismo porcentaje. */
+export async function aprobarHorasExtras(ids: string[], porcentaje: number) {
+  const user = await requireUser()
+  if (!ids.length) return 'No hay nada seleccionado.'
+  if (!Number.isFinite(porcentaje) || porcentaje < 0 || porcentaje > 200) {
+    return 'El porcentaje tiene que estar entre 0 y 200.'
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('horas_extras_registros')
+    .update({
+      estado: 'APROBADA',
+      porcentaje,
+      aprobado_por: user.email,
+      aprobado_at: new Date().toISOString(),
+      rechazo_motivo: null,
+    })
+    .in('id', ids)
+    // Una carga ya liquidada no se re-aprueba: tocarle el % movería un neto ya pagado.
+    .is('incluido_en_nomina_id', null)
+  if (error) return error.message
+
+  revalidatePath('/rrhh/horas-extras')
+  revalidatePath('/rrhh/nomina')
+  revalidatePath('/rrhh/empleados')
+  return null
+}
+
+/** Rechaza una carga. El motivo lo ve el empleado en su link. */
+export async function rechazarHoraExtra(id: string, motivo: string) {
+  const user = await requireUser()
+  const limpio = motivo.trim()
+  if (!limpio) return 'Poné el motivo: el empleado lo va a ver.'
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('horas_extras_registros')
+    .update({
+      estado: 'RECHAZADA',
+      aprobado_por: user.email,
+      aprobado_at: new Date().toISOString(),
+      rechazo_motivo: limpio,
+    })
+    .eq('id', id)
+    .is('incluido_en_nomina_id', null)
+  if (error) return error.message
+
+  revalidatePath('/rrhh/horas-extras')
+  revalidatePath('/rrhh/nomina')
+  revalidatePath('/rrhh/empleados')
+  return null
+}
+
+/** Genera (o regenera) el link personal del empleado. Regenerar mata el anterior. */
+export async function generarTokenHoras(empleadoId: string) {
+  await requireUser()
+  const { randomBytes } = await import('node:crypto')
+  const token = randomBytes(16).toString('base64url')
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('empleados')
+    .update({ token_horas: token, token_horas_creado_at: new Date().toISOString() })
+    .eq('id', empleadoId)
+  if (error) return error.message
+
+  revalidatePath('/rrhh/horas-extras')
+  return null
+}
+
+/** Revoca el link: el que ya está circulando deja de funcionar en el acto. */
+export async function revocarTokenHoras(empleadoId: string) {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('empleados')
+    .update({ token_horas: null, token_horas_creado_at: null })
+    .eq('id', empleadoId)
+  if (error) return error.message
+
+  revalidatePath('/rrhh/horas-extras')
+  return null
 }
 
 // ============ AUSENCIAS / FALTAS ============
@@ -642,10 +735,14 @@ async function reconciliarHorasExtras(
   const ultimoDia = new Date(fIni.getFullYear(), fIni.getMonth() + 1, 0).toISOString().split('T')[0]
 
   // Candidatos: registros del empleado/mes ya vinculados a esta nómina + los aún sin vincular.
+  // 🔴 Sólo los APROBADA. Abajo se BORRAN los candidatos que no vengan en las líneas del
+  // formulario, así que sin este filtro liquidar el mes se comería en silencio todo lo que el
+  // empleado cargó por su link y todavía nadie aprobó.
   const { data: actuales } = await supabase
     .from('horas_extras_registros')
     .select('id')
     .eq('empleado_id', empleadoId)
+    .eq('estado', 'APROBADA')
     .gte('fecha', desdeMes)
     .lte('fecha', ultimoDia)
     .or(`incluido_en_nomina_id.eq.${nominaId},incluido_en_nomina_id.is.null`)
@@ -665,6 +762,7 @@ async function reconciliarHorasExtras(
       await supabase.from('horas_extras_registros').insert({
         empleado_id: empleadoId, fecha: ultimoDia, cantidad: l.cantidad, porcentaje: l.porcentaje,
         incluido_en_nomina_id: nominaId, notas: 'Cargada en liquidación',
+        estado: 'APROBADA', origen: 'ADMIN',
       })
     }
   }

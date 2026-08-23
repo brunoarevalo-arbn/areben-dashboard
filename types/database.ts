@@ -588,9 +588,15 @@ export interface Empleado {
   fecha_egreso?: string | null
   activo: boolean
   fecha_nacimiento?: string | null
+  /** Secreto del link personal de carga de horas extras (/horas/<token>). NULL = sin link. */
+  token_horas?: string | null
+  token_horas_creado_at?: string | null
   created_at: string
   updated_at: string
 }
+
+export type EstadoHoraExtra = 'PENDIENTE' | 'APROBADA' | 'RECHAZADA'
+export type OrigenHoraExtra = 'ADMIN' | 'EMPLEADO'
 
 export interface HoraExtraRegistro {
   id: string
@@ -600,6 +606,12 @@ export interface HoraExtraRegistro {
   porcentaje: number
   notas?: string | null
   incluido_en_nomina_id?: string | null
+  /** Sólo las APROBADA entran a la liquidación. Lo cargado por admin nace aprobado. */
+  estado: EstadoHoraExtra
+  origen: OrigenHoraExtra
+  aprobado_por?: string | null
+  aprobado_at?: string | null
+  rechazo_motivo?: string | null
   created_at: string
 }
 

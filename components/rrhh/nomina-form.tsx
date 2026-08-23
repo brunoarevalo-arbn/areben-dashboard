@@ -122,13 +122,20 @@ export function NominaForm({
     return { cantidad, registros: hs, porcentajePromedio: Math.round(pctProm * 100) / 100 }
   }, [empleado, horasExtrasMes])
 
-  // Registros de horas extras del empleado para esta nómina: en edición = los ya vinculados a esta
-  // nómina; en alta = los del mes aún sin vincular. Son la fuente de las líneas editables.
+  // Registros de horas extras del empleado que son fuente de las líneas editables.
+  //
+  // 🔴 Tiene que ser EXACTAMENTE el mismo conjunto que `reconciliarHorasExtras` toma como
+  // candidatos (app/actions/rrhh.ts): los ya vinculados a esta nómina MÁS los del mes todavía
+  // sin vincular. Si el formulario mostrara menos, al guardar el reconciliador borraría los que
+  // no ve — y eso es lo que pasaba con una hora aprobada DESPUÉS de crear la liquidación:
+  // no aparecía en la edición y se perdía en silencio al guardar.
   const registrosDelEmpleado = useMemo(() => {
     if (!empleado) return [] as HoraExtraRegistro[]
     return registrosExtras.filter((r) =>
       r.empleado_id === empleado.id &&
-      (editing ? r.incluido_en_nomina_id === nomina!.id : r.incluido_en_nomina_id == null)
+      (editing
+        ? r.incluido_en_nomina_id === nomina!.id || r.incluido_en_nomina_id == null
+        : r.incluido_en_nomina_id == null)
     )
   }, [empleado, registrosExtras, editing, nomina])
 
@@ -136,11 +143,16 @@ export function NominaForm({
   // pero sin registros individuales), sembrar una línea con el agregado para no perderlas.
   const lineasIniciales = (): { id: string | null; cantidad: number; porcentaje: number }[] => {
     const desdeRegistros = registrosDelEmpleado.map((r) => ({ id: r.id, cantidad: Number(r.cantidad), porcentaje: Number(r.porcentaje) }))
-    if (desdeRegistros.length > 0) return desdeRegistros
-    if (editing && (nomina?.horas_extras ?? 0) > 0) {
-      return [{ id: null, cantidad: Number(nomina!.horas_extras), porcentaje: Number(nomina!.porcentaje_extras ?? 50) }]
+    // El agregado viejo se siembra sólo si esta nómina no tiene NINGÚN registro propio: si ya
+    // tiene, sus horas están representadas y sembrarlo otra vez las contaría dos veces.
+    const tieneVinculados = registrosDelEmpleado.some((r) => r.incluido_en_nomina_id === nomina?.id)
+    if (editing && !tieneVinculados && (nomina?.horas_extras ?? 0) > 0) {
+      return [
+        { id: null, cantidad: Number(nomina!.horas_extras), porcentaje: Number(nomina!.porcentaje_extras ?? 50) },
+        ...desdeRegistros,
+      ]
     }
-    return []
+    return desdeRegistros
   }
 
   // Líneas de horas extras editables (cada una hs + %). Al guardar se reconcilian con los registros.

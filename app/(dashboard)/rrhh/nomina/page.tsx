@@ -34,9 +34,12 @@ export default async function NominaPage({
       .select('*')
       .eq('activo', true)
       .order('orden'),
+    // Sólo las APROBADA: lo que el empleado cargó por su link y todavía nadie aprobó
+    // no entra a la liquidación (ni se toca — ver reconciliarHorasExtras).
     supabase
       .from('horas_extras_registros')
       .select('*')
+      .eq('estado', 'APROBADA')
       .gte('fecha', desde)
       .lte('fecha', hasta)
       .is('incluido_en_nomina_id', null),
@@ -56,6 +59,7 @@ export default async function NominaPage({
     supabase
       .from('horas_extras_registros')
       .select('*')
+      .eq('estado', 'APROBADA')
       .gte('fecha', desde)
       .lte('fecha', hasta),
   ])

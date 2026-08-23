@@ -121,6 +121,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Empleados', href: '/rrhh/empleados', icon: UserCheck },
       { label: 'Nómina', href: '/rrhh/nomina', icon: FileText },
+      { label: 'Horas extras', href: '/rrhh/horas-extras', icon: Clock },
       { label: 'Vacaciones', href: '/rrhh/vacaciones', icon: CalendarDays },
     ],
   },

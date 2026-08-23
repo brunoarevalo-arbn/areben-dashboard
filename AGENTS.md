@@ -32,7 +32,11 @@ de antes, y por eso se migraron sin día: inventarles uno cambiaría meses ya ce
 
 **Toda server action mutadora arranca con `await requireUser()`** (`lib/supabase/server.ts`). Es
 defensa en profundidad sobre la RLS `authenticated_all`: sin eso, la action queda invocable sin
-sesión. La única excepción legítima es `app/actions/auth.ts`.
+sesión. Dos excepciones legítimas: `app/actions/auth.ts` y `app/actions/horas-publicas.ts` — esta
+última es la carga de horas extras del propio empleado (`/horas/<token>`, exceptuada también en
+`proxy.ts`), donde la autorización es el token del link: no escribe con `.from(...)` sino por las
+funciones `security definer` de la migración 077, únicas ejecutables por `anon`, y todo lo que
+entra nace `PENDIENTE` hasta que alguien lo aprueba.
 
 **`proxy.ts` es el middleware** — Next 16 renombró `middleware.ts` a `proxy.ts` y la función
 exportada es `proxy()`. `/auth/*` está excluido del guard **a propósito**: la vuelta de Google llega
@@ -55,6 +59,11 @@ cierra**.
 
 **Nómina: motor único en `lib/calc/nomina.ts`.** No recalcular sueldos en un client ni en una
 action. Los empleados en negro llevan 0 cargas patronales.
+
+**La liquidación sólo mira las horas extras `estado='APROBADA'`.** `reconciliarHorasExtras`
+(`app/actions/rrhh.ts`) **borra** los candidatos que no vengan en las líneas del formulario: sin
+ese filtro, liquidar el mes se come en silencio lo que el empleado cargó por su link y todavía
+nadie aprobó. Lo que se carga de adentro nace `APROBADA` y se comporta como siempre.
 
 **Gestión Nube es multi-cuenta** (`lib/gestion-nube/client.ts`): el token va por parámetro, leído de
 `GN_TOKEN_<ALIAS>` (BDI / ZATTIA). La API es inestable y no banca `per_page > 50`; todo pasa por el
