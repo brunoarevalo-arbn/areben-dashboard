@@ -1366,6 +1366,28 @@ export async function liquidacionMasiva(args: {
 
   ok = nominasInsertadas?.length ?? 0
 
+  // 6) Marcar como liquidadas las horas extras aprobadas del mes que esta masiva consumió.
+  // La grilla arranca prellenada con esas horas, así que la nómina ya las pagó. Sin este paso
+  // quedarían sueltas y una edición individual posterior de la misma nómina las volvería a
+  // sumar arriba de lo ya liquidado.
+  if (nominasInsertadas?.length) {
+    const desdeMes = `${args.mes}-01`
+    const fIni = new Date(desdeMes + 'T00:00:00')
+    const ultimoDia = new Date(fIni.getFullYear(), fIni.getMonth() + 1, 0).toISOString().split('T')[0]
+    await Promise.all(
+      nominasInsertadas.map((n) =>
+        supabase
+          .from('horas_extras_registros')
+          .update({ incluido_en_nomina_id: n.id })
+          .eq('empleado_id', n.empleado_id)
+          .eq('estado', 'APROBADA')
+          .is('incluido_en_nomina_id', null)
+          .gte('fecha', desdeMes)
+          .lte('fecha', ultimoDia)
+      )
+    )
+  }
+
   // Sincronizar gastos de aportes patronales para todas las nóminas insertadas
   if (nominasInsertadas?.length) {
     await Promise.all(nominasInsertadas.map((n) => syncGastoAportesPatronales(n.id)))
@@ -1373,6 +1395,7 @@ export async function liquidacionMasiva(args: {
   }
 
   revalidatePath('/rrhh/nomina')
+  revalidatePath('/rrhh/horas-extras')
   revalidatePath('/finanzas/pendientes')
   revalidatePath('/finanzas/gastos')
   revalidatePath('/finanzas/cierre-mes')

@@ -8,24 +8,43 @@ import { Input } from '@/components/ui/input'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Loader2, ListChecks } from 'lucide-react'
 import type { EmpleadoBasico } from './nomina-client'
+import type { HoraExtraRegistro } from '@/types/database'
 
 interface Concepto { he: number; pct: number; bono: number; desc: number }
-const CONCEPTO_DEFAULT: Concepto = { he: 0, pct: 50, bono: 0, desc: 0 }
+const CONCEPTO_DEFAULT: Concepto = { he: 0, pct: 30, bono: 0, desc: 0 }
 
 export function LiquidacionMasivaModal({
   empleados,
   mes,
   nominasExistentes,
+  horasExtrasMes,
   onClose,
 }: {
   empleados: EmpleadoBasico[]
   mes: string
   nominasExistentes: string[]
+  /** Horas extras APROBADAS del mes que todavía no entraron a ninguna nómina. */
+  horasExtrasMes: HoraExtraRegistro[]
   onClose: () => void
 }) {
   const disponibles = empleados.filter((e) => !nominasExistentes.includes(e.id))
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set(disponibles.map((e) => e.id)))
-  const [conceptos, setConceptos] = useState<Record<string, Concepto>>({})
+
+  // La grilla arranca con lo YA APROBADO de cada uno, no en cero: si no, aprobar la hora y
+  // liquidar en masa la dejaba afuera sin decir nada. Se puede pisar a mano.
+  const [conceptos, setConceptos] = useState<Record<string, Concepto>>(() => {
+    const inicial: Record<string, Concepto> = {}
+    for (const e of empleados) {
+      const suyas = horasExtrasMes.filter((h) => h.empleado_id === e.id)
+      if (!suyas.length) continue
+      const he = suyas.reduce((s, h) => s + Number(h.cantidad), 0)
+      // Ponderado por horas: con % distintos, aplicar este promedio al total da el monto exacto.
+      const pct = Math.round((suyas.reduce((s, h) => s + Number(h.cantidad) * Number(h.porcentaje), 0) / he) * 100) / 100
+      inicial[e.id] = { he, pct, bono: 0, desc: 0 }
+    }
+    return inicial
+  })
+  const conAprobadas = new Set(Object.keys(conceptos))
   const [fechaPago, setFechaPago] = useState(() => {
     const [y, m] = mes.split('-').map(Number)
     const fin = new Date(y, m, 0)
@@ -66,7 +85,7 @@ export function LiquidacionMasivaModal({
       const c = conceptoDe(id)
       payload[id] = {
         horasExtras: c.he || 0,
-        porcentajeExtras: c.pct || 50,
+        porcentajeExtras: c.pct || 30,
         bonoMonto: c.bono || 0,
         descuentoOtroMonto: c.desc || 0,
         descuentoOtroConcepto: c.desc > 0 ? 'OTRO' : undefined,
@@ -155,7 +174,10 @@ export function LiquidacionMasivaModal({
                   </td>
                   <td className="px-3 py-1.5">
                     <p className="text-sm text-fg truncate">{e.apellido}, {e.nombre}</p>
-                    <p className="text-[10px] text-fg-soft">{e.tipo_empleado} · básico {formatCurrency(e.sueldo_basico)}</p>
+                    <p className="text-[10px] text-fg-soft">
+                      {e.tipo_empleado} · básico {formatCurrency(e.sueldo_basico)}
+                      {conAprobadas.has(e.id) && <span className="text-orange-600"> · HE aprobadas</span>}
+                    </p>
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     <NumberInput min="0" step="0.5" disabled={!checked} value={c.he} placeholder="0"

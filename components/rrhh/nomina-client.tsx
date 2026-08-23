@@ -629,6 +629,7 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
           empleados={empleados}
           mes={mes}
           nominasExistentes={nominasExistentes}
+          horasExtrasMes={horasExtrasMes}
           onClose={() => setLiqMasivaOpen(false)}
         />
       </Modal>
