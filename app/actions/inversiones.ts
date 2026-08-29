@@ -1131,6 +1131,8 @@ export async function generarPeriodosDelMes(mes: string): Promise<{ generados: n
   return { generados: faltan.length, sinNovedad: dentro.length - faltan.length }
 }
 
+/** Cierre masivo por mes. La pantalla NO lo usa: cierra fila por fila con
+ * `cerrarPeriodoYCrearGasto`, que además genera el gasto financiero. */
 export async function cerrarPeriodos(mes: string) {
   await requireUser()
   const supabase = await createClient()
@@ -1140,21 +1142,6 @@ export async function cerrarPeriodos(mes: string) {
     .eq('mes', mes)
     .eq('cerrado', false)
   if (error) throw new Error(error.message)
-
-  // Cerrado el mes, dejar listo el siguiente: se regeneran los instrumentos que siguen
-  // dentro de su plazo. Ojo que el motor nunca devenga futuro — si el mes que viene
-  // todavía no llegó, esto no crea nada y el período nace cuando el calendario lo alcanza.
-  const { data: instrumentos } = await supabase
-    .from('instrumentos_inversion')
-    .select('id, estado, fecha_inicio, fecha_fin')
-    .eq('estado', 'activo')
-  const siguiente = sumarMeses(`${mes}-01`, 1).substring(0, 7)
-  for (const inst of instrumentos ?? []) {
-    if (situacionEnMes(inst, siguiente) === 'dentro') {
-      await regenerarPeriodosDB(supabase, inst.id)
-    }
-  }
-
   revalidatePath('/inversiones/cierre')
   revalidatePath('/inversiones/gastos')
 }
@@ -1352,6 +1339,12 @@ export async function cerrarPeriodoYCrearGasto(periodoId: string): Promise<Cerra
     await supabase.from('gastos').delete().eq('id', nuevoGasto.id)
     return { ok: false, error: `Error al cerrar el período (gasto revertido): ${errCerrar.message}` }
   }
+
+  // Cerrado el mes de este instrumento, dejarle listo el siguiente. El motor nunca
+  // devenga futuro: si el mes que viene todavía no llegó, esto no crea nada y el
+  // período nace cuando el calendario lo alcanza. A un plazo ya vencido tampoco le
+  // genera nada — ese hay que renovarlo o devolverlo.
+  await regenerarPeriodosDB(supabase, periodo.instrumento_id)
 
   revalidatePath('/inversiones/cierre')
   revalidatePath('/inversiones')
