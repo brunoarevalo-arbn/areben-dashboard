@@ -6,6 +6,7 @@ import Link from 'next/link'
 import {
   cerrarPeriodoYCrearGasto,
   reabrirPeriodos,
+  generarPeriodosDelMes,
   type CerrarPeriodoResult,
 } from '@/app/actions/inversiones'
 import type { PeriodoInstrumento, Instrumento, Inversor } from '@/types/database'
@@ -15,11 +16,11 @@ import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { useSort, SortTh } from '@/components/ui/sortable'
 import { RenovarModal } from './renovar-modal'
-import { formatMoneda, estadoVencimiento } from '@/lib/inversiones-calc'
+import { formatMoneda, estadoVencimiento, situacionEnMes } from '@/lib/inversiones-calc'
 import { formatMonth, getMonthOptions, formatCurrency, formatDate } from '@/lib/utils'
 import {
   Lock, Unlock, AlertTriangle, Loader2, CheckCircle2, PiggyBank, X,
-  FileText, XCircle, ArrowRight, RefreshCw, Calendar,
+  FileText, XCircle, ArrowRight, RefreshCw, Calendar, ListPlus, HandCoins,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -30,7 +31,7 @@ type PeriodoConRel = PeriodoInstrumento & {
 interface Props {
   mes: string
   periodos: PeriodoConRel[]
-  instrumentos: Instrumento[]
+  instrumentos: (Instrumento & { inversor?: Inversor })[]
   inversores: Inversor[]
   mesesAbiertosAnteriores: string[]
 }
@@ -173,7 +174,7 @@ function RenovarInstrumentoButton({
   )
 }
 
-export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: Props) {
+export function CierreMensualClient({ mes, periodos, instrumentos, mesesAbiertosAnteriores }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
@@ -206,6 +207,16 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
   const abiertos = periodos.filter((p) => !p.cerrado).length
   const cerrados = periodos.length - abiertos
   const pctCerrado = periodos.length ? Math.round((cerrados / periodos.length) * 100) : 0
+
+  // El padrón del mes: quién tendría que tener período y quién quedó sin resolver.
+  // Los períodos no nacen solos, así que un mes puede estar incompleto sin que se note.
+  const conFila = new Set(periodos.map((p) => p.instrumento_id))
+  const faltanGenerar = instrumentos.filter(
+    (i) => situacionEnMes(i, mes) === 'dentro' && !conFila.has(i.id),
+  )
+  const vencidosSinResolver = instrumentos.filter((i) => situacionEnMes(i, mes) === 'vencido')
+  const nombreDe = (i: Instrumento & { inversor?: Inversor }) =>
+    `${i.inversor?.nombre ?? 'Inversor'} · ${i.codigo ?? i.id.substring(0, 8)}`
 
   function setMes(nuevo: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -243,6 +254,82 @@ export function CierreMensualClient({ mes, periodos, mesesAbiertosAnteriores }: 
           )}
         </div>
       </div>
+
+      {/* Faltan generar: el mes está incompleto y sin esto no se nota */}
+      {faltanGenerar.length > 0 && (
+        <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
+                <ListPlus className="w-4 h-4 text-amber-700" />
+                Faltan {faltanGenerar.length} instrumento(s) de {formatMonth(mes)}
+              </h2>
+              <p className="text-xs text-fg-muted mt-1 max-w-2xl">
+                Están dentro de su plazo, así que este mes les corresponde interés, pero todavía no
+                tienen la fila del mes. Si cerrás {formatMonth(mes)} sin generarlos, el gasto de esos
+                instrumentos no queda registrado.
+              </p>
+              <ul className="mt-2 space-y-0.5">
+                {faltanGenerar.map((i) => (
+                  <li key={i.id} className="text-xs text-fg-soft">· {nombreDe(i)} ({i.moneda})</li>
+                ))}
+              </ul>
+            </div>
+            <Button
+              variant="warning"
+              disabled={isPending}
+              onClick={() => {
+                startTransition(async () => {
+                  const r = await generarPeriodosDelMes(mes)
+                  setToast({
+                    kind: 'success',
+                    message: `${r.generados} período(s) generado(s)`,
+                    detail: `${formatMonth(mes)} · ${r.sinNovedad} ya estaban`,
+                  })
+                  router.refresh()
+                })
+              }}
+            >
+              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ListPlus className="w-4 h-4" />}
+              Generar los que faltan
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Vencidos sin resolver: no se les genera período, hay que renovar o devolver */}
+      {vencidosSinResolver.length > 0 && (
+        <div className="bg-red-500/5 border border-red-500/30 rounded-xl p-4">
+          <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
+            <HandCoins className="w-4 h-4 text-red-700" />
+            {vencidosSinResolver.length} plazo(s) vencido(s) sin resolver
+          </h2>
+          <p className="text-xs text-fg-muted mt-1 max-w-2xl">
+            El plazo ya terminó y la plata sigue figurando como del inversor. Un plazo vencido no
+            devenga solo, así que no se le genera período: hay que <strong>renovarlo</strong> o
+            <strong> devolver el saldo</strong> desde la ficha del inversor. Hasta que no se haga,
+            queda acá.
+          </p>
+          <ul className="mt-2 space-y-1">
+            {vencidosSinResolver.map((i) => {
+              const venc = estadoVencimiento(i.fecha_fin)
+              return (
+                <li key={i.id} className="text-xs flex items-center gap-2 flex-wrap">
+                  <Link
+                    href={`/inversiones/${i.inversor_id}`}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    {nombreDe(i)}
+                  </Link>
+                  <span className="text-fg-soft">({i.moneda})</span>
+                  <span className={venc.colorClass}>{venc.label}</span>
+                  {i.fecha_fin && <span className="text-fg-soft">— venció el {formatDate(i.fecha_fin)}</span>}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
 
       {/* Banner de resultado de la última acción */}
       {toast && (

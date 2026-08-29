@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generarPeriodos, sumarMeses, diasEntre, mesesEntre } from '@/lib/inversiones-calc'
+import { generarPeriodos, sumarMeses, diasEntre, mesesEntre, situacionEnMes } from '@/lib/inversiones-calc'
 
 const TASA = 0.0175 // 1,75% mensual
 const tramo = (fecha: string, tasa = TASA) => [{ fecha_desde: fecha, tasa_mensual: tasa }]
@@ -161,5 +161,35 @@ describe('el plazo se cuenta en meses, no en días', () => {
       hasta: '2027-05', plazoDias: diasEntre('2027-02-01', '2027-05-01') })
     expect(sum(dic.map((x) => x.interes_devengado))).toBe(525.0)
     expect(sum(feb.map((x) => x.interes_devengado))).toBe(525.0)
+  })
+})
+
+describe('situacionEnMes — a qué instrumentos les toca período en un mes', () => {
+  const fredy = { estado: 'activo', fecha_inicio: '2026-06-01', fecha_fin: '2026-09-01' }
+
+  it('el mes del vencimiento ya NO devenga: 01/06→01/09 cubre junio, julio y agosto', () => {
+    expect(situacionEnMes(fredy, '2026-05')).toBe('fuera')
+    expect(situacionEnMes(fredy, '2026-06')).toBe('dentro')
+    expect(situacionEnMes(fredy, '2026-07')).toBe('dentro')
+    expect(situacionEnMes(fredy, '2026-08')).toBe('dentro')
+    expect(situacionEnMes(fredy, '2026-09')).toBe('vencido')
+  })
+
+  it('un plazo que venció a mitad de mes devenga ese mes y queda vencido el siguiente', () => {
+    // Blesio INV-002: 03/06 → 03/07. El 2 de julio todavía devenga.
+    const blesio = { estado: 'activo', fecha_inicio: '2026-06-03', fecha_fin: '2026-07-03' }
+    expect(situacionEnMes(blesio, '2026-06')).toBe('dentro')
+    expect(situacionEnMes(blesio, '2026-07')).toBe('dentro')
+    expect(situacionEnMes(blesio, '2026-08')).toBe('vencido')
+  })
+
+  it('sin vencimiento pactado nunca queda vencido', () => {
+    const abierto = { estado: 'activo', fecha_inicio: '2026-06-01', fecha_fin: null }
+    expect(situacionEnMes(abierto, '2026-12')).toBe('dentro')
+  })
+
+  it('un instrumento ya cerrado o renovado queda afuera', () => {
+    expect(situacionEnMes({ ...fredy, estado: 'cerrado' }, '2026-07')).toBe('fuera')
+    expect(situacionEnMes({ ...fredy, estado: 'renovado' }, '2026-07')).toBe('fuera')
   })
 })

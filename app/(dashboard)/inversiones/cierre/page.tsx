@@ -17,7 +17,7 @@ export default async function CierrePage({
       .select('*, instrumento:instrumentos_inversion(*, inversor:inversores(*))')
       .eq('mes', mes)
       .order('created_at'),
-    supabase.from('instrumentos_inversion').select('*'),
+    supabase.from('instrumentos_inversion').select('*, inversor:inversores(*)'),
     supabase.from('inversores').select('*'),
     supabase.from('periodos_instrumento').select('mes, cerrado').lt('mes', mes).eq('cerrado', false),
   ])

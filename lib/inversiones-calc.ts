@@ -865,3 +865,34 @@ export function estadoVencimiento(
   }
   return { dias, nivel: 'plazo', necesitaRenovar: false, label: `Vence en ${dias} días`, colorClass: 'text-fg-muted' }
 }
+
+// ============================================================
+// ¿Qué instrumentos le corresponden a un mes?
+// ============================================================
+
+/**
+ * Situación de un instrumento frente a un mes de cierre:
+ * - 'dentro'   → el mes cae adentro del plazo pactado, así que le toca período.
+ * - 'vencido'  → el plazo ya terminó y el instrumento sigue activo: no se le
+ *                genera nada. Un PF vencido no devenga solo; hay que renovarlo
+ *                o devolverle la plata al inversor. Mientras eso no pase, queda
+ *                como pendiente a la vista en la pantalla de cierre.
+ * - 'fuera'    → todavía no arrancó, o el instrumento ya está cerrado/renovado.
+ *
+ * El último mes que devenga es el del día ANTERIOR al vencimiento: el día del
+ * vencimiento es el del pago y el arranque del ciclo siguiente, no devenga.
+ * Un ciclo 01/06 → 01/09 devenga junio, julio y agosto; septiembre ya no.
+ */
+export type SituacionEnMes = 'dentro' | 'vencido' | 'fuera'
+
+export function situacionEnMes(
+  inst: { estado: string; fecha_inicio: string; fecha_fin?: string | null },
+  mes: string,
+): SituacionEnMes {
+  if (inst.estado !== 'activo') return 'fuera'
+  if (mes < inst.fecha_inicio.substring(0, 7)) return 'fuera'
+  // Sin vencimiento pactado el plazo no termina nunca: siempre le toca período.
+  if (!inst.fecha_fin) return 'dentro'
+  const ultimoMes = sumarDias(inst.fecha_fin, -1).substring(0, 7)
+  return mes <= ultimoMes ? 'dentro' : 'vencido'
+}

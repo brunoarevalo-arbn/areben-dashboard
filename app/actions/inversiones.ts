@@ -3,7 +3,7 @@
 import { createClient, requireUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { generarPeriodos, getCurrentMonth, planDevolucion, sumarMeses, sumarDias, diasEntre, mesesEntre, type FilaPeriodo, type MovimientoCalc } from '@/lib/inversiones-calc'
+import { generarPeriodos, getCurrentMonth, planDevolucion, sumarMeses, sumarDias, diasEntre, mesesEntre, situacionEnMes, type FilaPeriodo, type MovimientoCalc } from '@/lib/inversiones-calc'
 import type { MotivoMovimiento } from '@/types/database'
 
 // ============ INVERSORES ============
@@ -1093,6 +1093,44 @@ export async function borrarMovimiento(id: string): Promise<MovimientoResult> {
   return { ok: true }
 }
 
+/**
+ * Los períodos no nacen solos: se generan cuando alguien toca el instrumento. Si nadie
+ * lo toca, el mes nuevo simplemente no existe y el cierre lo pasa por alto en silencio.
+ * Esto genera los que faltan para un mes: recorre los instrumentos que están DENTRO de
+ * su plazo y regenera los que no tienen fila en ese mes.
+ *
+ * A los vencidos no se les genera nada a propósito: un PF que terminó no devenga solo,
+ * hay que renovarlo o devolver la plata. La pantalla de cierre los muestra aparte.
+ */
+export async function generarPeriodosDelMes(mes: string): Promise<{ generados: number; sinNovedad: number }> {
+  await requireUser()
+  const supabase = await createClient()
+
+  const { data: instrumentos } = await supabase
+    .from('instrumentos_inversion')
+    .select('id, estado, fecha_inicio, fecha_fin')
+    .eq('estado', 'activo')
+
+  const dentro = (instrumentos ?? []).filter((i) => situacionEnMes(i, mes) === 'dentro')
+  if (dentro.length === 0) return { generados: 0, sinNovedad: 0 }
+
+  const { data: yaTienen } = await supabase
+    .from('periodos_instrumento')
+    .select('instrumento_id')
+    .eq('mes', mes)
+    .in('instrumento_id', dentro.map((i) => i.id))
+  const conFila = new Set((yaTienen ?? []).map((p) => p.instrumento_id))
+
+  const faltan = dentro.filter((i) => !conFila.has(i.id))
+  for (const inst of faltan) {
+    await regenerarPeriodosDB(supabase, inst.id)
+  }
+
+  revalidatePath('/inversiones/cierre')
+  revalidatePath('/inversiones')
+  return { generados: faltan.length, sinNovedad: dentro.length - faltan.length }
+}
+
 export async function cerrarPeriodos(mes: string) {
   await requireUser()
   const supabase = await createClient()
@@ -1102,6 +1140,21 @@ export async function cerrarPeriodos(mes: string) {
     .eq('mes', mes)
     .eq('cerrado', false)
   if (error) throw new Error(error.message)
+
+  // Cerrado el mes, dejar listo el siguiente: se regeneran los instrumentos que siguen
+  // dentro de su plazo. Ojo que el motor nunca devenga futuro — si el mes que viene
+  // todavía no llegó, esto no crea nada y el período nace cuando el calendario lo alcanza.
+  const { data: instrumentos } = await supabase
+    .from('instrumentos_inversion')
+    .select('id, estado, fecha_inicio, fecha_fin')
+    .eq('estado', 'activo')
+  const siguiente = sumarMeses(`${mes}-01`, 1).substring(0, 7)
+  for (const inst of instrumentos ?? []) {
+    if (situacionEnMes(inst, siguiente) === 'dentro') {
+      await regenerarPeriodosDB(supabase, inst.id)
+    }
+  }
+
   revalidatePath('/inversiones/cierre')
   revalidatePath('/inversiones/gastos')
 }
