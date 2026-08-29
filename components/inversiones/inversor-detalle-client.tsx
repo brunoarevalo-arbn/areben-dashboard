@@ -19,6 +19,7 @@ import { DevolverModal } from './devolver-modal'
 import {
   ChevronLeft, Plus, Pencil, Trash2, RotateCw, FileText, Lock, Unlock,
   TrendingUp, Calendar, User, Briefcase, Percent, ArrowRight, RefreshCw, AlertTriangle, HandCoins, ClipboardList,
+  Eye, EyeOff,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -36,9 +37,28 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
   const [tasaModal, setTasaModal] = useState<Instrumento | undefined>()
   const [renovarModal, setRenovarModal] = useState<{ instr: Instrumento; saldo: number } | undefined>()
   const [devolverModal, setDevolverModal] = useState<Instrumento | undefined>()
-  const [selectedInstr, setSelectedInstr] = useState<Instrumento | undefined>(instrumentos[0])
+  const [verCerrados, setVerCerrados] = useState(false)
+  const [selectedInstr, setSelectedInstr] = useState<Instrumento | undefined>(
+    instrumentos.find((i) => i.estado === 'activo') ?? instrumentos[0]
+  )
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
+
+  // Abierto = el plazo sigue vivo. Cerrado = ya se devolvió o se renovó (pasa a ser historia).
+  const abiertos = useMemo(() => instrumentos.filter((i) => i.estado === 'activo'), [instrumentos])
+  const cerrados = useMemo(() => instrumentos.filter((i) => i.estado !== 'activo'), [instrumentos])
+  const instrumentosVisibles = verCerrados ? instrumentos : abiertos
+  // El detalle de abajo solo se muestra si el plazo elegido está a la vista
+  const detalleInstr = selectedInstr && instrumentosVisibles.some((i) => i.id === selectedInstr.id)
+    ? selectedInstr
+    : undefined
+
+  function toggleCerrados() {
+    const next = !verCerrados
+    // Si estaba mirando uno cerrado y lo esconde, la vista de abajo vuelve al primero abierto
+    if (!next && selectedInstr && selectedInstr.estado !== 'activo') setSelectedInstr(abiertos[0])
+    setVerCerrados(next)
+  }
 
   const periodosByInstr = useMemo(() => {
     const map = new Map<string, PeriodoInstrumento[]>()
@@ -113,7 +133,9 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
               <p className="text-sm text-fg-muted">
                 {inversor.tipo === 'empresa' ? 'Empresa' : 'Persona física'}
                 {' · '}
-                {instrumentos.length} instrumento(s)
+                {cerrados.length > 0
+                  ? `${abiertos.length} abierto(s) · ${cerrados.length} cerrado(s)`
+                  : `${instrumentos.length} instrumento(s)`}
                 {!inversor.activo && <Badge variant="danger" className="ml-2">Inactivo</Badge>}
               </p>
               {inversor.notas && <p className="text-sm text-fg-muted mt-2 max-w-xl">{inversor.notas}</p>}
@@ -126,19 +148,53 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
         </div>
       </div>
 
-      {/* Lista de instrumentos */}
+      {/* Lista de instrumentos — por defecto solo los abiertos */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="text-sm font-semibold text-fg">
+          {verCerrados ? 'Todos los plazos' : 'Plazos abiertos'}
+          <span className="ml-2 font-normal text-fg-soft">{instrumentosVisibles.length}</span>
+        </h2>
+        {cerrados.length > 0 && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={toggleCerrados}
+            title={verCerrados
+              ? 'Dejar a la vista solamente los plazos que siguen abiertos'
+              : 'Traer también los plazos ya devueltos o renovados'}
+          >
+            {verCerrados ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            {verCerrados ? 'Ocultar cerrados' : `Mostrar cerrados (${cerrados.length})`}
+          </Button>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {instrumentos.length === 0 ? (
+        {instrumentosVisibles.length === 0 ? (
           <div className="col-span-2 bg-surface border border-border rounded-xl p-12 text-center">
             <TrendingUp className="w-8 h-8 mx-auto mb-2 text-fg-muted" />
-            <p className="text-fg-soft mb-3">Sin instrumentos cargados</p>
-            <Button onClick={() => { setEditInstr(undefined); setModal(true) }} size="sm">
-              <Plus className="w-3.5 h-3.5" />
-              Crear el primero
-            </Button>
+            {instrumentos.length === 0 ? (
+              <>
+                <p className="text-fg-soft mb-3">Sin instrumentos cargados</p>
+                <Button onClick={() => { setEditInstr(undefined); setModal(true) }} size="sm">
+                  <Plus className="w-3.5 h-3.5" />
+                  Crear el primero
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-fg-soft mb-3">
+                  Este inversor no tiene plazos abiertos. Los {cerrados.length} que tuvo ya están cerrados.
+                </p>
+                <Button onClick={toggleCerrados} size="sm" variant="secondary">
+                  <Eye className="w-3.5 h-3.5" />
+                  Mostrar cerrados ({cerrados.length})
+                </Button>
+              </>
+            )}
           </div>
         ) : (
-          instrumentos.map((i) => {
+          instrumentosVisibles.map((i) => {
             const ps = periodosByInstr.get(i.id) ?? []
             const ultimo = ps[0]
             const saldoActual = ultimo ? Number(ultimo.saldo_cierre) : Number(i.capital_inicial)
@@ -312,14 +368,14 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
       </div>
 
       {/* Tramos de tasa del instrumento seleccionado */}
-      {selectedInstr && tramosSelected.length > 0 && (
+      {detalleInstr && tramosSelected.length > 0 && (
         <div className="bg-surface border border-border rounded-xl overflow-x-auto">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
               <Percent className="w-4 h-4 text-purple-700" />
-              Historial de tasas · {selectedInstr.codigo ?? selectedInstr.id.substring(0, 8)}
+              Historial de tasas · {detalleInstr.codigo ?? detalleInstr.id.substring(0, 8)}
             </h2>
-            <Button size="sm" variant="ghost" onClick={() => setTasaModal(selectedInstr)} title="Cambiar tasa">
+            <Button size="sm" variant="ghost" onClick={() => setTasaModal(detalleInstr)} title="Cambiar tasa">
               <Plus className="w-3.5 h-3.5" />
               Cambiar tasa
             </Button>
@@ -377,9 +433,9 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
       )}
 
       {/* Movimientos de plata del instrumento */}
-      {selectedInstr && (
+      {detalleInstr && (
         <MovimientosInstrumento
-          instrumento={selectedInstr}
+          instrumento={detalleInstr}
           tramos={tramosSelected}
           movimientos={movimientosSelected}
           periodos={periodosSelectedRaw}
@@ -387,15 +443,15 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
       )}
 
       {/* Timeline de períodos del instrumento seleccionado */}
-      {selectedInstr && periodosSelected.length > 0 && (
+      {detalleInstr && periodosSelected.length > 0 && (
         <div className="bg-surface border border-border rounded-xl overflow-x-auto">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
               <Calendar className="w-4 h-4 text-primary" />
-              Períodos · {selectedInstr.codigo ?? selectedInstr.id.substring(0, 8)}
+              Períodos · {detalleInstr.codigo ?? detalleInstr.id.substring(0, 8)}
             </h2>
             <span className="text-xs text-fg-soft">
-              {periodosSelected.length} mes(es) · {selectedInstr.capitalizable ? 'capitalizable' : 'no capitalizable'}
+              {periodosSelected.length} mes(es) · {detalleInstr.capitalizable ? 'capitalizable' : 'no capitalizable'}
             </span>
           </div>
           <table className="w-full text-sm">
@@ -423,7 +479,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                     p.cerrado && 'bg-green-500/5'
                   )}>
                     <td className="px-4 py-2 text-fg-muted">{formatMonth(p.mes)}</td>
-                    <td className="px-4 py-2 text-right font-mono text-fg-muted">{formatMoneda(Number(p.saldo_inicio), selectedInstr.moneda)}</td>
+                    <td className="px-4 py-2 text-right font-mono text-fg-muted">{formatMoneda(Number(p.saldo_inicio), detalleInstr.moneda)}</td>
                     <td className="px-4 py-2 text-right font-mono text-purple-700 text-xs">
                       {(Number(p.tasa_aplicada) * 100).toFixed(4)}%
                       {cambiosEnMes.length > 0 && (
@@ -431,7 +487,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                       )}
                     </td>
                     <td className="px-4 py-2 text-right font-mono text-amber-700">
-                      {formatMoneda(Number(p.interes_devengado), selectedInstr.moneda)}
+                      {formatMoneda(Number(p.interes_devengado), detalleInstr.moneda)}
                       {(Number(p.int_inicio_prorrateado) > 0 || Number(p.int_fin_prorrateado) > 0) && (
                         <p className="text-[10px] text-fg-soft">prorrateado</p>
                       )}
@@ -439,7 +495,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                     <td className="px-4 py-2 text-right font-mono text-fg-muted">
                       {Number(p.movimiento) !== 0 ? (
                         <>
-                          {formatMoneda(Number(p.movimiento), selectedInstr.moneda)}
+                          {formatMoneda(Number(p.movimiento), detalleInstr.moneda)}
                           <p className="text-[10px] text-fg-soft font-sans">
                             {p.fecha_movimiento
                               ? formatDate(p.fecha_movimiento)
@@ -449,7 +505,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                       ) : '—'}
                     </td>
                     <td className="px-4 py-2 text-right font-mono text-fg font-medium">
-                      {formatMoneda(Number(p.saldo_cierre), selectedInstr.moneda)}
+                      {formatMoneda(Number(p.saldo_cierre), detalleInstr.moneda)}
                     </td>
                     <td className="px-4 py-2">
                       {p.cerrado ? <Badge variant="success">Cerrado</Badge> : <Badge variant="warning">Abierto</Badge>}
