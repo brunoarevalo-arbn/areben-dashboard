@@ -5,6 +5,7 @@ import {
   ReporteProyeccionPDF,
   type ReporteProyeccionData,
   type ProyeccionMes,
+  type ProyeccionMovimiento,
 } from '@/lib/pdf/reporte-proyeccion'
 
 export const runtime = 'nodejs'
@@ -26,6 +27,35 @@ function diffDays(desde: Date, hasta: Date): number {
 
 function dateToYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Suma de (capital vigente × 1 día) a lo largo de un tramo. Es el mismo criterio con el
+ * que el motor devenga de verdad: la plata que entra a mitad del tramo rinde sólo por los
+ * días que estuvo, no por el tramo entero. Con capital constante da capital × días, así que
+ * la proyección de un instrumento sin movimientos no cambia respecto de antes.
+ */
+function capitalPorDias(
+  desde: Date,
+  dias: number,
+  capitalBase: number,
+  movs: { fecha: string; monto: number }[],
+): number {
+  let total = 0
+  for (let t = 0; t < dias; t++) {
+    const dia = dateToYMD(new Date(desde.getTime() + t * 86_400_000))
+    let capital = capitalBase
+    for (const m of movs) if (m.fecha <= dia) capital += m.monto
+    total += capital
+  }
+  return total
+}
+
+const ETIQUETA_MOTIVO: Record<string, string> = {
+  aporte_nuevo: 'Aporte',
+  retiro_parcial: 'Retiro',
+  devolucion: 'Devolución',
+  ajuste: 'Ajuste',
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -93,6 +123,23 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // Plazo en días para mostrar/nombrar el archivo (derivado de las fechas si no está cargado).
   const plazoDias = inst.plazo_dias ?? diffDays(addDays(inst.fecha_inicio, 0), fechaVencDate)
 
+  // Los movimientos del ciclo vigente. Sin esto la proyección se armaba sólo con el capital
+  // inicial y la plata que el inversor puso o retiró después no aparecía por ningún lado.
+  const { data: movsRaw } = await supabase
+    .from('movimientos_instrumento')
+    .select('mes, fecha, monto, motivo')
+    .eq('instrumento_id', instrumentoId)
+
+  const venceYMD = dateToYMD(fechaVencDate)
+  const movimientos = (movsRaw ?? [])
+    // Sin día cargado se ubica al arranque de su mes: es lo único que se puede afirmar.
+    .map((m) => ({ fecha: (m.fecha ?? `${m.mes}-01`) as string, monto: Number(m.monto), motivo: String(m.motivo) }))
+    .filter((m) => m.fecha >= inst.fecha_inicio && m.fecha < venceYMD)
+    .sort((a, b) => (a.fecha < b.fecha ? -1 : 1))
+
+  const movsParaCalculo = movimientos.map((m) => ({ fecha: m.fecha, monto: m.monto }))
+  const netoMovimientos = Math.round(movimientos.reduce((s, m) => s + m.monto, 0) * 100) / 100
+
   const proyeccion: ProyeccionMes[] = []
   let saldoCapital = capital  // capital "vivo": en cap. crece, en no cap. queda fijo
   let interesesAcumulados = 0  // sólo se usa visualmente para no cap. — total adeudado al inversor
@@ -111,16 +158,29 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const diasMesCompleto = diffDays(cursorDate, proxMesDate)
     const fraccion = diasMesCompleto > 0 ? diasTramo / diasMesCompleto : 1 // 1 = mes entero
 
-    const saldoInicio = saldoCapital
-    const interes = Math.round(saldoInicio * tasa * fraccion * 100) / 100
+    // Capital vigente al arrancar el tramo y a lo largo de él: el interés se calcula sobre
+    // capital × días, así un aporte del día 1 rinde todo el tramo y uno de mitad de mes no.
+    const movsHastaInicio = movsParaCalculo
+      .filter((m) => m.fecha <= dateToYMD(cursorDate))
+      .reduce((acc, m) => acc + m.monto, 0)
+    const saldoInicio = Math.round((saldoCapital + movsHastaInicio) * 100) / 100
+    const acumCapitalDias = capitalPorDias(cursorDate, diasTramo, saldoCapital, movsParaCalculo)
+    const interes = diasMesCompleto > 0
+      ? Math.round((tasa * acumCapitalDias / diasMesCompleto) * 100) / 100
+      : Math.round(saldoInicio * tasa * fraccion * 100) / 100
     interesesAcumulados = Math.round((interesesAcumulados + interes) * 100) / 100
 
+    // Movimientos que caen DENTRO del tramo: al cierre ya están adentro del saldo.
+    const movsHastaFin = movsParaCalculo
+      .filter((m) => m.fecha < dateToYMD(finTramoDate))
+      .reduce((acc, m) => acc + m.monto, 0)
+
     // saldo_cierre del PDF = monto TOTAL adeudado al inversor al cierre de este tramo.
-    // - Capitalizable: capital reinvertido = saldoInicio + interés (el capital crece).
-    // - No capitalizable: capital fijo + suma de intereses devengados hasta esta fecha.
+    // - Capitalizable: capital reinvertido = saldo + interés (el capital crece).
+    // - No capitalizable: capital + movimientos + suma de intereses devengados.
     const saldoCierre = inst.capitalizable
-      ? Math.round((saldoInicio + interes) * 100) / 100
-      : Math.round((capital + interesesAcumulados) * 100) / 100
+      ? Math.round((saldoCapital + movsHastaFin + interes) * 100) / 100
+      : Math.round((capital + movsHastaFin + interesesAcumulados) * 100) / 100
 
     // Fecha fin mostrada = último día del tramo (el día previo al inicio del siguiente).
     const finDisplay = new Date(finTramoDate.getFullYear(), finTramoDate.getMonth(), finTramoDate.getDate() - 1)
@@ -134,20 +194,23 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       saldo_cierre: saldoCierre,
     })
 
-    // Sólo en capitalizable el capital crece para el próximo tramo.
-    if (inst.capitalizable) saldoCapital = saldoCierre
+    // Sólo en capitalizable el capital crece. Se descuentan los movimientos porque el
+    // bucle los vuelve a sumar en el tramo siguiente (viven en `movsParaCalculo`).
+    if (inst.capitalizable) saldoCapital = Math.round((saldoCierre - movsHastaFin) * 100) / 100
     cursorStr = dateToYMD(finTramoDate)
   }
 
   const totalIntereses = interesesAcumulados
-  // Capital al cierre técnico: capitalizable → último saldo de capital. No cap → capital fijo.
+  // El capital que el inversor tiene puesto = el del arranque + lo que aportó o retiró después.
+  const capitalInvertido = Math.round((capital + netoMovimientos) * 100) / 100
+  // Capital al cierre técnico: capitalizable → último saldo. No cap → el capital invertido.
   const capitalFinal = inst.capitalizable
-    ? (proyeccion.length > 0 ? proyeccion[proyeccion.length - 1].saldo_cierre : capital)
-    : capital
+    ? (proyeccion.length > 0 ? proyeccion[proyeccion.length - 1].saldo_cierre : capitalInvertido)
+    : capitalInvertido
   // Total que efectivamente cobra el inversor al vencimiento.
   const totalACobrar = inst.capitalizable
     ? capitalFinal
-    : Math.round((capital + totalIntereses) * 100) / 100
+    : Math.round((capitalInvertido + totalIntereses) * 100) / 100
   const fechaVenc = dateToYMD(fechaVencDate)
 
   // 4. Armar data
@@ -187,8 +250,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       fecha_vencimiento: fechaVenc,
     },
     proyeccion,
+    // Sólo el día, la etiqueta y el monto: la nota del movimiento es de adentro de casa
+    // y este PDF se le entrega al inversor.
+    movimientos: movimientos.map((m): ProyeccionMovimiento => ({
+      fecha: m.fecha,
+      etiqueta: ETIQUETA_MOTIVO[m.motivo] ?? 'Movimiento',
+      monto: m.monto,
+    })),
     totales: {
       capital_inicial: capital,
+      neto_movimientos: netoMovimientos,
+      capital_invertido: capitalInvertido,
       total_intereses: totalIntereses,
       capital_final: capitalFinal,
       total_a_cobrar: totalACobrar,

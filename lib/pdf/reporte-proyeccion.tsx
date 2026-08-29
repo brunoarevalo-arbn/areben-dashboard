@@ -14,6 +14,14 @@ export interface ProyeccionMes {
   saldo_cierre: number
 }
 
+/** Un movimiento de plata dentro del ciclo, tal como se le muestra al inversor.
+ *  Va sin la nota interna a propósito: este PDF sale de la empresa. */
+export interface ProyeccionMovimiento {
+  fecha: string // YYYY-MM-DD
+  etiqueta: string // Aporte / Retiro / Devolución / Ajuste
+  monto: number // con signo: + entra, − sale
+}
+
 export interface ReporteProyeccionData {
   empresa: {
     razon_social: string
@@ -50,8 +58,13 @@ export interface ReporteProyeccionData {
     fecha_vencimiento: string
   }
   proyeccion: ProyeccionMes[]
+  movimientos?: ProyeccionMovimiento[]
   totales: {
     capital_inicial: number
+    /** Aportes menos retiros del ciclo. 0 si no hubo. */
+    neto_movimientos?: number
+    /** capital_inicial + neto_movimientos: lo que el inversor tiene puesto de verdad. */
+    capital_invertido?: number
     total_intereses: number
     capital_final: number
     total_a_cobrar: number
@@ -148,7 +161,9 @@ function buildInversorDomicilio(i: ReporteProyeccionData['inversor']): string {
 }
 
 export function ReporteProyeccionPDF({ data }: { data: ReporteProyeccionData }) {
-  const { empresa, inversor, instrumento, proyeccion, totales, generadoEn, ciudadEmision } = data
+  const { empresa, inversor, instrumento, proyeccion, movimientos, totales, generadoEn, ciudadEmision } = data
+  const movs = movimientos ?? []
+  const capitalInvertido = totales.capital_invertido ?? totales.capital_inicial
   const ciudad = ciudadEmision || empresa.domicilio_ciudad || 'Buenos Aires'
   const domEmp = buildEmpresaDomicilio(empresa)
   const domInv = buildInversorDomicilio(inversor)
@@ -220,6 +235,29 @@ export function ReporteProyeccionPDF({ data }: { data: ReporteProyeccionData }) 
           arriba referenciado al plazo acordado.
         </Text>
 
+        {/* Movimientos del ciclo: lo que el inversor puso o retiró después del arranque */}
+        {movs.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Movimientos del período</Text>
+            {movs.map((m, idx) => (
+              <View key={`${m.fecha}-${idx}`} style={[styles.tRow, idx % 2 === 1 ? styles.tRowZebra : {}]}>
+                <Text style={[styles.tCell, styles.colPeriodo]}>{formatDateShort(m.fecha)}</Text>
+                <Text style={[styles.tCell, { flex: 1 }]}>{m.etiqueta}</Text>
+                <Text style={[styles.tCellMono, styles.colSaldoCierre, { fontWeight: 700 }]}>
+                  {m.monto >= 0 ? '+ ' : '- '}{formatMoney(Math.abs(m.monto), instrumento.moneda)}
+                </Text>
+              </View>
+            ))}
+            <View style={[styles.tRow, { borderTopWidth: 0.5, borderTopColor: COLOR_BORDER }]}>
+              <Text style={[styles.tCell, styles.colPeriodo]} />
+              <Text style={[styles.tCell, { flex: 1, fontWeight: 700 }]}>Capital invertido</Text>
+              <Text style={[styles.tCellMono, styles.colSaldoCierre, { fontWeight: 700 }]}>
+                {formatMoney(capitalInvertido, instrumento.moneda)}
+              </Text>
+            </View>
+          </>
+        )}
+
         {/* Tabla */}
         <Text style={styles.sectionTitle}>Detalle mes a mes</Text>
 
@@ -249,10 +287,32 @@ export function ReporteProyeccionPDF({ data }: { data: ReporteProyeccionData }) 
 
         {/* Totales */}
         <View style={styles.totalBox}>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Capital invertido</Text>
-            <Text style={styles.totalValue}>{formatMoney(totales.capital_inicial, instrumento.moneda)}</Text>
-          </View>
+          {movs.length > 0 ? (
+            <>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Capital al inicio del período</Text>
+                <Text style={styles.totalValue}>{formatMoney(totales.capital_inicial, instrumento.moneda)}</Text>
+              </View>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>
+                  {(totales.neto_movimientos ?? 0) >= 0 ? 'Aportes del período' : 'Retiros del período'}
+                </Text>
+                <Text style={styles.totalValue}>
+                  {(totales.neto_movimientos ?? 0) >= 0 ? '+ ' : '- '}
+                  {formatMoney(Math.abs(totales.neto_movimientos ?? 0), instrumento.moneda)}
+                </Text>
+              </View>
+              <View style={[styles.totalRow, { borderTopWidth: 0.5, borderTopColor: COLOR_BORDER, paddingTop: 6, marginTop: 4 }]}>
+                <Text style={styles.totalLabel}>Capital invertido</Text>
+                <Text style={styles.totalValue}>{formatMoney(capitalInvertido, instrumento.moneda)}</Text>
+              </View>
+            </>
+          ) : (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Capital invertido</Text>
+              <Text style={styles.totalValue}>{formatMoney(totales.capital_inicial, instrumento.moneda)}</Text>
+            </View>
+          )}
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total intereses generados en {instrumento.plazo_dias} días</Text>
             <Text style={[styles.totalValue, { color: COLOR_ACCENT }]}>
