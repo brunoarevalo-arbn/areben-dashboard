@@ -553,6 +553,7 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
       >
         <InstrumentoForm
           instrumento={editInstr}
+          tramos={editInstr ? tramosByInstr.get(editInstr.id) ?? [] : []}
           inversorId={inversor.id}
           onClose={() => setModal(false)}
         />

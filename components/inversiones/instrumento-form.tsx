@@ -2,11 +2,11 @@
 
 import { useActionState, useState } from 'react'
 import { createInstrumento, updateInstrumento } from '@/app/actions/inversiones'
-import type { Instrumento } from '@/types/database'
+import type { Instrumento, TramoTasa } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { NumberInput } from '@/components/ui/number-input'
 import { Input, Select, Textarea } from '@/components/ui/input'
-import { Loader2, TrendingUp, Lock, Unlock, CalendarCheck } from 'lucide-react'
+import { Loader2, TrendingUp, Lock, Unlock, CalendarCheck, Percent } from 'lucide-react'
 import { formatMoneda, sumarMeses, diasEntre, mesesEntre } from '@/lib/inversiones-calc'
 import { formatDate, cn } from '@/lib/utils'
 
@@ -14,15 +14,29 @@ const PLAZOS = [1, 2, 3, 6, 9, 12]
 
 interface Props {
   instrumento?: Instrumento
+  /** Historial de tasas del instrumento, ordenado por fecha. Si tiene aunque sea uno,
+   *  el cálculo usa ESE historial y el campo de tasa de acá deja de mandar. */
+  tramos?: TramoTasa[]
   inversorId: string
   onClose: () => void
 }
 
-export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
+export function InstrumentoForm({ instrumento, tramos = [], inversorId, onClose }: Props) {
   const action = instrumento ? updateInstrumento.bind(null, instrumento.id) : createInstrumento
 
   const [moneda, setMoneda] = useState<'USD' | 'ARS'>(instrumento?.moneda ?? 'USD')
   const [capital, setCapital] = useState(instrumento?.capital_inicial ?? 0)
+  // Con historial de tasas el motor lee los tramos y este campo no cambia nada: editarlo
+  // acá daba la sensación de haber cambiado la tasa sin que cambiara ningún número.
+  const tieneHistorial = tramos.length > 0
+  const tasaVigente = tieneHistorial
+    ? (() => {
+        const hoy = new Date().toISOString().split('T')[0]
+        let t = Number(tramos[0].tasa_mensual)
+        for (const tr of tramos) if (tr.fecha_desde <= hoy) t = Number(tr.tasa_mensual)
+        return t
+      })()
+    : Number(instrumento?.tasa_mensual ?? 0)
   const [tasaPct, setTasaPct] = useState(instrumento ? instrumento.tasa_mensual * 100 : 2.5)
   const [capitalizable, setCapitalizable] = useState(instrumento?.capitalizable ?? true)
 
@@ -119,20 +133,41 @@ export function InstrumentoForm({ instrumento, inversorId, onClose }: Props) {
           </div>
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-fg-muted">Tasa mensual (%)</label>
-            <div className="relative">
-              <NumberInput
-                step="0.0001"
-                min="0"
-                value={tasaPct}
-                onChange={setTasaPct}
-                placeholder="2.5"
-                className="w-full px-3 py-2 pr-7 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                required
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-soft text-xs">%</span>
-            </div>
+            {tieneHistorial ? (
+              // Se guarda la que ya tenía: `tasaPct` arranca del instrumento y acá nadie
+              // la toca, así que el update reescribe el mismo valor y no cambia nada.
+              <div className="w-full px-3 py-2 bg-surface-2/50 border border-dashed border-[#c8c0b0] rounded-lg text-sm flex items-center justify-between">
+                <span className="font-mono text-fg">{(tasaVigente * 100).toFixed(4)}%</span>
+                <span className="text-[10px] text-fg-soft">vigente hoy</span>
+              </div>
+            ) : (
+              <div className="relative">
+                <NumberInput
+                  step="0.0001"
+                  min="0"
+                  value={tasaPct}
+                  onChange={setTasaPct}
+                  placeholder="2.5"
+                  className="w-full px-3 py-2 pr-7 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  required
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-soft text-xs">%</span>
+              </div>
+            )}
           </div>
         </div>
+
+        {tieneHistorial && (
+          <div className="bg-surface-2/60 border border-border rounded-lg px-3 py-2 text-xs text-fg-muted flex items-start gap-2">
+            <Percent className="w-3.5 h-3.5 mt-0.5 shrink-0 text-purple-700" />
+            <span>
+              La tasa de este instrumento <strong>no se edita acá</strong>. Tiene historial de
+              tasas ({tramos.length} tramo{tramos.length === 1 ? '' : 's'}) y el cálculo usa ese
+              historial. Para cambiarla, cerrá esta ventana y usá <strong>Cambiar tasa</strong>:
+              así queda registrado desde qué día rige la nueva y los meses viejos no se tocan.
+            </span>
+          </div>
+        )}
 
         {capital > 0 && tasaPct > 0 && (
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
