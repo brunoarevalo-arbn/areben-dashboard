@@ -66,6 +66,23 @@ export function CargaHorasClient({ token, estado }: { token: string; estado: Est
   const totalMes = delMes.reduce((s, r) => s + Number(r.cantidad), 0)
   const enRevision = delMes.filter((r) => r.estado === 'PENDIENTE').reduce((s, r) => s + Number(r.cantidad), 0)
   const nombreMes = MESES[Number(mesActual.slice(5, 7)) - 1]
+  /**
+   * Lo que se LISTA abajo.
+   *
+   * 🔴 Antes la lista dibujaba `estado.registros` entero —los últimos 60 días, que es lo que
+   * devuelve `horas_estado_por_token`— mientras el título y el total miraban sólo el mes. El
+   * encabezado decía «Tus cargas de agosto · 0 hs» y justo debajo listaba una del 31/07: **dos
+   * lados del mismo bloque mirando conjuntos distintos**, que es el mismo agujero que ya había
+   * mordido entre el formulario de nómina y el reconciliador.
+   *
+   * ⚠️ **No es `delMes` a secas, y el caso lo obliga**: la rutina de la Agenda pide cargar **el
+   * último día del mes**, así que lo cargado el 31 desaparecería el 1 —justo cuando la persona
+   * entra a ver si se lo aprobaron—. Se queda lo viejo que TODAVÍA le pide algo: lo que está en
+   * revisión y lo rechazado (que trae el motivo). Lo viejo ya aprobado sale: es del recibo.
+   */
+  const visibles = estado.registros.filter(
+    (r) => r.fecha.startsWith(mesActual) || r.estado === 'PENDIENTE' || r.estado === 'RECHAZADA',
+  )
 
   return (
     <main className="min-h-dvh bg-bg px-4 py-8">
@@ -149,12 +166,12 @@ export function CargaHorasClient({ token, estado }: { token: string; estado: Est
             </span>
           </div>
 
-          {estado.registros.length === 0 && (
-            <p className="text-sm text-fg-soft">Todavía no cargaste ninguna.</p>
+          {visibles.length === 0 && (
+            <p className="text-sm text-fg-soft">Todavía no cargaste ninguna este mes.</p>
           )}
 
           <ul className="space-y-1.5">
-            {estado.registros.map((r) => (
+            {visibles.map((r) => (
               <FilaCarga key={r.id} token={token} registro={r} />
             ))}
           </ul>
