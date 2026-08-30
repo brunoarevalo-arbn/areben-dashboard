@@ -40,8 +40,16 @@ export interface AcreedorGastoInput {
 export interface ConceptoCC extends AcreedorGastoInput {
   /** Suma de los pagos DEBITADOS aplicados a este gasto. */
   pagado: number
-  /** monto − pagado, nunca negativo. */
+  /** monto − pagado, nunca negativo. Es lo que se muestra como deuda. */
   saldo: number
+  /**
+   * Suma de TODOS los pagos, debitados o no. Un pago agendado todavía no baja la deuda, pero sí
+   * ocupa lugar: `createPagoUnificado` valida contra esto y rechaza lo que exceda el monto del
+   * gasto. Repartir por `saldo` en vez de por acá haría rebotar el pago.
+   */
+  comprometido: number
+  /** monto − comprometido: cuánto se le puede imputar todavía a este gasto. */
+  disponible: number
   pagos: AcreedorPagoInput[]
 }
 
@@ -94,9 +102,11 @@ export function armarCuentas(
       a.fecha_emision.localeCompare(b.fecha_emision),
     )
     const pagado = susPagos.reduce((s, p) => s + (p.debitado ? num(p.monto) : 0), 0)
+    const comprometido = susPagos.reduce((s, p) => s + num(p.monto), 0)
     const monto = num(g.monto)
     // Un pago de más no genera saldo a favor: se corta en cero, como en el resto del sistema.
     const saldo = Math.max(0, monto - pagado)
+    const disponible = Math.max(0, monto - comprometido)
 
     const cuenta = cuentas.get(provId) ?? {
       proveedorId: provId,
@@ -108,7 +118,7 @@ export function armarCuentas(
       ultimoPago: null,
     }
 
-    cuenta.conceptos.push({ ...g, pagado, saldo, pagos: susPagos })
+    cuenta.conceptos.push({ ...g, pagado, saldo, comprometido, disponible, pagos: susPagos })
     cuenta.totalDevengado += monto
     cuenta.totalPagado += pagado
     cuenta.saldo += saldo
@@ -131,4 +141,59 @@ export function armarCuentas(
   return [...cuentas.values()].sort(
     (a, b) => (b.saldo > 0 ? 1 : 0) - (a.saldo > 0 ? 1 : 0) || a.nombre.localeCompare(b.nombre, 'es'),
   )
+}
+
+// ─── Repartir un pago entre varios conceptos ──────────────────────────────────
+//
+// Cuando se le manda plata a un acreedor, no se paga "un gasto": se paga a cuenta. La plata se
+// imputa del concepto más viejo al más nuevo, que es como funciona una cuenta corriente y es lo
+// que se venía haciendo a mano (la transferencia del 12/08/2026 por $221.537 se partió en $4.892
+// para mayo y $216.645 para el litigio).
+//
+// Devuelve un renglón por cada gasto que recibe plata. Si sobra, `sobrante` lo dice: el que llama
+// decide si avisar o no. Nunca imputa más que el `disponible` de cada concepto, porque
+// `createPagoUnificado` rechaza lo que exceda el monto del gasto.
+
+export interface RenglonReparto {
+  gastoId: string
+  concepto: string
+  mes: string
+  /** Lo que se le imputa a ESTE gasto. */
+  monto: number
+  /** Lo que se le podía imputar como mucho — para que la pantalla avise si se pasa. */
+  disponible: number
+}
+
+export interface Reparto {
+  renglones: RenglonReparto[]
+  /** Plata que no se pudo imputar porque no hay más deuda. */
+  sobrante: number
+  /** Σ de los renglones. */
+  imputado: number
+}
+
+/** Redondeo a centavos, para que sumar los renglones dé exactamente el total. */
+function centavos(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
+export function repartirPago(conceptos: ConceptoCC[], monto: number): Reparto {
+  let restante = centavos(monto)
+  const renglones: RenglonReparto[] = []
+
+  // Del más viejo al más nuevo. `armarCuentas` ya los deja en ese orden, pero no se depende de eso.
+  const ordenados = [...conceptos].sort(
+    (a, b) => a.mes.localeCompare(b.mes) || a.fecha.localeCompare(b.fecha),
+  )
+
+  for (const c of ordenados) {
+    if (restante <= 0.005) break
+    if (c.disponible <= 0.005) continue
+    const cuota = centavos(Math.min(restante, c.disponible))
+    renglones.push({ gastoId: c.id, concepto: c.concepto, mes: c.mes, monto: cuota, disponible: c.disponible })
+    restante = centavos(restante - cuota)
+  }
+
+  const imputado = centavos(renglones.reduce((s, r) => s + r.monto, 0))
+  return { renglones, sobrante: Math.max(0, centavos(monto) - imputado), imputado }
 }

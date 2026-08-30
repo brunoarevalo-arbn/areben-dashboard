@@ -2,19 +2,24 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { asignarAcreedor, crearAcreedor } from '@/app/actions/acreedores'
-import type { CuentaAcreedor, AcreedorGastoInput } from '@/lib/acreedores'
+import { asignarAcreedor, crearAcreedor, registrarPagoRepartido } from '@/app/actions/acreedores'
+import { repartirPago, type CuentaAcreedor, type AcreedorGastoInput } from '@/lib/acreedores'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { formatCurrency, formatDate, cn } from '@/lib/utils'
+import { Input, Select } from '@/components/ui/input'
+import { MoneyInput } from '@/components/ui/money-input'
+import { formatCurrency, formatDate, labelCuenta, ordenarCuentas, cn } from '@/lib/utils'
 import {
   Handshake, ChevronDown, ChevronRight, Plus, Loader2, Search, X, CheckCircle2, Unlink,
+  ArrowDownCircle, AlertTriangle,
 } from 'lucide-react'
+
+type CuentaBanco = { id: string; nombre: string; banco: string; titular?: { nombre: string } | null }
 
 interface Props {
   cuentas: CuentaAcreedor[]
   proveedores: { id: string; nombre: string }[]
+  cuentasBanco: CuentaBanco[]
   sinAcreedor: AcreedorGastoInput[]
 }
 
@@ -24,7 +29,7 @@ function mesLargo(mes: string): string {
   return new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(new Date(y, m - 1, 1))
 }
 
-export function AcreedoresClient({ cuentas, proveedores, sinAcreedor }: Props) {
+export function AcreedoresClient({ cuentas, proveedores, cuentasBanco, sinAcreedor }: Props) {
   const router = useRouter()
   const [abierta, setAbierta] = useState<string | null>(cuentas.find((c) => c.saldo > 0)?.proveedorId ?? null)
   const [soloConSaldo, setSoloConSaldo] = useState(false)
@@ -32,6 +37,7 @@ export function AcreedoresClient({ cuentas, proveedores, sinAcreedor }: Props) {
   // usa para una cuenta recién abierta, que todavía no tiene ningún gasto.
   const [agregarA, setAgregarA] = useState<{ id: string; nombre: string } | null>(null)
   const [modalNueva, setModalNueva] = useState(false)
+  const [pagarA, setPagarA] = useState<CuentaAcreedor | null>(null)
 
   const visibles = soloConSaldo ? cuentas.filter((c) => c.saldo > 0) : cuentas
   const totalDeuda = cuentas.reduce((s, c) => s + c.saldo, 0)
@@ -98,11 +104,23 @@ export function AcreedoresClient({ cuentas, proveedores, sinAcreedor }: Props) {
               abierta={abierta === c.proveedorId}
               onToggle={() => setAbierta(abierta === c.proveedorId ? null : c.proveedorId)}
               onAgregar={() => setAgregarA({ id: c.proveedorId, nombre: c.nombre })}
+              onPagar={() => setPagarA(c)}
               onRefetch={() => router.refresh()}
             />
           ))}
         </div>
       )}
+
+      <Modal open={!!pagarA} onOpenChange={(o) => !o && setPagarA(null)}
+        title={pagarA ? `Registrar un pago a ${pagarA.nombre}` : ''} className="max-w-2xl">
+        {pagarA && (
+          <PagoForm
+            cuenta={pagarA}
+            cuentasBanco={cuentasBanco}
+            onClose={() => { setPagarA(null); router.refresh() }}
+          />
+        )}
+      </Modal>
 
       <Modal open={!!agregarA} onOpenChange={(o) => !o && setAgregarA(null)}
         title={agregarA ? `Sumar gastos a ${agregarA.nombre}` : ''} className="max-w-3xl">
@@ -134,11 +152,12 @@ export function AcreedoresClient({ cuentas, proveedores, sinAcreedor }: Props) {
 
 // ─── CuentaRow ────────────────────────────────────────────────────────────────
 
-function CuentaRow({ cuenta, abierta, onToggle, onAgregar, onRefetch }: {
+function CuentaRow({ cuenta, abierta, onToggle, onAgregar, onPagar, onRefetch }: {
   cuenta: CuentaAcreedor
   abierta: boolean
   onToggle: () => void
   onAgregar: () => void
+  onPagar: () => void
   onRefetch: () => void
 }) {
   const [isPending, startTransition] = useTransition()
@@ -178,6 +197,11 @@ function CuentaRow({ cuenta, abierta, onToggle, onAgregar, onRefetch }: {
             </>
           )}
         </div>
+        {!saldada && (
+          <Button size="sm" onClick={onPagar}>
+            <ArrowDownCircle className="w-3.5 h-3.5" /> Registrar pago
+          </Button>
+        )}
         <Button variant="ghost" size="sm" onClick={onAgregar}>
           <Plus className="w-3.5 h-3.5" /> Sumar gastos
         </Button>
@@ -408,6 +432,164 @@ function NuevaCuentaForm({ proveedores, yaConCuenta, onElegido, onClose }: {
         <Button type="button" onClick={crear} disabled={isPending || !nombre.trim()}>
           {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           Crear y sumar gastos
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ─── PagoForm ─────────────────────────────────────────────────────────────────
+//
+// Registrar una salida de plata a un acreedor. No se paga "un gasto": se paga a cuenta, y la plata
+// se imputa del concepto más viejo al más nuevo. El reparto se muestra ANTES de confirmar y se
+// puede tocar renglón por renglón, para el caso en que se quiera mandar plata a un concepto
+// puntual (pagar el juicio antes que el abono, por ejemplo).
+
+function PagoForm({ cuenta, cuentasBanco, onClose }: {
+  cuenta: CuentaAcreedor
+  cuentasBanco: CuentaBanco[]
+  onClose: () => void
+}) {
+  const hoy = new Date().toISOString().slice(0, 10)
+  const [monto, setMonto] = useState(0)
+  const [fecha, setFecha] = useState(hoy)
+  const [instrumento, setInstrumento] = useState<'TRANSFERENCIA' | 'EFECTIVO'>('TRANSFERENCIA')
+  const [cuentaId, setCuentaId] = useState('')
+  const [notas, setNotas] = useState('')
+  // Renglones tocados a mano: gastoId → monto. Lo que no está acá lo decide el reparto automático.
+  const [aMano, setAMano] = useState<Record<string, number>>({})
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  const conDeuda = useMemo(() => cuenta.conceptos.filter((c) => c.disponible > 0.005), [cuenta])
+  const auto = useMemo(() => repartirPago(conDeuda, monto), [conDeuda, monto])
+
+  // El reparto que se va a grabar: el automático, pisado por lo que se haya tocado a mano.
+  const renglones = useMemo(() => {
+    const base = new Map(auto.renglones.map((r) => [r.gastoId, r.monto]))
+    return conDeuda.map((c) => ({
+      gastoId: c.id,
+      concepto: c.concepto,
+      mes: c.mes,
+      disponible: c.disponible,
+      monto: aMano[c.id] ?? base.get(c.id) ?? 0,
+      tocado: aMano[c.id] !== undefined,
+    }))
+  }, [conDeuda, auto, aMano])
+
+  const imputado = renglones.reduce((s, r) => s + r.monto, 0)
+  const sobrante = Math.round((monto - imputado) * 100) / 100
+  const sePasa = renglones.some((r) => r.monto > r.disponible + 0.005)
+
+  function guardar() {
+    setError(null)
+    if (instrumento === 'TRANSFERENCIA' && !cuentaId) {
+      setError('Elegí de qué cuenta salió la transferencia.')
+      return
+    }
+    startTransition(async () => {
+      const r = await registrarPagoRepartido({
+        renglones: renglones.filter((x) => x.monto > 0.005).map((x) => ({ gastoId: x.gastoId, monto: x.monto })),
+        fecha,
+        instrumento,
+        cuentaId: instrumento === 'TRANSFERENCIA' ? cuentaId : null,
+        notas: notas.trim() || null,
+      })
+      if (r.error) setError(r.error)
+      else onClose()
+    })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <MoneyInput label="¿Cuánto le mandaste?" value={monto} onChange={setMonto} />
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-fg">¿Qué día?</label>
+          <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value || hoy)}
+            className="w-full px-3.5 py-2.5 bg-surface-2 border border-border-strong rounded-lg text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="¿Cómo?" value={instrumento}
+          onChange={(e) => setInstrumento(e.target.value as 'TRANSFERENCIA' | 'EFECTIVO')}
+          options={[{ value: 'TRANSFERENCIA', label: 'Transferencia' }, { value: 'EFECTIVO', label: 'Efectivo' }]} />
+        {instrumento === 'TRANSFERENCIA' && (
+          <Select label="¿De qué cuenta salió?" value={cuentaId} onChange={(e) => setCuentaId(e.target.value)}
+            placeholder="Elegí una cuenta"
+            options={ordenarCuentas(cuentasBanco).map((c) => ({ value: c.id, label: labelCuenta(c) }))} />
+        )}
+      </div>
+
+      <Input label="¿De dónde salió la plata? (opcional)" value={notas} onChange={(e) => setNotas(e.target.value)}
+        placeholder="Ej: Nazarena Luciani - BDI Mayorista" />
+
+      {/* Previsualización del reparto */}
+      {monto > 0 && (
+        <div className="bg-surface-2/40 border border-border-strong/60 rounded-xl p-3 space-y-2">
+          <p className="text-xs font-medium text-fg-muted">
+            Se va a repartir así, del mes más viejo al más nuevo:
+          </p>
+          {renglones.length === 0 ? (
+            <p className="text-xs text-fg-soft">No hay deuda a la que imputarlo.</p>
+          ) : (
+            <table className="w-full text-xs">
+              <tbody>
+                {renglones.map((r) => (
+                  <tr key={r.gastoId} className={cn('border-b border-border/30 last:border-0', r.monto <= 0.005 && 'opacity-40')}>
+                    <td className="py-1.5 pr-2">
+                      <p className="text-fg capitalize">{mesLargo(r.mes)}</p>
+                      <p className="text-[10px] text-fg-soft truncate max-w-[220px]">{r.concepto}</p>
+                    </td>
+                    <td className="py-1.5 text-right text-fg-soft whitespace-nowrap pr-3">
+                      de {formatCurrency(r.disponible)}
+                    </td>
+                    <td className="py-1.5 w-36">
+                      <MoneyInput value={r.monto}
+                        onChange={(v) => setAMano((p) => ({ ...p, [r.gastoId]: Math.max(0, v) }))}
+                        className={cn('text-right', r.monto > r.disponible + 0.005 && 'border-danger')} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          <div className="flex items-center justify-between pt-1 border-t border-border text-xs">
+            <span className="text-fg-muted">
+              Se imputa <b className="font-mono text-fg">{formatCurrency(imputado)}</b> de {formatCurrency(monto)}
+            </span>
+            {Object.keys(aMano).length > 0 && (
+              <button type="button" onClick={() => setAMano({})} className="text-fg-soft hover:text-fg underline">
+                volver al reparto automático
+              </button>
+            )}
+          </div>
+
+          {sobrante > 0.005 && (
+            <p className="text-xs text-amber-700 flex items-start gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              Sobran {formatCurrency(sobrante)} sin imputar: la deuda es menor que lo que mandaste.
+              Se van a registrar solo {formatCurrency(imputado)}.
+            </p>
+          )}
+          {sePasa && (
+            <p className="text-xs text-red-700 flex items-start gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              Hay un renglón con más plata de la que se debe en ese mes. Bajalo o el pago se va a rechazar.
+            </p>
+          )}
+        </div>
+      )}
+
+      {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+
+      <div className="flex justify-end gap-3">
+        <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button type="button" onClick={guardar} disabled={isPending || imputado <= 0.005 || sePasa}>
+          {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          Registrar {imputado > 0 ? formatCurrency(imputado) : 'pago'}
         </Button>
       </div>
     </div>

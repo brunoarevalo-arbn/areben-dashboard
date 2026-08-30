@@ -13,13 +13,14 @@ export async function AcreedoresPanel() {
   desde.setMonth(desde.getMonth() - 24)
   const mesDesde = `${desde.getFullYear()}-${String(desde.getMonth() + 1).padStart(2, '0')}`
 
-  const [{ data: gastosCC }, { data: proveedores }, { data: sinAcreedor }] = await Promise.all([
+  const [{ data: gastosCC }, { data: proveedores }, { data: cuentasBanco }, { data: sinAcreedor }] = await Promise.all([
     supabase
       .from('gastos')
       .select('id, concepto, categoria, mes, fecha, monto, moneda, estado, notas, proveedor_id')
       .not('proveedor_id', 'is', null)
       .order('mes', { ascending: true }),
     supabase.from('proveedores').select('id, nombre').eq('activo', true).order('nombre'),
+    supabase.from('cuentas_bancarias').select('id, nombre, banco, titular:cuentas_titulares(nombre)').eq('activo', true).order('banco'),
     // Candidatos para sumar a una cuenta. Ventana de 24 meses (hoy son ~600 gastos) para que la
     // lista no crezca sola con los años; solo las columnas que muestra el buscador.
     supabase
@@ -53,6 +54,7 @@ export async function AcreedoresPanel() {
     <AcreedoresClient
       cuentas={cuentas}
       proveedores={proveedores ?? []}
+      cuentasBanco={(cuentasBanco ?? []) as unknown as Parameters<typeof AcreedoresClient>[0]['cuentasBanco']}
       sinAcreedor={(sinAcreedor ?? []).map((g) => ({ ...g, monto: Number(g.monto) }))}
     />
   )

@@ -116,3 +116,96 @@ describe('armarCuentas', () => {
     expect(armarCuentas(gs, ps, PROVEEDORES).map((c) => c.proveedorId)).toEqual(['p-abogado', 'p-contador'])
   })
 })
+
+// ─── Repartir un pago ─────────────────────────────────────────────────────────
+
+import { repartirPago, type ConceptoCC } from '@/lib/acreedores'
+
+function concepto(o: { id: string; mes: string; monto: number; disponible: number }): ConceptoCC {
+  return {
+    id: o.id,
+    concepto: 'Abogado - Santiago Gomez',
+    mes: o.mes,
+    fecha: `${o.mes}-01`,
+    monto: o.monto,
+    pagado: o.monto - o.disponible,
+    saldo: o.disponible,
+    comprometido: o.monto - o.disponible,
+    disponible: o.disponible,
+    pagos: [],
+  }
+}
+
+describe('repartirPago', () => {
+  // El caso real: el 12/08/2026 se transfirieron $221.537 y a mano se partieron en $4.892 para
+  // el saldo de mayo y $216.645 para el litigio de junio.
+  it('parte la transferencia del más viejo al más nuevo', () => {
+    const cs = [
+      concepto({ id: 'may', mes: '2026-05', monto: 350000, disponible: 4892 }),
+      concepto({ id: 'litigio', mes: '2026-06', monto: 452000, disponible: 452000 }),
+      concepto({ id: 'jul', mes: '2026-07', monto: 350000, disponible: 350000 }),
+    ]
+    const r = repartirPago(cs, 221537)
+    expect(r.renglones).toEqual([
+      { gastoId: 'may', concepto: 'Abogado - Santiago Gomez', mes: '2026-05', monto: 4892, disponible: 4892 },
+      { gastoId: 'litigio', concepto: 'Abogado - Santiago Gomez', mes: '2026-06', monto: 216645, disponible: 452000 },
+    ])
+    expect(r.imputado).toBe(221537)
+    expect(r.sobrante).toBe(0)
+  })
+
+  it('salta los conceptos que ya no tienen nada disponible', () => {
+    const cs = [
+      concepto({ id: 'abr', mes: '2026-04', monto: 350000, disponible: 0 }),
+      concepto({ id: 'may', mes: '2026-05', monto: 350000, disponible: 350000 }),
+    ]
+    expect(repartirPago(cs, 100000).renglones.map((x) => x.gastoId)).toEqual(['may'])
+  })
+
+  it('avisa cuánto sobra si se paga más que la deuda', () => {
+    const cs = [concepto({ id: 'may', mes: '2026-05', monto: 350000, disponible: 4892 })]
+    const r = repartirPago(cs, 10000)
+    expect(r.imputado).toBe(4892)
+    expect(r.sobrante).toBe(5108)
+  })
+
+  it('sin deuda no imputa nada y sobra todo', () => {
+    const cs = [concepto({ id: 'abr', mes: '2026-04', monto: 350000, disponible: 0 })]
+    const r = repartirPago(cs, 50000)
+    expect(r.renglones).toEqual([])
+    expect(r.sobrante).toBe(50000)
+  })
+
+  it('los renglones suman exactamente el total, sin arrastrar centavos', () => {
+    const cs = [
+      concepto({ id: 'a', mes: '2026-05', monto: 100, disponible: 33.33 }),
+      concepto({ id: 'b', mes: '2026-06', monto: 100, disponible: 33.33 }),
+      concepto({ id: 'c', mes: '2026-07', monto: 100, disponible: 33.34 }),
+    ]
+    const r = repartirPago(cs, 100)
+    expect(r.renglones.reduce((s, x) => s + x.monto, 0)).toBe(100)
+    expect(r.sobrante).toBe(0)
+  })
+
+  it('un pago que entra justo en el primer concepto no toca los demás', () => {
+    const cs = [
+      concepto({ id: 'may', mes: '2026-05', monto: 350000, disponible: 4892 }),
+      concepto({ id: 'jun', mes: '2026-06', monto: 452000, disponible: 452000 }),
+    ]
+    const r = repartirPago(cs, 4892)
+    expect(r.renglones).toHaveLength(1)
+    expect(r.renglones[0].gastoId).toBe('may')
+  })
+
+  it('reparte sobre lo COMPROMETIDO, no sobre lo debitado: un pago agendado ocupa lugar', () => {
+    // El gasto de $350.000 ya tiene un pago agendado de $300.000 sin debitar. Se debe seguir
+    // mostrando $350.000 de deuda, pero solo se le pueden imputar $50.000 más.
+    const cs: ConceptoCC[] = [{
+      id: 'jul', concepto: 'Abogado - Santiago Gomez', mes: '2026-07', fecha: '2026-07-01',
+      monto: 350000, pagado: 0, saldo: 350000, comprometido: 300000, disponible: 50000, pagos: [],
+    }]
+    const r = repartirPago(cs, 350000)
+    expect(r.imputado).toBe(50000)
+    expect(r.sobrante).toBe(300000)
+  })
+})
