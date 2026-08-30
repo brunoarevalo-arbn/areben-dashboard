@@ -103,6 +103,19 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
     return map
   }, [instrumentos, tramosByInstr])
 
+  // Al renovar, el instrumento sigue siendo la MISMA fila y las fechas se pisan: los meses
+  // de los ciclos viejos quedan mezclados con los del vigente y nada los distingue. Con otro
+  // capital, otra tasa y a veces otra capitalización, la tabla terminaba contradiciendo a la
+  // tarjeta sin explicar por qué. Esto marca a cuál pertenece cada fila.
+  function cicloDeLaFila(mes: string, fechaInicio: string): 'anterior' | 'mixto' | 'actual' {
+    const mesInicio = fechaInicio.substring(0, 7)
+    if (mes < mesInicio) return 'anterior'
+    // Un ciclo que arranca a mitad de mes deja ese mes partido: trae la cola del ciclo
+    // anterior y el arranque del nuevo. Es la fila que nunca cierra contra nada.
+    if (mes === mesInicio && fechaInicio.substring(8, 10) !== '01') return 'mixto'
+    return 'actual'
+  }
+
   const periodosSelectedRaw = selectedInstr ? periodosByInstr.get(selectedInstr.id) ?? [] : []
   const tramosSelected = selectedInstr ? tramosByInstr.get(selectedInstr.id) ?? [] : []
   const movimientosSelected = selectedInstr ? movimientosByInstr.get(selectedInstr.id) ?? [] : []
@@ -481,6 +494,29 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
               {periodosSelected.length} mes(es) · {detalleInstr.capitalizable ? 'capitalizable' : 'no capitalizable'}
             </span>
           </div>
+
+          {/* Qué trato rige hoy: sin esto, las filas de ciclos viejos parecen del actual */}
+          <div className="px-4 py-2.5 bg-primary/5 border-b border-border text-xs">
+            <span className="text-fg-muted">Ciclo actual — desde </span>
+            <span className="text-fg font-medium">{formatDate(detalleInstr.fecha_inicio)}</span>
+            {detalleInstr.fecha_fin && (
+              <>
+                <span className="text-fg-muted"> hasta </span>
+                <span className="text-fg font-medium">{formatDate(detalleInstr.fecha_fin)}</span>
+              </>
+            )}
+            <span className="text-fg-muted">
+              {' · '}{formatMoneda(Number(detalleInstr.capital_inicial), detalleInstr.moneda)}
+              {' al '}{(tasaActualSelected * 100).toFixed(2)}%
+              {' · '}{detalleInstr.capitalizable ? 'capitaliza' : 'no capitaliza'}
+            </span>
+            {periodosSelected.every((p) => cicloDeLaFila(p.mes, detalleInstr.fecha_inicio) === 'anterior') && (
+              <p className="text-fg-soft mt-1">
+                Todavía sin períodos de este ciclo: el mes nace cuando el calendario lo alcanza.
+                Los de abajo son de ciclos anteriores.
+              </p>
+            )}
+          </div>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
@@ -500,12 +536,25 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                   const tMes = t.fecha_desde.substring(0, 7)
                   return tMes === p.mes && t.fecha_desde.substring(8, 10) !== '01'
                 })
+                const ciclo = cicloDeLaFila(p.mes, detalleInstr.fecha_inicio)
                 return (
                   <tr key={p.id} className={cn(
                     'border-b border-border/60',
-                    p.cerrado && 'bg-green-500/5'
+                    p.cerrado && 'bg-green-500/5',
+                    // Atenuadas: son de un trato que ya terminó, con otro capital y otra tasa
+                    ciclo === 'anterior' && 'opacity-50',
                   )}>
-                    <td className="px-4 py-2 text-fg-muted">{formatMonth(p.mes)}</td>
+                    <td className="px-4 py-2 text-fg-muted">
+                      {formatMonth(p.mes)}
+                      {ciclo === 'anterior' && (
+                        <span className="block text-[10px] text-fg-soft">ciclo anterior</span>
+                      )}
+                      {ciclo === 'mixto' && (
+                        <span className="block text-[10px] text-amber-700">
+                          acá arranca el ciclo actual
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-2 text-right font-mono text-fg-muted">{formatMoneda(Number(p.saldo_inicio), detalleInstr.moneda)}</td>
                     <td className="px-4 py-2 text-right font-mono text-purple-700 text-xs">
                       {(Number(p.tasa_aplicada) * 100).toFixed(4)}%
