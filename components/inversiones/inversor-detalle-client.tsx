@@ -87,6 +87,22 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
     return map
   }, [movimientos])
 
+  // La tasa que rige HOY sale del último tramo cuya fecha ya pasó, no del campo del
+  // instrumento: "Cambiar tasa" crea un tramo y no toca ese campo, así que mostrarlo
+  // hacía que la tarjeta siguiera anunciando la tasa vieja después de cambiarla.
+  const tasaVigenteById = useMemo(() => {
+    const hoy = new Date().toISOString().split('T')[0]
+    const map = new Map<string, { vigente: number; inicial: number }>()
+    for (const i of instrumentos) {
+      const ts = tramosByInstr.get(i.id) ?? []
+      const inicial = ts.length > 0 ? Number(ts[0].tasa_mensual) : Number(i.tasa_mensual)
+      let vigente = inicial
+      for (const t of ts) if (t.fecha_desde <= hoy) vigente = Number(t.tasa_mensual)
+      map.set(i.id, { vigente, inicial })
+    }
+    return map
+  }, [instrumentos, tramosByInstr])
+
   const periodosSelectedRaw = selectedInstr ? periodosByInstr.get(selectedInstr.id) ?? [] : []
   const tramosSelected = selectedInstr ? tramosByInstr.get(selectedInstr.id) ?? [] : []
   const movimientosSelected = selectedInstr ? movimientosByInstr.get(selectedInstr.id) ?? [] : []
@@ -228,7 +244,18 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                 <div className="space-y-1 text-xs mb-3">
                   <div className="flex justify-between">
                     <span className="text-fg-muted">Tasa mensual</span>
-                    <span className="font-mono text-fg-muted">{(Number(i.tasa_mensual) * 100).toFixed(2)}%</span>
+                    <span className="font-mono text-fg-muted">
+                      {((tasaVigenteById.get(i.id)?.vigente ?? Number(i.tasa_mensual)) * 100).toFixed(2)}%
+                      {(() => {
+                        const t = tasaVigenteById.get(i.id)
+                        if (!t || Math.abs(t.vigente - t.inicial) < 1e-9) return null
+                        return (
+                          <span className="ml-1 text-[10px] font-sans text-fg-soft">
+                            (arrancó en {(t.inicial * 100).toFixed(2)}%)
+                          </span>
+                        )
+                      })()}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-fg-muted">Capitalización</span>
