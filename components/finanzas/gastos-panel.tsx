@@ -22,7 +22,7 @@ export async function GastosPanel({
   // El estado ahora es COMPUTADO (Vencido, Cuenta corriente, Pago programado, etc. dependen de
   // los pagos y del concepto, no del estado en la base) → se filtra íntegro client-side.
 
-  const [{ data: gastos }, { data: categorias }, { data: cuentas }, { data: tarjetas }, { data: prorrateoDef }, { data: tiposIva }, { data: configProrrateo }, { data: recurrentes }] = await Promise.all([
+  const [{ data: gastos }, { data: categorias }, { data: cuentas }, { data: tarjetas }, { data: prorrateoDef }, { data: tiposIva }, { data: configProrrateo }, { data: recurrentes }, { data: proveedores }] = await Promise.all([
     query,
     supabase.from('gastos').select('categoria').order('categoria'),
     supabase.from('cuentas_bancarias').select('id, nombre, banco, titular:cuentas_titulares(nombre)').eq('activo', true).order('banco'),
@@ -31,6 +31,8 @@ export async function GastosPanel({
     supabase.from('tipos_iva').select('*').eq('activo', true).order('orden'),
     supabase.from('configuracion_prorrateo').select('*').eq('activo', true).order('orden'),
     supabase.from('gastos_recurrentes').select('id, concepto, dia_vencimiento, tipo_mes, es_cuenta_corriente'),
+    // Acreedores: el gasto se puede atar a uno para que entre en su cuenta corriente (mig 079).
+    supabase.from('proveedores').select('id, nombre').eq('activo', true).order('nombre'),
   ])
 
   // Pagos del ledger por gasto (para el estado computado: saldo debitado + cuotas programadas).
@@ -66,6 +68,7 @@ export async function GastosPanel({
       tiposIva={tiposIva ?? []}
       configProrrateo={configProrrateo ?? []}
       recurrentes={recurrentes ?? []}
+      proveedores={proveedores ?? []}
       pagosByGasto={pagosByGasto}
       hoy={new Date().toISOString().slice(0, 10)}
     />

@@ -7,7 +7,7 @@ export async function RecurrentesPanel({ mes: mesParam }: { mes?: string }) {
   const mes = mesParam ?? (await getMesActivo())
   const supabase = await createClient()
 
-  const [{ data: recurrentes }, { data: cuentas }, { data: tarjetas }, { data: prorrateoDef }, { data: gastosMes }, { data: tiposIva }, { data: configProrrateo }] = await Promise.all([
+  const [{ data: recurrentes }, { data: cuentas }, { data: tarjetas }, { data: prorrateoDef }, { data: gastosMes }, { data: tiposIva }, { data: configProrrateo }, { data: proveedores }] = await Promise.all([
     supabase
       .from('gastos_recurrentes')
       .select('*')
@@ -19,6 +19,8 @@ export async function RecurrentesPanel({ mes: mesParam }: { mes?: string }) {
     supabase.from('gastos').select('id, recurrente_id, mes, monto, estado').eq('mes', mes),
     supabase.from('tipos_iva').select('*').eq('activo', true).order('orden'),
     supabase.from('configuracion_prorrateo').select('*').eq('activo', true).order('orden'),
+    // Acreedores: los gastos que genere el recurrente heredan el que se elija (mig 079).
+    supabase.from('proveedores').select('id, nombre').eq('activo', true).order('nombre'),
   ])
 
   return (
@@ -31,6 +33,7 @@ export async function RecurrentesPanel({ mes: mesParam }: { mes?: string }) {
       gastosMes={gastosMes ?? []}
       tiposIva={tiposIva ?? []}
       configProrrateo={configProrrateo ?? []}
+      proveedores={proveedores ?? []}
     />
   )
 }

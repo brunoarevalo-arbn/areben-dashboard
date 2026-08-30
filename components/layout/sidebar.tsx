@@ -33,6 +33,7 @@ import {
   FileCheck,
   PiggyBank,
   Clock,
+  Handshake,
 } from 'lucide-react'
 
 interface NavItem {
@@ -69,6 +70,7 @@ const navItems: NavItem[] = [
           { label: 'Pendientes', href: '/finanzas/pagos?tab=pendientes', icon: Clock },
           { label: 'Vencimientos del mes', href: '/finanzas/vencimientos', icon: CalendarDays },
           { label: 'Cuentas corrientes', href: '/finanzas/cuentas-corrientes', icon: Wallet },
+          { label: 'Acreedores', href: '/finanzas/acreedores', icon: Handshake },
         ],
       },
       { label: 'Tarjetas', href: '/finanzas/tarjetas', icon: CreditCard },

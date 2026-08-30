@@ -59,6 +59,7 @@ interface GastosClientProps {
   tiposIva: TipoIVA[]
   configProrrateo: ConfiguracionProrrateo[]
   recurrentes?: { id: string; concepto?: string | null; dia_vencimiento?: number | null; tipo_mes?: string | null; es_cuenta_corriente?: boolean | null }[]
+  proveedores?: { id: string; nombre: string }[]
   pagosByGasto?: Record<string, { monto: number; debitado: boolean; fecha_vencimiento: string | null }[]>
   hoy?: string
 }
@@ -74,6 +75,7 @@ function GastoForm({
   prorrateosDefault,
   tiposIva,
   configProrrateo,
+  proveedores,
   onClose,
 }: {
   gasto?: Gasto
@@ -84,6 +86,7 @@ function GastoForm({
   prorrateosDefault: ProrrateoDefault[]
   tiposIva: TipoIVA[]
   configProrrateo: ConfiguracionProrrateo[]
+  proveedores: { id: string; nombre: string }[]
   onClose: () => void
 }) {
   const action = gasto ? updateGasto.bind(null, gasto.id) : createGasto
@@ -399,6 +402,21 @@ function GastoForm({
         )}
       </div>
 
+      {/* Acreedor: mete el gasto en la cuenta corriente de esa persona (/finanzas/acreedores). */}
+      <div className="space-y-1.5">
+        <Select
+          label="¿Va a la cuenta de alguien? (opcional)"
+          name="proveedor_id"
+          defaultValue={gasto?.proveedor_id ?? ''}
+          placeholder="No — es un gasto suelto"
+          options={proveedores.map((p) => ({ value: p.id, label: p.nombre }))}
+        />
+        <p className="text-xs text-fg-muted">
+          Elegilo solo si a esta persona se le va juntando la deuda y se le paga a cuenta (el abogado,
+          el contador). El gasto sigue igual: además se suma a su cuenta corriente.
+        </p>
+      </div>
+
       <Textarea label="Notas (opcional)" name="notas" defaultValue={gasto?.notas ?? ''} placeholder="Información adicional..." />
 
       {error && <p className="text-sm text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
@@ -686,7 +704,7 @@ function MontoGastoEditor({ gasto, onSaved }: { gasto: Gasto; onSaved: () => voi
 
 // ─── GastosClient ─────────────────────────────────────────────────────────────
 
-export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjetas, prorrateosDefault, tiposIva, configProrrateo, recurrentes, pagosByGasto, hoy }: GastosClientProps) {
+export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjetas, prorrateosDefault, tiposIva, configProrrateo, recurrentes, proveedores, pagosByGasto, hoy }: GastosClientProps) {
   const recurrentesMap = useMemo(() => new Map((recurrentes ?? []).map((r) => [r.id, r])), [recurrentes])
   const hoyStr = hoy ?? new Date().toISOString().slice(0, 10)
 
@@ -1119,6 +1137,7 @@ export function GastosClient({ gastos, mes, categorias, filtros, cuentas, tarjet
           prorrateosDefault={prorrateosDefault}
           tiposIva={tiposIva}
           configProrrateo={configProrrateo}
+          proveedores={proveedores ?? []}
           onClose={() => setModalOpen(false)}
         />
       </Modal>

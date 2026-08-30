@@ -23,6 +23,8 @@ export interface Gasto {
   fecha_pago?: string | null
   notas?: string | null
   recurrente_id?: string | null
+  /** FK opcional al acreedor (maestro `proveedores`) — arma la cuenta corriente (mig 079). */
+  proveedor_id?: string | null
   prorrateo?: ProrrateoMarcas | null
   medio_pago?: string | null
   cuenta_id?: string | null
@@ -337,6 +339,8 @@ export interface GastoRecurrente {
   notas?: string | null
   /** Deuda tipo cuenta corriente (se junta sin fecha fija) → no aparece como pendiente con vencimiento. */
   es_cuenta_corriente?: boolean
+  /** Acreedor que heredan los gastos generados desde este recurrente (mig 079). */
+  proveedor_id?: string | null
   activo: boolean
   created_at: string
 }

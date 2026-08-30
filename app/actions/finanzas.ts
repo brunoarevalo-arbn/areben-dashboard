@@ -48,6 +48,8 @@ const gastoSchema = z.object({
   tarjeta_id: optUuid,
   cuotas_total: optInt({ min: 1 }),
   recurrente_id: optUuid,
+  // Acreedor: arma la cuenta corriente de /finanzas/acreedores (mig 079).
+  proveedor_id: optUuid,
   tiene_intereses: z.coerce.boolean().optional().default(false),
   interes_tipo: z.preprocess(
     (v) => (v === '' ? null : v),
@@ -123,6 +125,7 @@ function buildGastoData(parsed: z.infer<typeof gastoSchema>, prorrateo: Record<s
     tarjeta_id: parsed.tarjeta_id || null,
     cuotas_total: parsed.cuotas_total || 1,
     recurrente_id: parsed.recurrente_id || null,
+    proveedor_id: parsed.proveedor_id || null,
     tiene_intereses: aplicaInteres,
     interes_tipo: aplicaInteres ? parsed.interes_tipo ?? null : null,
     interes_valor: aplicaInteres ? parsed.interes_valor ?? null : null,
@@ -607,6 +610,8 @@ const recurrenteSchema = z.object({
   tipo_mes: z.enum(['CORRIENTE', 'VENCIDO']),
   notas: z.string().optional().nullable(),
   es_cuenta_corriente: z.coerce.boolean().default(false),
+  // Acreedor que heredan los gastos que genere este recurrente (mig 079).
+  proveedor_id: optUuid,
 })
 
 export async function createRecurrente(prevState: string | null, formData: FormData) {
@@ -634,6 +639,7 @@ export async function createRecurrente(prevState: string | null, formData: FormD
     cuenta_id: result.data.cuenta_id || null,
     tarjeta_id: result.data.tarjeta_id || null,
     dia_vencimiento: result.data.dia_vencimiento || null,
+    proveedor_id: result.data.proveedor_id || null,
     notas: result.data.notas?.trim() || null,
     prorrateo,
     detalles,
@@ -670,6 +676,7 @@ export async function updateRecurrente(id: string, prevState: string | null, for
     cuenta_id: result.data.cuenta_id || null,
     tarjeta_id: result.data.tarjeta_id || null,
     dia_vencimiento: result.data.dia_vencimiento || null,
+    proveedor_id: result.data.proveedor_id || null,
     notas: result.data.notas?.trim() || null,
     prorrateo,
     detalles,
@@ -1029,6 +1036,9 @@ export async function confirmarRecurrentesMasivo(recurrenteIds: string[], mes: s
           prorrateo: rec.prorrateo,
           detalles: rec.detalles,
           recurrente_id: rec.id,
+          // El gasto del mes hereda el acreedor de su plantilla: si no, habría que
+          // etiquetar a mano el abono de cada mes (mig 079).
+          proveedor_id: rec.proveedor_id ?? null,
           confirmado: true,
         }
       }
@@ -1175,6 +1185,8 @@ export async function confirmarRecurrente(args: {
       prorrateo: rec.prorrateo,
       detalles: rec.detalles,
       recurrente_id: rec.id,
+      // Hereda el acreedor de la plantilla — ver nota en confirmarRecurrentesMasivo.
+      proveedor_id: rec.proveedor_id ?? null,
       confirmado: true,
     }
   }

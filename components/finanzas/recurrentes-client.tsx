@@ -35,6 +35,7 @@ interface Props {
   gastosMes: { id: string; recurrente_id: string | null; mes: string; monto: number; estado: string }[]
   tiposIva: TipoIVA[]
   configProrrateo: ConfiguracionProrrateo[]
+  proveedores: { id: string; nombre: string }[]
 }
 
 const CATEGORIAS = ['Alquiler', 'Servicios', 'Sueldos', 'Marketing', 'Logística', 'Impuestos', 'Seguros', 'Mantenimiento', 'Tecnología', 'Equipos', 'Otros']
@@ -55,6 +56,7 @@ function RecurrenteForm({
   prorrateosDefault,
   tiposIva,
   configProrrateo,
+  proveedores,
   onClose,
 }: {
   recurrente?: GastoRecurrente
@@ -63,6 +65,7 @@ function RecurrenteForm({
   prorrateosDefault: ProrrateoDefault[]
   tiposIva: TipoIVA[]
   configProrrateo: ConfiguracionProrrateo[]
+  proveedores: { id: string; nombre: string }[]
   onClose: () => void
 }) {
   const action = recurrente ? updateRecurrente.bind(null, recurrente.id) : createRecurrente
@@ -305,6 +308,21 @@ function RecurrenteForm({
           Tildá esto solo si no lo pagás en fecha cada mes, sino que se acumula y lo pagás cuando hay caja.
           No aparecerá como pendiente con vencimiento: se suma al saldo de la cuenta corriente del proveedor.
         </p>
+
+        {/* Acreedor: cada gasto que genere esta plantilla lo hereda (mig 079). */}
+        <div className="pl-6 pt-1 space-y-1.5">
+          <Select
+            label="¿A quién se le debe? (opcional)"
+            name="proveedor_id"
+            defaultValue={recurrente?.proveedor_id ?? ''}
+            placeholder="A nadie en particular"
+            options={proveedores.map((p) => ({ value: p.id, label: p.nombre }))}
+          />
+          <p className="text-xs text-fg-muted">
+            Si lo elegís, el gasto de cada mes entra solo a la cuenta corriente de esa persona
+            (Pagos y deuda → Acreedores). No hace falta etiquetar mes por mes.
+          </p>
+        </div>
       </div>
 
       <Textarea label="Notas — forma de pago y facturación"
@@ -900,7 +918,7 @@ function BulkAjustarModal({ ids, onClose }: { ids: string[]; onClose: () => void
 
 // ─── RecurrentesClient ────────────────────────────────────────────────────────
 
-export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrateosDefault, gastosMes, tiposIva, configProrrateo }: Props) {
+export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrateosDefault, gastosMes, tiposIva, configProrrateo, proveedores }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [modal, setModal] = useState(false)
@@ -1288,6 +1306,7 @@ export function RecurrentesClient({ mes, recurrentes, cuentas, tarjetas, prorrat
           prorrateosDefault={prorrateosDefault}
           tiposIva={tiposIva}
           configProrrateo={configProrrateo}
+          proveedores={proveedores}
           onClose={() => setModal(false)}
         />
       </Modal>
