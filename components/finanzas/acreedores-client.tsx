@@ -4,6 +4,8 @@ import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { asignarAcreedor, crearAcreedor, registrarPagoRepartido } from '@/app/actions/acreedores'
 import { repartirPago, type CuentaAcreedor, type AcreedorGastoInput } from '@/lib/acreedores'
+import { etiquetaCuenta, type AcreedorCuenta } from '@/lib/acreedor-cuentas'
+import { AcreedorCuentasBlock } from '@/components/finanzas/acreedor-cuentas-block'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -18,6 +20,8 @@ type CuentaBanco = { id: string; nombre: string; banco: string; titular?: { nomb
 
 interface Props {
   cuentas: CuentaAcreedor[]
+  /** Las cuentas AJENAS a las que se le transfiere a cada acreedor, por proveedorId. */
+  cuentasDestino: Record<string, AcreedorCuenta[]>
   proveedores: { id: string; nombre: string }[]
   cuentasBanco: CuentaBanco[]
   sinAcreedor: AcreedorGastoInput[]
@@ -29,7 +33,7 @@ function mesLargo(mes: string): string {
   return new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(new Date(y, m - 1, 1))
 }
 
-export function AcreedoresClient({ cuentas, proveedores, cuentasBanco, sinAcreedor }: Props) {
+export function AcreedoresClient({ cuentas, cuentasDestino, proveedores, cuentasBanco, sinAcreedor }: Props) {
   const router = useRouter()
   const [abierta, setAbierta] = useState<string | null>(cuentas.find((c) => c.saldo > 0)?.proveedorId ?? null)
   const [soloConSaldo, setSoloConSaldo] = useState(false)
@@ -101,6 +105,7 @@ export function AcreedoresClient({ cuentas, proveedores, cuentasBanco, sinAcreed
             <CuentaRow
               key={c.proveedorId}
               cuenta={c}
+              cuentasDestino={cuentasDestino[c.proveedorId] ?? []}
               abierta={abierta === c.proveedorId}
               onToggle={() => setAbierta(abierta === c.proveedorId ? null : c.proveedorId)}
               onAgregar={() => setAgregarA({ id: c.proveedorId, nombre: c.nombre })}
@@ -116,6 +121,7 @@ export function AcreedoresClient({ cuentas, proveedores, cuentasBanco, sinAcreed
         {pagarA && (
           <PagoForm
             cuenta={pagarA}
+            destino={(cuentasDestino[pagarA.proveedorId] ?? []).find((c) => c.activa && c.sugerida) ?? null}
             cuentasBanco={cuentasBanco}
             onClose={() => { setPagarA(null); router.refresh() }}
           />
@@ -152,8 +158,9 @@ export function AcreedoresClient({ cuentas, proveedores, cuentasBanco, sinAcreed
 
 // ─── CuentaRow ────────────────────────────────────────────────────────────────
 
-function CuentaRow({ cuenta, abierta, onToggle, onAgregar, onPagar, onRefetch }: {
+function CuentaRow({ cuenta, cuentasDestino, abierta, onToggle, onAgregar, onPagar, onRefetch }: {
   cuenta: CuentaAcreedor
+  cuentasDestino: AcreedorCuenta[]
   abierta: boolean
   onToggle: () => void
   onAgregar: () => void
@@ -209,6 +216,11 @@ function CuentaRow({ cuenta, abierta, onToggle, onAgregar, onPagar, onRefetch }:
 
       {abierta && (
         <div className="border-t border-border bg-surface-2/30 px-4 py-3 space-y-3">
+          <AcreedorCuentasBlock
+            acreedor={{ id: cuenta.proveedorId, nombre: cuenta.nombre }}
+            cuentas={cuentasDestino}
+          />
+
           {cuenta.conceptos.length === 0 ? (
             <p className="text-xs text-fg-soft">Esta cuenta todavía no tiene ningún gasto asignado.</p>
           ) : (
@@ -445,8 +457,10 @@ function NuevaCuentaForm({ proveedores, yaConCuenta, onElegido, onClose }: {
 // puede tocar renglón por renglón, para el caso en que se quiera mandar plata a un concepto
 // puntual (pagar el juicio antes que el abono, por ejemplo).
 
-function PagoForm({ cuenta, cuentasBanco, onClose }: {
+function PagoForm({ cuenta, destino, cuentasBanco, onClose }: {
   cuenta: CuentaAcreedor
+  /** La cuenta que se le tiene cargada al acreedor, para no ir a buscarla a otra pantalla. */
+  destino: AcreedorCuenta | null
   cuentasBanco: CuentaBanco[]
   onClose: () => void
 }) {
@@ -521,6 +535,16 @@ function PagoForm({ cuenta, cuentasBanco, onClose }: {
             options={ordenarCuentas(cuentasBanco).map((c) => ({ value: c.id, label: labelCuenta(c) }))} />
         )}
       </div>
+
+      {/* A dónde va la plata. Es de solo lectura: el CBU se administra en la ficha del acreedor,
+          acá está para no tener que abrir otra pantalla mientras se transfiere. */}
+      {destino && instrumento === 'TRANSFERENCIA' && (
+        <p className="text-xs text-fg-muted bg-surface-2/40 border border-border-strong/60 rounded-lg px-3 py-2">
+          Le transferís a <b className="text-fg">{etiquetaCuenta(destino)}</b>
+          {destino.banco && <> · {destino.banco}</>}
+          {destino.titular && <> · a nombre de <b className="text-fg">{destino.titular}</b></>}
+        </p>
+      )}
 
       <Input label="¿De dónde salió la plata? (opcional)" value={notas} onChange={(e) => setNotas(e.target.value)}
         placeholder="Ej: Nazarena Luciani - BDI Mayorista" />

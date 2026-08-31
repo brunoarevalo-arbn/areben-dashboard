@@ -804,6 +804,25 @@ export interface Proveedor {
   created_at: string
 }
 
+export interface AcreedorCuenta {
+  id: string
+  proveedor_id: string
+  /** Alias CBU/CVU. Con esto solo ya se puede transferir. */
+  alias?: string | null
+  /** 22 dígitos, sin espacios ni guiones. */
+  cbu?: string | null
+  banco?: string | null
+  /** A nombre de quién está la cuenta. Puede no ser el acreedor (el estudio, la esposa). */
+  titular?: string | null
+  /** La que se ofrece primero. Una sola por acreedor entre las activas. */
+  sugerida: boolean
+  /** false = archivada: ya no se usa, pero se sigue pudiendo leer. */
+  activa: boolean
+  notas?: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Compra {
   id: string
   proveedor_id: string
@@ -1032,6 +1051,11 @@ export interface Database {
         Row: Proveedor
         Insert: Omit<Proveedor, 'id' | 'created_at'>
         Update: Partial<Omit<Proveedor, 'id' | 'created_at'>>
+      }
+      acreedor_cuentas: {
+        Row: AcreedorCuenta
+        Insert: Omit<AcreedorCuenta, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<AcreedorCuenta, 'id' | 'created_at'>>
       }
       compras: {
         Row: Compra
