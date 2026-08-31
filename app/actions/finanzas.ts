@@ -4,6 +4,7 @@ import { createClient, requireUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { optUuid, optInt } from '@/lib/zod-helpers'
+import { camposAConservar } from '@/lib/gastos-form'
 import { createPagoUnificado } from './pagos'
 import { calcularMesesTarjeta as calcMesesTarjetaPure, calcularMontosCuota } from '@/lib/calc/tarjeta'
 import { calcularMontoNeto } from '@/lib/calc/gasto'
@@ -411,7 +412,7 @@ export async function updateGasto(id: string, prevState: string | null, formData
   // reescribir la fecha real o duplicar filas en `pagos`).
   const { data: prevGasto } = await supabase
     .from('gastos')
-    .select('estado')
+    .select('estado, recurrente_id, cuenta_origen_pago_id, monto_secundario, moneda_secundaria')
     .eq('id', id)
     .single()
   const transicionAPagado =
@@ -421,6 +422,10 @@ export async function updateGasto(id: string, prevState: string | null, formData
 
   const gastoData = buildGastoData(result.data, prorrateo)
   if (transicionAPagado) gastoData.estado = 'PENDIENTE'
+
+  // Reponer lo que el formulario no muestra: sin esto, guardar un gasto se lo borraba en silencio
+  // (el peor caso era desvincularlo de su plantilla). Ver lib/gastos-form.ts.
+  Object.assign(gastoData, camposAConservar(prevGasto, (c) => formData.has(c)))
 
   const { error } = await supabase
     .from('gastos')
