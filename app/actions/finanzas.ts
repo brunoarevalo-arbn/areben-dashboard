@@ -9,6 +9,7 @@ import { createPagoUnificado } from './pagos'
 import { calcularMesesTarjeta as calcMesesTarjetaPure, calcularMontosCuota } from '@/lib/calc/tarjeta'
 import { calcularMontoNeto } from '@/lib/calc/gasto'
 import { netoCompraARS } from '@/lib/compras-calc'
+import { resolverOrigenDeGasto, totalPagadoPorGasto } from '@/lib/pagos-gastos'
 
 // ============ GASTOS ============
 
@@ -531,14 +532,12 @@ export async function marcarGastoPagado(id: string, cuentaOrigenId: string | nul
     .single()
   if (!g) throw new Error('Gasto no encontrado')
 
-  // Saldo restante = monto - SUM(pagos previos al ledger)
-  const { data: prev } = await supabase
-    .from('pagos')
-    .select('monto')
-    .eq('tipo_origen', 'GASTO')
-    .eq('origen_id', id)
-  const yaPagado = (prev ?? []).reduce((s, p) => s + Number(p.monto), 0)
-  const restante = Math.max(0, Number(g.monto) - yaPagado)
+  // Saldo restante = deuda del ORIGEN REAL - lo ya pagado contra él. Para un gasto-sueldo
+  // el origen es la nómina: mirar sólo tipo_origen=GASTO ignoraría los adelantos ya
+  // imputados y este "marcar pagado" generaría un pago por el neto entero.
+  const origen = await resolverOrigenDeGasto(supabase, id)
+  const yaPagado = (await totalPagadoPorGasto(supabase, [id])).get(id) ?? 0
+  const restante = Math.max(0, origen.total_deuda - yaPagado)
   const fechaEmision = fechaPago || new Date().toISOString().split('T')[0]
 
   if (restante > 0.01) {
@@ -774,6 +773,17 @@ export async function revertirPagoGasto(gastoId: string) {
   }
   if (gasto.auto_generado || gasto.gasto_padre_id) {
     throw new Error('Es un gasto auto-generado — revertí el gasto principal en su lugar')
+  }
+  // Un gasto-sueldo no es dueño de su plata: los pagos están imputados a la nómina.
+  // Borrar acá sólo los tipo_origen=GASTO no borraría nada y dejaría el gasto en
+  // PENDIENTE con la nómina en PAGADO. Se reverte desde Nómina, borrando sus pagos.
+  const { data: nominaDelGasto } = await supabase
+    .from('nomina_mensual')
+    .select('id, mes')
+    .eq('gasto_pendiente_id', gastoId)
+    .maybeSingle()
+  if (nominaDelGasto) {
+    throw new Error(`Este gasto es el espejo de una nómina (${nominaDelGasto.mes}). Borrá los pagos desde RRHH → Nómina; el gasto vuelve solo a PENDIENTE.`)
   }
 
   // Borrar todos los pagos asociados al gasto (tipo_origen=GASTO).

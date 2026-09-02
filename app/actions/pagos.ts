@@ -11,6 +11,7 @@ import { createClient, requireUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { optUuid } from '@/lib/zod-helpers'
+import { resolverOrigenDeGasto } from '@/lib/pagos-gastos'
 import type { TipoOrigenPago, InstrumentoPago } from '@/types/database'
 
 const TIPO_ORIGEN: TipoOrigenPago[] = ['COMPRA', 'GASTO', 'NOMINA', 'CUOTA', 'LIBRE', 'PRESTAMO']
@@ -179,6 +180,19 @@ export async function createPagoUnificado(input: PagoUnifInput) {
   const result = pagoUnifSchema.safeParse(input)
   if (!result.success) throw new Error(result.error.issues[0].message)
   const d = result.data
+
+  // Un gasto-sueldo es el ESPEJO de una nómina: la deuda vive en nomina_mensual.
+  // Imputar el pago al gasto dejaría a Nómina viendo el neto entero (y al revés),
+  // y el saldo se calcularía dos veces contra dos totales distintos. Se redirige acá,
+  // en el núcleo, para que dé igual desde qué pantalla se pague.
+  if (d.tipo_origen === 'GASTO' && d.origen_id) {
+    const supabase = await createClient()
+    const origen = await resolverOrigenDeGasto(supabase, d.origen_id)
+    if (origen.tipo_origen === 'NOMINA') {
+      d.tipo_origen = 'NOMINA'
+      d.origen_id = origen.origen_id
+    }
+  }
 
   // Validar origen y saldo (excepto LIBRE)
   if (d.tipo_origen !== 'LIBRE') {

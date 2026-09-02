@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import type { CierreMensual } from '@/types/database'
 import { EstadoMesPanel } from '@/components/dashboard/estado-mes-panel'
 import { estaVencido } from '@/lib/gastos-vencimiento'
+import { totalPagadoPorNomina } from '@/lib/pagos-gastos'
 
 export default async function DashboardPage({
   searchParams,
@@ -46,7 +47,7 @@ export default async function DashboardPage({
       .limit(300),
     supabase
       .from('v_nominas_con_empleado')
-      .select('neto, empleado_nombre, empleado_apellido')
+      .select('id, neto, empleado_nombre, empleado_apellido')
       .eq('mes', mes)
       .eq('estado', 'PENDIENTE'),
     supabase.from('empleados').select('id').eq('activo', true),
@@ -94,7 +95,13 @@ export default async function DashboardPage({
   const saldoUsd = cuentasUsd + cajaUsd
   const hayDatosSaldo = cuentasActivas.length > 0 || cierreMes != null
 
-  const nominaPendienteTotal = nominaPendiente?.reduce((sum, n) => sum + n.neto, 0) ?? 0
+  // Lo que falta pagar, no el neto entero: los adelantos ya cargados se descuentan.
+  // Sin esto el KPI decía la deuda de sueldos como si nadie hubiera cobrado nada.
+  const pagadoPorNomina = await totalPagadoPorNomina(supabase, (nominaPendiente ?? []).map((n) => n.id))
+  const nominaConSaldo = (nominaPendiente ?? [])
+    .map((n) => ({ ...n, saldo: Math.max(0, Number(n.neto) - (pagadoPorNomina.get(n.id) ?? 0)) }))
+    .filter((n) => n.saldo > 0.01)
+  const nominaPendienteTotal = nominaConSaldo.reduce((sum, n) => sum + n.saldo, 0)
   const cantidadEmpleados = empleadosActivos?.length ?? 0
 
   return (
@@ -123,7 +130,7 @@ export default async function DashboardPage({
         <KpiCard
           title="Nómina Pendiente"
           value={formatCurrency(nominaPendienteTotal)}
-          subtitle={`${nominaPendiente?.length ?? 0} empleados`}
+          subtitle={`${nominaConSaldo.length} empleados`}
           icon={CreditCard}
           iconColor="bg-amber-500/15"
           variant={nominaPendienteTotal > 0 ? 'warning' : 'default'}
@@ -239,7 +246,7 @@ export default async function DashboardPage({
           </div>
         )}
 
-        {nominaPendiente && nominaPendiente.length > 0 && (
+        {nominaConSaldo.length > 0 && (
           <div className="bg-surface border border-amber-500/20 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-fg flex items-center gap-2">
@@ -251,12 +258,12 @@ export default async function DashboardPage({
               </Link>
             </div>
             <div className="space-y-2">
-              {nominaPendiente.map((n, i) => (
+              {nominaConSaldo.map((n, i) => (
                 <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                   <p className="text-sm text-fg-muted">
                     {n.empleado_nombre} {n.empleado_apellido}
                   </p>
-                  <span className="text-sm font-medium text-amber-700">{formatCurrency(n.neto)}</span>
+                  <span className="text-sm font-medium text-amber-700">{formatCurrency(n.saldo)}</span>
                 </div>
               ))}
             </div>
@@ -267,7 +274,7 @@ export default async function DashboardPage({
           </div>
         )}
 
-        {(!gastosVencidos || gastosVencidos.length === 0) && (!nominaPendiente || nominaPendiente.length === 0) && (
+        {(!gastosVencidos || gastosVencidos.length === 0) && nominaConSaldo.length === 0 && (
           <div className="col-span-2 bg-green-50 border border-green-200 rounded-xl p-6 text-center">
             <p className="text-green-800 font-medium">Todo al día</p>
             <p className="text-xs text-green-700 mt-1">No hay gastos vencidos ni nóminas pendientes.</p>
