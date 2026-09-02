@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentMonth } from '@/lib/utils'
 import { PendientesClient } from '@/components/finanzas/pendientes-client'
 import { esCuentaCorriente } from '@/lib/cuentas-corrientes'
+import { totalPagadoPorGasto } from '@/lib/pagos-gastos'
 
 export async function PendientesPanel() {
   const supabase = await createClient()
@@ -196,20 +197,10 @@ export async function PendientesPanel() {
   const gastoIds = (gastosPendientes ?? []).map((g) => g.id)
   const cuotaIds = (cuotas ?? []).map((c) => c.id)
 
-  const pagosByGasto = new Map<string, number>()
+  // Incluye los pagos imputados a la nómina vinculada (gasto-sueldo = espejo de la
+  // nómina): sin eso, un sueldo pagado a cuenta seguía figurando por el neto entero.
+  const pagosByGasto = await totalPagadoPorGasto(supabase, gastoIds)
   const pagosByCuota = new Map<string, number>()
-
-  if (gastoIds.length > 0) {
-    const { data } = await supabase
-      .from('pagos')
-      .select('origen_id, monto')
-      .eq('tipo_origen', 'GASTO')
-      .in('origen_id', gastoIds)
-    for (const p of data ?? []) {
-      if (!p.origen_id) continue
-      pagosByGasto.set(p.origen_id, (pagosByGasto.get(p.origen_id) ?? 0) + Number(p.monto))
-    }
-  }
   if (cuotaIds.length > 0) {
     const { data } = await supabase
       .from('pagos')

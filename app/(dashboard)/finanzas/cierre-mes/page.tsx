@@ -3,6 +3,7 @@ import { getMesActivo } from '@/lib/mes-activo'
 import { sintetizarSaldosPatrim } from '@/app/actions/composicion-cierre'
 import { lugaresConDolares } from '@/lib/saldos-revision'
 import { CierreMesClient } from '@/components/finanzas/cierre-mes-client'
+import { totalPagadoPorGasto } from '@/lib/pagos-gastos'
 
 export default async function CierreMesPage({
   searchParams,
@@ -189,52 +190,10 @@ export default async function CierreMesPage({
   }))
 
   // Restar pagos parciales (ledger unificado) al monto de los gastos pendientes.
-  // Cubre tanto gastos pagados a cuenta directamente (tipo_origen=GASTO)
-  // como gastos vinculados a nóminas con adelantos (vía nomina_mensual.gasto_pendiente_id → tipo_origen=NOMINA).
-  const gastoIds = (gastosPendientes ?? [])
-    .map((g) => g.id)
-    .filter(Boolean)
-
-  const pagosParcialesByGasto = new Map<string, number>()
-
-  if (gastoIds.length > 0) {
-    // (a) Pagos directos al gasto
-    const { data: pagosGasto } = await supabase
-      .from('pagos')
-      .select('origen_id, monto')
-      .eq('tipo_origen', 'GASTO')
-      .in('origen_id', gastoIds)
-      .lte('fecha_emision', mesFin)
-    for (const p of pagosGasto ?? []) {
-      if (!p.origen_id) continue
-      pagosParcialesByGasto.set(p.origen_id, (pagosParcialesByGasto.get(p.origen_id) ?? 0) + Number(p.monto))
-    }
-
-    // (b) Pagos a la nómina vinculada → afectan al gasto-sueldo asociado
-    const { data: nominasVinculadas } = await supabase
-      .from('nomina_mensual')
-      .select('id, gasto_pendiente_id')
-      .in('gasto_pendiente_id', gastoIds)
-    const nominaIds = (nominasVinculadas ?? []).map((n) => n.id)
-    const gastoByNomina = new Map<string, string>()
-    for (const n of nominasVinculadas ?? []) {
-      if (n.gasto_pendiente_id) gastoByNomina.set(n.id, n.gasto_pendiente_id)
-    }
-    if (nominaIds.length > 0) {
-      const { data: pagosNomina } = await supabase
-        .from('pagos')
-        .select('origen_id, monto')
-        .eq('tipo_origen', 'NOMINA')
-        .in('origen_id', nominaIds)
-        .lte('fecha_emision', mesFin)
-      for (const p of pagosNomina ?? []) {
-        if (!p.origen_id) continue
-        const gid = gastoByNomina.get(p.origen_id)
-        if (!gid) continue
-        pagosParcialesByGasto.set(gid, (pagosParcialesByGasto.get(gid) ?? 0) + Number(p.monto))
-      }
-    }
-  }
+  // El helper ya cubre tanto los pagos directos al gasto (tipo_origen=GASTO) como los
+  // imputados a la nómina vinculada (gasto-sueldo = espejo de nomina_mensual).
+  const gastoIds = (gastosPendientes ?? []).map((g) => g.id).filter(Boolean)
+  const pagosParcialesByGasto = await totalPagadoPorGasto(supabase, gastoIds, { hasta: mesFin })
 
   // Aplicar la resta y filtrar gastos completamente cubiertos por adelantos
   const gastosNetos = (gastosPendientes ?? [])

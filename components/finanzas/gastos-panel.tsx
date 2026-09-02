@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentMonth } from '@/lib/utils'
 import { GastosClient } from '@/components/finanzas/gastos-client'
+import { pagosDeGastos } from '@/lib/pagos-gastos'
 
 // Panel "Del mes" del módulo Gastos (server component).
 export async function GastosPanel({
@@ -36,20 +37,13 @@ export async function GastosPanel({
   // Pagos del ledger por gasto (para el estado computado: saldo debitado + cuotas programadas).
   const gastoIds = (gastos ?? []).map((g) => g.id)
   const pagosByGasto: Record<string, { monto: number; debitado: boolean; fecha_vencimiento: string | null }[]> = {}
-  if (gastoIds.length > 0) {
-    const { data: pagos } = await supabase
-      .from('pagos')
-      .select('origen_id, monto, debitado, fecha_vencimiento')
-      .eq('tipo_origen', 'GASTO')
-      .in('origen_id', gastoIds)
-    for (const p of pagos ?? []) {
-      if (!p.origen_id) continue
-      ;(pagosByGasto[p.origen_id] ??= []).push({
-        monto: Number(p.monto),
-        debitado: !!p.debitado,
-        fecha_vencimiento: p.fecha_vencimiento ? String(p.fecha_vencimiento).slice(0, 10) : null,
-      })
-    }
+  // Incluye los pagos imputados a la nómina vinculada (el gasto-sueldo es su espejo).
+  for (const [gastoId, pagos] of await pagosDeGastos(supabase, gastoIds)) {
+    pagosByGasto[gastoId] = pagos.map((p) => ({
+      monto: p.monto,
+      debitado: p.debitado,
+      fecha_vencimiento: p.fecha_vencimiento,
+    }))
   }
 
   const uniqueCategorias = [...new Set(categorias?.map((c) => c.categoria) ?? [])]
