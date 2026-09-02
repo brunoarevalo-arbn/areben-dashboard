@@ -38,8 +38,14 @@ export async function proxy(request: NextRequest) {
   // es el token del link, y del otro lado todo lo que llega nace PENDIENTE: sin que
   // alguien lo apruebe no se paga nada. Ver `app/actions/horas-publicas.ts`.
   const isCargaHoras = request.nextUrl.pathname.startsWith('/horas/')
+  // `/api/puente/*` es la puerta de servicio: la llama el SERVIDOR del Monitor, que no tiene
+  // cookie de sesión y nunca la va a tener. La autorización es el secreto que viaja en el header
+  // `x-puente-auth`, y cada ruta de adentro lo valida ANTES de tocar la base (`lib/puente-auth.ts`,
+  // que falla cerrada si el secreto no está configurado). Sin esta excepción el guard la mandaría
+  // al login y el Monitor recibiría el HTML de la pantalla de ingreso en vez de un error.
+  const isPuente = request.nextUrl.pathname.startsWith('/api/puente/')
 
-  if (!user && !isAuthPage && !isOAuthCallback && !isCargaHoras) {
+  if (!user && !isAuthPage && !isOAuthCallback && !isCargaHoras && !isPuente) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
