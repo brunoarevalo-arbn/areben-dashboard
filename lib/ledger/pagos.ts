@@ -50,10 +50,15 @@ const pagoUnifSchema = z.object({
   numero_cheque: z.string().optional().nullable(),
   banco_emisor: z.string().optional().nullable(),
   notas: z.string().optional().nullable(),
-  // Quién transfirió, cuando no fuimos nosotros (migración 081). Los llena sólo la puerta de
+  // De quién era la deuda y quién transfirió (migraciones 081 y 082). Los llena sólo la puerta de
   // servicio; desde las pantallas del dashboard no viajan y quedan en NULL.
+  //
+  // 🔑 Son dos datos distintos y por eso son dos campos: `pagador_nombre` es el CLIENTE (de quién
+  // era la deuda) y `pagador_titular` es a nombre de quién salió la transferencia cuando no es él.
+  // NULL en el segundo = transfirió el cliente.
   pagador_cliente_id: z.string().optional().nullable(),
   pagador_nombre: z.string().optional().nullable(),
+  pagador_titular: z.string().optional().nullable(),
   operacion_id: optUuid,
 })
 
@@ -289,10 +294,11 @@ export async function crearPagoEnLedger(sb: ClienteLedger, input: PagoUnifInput)
     notas: d.notas || null,
     debitado: ['EFECTIVO', 'TRANSFERENCIA'].includes(d.instrumento),
     fecha_debito: ['EFECTIVO', 'TRANSFERENCIA'].includes(d.instrumento) ? d.fecha_emision : null,
-    // Quién transfirió y de qué operación salió (migración 081). Los tres son NULL en la carga
-    // manual, que es el caso normal: sólo los llena la puerta de servicio.
+    // De quién era la deuda, quién transfirió y de qué operación salió (migraciones 081 y 082).
+    // Todos NULL en la carga manual, que es el caso normal: sólo los llena la puerta de servicio.
     pagador_cliente_id: d.pagador_cliente_id || null,
     pagador_nombre: d.pagador_nombre || null,
+    pagador_titular: d.pagador_titular || null,
     operacion_id: d.operacion_id || null,
   })
     .select('id')

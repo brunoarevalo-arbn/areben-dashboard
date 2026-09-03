@@ -41,12 +41,21 @@ const cuerpo = z.object({
     .string({ error: 'Falta qué día se hizo la transferencia.' })
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha va como AAAA-MM-DD.'),
   instrumento: z.enum(['TRANSFERENCIA', 'EFECTIVO']).default('TRANSFERENCIA'),
+  /**
+   * 🔑 **La deuda es de un cliente; la transferencia puede mandarla otro.** Son dos datos, no uno
+   * (planteado por Darío el 3-sep-2026): al prometer se sabe de quién es la deuda, y recién cuando
+   * la plata entra se ve en el extracto a nombre de quién vino — muchas veces el novio, el socio o
+   * la razón social. Guardar uno solo deja sin contestar una de las dos preguntas que se hacen
+   * cuando algo no cierra, y la que falta depende de cuál se haya guardado.
+   */
   pagador: z.object(
     {
       /** Id del cliente en Gestión Nube. Referencia blanda: puede no venir. */
       cliente_id: z.string().optional().nullable(),
-      /** A nombre de quién salió la transferencia. Puede no ser el cliente. */
-      nombre: z.string({ error: 'Falta a nombre de quién salió la transferencia.' }).min(1, 'Falta a nombre de quién salió la transferencia.'),
+      /** El nombre del CLIENTE: de quién era la deuda. Se copia porque su id no se puede resolver acá. */
+      nombre: z.string({ error: 'Falta de qué cliente era la deuda.' }).min(1, 'Falta de qué cliente era la deuda.'),
+      /** A nombre de quién salió la transferencia, si NO fue el cliente. Vacío = transfirió él. */
+      titular: z.string().optional().nullable(),
     },
     { error: 'Falta quién transfirió.' },
   ),
@@ -193,6 +202,13 @@ export async function POST(request: Request) {
           notas: datos.notas ?? null,
           pagador_cliente_id: datos.pagador.cliente_id ?? null,
           pagador_nombre: datos.pagador.nombre,
+          // ⚠️ Sólo cuando es OTRO. Si se repitiera el nombre del cliente acá, para saber si hubo
+          // un tercero habría que comparar las dos columnas — y "hubo un tercero" es justo lo que
+          // se quiere ver de un vistazo.
+          pagador_titular:
+            datos.pagador.titular && datos.pagador.titular.trim() !== datos.pagador.nombre.trim()
+              ? datos.pagador.titular.trim()
+              : null,
           operacion_id: datos.operacion_id,
         })
         creados.push({ pago_id: pagoId, gasto_id: r.gastoId, concepto: r.concepto, mes: r.mes, monto: r.monto })
