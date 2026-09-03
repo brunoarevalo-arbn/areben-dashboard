@@ -11,256 +11,39 @@ import { createClient, requireUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { optUuid } from '@/lib/zod-helpers'
-import { resolverOrigenDeGasto } from '@/lib/pagos-gastos'
 import type { TipoOrigenPago, InstrumentoPago } from '@/types/database'
 
-const TIPO_ORIGEN: TipoOrigenPago[] = ['COMPRA', 'GASTO', 'NOMINA', 'CUOTA', 'LIBRE', 'PRESTAMO']
-const INSTRUMENTOS: InstrumentoPago[] = ['EFECTIVO', 'TRANSFERENCIA', 'CUENTA_CORRIENTE', 'CHEQUE_FISICO', 'ECHEQ', 'TARJETA']
+import {
+  crearPagoEnLedger,
+  recomputarOrigen as recomputarOrigenEnLedger,
+  type PagoUnifInput,
+} from '@/lib/ledger/pagos'
 
-const pagoUnifSchema = z.object({
-  tipo_origen: z.enum(TIPO_ORIGEN as [TipoOrigenPago, ...TipoOrigenPago[]]),
-  origen_id: optUuid,
-  monto: z.coerce.number().positive('El monto debe ser positivo'),
-  moneda: z.enum(['ARS', 'USD']).default('ARS'),
-  fecha_emision: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha YYYY-MM-DD'),
-  fecha_vencimiento: z.string().optional().nullable(),
-  instrumento: z.enum(INSTRUMENTOS as [InstrumentoPago, ...InstrumentoPago[]]),
-  cuenta_id: optUuid,
-  numero_cheque: z.string().optional().nullable(),
-  banco_emisor: z.string().optional().nullable(),
-  notas: z.string().optional().nullable(),
-})
-
-export type PagoUnifInput = z.infer<typeof pagoUnifSchema>
+// ⛔ El tipo NO se re-exporta desde acá: en un archivo `'use server'` todo lo exportado se
+// registra como server action, y Turbopack corta el build. Quien lo necesite lo importa de
+// `@/lib/ledger/pagos`, que es donde vive.
 
 /**
- * Recalcula el estado del origen del pago: marca PAGADO/pagada=true si total pagado >= total deuda;
- * revierte a PENDIENTE si se borró un pago y ya no está completamente paga.
+ * `recomputarOrigen` con la conexión del usuario logueado. El cuerpo vive en `lib/ledger/pagos.ts`
+ * desde que la puerta de servicio necesita el mismo cálculo sin sesión.
  */
 async function recomputarOrigen(tipo: TipoOrigenPago, origenId: string | null) {
-  if (!origenId || tipo === 'LIBRE' || tipo === 'COMPRA') {
-    // COMPRA tiene su propio trigger SQL (actualizar_saldo_compra). LIBRE no tiene origen.
-    return
-  }
-
   const supabase = await createClient()
-
-  // Sum total pagado para este origen (sólo pagos debitados o sin marca de no-debitado)
-  const { data: pagosRel } = await supabase
-    .from('pagos')
-    .select('monto, fecha_emision')
-    .eq('tipo_origen', tipo)
-    .eq('origen_id', origenId)
-  const totalPagado = (pagosRel ?? []).reduce((s, p) => s + Number(p.monto), 0)
-  // Fecha real en que quedó saldado = la del último pago cargado (no "hoy"). Así el cierre
-  // (que netea por fecha) refleja cuándo se pagó de verdad, no cuándo se tocó el sistema.
-  const fechaUltimoPago =
-    (pagosRel ?? [])
-      .map((p) => p.fecha_emision)
-      .filter((f): f is string => !!f)
-      .sort()
-      .at(-1) ?? new Date().toISOString().split('T')[0]
-
-  if (tipo === 'GASTO') {
-    const { data: g } = await supabase
-      .from('gastos')
-      .select('monto, estado')
-      .eq('id', origenId)
-      .single()
-    if (!g) return
-    const total = Number(g.monto)
-    const completo = totalPagado + 0.01 >= total
-    if (completo && g.estado !== 'PAGADO') {
-      await supabase
-        .from('gastos')
-        .update({ estado: 'PAGADO', fecha_pago: fechaUltimoPago })
-        .eq('id', origenId)
-    } else if (!completo && g.estado === 'PAGADO') {
-      await supabase
-        .from('gastos')
-        .update({ estado: 'PENDIENTE', fecha_pago: null })
-        .eq('id', origenId)
-    }
-    return
-  }
-
-  if (tipo === 'NOMINA') {
-    const { data: n } = await supabase
-      .from('nomina_mensual')
-      .select('neto, estado, gasto_pendiente_id')
-      .eq('id', origenId)
-      .single()
-    if (!n) return
-    const total = Number(n.neto)
-    const completo = totalPagado + 0.01 >= total
-    if (completo && n.estado !== 'PAGADO') {
-      await supabase.from('nomina_mensual').update({ estado: 'PAGADO' }).eq('id', origenId)
-      if (n.gasto_pendiente_id) {
-        await supabase.from('gastos')
-          .update({ estado: 'PAGADO', fecha_pago: fechaUltimoPago })
-          .eq('id', n.gasto_pendiente_id)
-      }
-    } else if (!completo && n.estado === 'PAGADO') {
-      await supabase.from('nomina_mensual').update({ estado: 'PENDIENTE' }).eq('id', origenId)
-      if (n.gasto_pendiente_id) {
-        await supabase.from('gastos')
-          .update({ estado: 'PENDIENTE', fecha_pago: null })
-          .eq('id', n.gasto_pendiente_id)
-      }
-    }
-    return
-  }
-
-  if (tipo === 'CUOTA') {
-    const { data: c } = await supabase
-      .from('cuotas_tarjeta')
-      .select('monto_cuota, pagada')
-      .eq('id', origenId)
-      .single()
-    if (!c) return
-    const total = Number(c.monto_cuota)
-    const completo = totalPagado + 0.01 >= total
-    if (completo && !c.pagada) {
-      await supabase
-        .from('cuotas_tarjeta')
-        .update({ pagada: true, fecha_pago: fechaUltimoPago })
-        .eq('id', origenId)
-    } else if (!completo && c.pagada) {
-      await supabase
-        .from('cuotas_tarjeta')
-        .update({ pagada: false, fecha_pago: null })
-        .eq('id', origenId)
-    }
-    return
-  }
-
-  if (tipo === 'PRESTAMO') {
-    const { data: c } = await supabase
-      .from('prestamo_cuotas')
-      .select('monto_total, pagada, prestamo_id, fecha_vencimiento')
-      .eq('id', origenId)
-      .single()
-    if (!c) return
-    const total = Number(c.monto_total)
-    const completo = totalPagado + 0.01 >= total
-    if (completo && !c.pagada) {
-      await supabase
-        .from('prestamo_cuotas')
-        .update({ pagada: true, fecha_pago: fechaUltimoPago })
-        .eq('id', origenId)
-      // Marcar el gasto financiero (interés) de ese mes como PAGADO
-      await supabase
-        .from('gastos')
-        .update({ estado: 'PAGADO', fecha_pago: fechaUltimoPago })
-        .eq('prestamo_id', c.prestamo_id)
-        .eq('mes', c.fecha_vencimiento.substring(0, 7))
-        .eq('categoria', 'Gastos Financieros')
-    } else if (!completo && c.pagada) {
-      await supabase
-        .from('prestamo_cuotas')
-        .update({ pagada: false, fecha_pago: null })
-        .eq('id', origenId)
-      await supabase
-        .from('gastos')
-        .update({ estado: 'PENDIENTE', fecha_pago: c.fecha_vencimiento })
-        .eq('prestamo_id', c.prestamo_id)
-        .eq('mes', c.fecha_vencimiento.substring(0, 7))
-        .eq('categoria', 'Gastos Financieros')
-    }
-    return
-  }
+  return recomputarOrigenEnLedger(supabase, tipo, origenId)
 }
 
 /**
  * Crea un pago contra una deuda (compra/gasto/nomina/cuota) o un pago LIBRE.
  * Valida que no exceda el saldo pendiente del origen.
+ *
+ * Es la puerta CON SESIÓN: pide usuario, usa su conexión (que respeta RLS) y revalida las
+ * pantallas. El cómo se escribe el pago vive en `lib/ledger/pagos.ts`, compartido con la puerta
+ * de servicio por la que entra el Monitor.
  */
 export async function createPagoUnificado(input: PagoUnifInput) {
   await requireUser()
-  const result = pagoUnifSchema.safeParse(input)
-  if (!result.success) throw new Error(result.error.issues[0].message)
-  const d = result.data
-
-  // Un gasto-sueldo es el ESPEJO de una nómina: la deuda vive en nomina_mensual.
-  // Imputar el pago al gasto dejaría a Nómina viendo el neto entero (y al revés),
-  // y el saldo se calcularía dos veces contra dos totales distintos. Se redirige acá,
-  // en el núcleo, para que dé igual desde qué pantalla se pague.
-  if (d.tipo_origen === 'GASTO' && d.origen_id) {
-    const supabase = await createClient()
-    const origen = await resolverOrigenDeGasto(supabase, d.origen_id)
-    if (origen.tipo_origen === 'NOMINA') {
-      d.tipo_origen = 'NOMINA'
-      d.origen_id = origen.origen_id
-    }
-  }
-
-  // Validar origen y saldo (excepto LIBRE)
-  if (d.tipo_origen !== 'LIBRE') {
-    if (!d.origen_id) throw new Error('Se requiere origen_id para este tipo')
-    const supabase = await createClient()
-
-    let totalDeuda = 0
-    if (d.tipo_origen === 'COMPRA') {
-      const { data } = await supabase.from('compras').select('saldo_pendiente, monto_total').eq('id', d.origen_id).single()
-      totalDeuda = Number(data?.saldo_pendiente ?? data?.monto_total ?? 0)
-    } else if (d.tipo_origen === 'GASTO') {
-      const { data } = await supabase.from('gastos').select('monto').eq('id', d.origen_id).single()
-      totalDeuda = Number(data?.monto ?? 0)
-    } else if (d.tipo_origen === 'NOMINA') {
-      const { data } = await supabase.from('nomina_mensual').select('neto').eq('id', d.origen_id).single()
-      totalDeuda = Number(data?.neto ?? 0)
-    } else if (d.tipo_origen === 'CUOTA') {
-      const { data } = await supabase.from('cuotas_tarjeta').select('monto_cuota').eq('id', d.origen_id).single()
-      totalDeuda = Number(data?.monto_cuota ?? 0)
-    } else if (d.tipo_origen === 'PRESTAMO') {
-      const { data } = await supabase.from('prestamo_cuotas').select('monto_total').eq('id', d.origen_id).single()
-      totalDeuda = Number(data?.monto_total ?? 0)
-    }
-
-    // Para gastos/nomina/cuota: comparar contra suma ya pagada (compra usa saldo_pendiente)
-    if (d.tipo_origen !== 'COMPRA') {
-      const { data: prev } = await supabase
-        .from('pagos')
-        .select('monto')
-        .eq('tipo_origen', d.tipo_origen)
-        .eq('origen_id', d.origen_id)
-      const yaPagado = (prev ?? []).reduce((s, p) => s + Number(p.monto), 0)
-      if (yaPagado + d.monto > totalDeuda + 0.01) {
-        const restante = Math.max(0, totalDeuda - yaPagado)
-        throw new Error(`Excede el saldo pendiente. Quedan $${restante.toFixed(2)}.`)
-      }
-    } else {
-      // COMPRA: validar contra saldo_pendiente (que ya descontó pagos previos)
-      if (d.monto > totalDeuda + 0.01) {
-        throw new Error(`Excede el saldo pendiente. Quedan $${totalDeuda.toFixed(2)}.`)
-      }
-    }
-  }
-
   const supabase = await createClient()
-  const { error } = await supabase.from('pagos').insert({
-    tipo_origen: d.tipo_origen,
-    origen_id: d.origen_id || null,
-    compra_id: d.tipo_origen === 'COMPRA' ? d.origen_id : null,
-    monto: d.monto,
-    moneda: d.moneda,
-    fecha_emision: d.fecha_emision,
-    fecha_vencimiento: d.fecha_vencimiento || null,
-    condicion_pago: 'CONTADO',
-    instrumento: d.instrumento,
-    numero_cheque: d.numero_cheque || null,
-    banco_emisor: d.banco_emisor || null,
-    cuenta_id: d.cuenta_id || null,
-    notas: d.notas || null,
-    debitado: ['EFECTIVO', 'TRANSFERENCIA'].includes(d.instrumento),
-    fecha_debito: ['EFECTIVO', 'TRANSFERENCIA'].includes(d.instrumento) ? d.fecha_emision : null,
-  })
-  if (error) throw new Error(error.message)
-
-  if (d.tipo_origen !== 'COMPRA') {
-    await recomputarOrigen(d.tipo_origen, d.origen_id ?? null)
-  }
-  // COMPRA: el trigger SQL (actualizar_saldo_compra) ya recomputa saldo_pendiente y estado
+  await crearPagoEnLedger(supabase, input)
 
   revalidatePath('/finanzas/pendientes')
   revalidatePath('/finanzas/gastos')
