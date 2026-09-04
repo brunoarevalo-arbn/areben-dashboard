@@ -324,6 +324,14 @@ function ChequeItem({
           {/* Cheque pasado fecha pero no debitado: aún disponible para cobrar (no es deadline rígido) */}
           {dias < 0 && Math.abs(dias) <= 30 && <span className="text-fg-muted whitespace-nowrap">esperando depósito</span>}
           {dias < 0 && Math.abs(dias) > 30 && <span className="text-red-700 font-medium whitespace-nowrap">{Math.abs(dias)}d sin cobrar — revisar</span>}
+          {!cheque.numero_cheque && (
+            <span
+              title="Este cheque no tiene número cargado: si hay más de uno del mismo proveedor son difíciles de distinguir al debitar."
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full font-medium bg-amber-500/15 text-amber-700 whitespace-nowrap cursor-help"
+            >
+              sin número
+            </span>
+          )}
           {dias === 0 && <span className="text-amber-700 whitespace-nowrap">disponible hoy</span>}
           {dias > 0 && dias <= 7 && <span className="text-amber-700 whitespace-nowrap">en {dias} días</span>}
           {indicador === 'rojo' && (
@@ -361,7 +369,12 @@ function ChequeItem({
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Debitar cheque"
-        descripcion={`${cheque.numero_cheque ? `Cheque N° ${cheque.numero_cheque} · ` : ''}${cheque.compra?.proveedor?.nombre ?? cheque.compra?.descripcion ?? cheque.gasto?.concepto ?? ''}`.trim() || undefined}
+        descripcion={[
+          cheque.numero_cheque ? `Cheque N° ${cheque.numero_cheque}` : 'Cheque sin número',
+          cheque.compra?.proveedor?.nombre ?? cheque.compra?.descripcion ?? cheque.gasto?.concepto,
+          `vence ${formatDate(fechaVenc)}`,
+        ].filter(Boolean).join(' · ')}
+        aviso={cheque.numero_cheque ? undefined : 'Este cheque no tiene el número cargado. Fijate que sea el que corresponde —por el monto y el vencimiento— antes de darlo por debitado.'}
         monto={Number(cheque.monto)}
         cuentas={cuentas}
         defaultCuentaId={cheque.cuenta_id}
@@ -621,7 +634,10 @@ function PagoCtaCteItem({ pago, hoy, cuentas, onDebitar }: { pago: PagoCtaCte; h
           open={confirmOpen}
           onOpenChange={setConfirmOpen}
           title="Registrar pago a plazo"
-          descripcion={(pago.compra?.proveedor?.nombre ?? pago.compra?.descripcion ?? pago.gasto?.concepto ?? '') || undefined}
+          descripcion={[
+            pago.compra?.proveedor?.nombre ?? pago.compra?.descripcion ?? pago.gasto?.concepto,
+            `vence ${formatDate(fecha)}`,
+          ].filter(Boolean).join(' · ')}
           monto={Number(pago.monto)}
           cuentas={cuentas}
           defaultCuentaId={pago.cuenta_id}

@@ -13,6 +13,8 @@ interface Props {
   title: string
   /** Texto descriptivo opcional (ej. concepto, monto, vencimiento) */
   descripcion?: string
+  /** Aviso destacado: algo que conviene verificar ANTES de confirmar (ej. cheque sin número) */
+  aviso?: string
   /** Monto a mostrar como referencia */
   monto?: number
   /** Default de la fecha — útil cuando se conoce el día del débito (ej. fecha_vencimiento) */
@@ -29,6 +31,7 @@ export function ConfirmarPagoModal({
   onOpenChange,
   title,
   descripcion,
+  aviso,
   monto,
   defaultFecha,
   cuentas,
@@ -73,6 +76,12 @@ export function ConfirmarPagoModal({
               <p className="text-xl font-mono font-bold text-amber-700">{formatCurrency(monto)}</p>
             )}
           </div>
+        )}
+
+        {aviso && (
+          <p className="text-sm text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+            {aviso}
+          </p>
         )}
 
         <div className="space-y-1.5">
