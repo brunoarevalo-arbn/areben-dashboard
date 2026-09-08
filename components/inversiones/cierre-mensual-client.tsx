@@ -17,6 +17,7 @@ import { Modal } from '@/components/ui/modal'
 import { useSort, SortTh } from '@/components/ui/sortable'
 import { RenovarModal } from './renovar-modal'
 import { formatMoneda, estadoVencimiento, situacionEnMes } from '@/lib/inversiones-calc'
+import type { DescuadreCadena } from '@/lib/inversiones-cadena'
 import { formatMonth, getMonthOptions, formatCurrency, formatDate } from '@/lib/utils'
 import {
   Lock, Unlock, AlertTriangle, Loader2, CheckCircle2, PiggyBank, X,
@@ -34,6 +35,84 @@ interface Props {
   instrumentos: (Instrumento & { inversor?: Inversor })[]
   inversores: Inversor[]
   mesesAbiertosAnteriores: string[]
+  descuadres: DescuadreCadena[]
+}
+
+/**
+ * El saldo con el que arranca un mes tiene que ser el mismo con el que cerró el mes
+ * anterior. Cuando no lo es, el saldo del inversor cambió sin que ningún movimiento lo
+ * explique — y ese saldo es el que termina en el pasivo del cierre. Se avisa acá porque
+ * es la pantalla donde se cierran los meses: el descuadre se ve ANTES de cerrar.
+ */
+function AvisoCadena({
+  descuadres,
+  instrumentos,
+}: {
+  descuadres: DescuadreCadena[]
+  instrumentos: (Instrumento & { inversor?: Inversor })[]
+}) {
+  if (descuadres.length === 0) return null
+
+  const porId = new Map(instrumentos.map((i) => [i.id, i]))
+
+  return (
+    <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3.5">
+      <div className="w-9 h-9 rounded-lg bg-red-500/15 text-red-700 flex items-center justify-center shrink-0">
+        <AlertTriangle className="w-5 h-5" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-red-900 font-semibold text-sm">
+          {descuadres.length === 1
+            ? 'Hay un saldo que no cierra con el mes anterior'
+            : `Hay ${descuadres.length} saldos que no cierran con el mes anterior`}
+        </p>
+        <p className="text-red-800/80 text-xs mt-0.5">
+          El mes arranca con un saldo distinto al que cerró el mes anterior, y no hay ningún
+          movimiento que lo explique. Conviene revisarlo antes de cerrar: este saldo es el que
+          va al pasivo del cierre de mes.
+        </p>
+        <div className="mt-3 flex flex-col gap-1.5">
+          {descuadres.map((d) => {
+            const inst = porId.get(d.instrumentoId)
+            const moneda = inst?.moneda ?? 'ARS'
+            const nombre = inst?.inversor?.nombre ?? 'Instrumento sin nombre'
+            const deMas = d.diferencia > 0
+            return (
+              <div
+                key={`${d.instrumentoId}-${d.mes}`}
+                className="text-xs bg-surface border border-red-200 rounded-lg px-3 py-2"
+              >
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span className="font-semibold text-red-900">{nombre}</span>
+                  {inst?.codigo && <span className="text-fg-soft">{inst.codigo}</span>}
+                  <span className="text-red-800">
+                    en {formatMonth(d.mes)}: {deMas ? 'le sobran' : 'le faltan'}{' '}
+                    <span className="font-mono font-semibold">
+                      {formatMoneda(Math.abs(d.diferencia), moneda)}
+                    </span>
+                  </span>
+                </div>
+                <p className="text-fg-soft mt-0.5">
+                  {formatMonth(d.mesAnterior)} cerró en{' '}
+                  <span className="font-mono">{formatMoneda(d.saldoCierreAnterior, moneda)}</span> y{' '}
+                  {formatMonth(d.mes)} arranca en{' '}
+                  <span className="font-mono">{formatMoneda(d.saldoInicio, moneda)}</span>.
+                </p>
+                {inst?.inversor?.id && (
+                  <Link
+                    href={`/inversiones/${inst.inversor.id}`}
+                    className="text-primary hover:underline"
+                  >
+                    Ver la cuenta
+                  </Link>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 /**
@@ -174,7 +253,7 @@ function RenovarInstrumentoButton({
   )
 }
 
-export function CierreMensualClient({ mes, periodos, instrumentos, mesesAbiertosAnteriores }: Props) {
+export function CierreMensualClient({ mes, periodos, instrumentos, mesesAbiertosAnteriores, descuadres }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
@@ -360,6 +439,8 @@ export function CierreMensualClient({ mes, periodos, instrumentos, mesesAbiertos
           </button>
         </div>
       )}
+
+      <AvisoCadena descuadres={descuadres} instrumentos={instrumentos} />
 
       {/* Alerta meses anteriores sin cerrar */}
       {mesesAbiertosAnteriores.length > 0 && (
