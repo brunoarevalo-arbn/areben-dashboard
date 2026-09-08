@@ -316,7 +316,23 @@ export function generarPeriodos(args: CalcArgs): PeriodoCalc[] {
   if (args.tramos.length === 0) return []
   const start = parseDate(args.fechaInicio)
   const fin = args.fechaFin ? parseDate(args.fechaFin) : null
-  const movs = normalizarMovs(args)
+
+  // Un movimiento ANTERIOR al arranque del ciclo ya está adentro de `capitalInicial`:
+  // el capital de un ciclo es el saldo del día que arrancó, con todo lo que se movió antes
+  // ya aplicado. Volver a sumarlo lo cuenta dos veces.
+  //
+  // Sólo muerde cuando el ciclo arranca a mitad de mes, porque ahí ese mes le pertenece a
+  // los DOS ciclos y `totalesPorMes` lo trae igual. Caso real (Feliciano Tamayo): retiro de
+  // US$6.668,97 el 10/06 y ciclo nuevo desde el 28/06 — restado en el capital y otra vez
+  // como movimiento, US$7.255,16 de deuda de menos al 31/08.
+  //
+  // El corte es ESTRICTO (`< start`): lo que se mueve el mismo día que arranca el ciclo sí
+  // cuenta, porque el capital se fija antes de aplicarlo. Es el caso de los aportes de
+  // Sequeira (9/7) y de Fredy (1/9), que tienen que seguir sumando.
+  //
+  // Sin fecha no se puede saber de qué lado cae, así que pasa: es el comportamiento de
+  // siempre. Desde la migración 083 ningún movimiento nuevo puede entrar sin día.
+  const movs = normalizarMovs(args).filter((m) => !m.fecha || parseDate(m.fecha) >= start)
   const totales = totalesPorMes(movs)
 
   // PF NO capitalizables con vencimiento → modelo PLANO (1,75% por mes completo,

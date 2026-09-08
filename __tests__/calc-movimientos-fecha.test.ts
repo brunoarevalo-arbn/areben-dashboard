@@ -120,3 +120,61 @@ describe('capitalizable — el retiro también deja de rendir desde su día', ()
     expect(julioRetiro.interes_devengado).toBe(esperado)
   })
 })
+
+describe('un movimiento anterior al arranque del ciclo ya está en el capital', () => {
+  // El caso real de Feliciano Tamayo: su plazo viejo terminaba el 28/06 y el nuevo
+  // arrancaba el 28/06, pero el retiro había sido el 10/06. Junio le pertenece a los dos
+  // ciclos, así que el movimiento se colaba en el ciclo nuevo y se restaba dos veces:
+  // una dentro del capital y otra como movimiento.
+  const CICLO_NUEVO = {
+    capitalInicial: 22889.55, // el saldo al 28/06, con el retiro YA aplicado
+    fechaInicio: '2026-06-28',
+    fechaFin: '2026-09-28',
+    capitalizable: false,
+    hasta: '2026-08',
+    tramos: [{ fecha_desde: '2026-06-28', tasa_mensual: 0.0175 }],
+    plazoDias: 92,
+  }
+
+  it('no vuelve a restar el retiro del mes en que arrancó el ciclo', () => {
+    const conRetiroViejo = generarPeriodos({
+      ...CICLO_NUEVO,
+      movimientos: [{ mes: '2026-06', fecha: '2026-06-10', monto: -6668.97 }],
+    })
+    const sinMovimientos = generarPeriodos({ ...CICLO_NUEVO, movimientos: [] })
+    expect(conRetiroViejo).toEqual(sinMovimientos)
+  })
+
+  it('el que se mueve el MISMO día que arranca el ciclo sí cuenta', () => {
+    // Sequeira aportó US$6.007 el 9/7 y su ciclo arranca el 9/7: el capital se fija antes
+    // de aplicarlo, así que el aporte tiene que sumar.
+    const ps = generarPeriodos({
+      capitalInicial: 9886.41,
+      fechaInicio: '2026-07-09',
+      fechaFin: '2026-10-09',
+      capitalizable: false,
+      hasta: '2026-07',
+      tramos: [{ fecha_desde: '2026-07-09', tasa_mensual: 0.0175 }],
+      plazoDias: 92,
+      movimientos: [{ mes: '2026-07', fecha: '2026-07-09', monto: 6007 }],
+    })
+    expect(ps[0].movimiento).toBe(6007)
+    expect(ps[0].saldo_cierre).toBe(16102.01)
+  })
+
+  it('un movimiento posterior al arranque sigue contando', () => {
+    const ps = generarPeriodos({
+      ...CICLO_NUEVO,
+      movimientos: [{ mes: '2026-07', fecha: '2026-07-15', monto: -1000 }],
+    })
+    expect(ps.find((p) => p.mes === '2026-07')?.movimiento).toBe(-1000)
+  })
+
+  it('sin fecha no se puede saber de qué lado cae, así que pasa (como siempre)', () => {
+    const ps = generarPeriodos({
+      ...CICLO_NUEVO,
+      movimientos: [{ mes: '2026-06', fecha: null, monto: -6668.97 }],
+    })
+    expect(ps.find((p) => p.mes === '2026-06')?.movimiento).toBe(-6668.97)
+  })
+})
