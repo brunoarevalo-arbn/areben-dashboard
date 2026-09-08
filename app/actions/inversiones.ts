@@ -4,7 +4,7 @@ import { createClient, requireUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { generarPeriodos, getCurrentMonth, planDevolucion, sumarMeses, sumarDias, diasEntre, mesesEntre, situacionEnMes, type FilaPeriodo, type MovimientoCalc } from '@/lib/inversiones-calc'
-import { capitalAlRenovar } from '@/lib/inversiones-cadena'
+import { capitalAlRenovar, ajusteDelMesPartido, type AjusteMesPartido } from '@/lib/inversiones-cadena'
 import type { MotivoMovimiento } from '@/types/database'
 
 // ============ INVERSORES ============
@@ -153,7 +153,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100
 
 async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createClient>>, instrumentoId: string) {
   const { data: inst } = await supabase.from('instrumentos_inversion').select('*').eq('id', instrumentoId).single()
-  if (!inst) return
+  if (!inst) return { ajustes: [] as AjusteMesPartido[] }
 
   // Cargar tramos de tasa ordenados por fecha
   const { data: tramos } = await supabase
@@ -184,10 +184,11 @@ async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createCli
 
   const { data: existentes } = await supabase
     .from('periodos_instrumento')
-    .select('mes, cerrado')
+    .select('id, mes, cerrado, saldo_inicio, interes_devengado, int_inicio_prorrateado, movimiento')
     .eq('instrumento_id', instrumentoId)
   const cerrados = new Set<string>()
   for (const p of existentes ?? []) if (p.cerrado) cerrados.add(p.mes)
+  const guardadoPorMes = new Map((existentes ?? []).map((p) => [p.mes, p]))
 
   const hasta = inst.fecha_fin && inst.fecha_fin <= getCurrentMonthBoundary()
     ? inst.fecha_fin.substring(0, 7)
@@ -225,6 +226,71 @@ async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createCli
   if (rows.length > 0) {
     await supabase.from('periodos_instrumento').insert(rows)
   }
+
+  // El mes partido: si el plazo vigente arrancó a mitad de un mes que YA ESTÁ CERRADO,
+  // ese mes tiene adentro los últimos días del plazo viejo y los primeros del nuevo. La
+  // vuelta de arriba lo descarta por cerrado, así que el pedazo nuevo se perdía. Acá se
+  // le suma —y sólo a ese mes, y sólo ese pedazo. Ver `ajusteDelMesPartido`.
+  const ajustes: AjusteMesPartido[] = []
+  for (const p of periodos) {
+    const ajuste = ajusteDelMesPartido({
+      fechaInicioCiclo: inst.fecha_inicio,
+      guardado: guardadoPorMes.get(p.mes),
+      pedazoDelPlazoNuevo: p.int_inicio_prorrateado,
+    })
+    if (!ajuste) continue
+    const fila = guardadoPorMes.get(p.mes)!
+    const { error } = await supabase
+      .from('periodos_instrumento')
+      .update({
+        interes_devengado: ajuste.interesDespues,
+        int_inicio_prorrateado: ajuste.pedazoDespues,
+        saldo_cierre: ajuste.saldoCierreDespues,
+      })
+      .eq('id', fila.id)
+    if (error) continue
+    // El gasto de ese mes ya se creó al cerrarlo, por el interés viejo. Se lo mueve por
+    // la misma diferencia: si no, el pasivo con el inversor y el gasto dejan de contar
+    // lo mismo.
+    ajuste.gasto = await ajustarGastoDelPeriodo(supabase, fila.id, ajuste.diferencia, inst.moneda)
+    ajustes.push(ajuste)
+  }
+  return { ajustes }
+}
+
+/**
+ * Mueve el gasto financiero que nació al cerrar un período, cuando el interés de ese
+ * período cambia después. Devuelve qué pasó, para poder contarlo en pantalla: el
+ * silencio es justamente lo que hizo que esto no se viera durante meses.
+ */
+async function ajustarGastoDelPeriodo(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  periodoId: string,
+  diferencia: number,
+  moneda: string,
+): Promise<{ ok: boolean; detalle: string; montoArs?: number }> {
+  const { data: gasto } = await supabase
+    .from('gastos')
+    .select('id, monto, monto_origen, tipo_cambio_aplicado, notas')
+    .eq('periodo_instrumento_id', periodoId)
+    .maybeSingle()
+  if (!gasto) return { ok: false, detalle: 'el mes no tiene gasto asociado: revisalo a mano' }
+
+  const tc = moneda === 'USD' ? Number(gasto.tipo_cambio_aplicado ?? 0) : 1
+  if (moneda === 'USD' && !(tc > 0)) {
+    return { ok: false, detalle: 'el gasto en dólares no tiene tipo de cambio guardado: revisalo a mano' }
+  }
+  const montoArs = round2(Number(gasto.monto) + diferencia * tc)
+  const patch: Record<string, unknown> = {
+    monto: montoArs,
+    monto_neto: montoArs,
+    notas: `${gasto.notas ? `${gasto.notas}\n` : ''}[${new Date().toISOString().substring(0, 10)}] Ajustado en ${diferencia > 0 ? '+' : ''}${diferencia.toFixed(2)} ${moneda}: el plazo nuevo arrancó a mitad de mes y sus primeros días caen en este mes.`,
+  }
+  if (moneda === 'USD') patch.monto_origen = round2(Number(gasto.monto_origen ?? 0) + diferencia)
+
+  const { error } = await supabase.from('gastos').update(patch).eq('id', gasto.id)
+  if (error) return { ok: false, detalle: `no se pudo mover el gasto: ${error.message}` }
+  return { ok: true, detalle: 'gasto del mes ajustado', montoArs }
 }
 
 function getCurrentMonthBoundary() {
@@ -316,7 +382,17 @@ export async function regenerarPeriodos(instrumentoId: string) {
 // ============ RENOVAR INSTRUMENTO ============
 
 export type RenovarResult =
-  | { ok: true; capitalAnterior: number; capitalNuevo: number; fechaInicio: string; fechaFin: string; tasaMensual: number; capitalizable: boolean }
+  | {
+      ok: true
+      capitalAnterior: number
+      capitalNuevo: number
+      fechaInicio: string
+      fechaFin: string
+      tasaMensual: number
+      capitalizable: boolean
+      /** Meses ya cerrados que sumaron los primeros días del plazo nuevo (mes partido). */
+      ajustes: AjusteMesPartido[]
+    }
   | { ok: false; error: string }
 
 /**
@@ -497,8 +573,21 @@ export async function renovarInstrumento(
     }
   }
 
-  // 7. Regenerar períodos del nuevo ciclo (los cerrados se preservan)
-  await regenerarPeriodosDB(supabase, instrumentoId)
+  // 7. Regenerar períodos del nuevo ciclo (los cerrados se preservan, salvo el mes
+  //    partido: ese suma los primeros días del plazo nuevo).
+  const { ajustes } = await regenerarPeriodosDB(supabase, instrumentoId)
+
+  // 7b. Que quede escrito en la ficha. Renovar a mitad de mes mueve el interés y el
+  //     gasto de un mes YA CERRADO: eso no puede pasar en silencio.
+  if (ajustes.length > 0) {
+    const linea = ajustes
+      .map((a) => `${a.mes} suma ${a.diferencia > 0 ? '+' : ''}${a.diferencia.toFixed(2)} por los primeros días del plazo nuevo${a.gasto?.ok ? '' : ` (${a.gasto?.detalle ?? 'gasto sin ajustar'})`}`)
+      .join('. ')
+    await supabase
+      .from('instrumentos_inversion')
+      .update({ notas: `${nuevasNotas}\n[${hoyISO}] Mes partido: ${linea}.` })
+      .eq('id', instrumentoId)
+  }
 
   // 8. Revalidar paths
   revalidatePath('/inversiones')
@@ -515,6 +604,7 @@ export async function renovarInstrumento(
     fechaFin: nuevaFechaFin,
     tasaMensual: nuevaTasa,
     capitalizable: nuevoCapitalizable,
+    ajustes,
   }
 }
 

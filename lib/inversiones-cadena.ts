@@ -117,3 +117,101 @@ export function existianAlCierre<T extends { id: string; fecha_inicio?: string |
     (i) => conPeriodo.has(i.id) || (!!i.fecha_inicio && i.fecha_inicio <= finDelMes),
   )
 }
+
+/**
+ * --- El mes partido ---
+ *
+ * Cuando un plazo vence a mitad de mes, ese mes le pertenece a DOS plazos: los días de
+ * antes del vencimiento son del plazo viejo y los de después, del nuevo. Pero la tabla
+ * tiene una sola fila por mes (`UNIQUE(instrumento_id, mes)`), así que los dos pedazos
+ * tienen que convivir adentro de la misma fila.
+ *
+ * Y el orden está forzado: renovar exige que no haya períodos abiertos, así que el mes
+ * se cierra CUANDO EL PLAZO NUEVO TODAVÍA NO EXISTE. La fila queda con el pedazo viejo
+ * nada más, y el pedazo nuevo llega tarde, contra un mes ya cerrado.
+ *
+ * `int_inicio_prorrateado` es el casillero donde se anota cuánto de la fila corresponde
+ * al plazo que arrancó adentro del mes. Teniéndolo, reconciliar es una resta y una suma:
+ * se saca lo que estaba anotado y se pone lo que corresponde ahora. Correrlo dos veces
+ * da lo mismo, porque la segunda vez lo anotado ya coincide.
+ *
+ * Caso real (Fredy Arévalo INV-003, agosto 2026): del 1 al 26 el plazo viejo devengó
+ * $47.828,57 al 3,2%; del 27 al 31 el plazo nuevo devengó $6.044,67 al 3%. Se cerró el
+ * 28/08 12:21 con sólo el primer pedazo y se renovó minutos después: los $6.044,67 se
+ * calcularon y se descartaron.
+ *
+ * ⚠️ LÍMITE CONOCIDO: la fila guarda UN pedazo nuevo. Si un mismo mes recibiera dos
+ * renovaciones, la segunda pisaría a la primera. No pasa en la vida real (no se renueva
+ * dos veces en un mes) y si pasara, `revisarCadena` lo delata en el mes siguiente.
+ */
+
+export interface FilaMesPartido {
+  mes: string
+  saldo_inicio: number | string | null
+  interes_devengado: number | string | null
+  int_inicio_prorrateado: number | string | null
+  movimiento: number | string | null
+  cerrado: boolean
+}
+
+export interface AjusteMesPartido {
+  mes: string
+  /** Lo que la fila tenía anotado como pedazo del plazo nuevo. */
+  pedazoAntes: number
+  /** Lo que le corresponde al plazo nuevo según el motor. */
+  pedazoDespues: number
+  interesAntes: number
+  interesDespues: number
+  saldoCierreDespues: number
+  /** Positiva: el mes suma interés que se había perdido. */
+  diferencia: number
+  /** Qué pasó con el gasto financiero de ese mes. Lo completa quien escribe en la base. */
+  gasto?: { ok: boolean; detalle: string; montoArs?: number }
+}
+
+/**
+ * Qué hay que corregirle al mes en que arranca el plazo nuevo, cuando ese mes ya está
+ * cerrado. Devuelve null cuando no hay nada que hacer, que es la enorme mayoría de las
+ * veces: mes abierto (se reescribe entero igual), plazo que arranca un día 1 (no parte
+ * ningún mes), o lo anotado ya coincide con lo calculado.
+ *
+ * NO toca ningún otro mes cerrado: el resto de la fila —el pedazo del plazo viejo, el
+ * movimiento, el saldo de arranque— se respeta tal cual está.
+ */
+export function ajusteDelMesPartido(args: {
+  /** Arranque del plazo VIGENTE (el que se acaba de renovar). */
+  fechaInicioCiclo: string
+  /** La fila guardada de ese mes, si existe. */
+  guardado: FilaMesPartido | undefined | null
+  /** Interés que el motor le asigna a ese mes por el plazo nuevo. */
+  pedazoDelPlazoNuevo: number
+}): AjusteMesPartido | null {
+  const { fechaInicioCiclo, guardado, pedazoDelPlazoNuevo } = args
+  if (!guardado || !guardado.cerrado) return null
+
+  // Un plazo que arranca un día 1 no parte ningún mes: el mes entero es del plazo nuevo.
+  if (fechaInicioCiclo.substring(8) === '01') return null
+  // Sólo el mes en que arranca el plazo. Los demás meses cerrados no se tocan nunca.
+  if (guardado.mes !== fechaInicioCiclo.substring(0, 7)) return null
+
+  const pedazoAntes = round(num(guardado.int_inicio_prorrateado))
+  const pedazoDespues = round(pedazoDelPlazoNuevo)
+  const diferencia = round(pedazoDespues - pedazoAntes)
+  if (Math.abs(diferencia) <= TOLERANCIA) return null
+
+  const interesAntes = round(num(guardado.interes_devengado))
+  const interesDespues = round(interesAntes + diferencia)
+  // Una corrección que deja el mes con interés negativo no es una corrección: es un dato
+  // roto. Mejor no escribir nada y que la cadena lo siga marcando.
+  if (interesDespues < 0) return null
+
+  return {
+    mes: guardado.mes,
+    pedazoAntes,
+    pedazoDespues,
+    interesAntes,
+    interesDespues,
+    saldoCierreDespues: round(num(guardado.saldo_inicio) + interesDespues + num(guardado.movimiento)),
+    diferencia,
+  }
+}

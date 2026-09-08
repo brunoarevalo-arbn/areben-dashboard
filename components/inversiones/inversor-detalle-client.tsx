@@ -564,9 +564,14 @@ export function InversorDetalleClient({ inversor, instrumentos, periodos, tramos
                     </td>
                     <td className="px-4 py-2 text-right font-mono text-amber-700">
                       {formatMoneda(Number(p.interes_devengado), detalleInstr.moneda)}
-                      {(Number(p.int_inicio_prorrateado) > 0 || Number(p.int_fin_prorrateado) > 0) && (
-                        <p className="text-[10px] text-fg-soft">prorrateado</p>
-                      )}
+                      {Number(p.int_inicio_prorrateado) > 0 ? (
+                        <p className="text-[10px] text-fg-soft font-sans">
+                          de eso, {formatMoneda(Number(p.int_inicio_prorrateado), detalleInstr.moneda)} son
+                          {' '}del plazo que arrancó este mes
+                        </p>
+                      ) : Number(p.int_fin_prorrateado) > 0 ? (
+                        <p className="text-[10px] text-fg-soft font-sans">mes incompleto: el plazo vence adentro</p>
+                      ) : null}
                     </td>
                     <td className="px-4 py-2 text-right font-mono text-fg-muted">
                       {Number(p.movimiento) !== 0 ? (
