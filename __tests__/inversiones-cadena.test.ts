@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { revisarCadena, type FilaCadena } from '@/lib/inversiones-cadena'
+import { revisarCadena, capitalAlRenovar, type FilaCadena } from '@/lib/inversiones-cadena'
 
 function fila(mes: string, inicio: number, cierre: number, instrumento_id = 'i1'): FilaCadena {
   return { instrumento_id, mes, saldo_inicio: inicio, saldo_cierre: cierre }
@@ -88,5 +88,45 @@ describe('revisarCadena', () => {
 
   it('un instrumento con un solo mes no puede estar descuadrado', () => {
     expect(revisarCadena([fila('2026-09', 5000, 5066.76)])).toEqual([])
+  })
+})
+
+describe('capitalAlRenovar', () => {
+  it('toma el saldo del último mes cerrado, no la suma de los intereses', () => {
+    // Blesio INV-002: capital_inicial 6.713.274,70 ya contiene mayo y los 2 días de junio.
+    // El método viejo sumaba mayo (241.215,42) y junio (25.785,10) otra vez → 6.980.275,22.
+    expect(capitalAlRenovar([
+      { mes: '2026-05', saldo_cierre: 6687489.60 },
+      { mes: '2026-06', saldo_cierre: 6713274.70 },
+    ])).toEqual({ mes: '2026-06', capital: 6713274.70 })
+  })
+
+  it('el último es el mes más alto, no el último de la lista', () => {
+    expect(capitalAlRenovar([
+      { mes: '2026-07', saldo_cierre: 15893.41 },
+      { mes: '2026-05', saldo_cierre: 9791.44 },
+      { mes: '2026-06', saldo_cierre: 9841.29 },
+    ])).toEqual({ mes: '2026-07', capital: 15893.41 })
+  })
+
+  it('cruza el año sin desordenarse', () => {
+    expect(capitalAlRenovar([
+      { mes: '2026-12', saldo_cierre: 100 },
+      { mes: '2027-01', saldo_cierre: 200 },
+    ])?.mes).toBe('2027-01')
+  })
+
+  it('devuelve null cuando no hay ningún mes cerrado', () => {
+    expect(capitalAlRenovar([])).toBeNull()
+  })
+
+  it('deja pasar el saldo en cero o negativo para que lo frene quien llama', () => {
+    // Fredy INV-003 habría quedado en -1.536,86 con el método viejo. Acá el saldo real es
+    // 0 (devuelto): la función lo informa y renovarInstrumento es quien rechaza.
+    expect(capitalAlRenovar([{ mes: '2026-08', saldo_cierre: 0 }])).toEqual({ mes: '2026-08', capital: 0 })
+  })
+
+  it('acepta el saldo como texto, que es como viene de la base', () => {
+    expect(capitalAlRenovar([{ mes: '2026-08', saldo_cierre: '49320000.00' }])?.capital).toBe(49320000)
   })
 })

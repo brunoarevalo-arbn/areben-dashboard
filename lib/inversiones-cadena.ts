@@ -65,3 +65,26 @@ export function revisarCadena(filas: FilaCadena[]): DescuadreCadena[] {
   }
   return out.sort((a, b) => a.mes.localeCompare(b.mes) || a.instrumentoId.localeCompare(b.instrumentoId))
 }
+
+/**
+ * El capital con el que arranca un ciclo nuevo al renovar: el saldo con el que cerró el
+ * último mes cerrado.
+ *
+ * Capitalice o no el instrumento, `saldo_cierre` ya arrastra el interés acumulado como
+ * deuda con el inversor, así que el último cierre ES el saldo. No hay que reconstruirlo
+ * sumando intereses sobre `capital_inicial`: desde la segunda renovación `capital_inicial`
+ * ya es el saldo de arranque del ciclo vigente y esa suma cuenta dos veces los períodos
+ * que ya tiene adentro.
+ *
+ * Devuelve null si no hay ningún período cerrado (no hay de dónde sacar el saldo).
+ */
+export function capitalAlRenovar(
+  periodosCerrados: { mes: string; saldo_cierre: number | string | null }[],
+): { mes: string; capital: number } | null {
+  let ultimo: { mes: string; saldo_cierre: number | string | null } | null = null
+  for (const p of periodosCerrados) {
+    if (!ultimo || p.mes > ultimo.mes) ultimo = p
+  }
+  if (!ultimo) return null
+  return { mes: ultimo.mes, capital: round(num(ultimo.saldo_cierre)) }
+}

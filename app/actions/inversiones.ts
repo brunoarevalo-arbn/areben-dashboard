@@ -4,6 +4,7 @@ import { createClient, requireUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { generarPeriodos, getCurrentMonth, planDevolucion, sumarMeses, sumarDias, diasEntre, mesesEntre, situacionEnMes, type FilaPeriodo, type MovimientoCalc } from '@/lib/inversiones-calc'
+import { capitalAlRenovar } from '@/lib/inversiones-cadena'
 import type { MotivoMovimiento } from '@/types/database'
 
 // ============ INVERSORES ============
@@ -371,41 +372,42 @@ export async function renovarInstrumento(
     }
   }
 
-  // 4. Calcular saldo final
+  // 4. Calcular saldo final: es el saldo con el que cerró el último mes cerrado.
+  //
+  //    Capitalice o no, `saldo_cierre` YA arrastra el interés acumulado como deuda
+  //    (ver el comentario de `generarPeriodosPlano`: aunque no capitalice, el interés se
+  //    acumula al saldo hasta que el inversor lo retira). Así que el último cierre ES el
+  //    saldo con el que arranca el ciclo nuevo, en los dos casos.
+  //
+  //    Antes la rama no capitalizable lo reconstruía como `capital_inicial + Σ(interés +
+  //    movimiento)` de TODOS los períodos cerrados. Eso sólo da bien la primera vez: desde
+  //    la segunda renovación `capital_inicial` ya es el saldo de arranque del ciclo
+  //    vigente —contiene los primeros cerrados adentro— y volver a sumarlos los cuenta dos
+  //    veces. Medido el 8-sep-2026 sobre los 13 instrumentos: los 6 ya renovados habrían
+  //    inflado en la próxima vuelta, de +US$204,95 (Sequeira INV-002) a +$4.320.000 (Fredy
+  //    INV-001), y Fredy INV-003 habría quedado con capital NEGATIVO.
   const capitalAnterior = Number(inst.capital_inicial)
-  let capitalNuevo: number
 
-  if (inst.capitalizable) {
-    // Capitalizable: saldo_cierre del último período cerrado
-    const { data: ultimoPeriodo } = await supabase
-      .from('periodos_instrumento')
-      .select('saldo_cierre')
-      .eq('instrumento_id', instrumentoId)
-      .eq('cerrado', true)
-      .order('mes', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+  const { data: periodosCerrados } = await supabase
+    .from('periodos_instrumento')
+    .select('mes, saldo_cierre')
+    .eq('instrumento_id', instrumentoId)
+    .eq('cerrado', true)
 
-    if (!ultimoPeriodo) {
-      return { ok: false, error: 'No hay períodos cerrados. Cerrá al menos uno antes de renovar.' }
+  const ultimo = capitalAlRenovar(periodosCerrados ?? [])
+  if (!ultimo) {
+    return { ok: false, error: 'No hay períodos cerrados. Cerrá al menos uno antes de renovar.' }
+  }
+  const capitalNuevo = ultimo.capital
+
+  // Un capital de cero o negativo no es un instrumento que se renueva: es uno que se
+  // devolvió, o que tiene los movimientos mal cargados. Renovarlo dejaría al inversor
+  // devengando interés sobre plata que no está.
+  if (!(capitalNuevo > 0)) {
+    return {
+      ok: false,
+      error: `El saldo al cierre de ${ultimo.mes} es ${capitalNuevo}. Un instrumento no se puede renovar sin capital: revisá los movimientos, o devolvelo y cerralo desde la ficha.`,
     }
-    capitalNuevo = Number(ultimoPeriodo.saldo_cierre)
-  } else {
-    // NO capitalizable: capital_inicial + SUM(interes + movimiento) de cerrados
-    const { data: periodosCerrados } = await supabase
-      .from('periodos_instrumento')
-      .select('interes_devengado, movimiento')
-      .eq('instrumento_id', instrumentoId)
-      .eq('cerrado', true)
-
-    if (!periodosCerrados || periodosCerrados.length === 0) {
-      return { ok: false, error: 'No hay períodos cerrados. Cerrá al menos uno antes de renovar.' }
-    }
-    const acumulado = periodosCerrados.reduce(
-      (s, p) => s + Number(p.interes_devengado ?? 0) + Number(p.movimiento ?? 0),
-      0,
-    )
-    capitalNuevo = Math.round((capitalAnterior + acumulado) * 100) / 100
   }
 
   // 5. Calcular nuevas fechas
