@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { revisarCadena, capitalAlRenovar, type FilaCadena } from '@/lib/inversiones-cadena'
+import { revisarCadena, capitalAlRenovar, existianAlCierre, type FilaCadena } from '@/lib/inversiones-cadena'
 
 function fila(mes: string, inicio: number, cierre: number, instrumento_id = 'i1'): FilaCadena {
   return { instrumento_id, mes, saldo_inicio: inicio, saldo_cierre: cierre }
@@ -128,5 +128,46 @@ describe('capitalAlRenovar', () => {
 
   it('acepta el saldo como texto, que es como viene de la base', () => {
     expect(capitalAlRenovar([{ mes: '2026-08', saldo_cierre: '49320000.00' }])?.capital).toBe(49320000)
+  })
+})
+
+describe('existianAlCierre', () => {
+  const fredy = { id: 'fredy1', fecha_inicio: '2026-09-01' }   // renovado el 29-ago
+  const mariangeli = { id: 'mati', fecha_inicio: '2026-09-04' } // nació en septiembre
+  const blesio = { id: 'blesio2', fecha_inicio: '2026-06-03' }
+
+  it('el renovado entra igual: tiene períodos de meses anteriores', () => {
+    // El caso que costaba $49,32M: Fredy renovó el 29-ago con fecha_inicio 2026-09-01,
+    // y desaparecía del cierre de agosto aunque tuviera agosto cerrado.
+    const r = existianAlCierre([fredy], [{ instrumento_id: 'fredy1' }], '2026-08-31')
+    expect(r).toEqual([fredy])
+  })
+
+  it('el que todavía no existía queda afuera', () => {
+    expect(existianAlCierre([mariangeli], [], '2026-08-31')).toEqual([])
+  })
+
+  it('el que arrancó dentro del mes entra aunque no tenga período generado', () => {
+    expect(existianAlCierre([blesio], [], '2026-06-30')).toEqual([blesio])
+  })
+
+  it('el vencido sin renovar sigue contando: tiene períodos viejos', () => {
+    // Blesio INV-002 venció el 3/7 y no tiene período de agosto. La deuda sigue viva.
+    expect(existianAlCierre([blesio], [{ instrumento_id: 'blesio2' }], '2026-08-31')).toEqual([blesio])
+  })
+
+  it('separa bien una lista mezclada', () => {
+    const r = existianAlCierre(
+      [fredy, mariangeli, blesio],
+      [{ instrumento_id: 'fredy1' }, { instrumento_id: 'blesio2' }],
+      '2026-08-31',
+    )
+    expect(r.map((i) => i.id)).toEqual(['fredy1', 'blesio2'])
+  })
+
+  it('sin fecha_inicio, manda el período', () => {
+    const sinFecha = { id: 'x', fecha_inicio: null }
+    expect(existianAlCierre([sinFecha], [], '2026-08-31')).toEqual([])
+    expect(existianAlCierre([sinFecha], [{ instrumento_id: 'x' }], '2026-08-31')).toEqual([sinFecha])
   })
 })

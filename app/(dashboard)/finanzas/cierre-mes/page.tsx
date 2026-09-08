@@ -4,6 +4,7 @@ import { sintetizarSaldosPatrim } from '@/app/actions/composicion-cierre'
 import { lugaresConDolares } from '@/lib/saldos-revision'
 import { CierreMesClient } from '@/components/finanzas/cierre-mes-client'
 import { totalPagadoPorGasto } from '@/lib/pagos-gastos'
+import { existianAlCierre } from '@/lib/inversiones-cadena'
 
 export default async function CierreMesPage({
   searchParams,
@@ -44,8 +45,8 @@ export default async function CierreMesPage({
     { data: saldosPatrim },
     { data: chequesPendientes },
     { data: pagosCtaCtePendientes },
-    { data: instrumentosActivos },
-    { data: saldosInversiones },
+    { data: instrumentosNoDevueltos },
+    { data: periodosHastaMes },
     { data: produccionEnProceso },
     { data: ccCuentas },
     { data: ccMovimientos },
@@ -122,16 +123,28 @@ export default async function CierreMesPage({
       .not('fecha_vencimiento', 'is', null)
       .order('fecha_vencimiento', { ascending: true }),
     // Inversiones de terceros: deuda con inversores AL CORTE, no la de hoy.
-    // Entra el que arrancó antes del cierre y todavía no estaba devuelto: los que
-    // siguen activos, y los que se cerraron después del corte (un plazo que vence el
-    // 1/9 al 31/8 seguía siendo deuda). El saldo lo pone el período del mes.
+    // Entra el que ya existía al cierre y todavía no estaba devuelto: los que siguen
+    // activos, y los que se cerraron después del corte (un plazo que vence el 1/9 al
+    // 31/8 seguía siendo deuda). Quién ya existía se decide abajo, con los períodos.
+    //
+    // ⚠️ Acá NO se puede filtrar por `fecha_inicio`: esa es la fecha del CICLO VIGENTE y
+    // cada renovación la empuja hacia adelante. Un instrumento renovado en septiembre
+    // tenía `fecha_inicio = 2026-09-01` y desaparecía de los cierres de junio, julio y
+    // agosto aunque tuviera períodos cerrados en esos meses. Medido el 8-sep-2026: el
+    // cierre de agosto perdía $49,32M enteros (Fredy INV-001), julio $50,46M y junio
+    // $48,92M más US$23.953.
     supabase
       .from('instrumentos_inversion')
       .select('*, inversor:inversores(nombre)')
-      .lte('fecha_inicio', mesFin)
       .or(`estado.eq.activo,fecha_fin.gt.${mesFin}`),
-    // Saldo de cierre del mes para esos instrumentos (ya incluye el interés acumulado)
-    supabase.from('periodos_instrumento').select('instrumento_id, saldo_cierre').eq('mes', mes),
+    // Los períodos hasta el mes del cierre, inclusive. Sirven para dos cosas: el saldo
+    // del mes (que ya incluye el interés acumulado) y saber qué instrumentos ya existían
+    // al corte — tener un período de ese mes o de uno anterior es la prueba de que sí.
+    supabase
+      .from('periodos_instrumento')
+      .select('instrumento_id, mes, saldo_cierre')
+      .lte('mes', mes)
+      .limit(5000),
     // Producción en proceso (activo): compras de producción todavía no pasadas a stock
     supabase
       .from('compras')
@@ -168,6 +181,15 @@ export default async function CierreMesPage({
       }
     }
   }
+  // Un instrumento ya existía al corte si tiene algún período de ese mes o de uno
+  // anterior. Es la prueba que `fecha_inicio` no puede dar, porque se pisa al renovar.
+  const instrumentosActivos = existianAlCierre(instrumentosNoDevueltos ?? [], periodosHastaMes ?? [], mesFin)
+  // El saldo del cierre es el del mes exacto; los meses anteriores vinieron sólo para
+  // saber quién existía. Sin período del mes, el cliente cae al capital del instrumento.
+  const saldosInversiones = (periodosHastaMes ?? [])
+    .filter((p) => p.mes === mes)
+    .map((p) => ({ instrumento_id: p.instrumento_id, saldo_cierre: p.saldo_cierre }))
+
   // Guardarraíl de evidencia (todos los meses): una compra cuenta como pendiente al corte SOLO si hay
   // evidencia de estar impaga — debe hoy (saldo_pendiente>0) o hubo un pago con fecha posterior al corte.
   // Necesario porque muchas compras están marcadas pagadas SIN registrar el pago en el ledger: netear puro
@@ -356,8 +378,8 @@ export default async function CierreMesPage({
       movimientoInv={movimientoInv}
       chequesPendientes={(chequesPendientes ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['chequesPendientes']}
       pagosCtaCtePendientes={(pagosCtaCtePendientes ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['pagosCtaCtePendientes']}
-      instrumentosActivos={(instrumentosActivos ?? []) as unknown as Parameters<typeof CierreMesClient>[0]['instrumentosActivos']}
-      saldosInversiones={saldosInversiones ?? []}
+      instrumentosActivos={instrumentosActivos as unknown as Parameters<typeof CierreMesClient>[0]['instrumentosActivos']}
+      saldosInversiones={saldosInversiones}
       ccActivosArs={ccActivosArs}
       ccActivosUsd={ccActivosUsd}
       ccPasivosArs={ccPasivosArs}

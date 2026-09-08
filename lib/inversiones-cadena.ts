@@ -1,5 +1,12 @@
 /**
- * Revisión de la cadena de saldos de un instrumento.
+ * Reglas de saldos de los instrumentos de inversión: cuándo la cadena se corta, con qué
+ * capital arranca un ciclo nuevo y qué instrumentos ya existían al cierre de un mes.
+ *
+ * Las tres comparten una causa: `capital_inicial` y `fecha_inicio` describen el CICLO
+ * VIGENTE, no el instrumento, y se pisan en cada renovación. Todo lo que necesite el
+ * estado real a una fecha tiene que salir de los períodos, no de esos dos campos.
+ *
+ * --- La cadena ---
  *
  * La regla es una sola: el saldo con el que ARRANCA un mes tiene que ser igual al
  * saldo con el que CERRÓ el mes anterior. El movimiento del mes se aplica dentro de
@@ -87,4 +94,26 @@ export function capitalAlRenovar(
   }
   if (!ultimo) return null
   return { mes: ultimo.mes, capital: round(num(ultimo.saldo_cierre)) }
+}
+
+/**
+ * Qué instrumentos ya existían al cierre de un mes.
+ *
+ * La prueba de que existía es tener un período de ese mes o de uno anterior. NO sirve
+ * `fecha_inicio`: esa es la fecha del CICLO VIGENTE y cada renovación la empuja hacia
+ * adelante, así que un instrumento renovado en septiembre "no existía" en agosto aunque
+ * tuviera períodos cerrados desde junio.
+ *
+ * `fecha_inicio <= finDelMes` se suma como red para el que arrancó dentro del mes y
+ * todavía no tiene período generado: sumarla nunca deja afuera a nadie, sólo agrega.
+ */
+export function existianAlCierre<T extends { id: string; fecha_inicio?: string | null }>(
+  instrumentos: T[],
+  periodosHastaElMes: { instrumento_id: string }[],
+  finDelMes: string, // YYYY-MM-DD
+): T[] {
+  const conPeriodo = new Set(periodosHastaElMes.map((p) => p.instrumento_id))
+  return instrumentos.filter(
+    (i) => conPeriodo.has(i.id) || (!!i.fecha_inicio && i.fecha_inicio <= finDelMes),
+  )
 }
