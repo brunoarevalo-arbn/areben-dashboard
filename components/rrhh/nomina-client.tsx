@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { EstadoBadge } from '@/components/ui/badge'
 import { useSort, SortTh } from '@/components/ui/sortable'
+import { formatHoras } from '@/lib/horas'
 import { formatCurrency, getMonthOptions, formatMonth } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import {
@@ -341,7 +342,7 @@ export function NominaClient({ nominas, empleados, aportes, mes, horasExtrasMes,
     }
     if ((n.horas_extras ?? 0) > 0) {
       return [{
-        label: `Horas extras (${n.horas_extras} hs al ${n.porcentaje_extras ?? 50}%)`,
+        label: `Horas extras (${formatHoras(n.horas_extras)} al ${n.porcentaje_extras ?? 50}%)`,
         monto: n.horas_extras * vh * (1 + (n.porcentaje_extras ?? 50) / 100),
       }]
     }

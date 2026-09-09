@@ -5,6 +5,8 @@ import { createNomina, updateNomina } from '@/app/actions/rrhh'
 import type { ConfiguracionAporte, HoraExtraRegistro, NominaMensual } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { NumberInput } from '@/components/ui/number-input'
+import { HorasMinutosInput } from '@/components/ui/horas-minutos-input'
+import { formatHoras } from '@/lib/horas'
 import { Input, Select } from '@/components/ui/input'
 import { formatCurrency, cn } from '@/lib/utils'
 import {
@@ -526,7 +528,7 @@ export function NominaForm({
             Horas extras
           </label>
           {extrasTotalHoras > 0 && (
-            <span className="text-xs text-fg-soft">{extrasTotalHoras} hs · prom. {extrasPctPonderado}%</span>
+            <span className="text-xs text-fg-soft">{formatHoras(extrasTotalHoras)} · prom. {extrasPctPonderado}%</span>
           )}
         </div>
 
@@ -541,13 +543,13 @@ export function NominaForm({
             const montoLinea = (Number(linea.cantidad) || 0) * vals.valor_hora * (1 + (Number(linea.porcentaje) || 0) / 100)
             return (
               <div key={idx} className="flex items-center gap-2 flex-wrap bg-surface-2/40 rounded-lg p-2">
-                <NumberInput step="any" min="0"
+                <HorasMinutosInput
+                  compacto
                   value={linea.cantidad}
-                  onChange={(nuevoValor) => setLinea({ cantidad: nuevoValor })}
-                  placeholder="hs"
-                  className="w-20 px-2 py-1 bg-surface-2 border border-border-strong rounded text-fg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  onChange={(nuevoValor) => setLinea({ cantidad: nuevoValor ?? 0 })}
+                  className="w-14 px-2 py-1 bg-surface-2 border border-border-strong rounded text-fg text-sm text-right focus:outline-none focus:ring-2 focus:ring-primary"
                 />
-                <span className="text-xs text-fg-soft">hs al</span>
+                <span className="text-xs text-fg-soft">al</span>
                 <div className="flex items-center gap-1 flex-wrap">
                   {PORCENTAJES_EXTRAS.map((p) => (
                     <button

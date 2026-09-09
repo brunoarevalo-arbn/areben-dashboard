@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { NumberInput } from '@/components/ui/number-input'
 import { Tabs } from '@/components/ui/tabs'
+import { formatHoras } from '@/lib/horas'
 import { formatCurrency } from '@/lib/utils'
 import {
   aprobarHorasExtras,
@@ -191,7 +192,7 @@ function PanelPendientes({
                 {emp ? `${emp.nombre} ${emp.apellido}` : 'Empleado dado de baja'}
               </span>
               <span className="flex items-center gap-3">
-                <span className="text-xs text-fg-soft font-mono">{totalHs} hs</span>
+                <span className="text-xs text-fg-soft font-mono">{formatHoras(totalHs)}</span>
                 <Button
                   size="sm"
                   variant="secondary"
@@ -214,7 +215,7 @@ function PanelPendientes({
                     aria-label={`Seleccionar ${diaMes(r.fecha)}`}
                   />
                   <span className="font-mono text-sm text-fg-muted w-12">{diaMes(r.fecha)}</span>
-                  <span className="font-mono text-sm font-semibold text-fg w-14">{Number(r.cantidad)} hs</span>
+                  <span className="font-mono text-sm font-semibold text-fg w-[76px]">{formatHoras(Number(r.cantidad))}</span>
                   <span className="flex-1 text-xs text-fg-soft truncate">
                     {r.notas}
                     {r.origen === 'EMPLEADO' && <span className="ml-2 italic">la cargó él/ella</span>}
@@ -254,7 +255,7 @@ function ModalRechazo({ registro, onClose }: { registro: HoraExtraRegistro; onCl
   const [guardando, startGuardar] = useTransition()
 
   return (
-    <Modal open onOpenChange={onClose} title={`No aprobar las ${Number(registro.cantidad)} hs del ${diaMes(registro.fecha)}`} className="max-w-md">
+    <Modal open onOpenChange={onClose} title={`No aprobar ${formatHoras(Number(registro.cantidad))} del ${diaMes(registro.fecha)}`} className="max-w-md">
       <div className="p-6 space-y-4">
         <Input
           label="Motivo"
@@ -312,8 +313,8 @@ function PanelMes({
               <span className="flex-1 text-fg truncate">
                 {emp ? `${emp.nombre} ${emp.apellido}` : '—'}
               </span>
-              <span className="font-mono text-fg w-24">
-                {Number(r.cantidad)} hs al {Number(r.porcentaje)}%
+              <span className="font-mono text-fg w-32 text-right">
+                {formatHoras(Number(r.cantidad))} al {Number(r.porcentaje)}%
               </span>
               {r.estado === 'PENDIENTE' && <Badge variant="warning">Sin revisar</Badge>}
               {r.estado === 'APROBADA' && <Badge variant="success">Aprobada</Badge>}

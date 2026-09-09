@@ -22,7 +22,7 @@ un error caro o una búsqueda repetida. Techo: 160 líneas.
 `node scripts/apply-migrations.mjs 063_saldos_revisados` (nombre sin `.sql`, admite varios). Lee
 `DATABASE_URL` de `.env.local` y corre cada archivo en su propia transacción. Los `.sql` de
 `supabase/migrations/` se escriben **idempotentes** (`IF NOT EXISTS` / `ON CONFLICT`) porque se
-re-corren. Van numerados correlativos (con un hueco en 066-068); el último es el 075.
+re-corren. Van numerados correlativos (con un hueco en 066-068); el último es el 081.
 
 **Los movimientos de plata de un instrumento viven en `movimientos_instrumento`** (mig 075), uno por
 renglón, con su día y su motivo. `periodos_instrumento.movimiento` y `.fecha_movimiento` quedaron
@@ -63,7 +63,9 @@ action. Los empleados en negro llevan 0 cargas patronales.
 **La liquidación sólo mira las horas extras `estado='APROBADA'`.** `reconciliarHorasExtras`
 (`app/actions/rrhh.ts`) **borra** los candidatos que no vengan en las líneas del formulario: sin
 ese filtro, liquidar el mes se come en silencio lo que el empleado cargó por su link y todavía
-nadie aprobó. Lo que se carga de adentro nace `APROBADA` y se comporta como siempre.
+nadie aprobó. Lo que se carga de adentro nace `APROBADA` y se comporta como siempre. **El dato es
+horas decimales con 4 decimales** (20 min = 0,3333): se carga con `HorasMinutosInput` y se muestra
+con `formatHoras` — ⛔ nunca `${cantidad} hs`, que es lo que dibujaba "0.3333 hs".
 
 **Gestión Nube es multi-cuenta** (`lib/gestion-nube/client.ts`): el token va por parámetro, leído de
 `GN_TOKEN_<ALIAS>` (BDI / ZATTIA). La API es inestable y no banca `per_page > 50`; todo pasa por el

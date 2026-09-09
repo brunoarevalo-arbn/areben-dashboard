@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { liquidacionMasiva } from '@/app/actions/rrhh'
 import { Button } from '@/components/ui/button'
 import { NumberInput } from '@/components/ui/number-input'
+import { HorasMinutosInput } from '@/components/ui/horas-minutos-input'
 import { Input } from '@/components/ui/input'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Loader2, ListChecks } from 'lucide-react'
@@ -133,6 +134,8 @@ export function LiquidacionMasivaModal({
     )
   }
 
+  // Dos casillas donde antes iba una: cada una entra a la mitad del ancho de las de plata.
+  const horaCls = 'w-10 px-1 py-1 bg-surface-2 border border-border-strong rounded text-fg text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary'
   const inputCls = 'w-16 px-1.5 py-1 bg-surface-2 border border-border-strong rounded text-fg text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary'
 
   return (
@@ -155,7 +158,7 @@ export function LiquidacionMasivaModal({
             <tr className="border-b border-border-strong">
               <th className="px-2 py-2 w-8" />
               <th className="text-left px-3 py-2 text-[10px] font-medium text-fg-muted uppercase">Empleado</th>
-              <th className="text-right px-2 py-2 text-[10px] font-medium text-fg-muted uppercase">HE (hs)</th>
+              <th className="text-right px-2 py-2 text-[10px] font-medium text-fg-muted uppercase">Horas extras</th>
               <th className="text-right px-2 py-2 text-[10px] font-medium text-fg-muted uppercase">HE %</th>
               <th className="text-right px-2 py-2 text-[10px] font-medium text-fg-muted uppercase">Bono $</th>
               <th className="text-right px-2 py-2 text-[10px] font-medium text-fg-muted uppercase">Desc. $</th>
@@ -180,8 +183,8 @@ export function LiquidacionMasivaModal({
                     </p>
                   </td>
                   <td className="px-2 py-1.5 text-right">
-                    <NumberInput min="0" step="0.5" disabled={!checked} value={c.he} placeholder="0"
-                      onChange={(nuevoValor) => setConcepto(e.id, 'he', nuevoValor)} className={inputCls} />
+                    <HorasMinutosInput compacto disabled={!checked} value={c.he}
+                      onChange={(nuevoValor) => setConcepto(e.id, 'he', nuevoValor ?? 0)} className={horaCls} />
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     <NumberInput min="0" max="200" step="10" disabled={!checked} value={c.pct}

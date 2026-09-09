@@ -10,8 +10,9 @@
  *  - Nunca se escribe con `.from(...)`: todo va por las funciones `security definer` de la
  *    migración 077, que son lo único que `anon` puede ejecutar. La RLS `authenticated_all`
  *    sigue cerrada para el resto de la tabla.
- *  - Las funciones validan adentro (empleado activo, horas 0,25–12, fecha no futura ni de más de
- *    45 días atrás, tope de 12 hs por día) y devuelven el mensaje ya escrito para el empleado.
+ *  - Las funciones validan adentro (empleado activo, entre 1 minuto y 12 horas, fecha no futura ni
+ *    de más de 45 días atrás, tope de 12 hs por día) y devuelven el mensaje ya escrito para el
+ *    empleado.
  *  - Todo lo que entra nace `PENDIENTE`: sin que alguien lo apruebe en /rrhh/horas-extras no se
  *    paga nada. El peor caso de un link filtrado es que alguien PIDA horas de más.
  */
@@ -52,7 +53,8 @@ export async function cargarHorasPorToken(prevState: string | null, formData: Fo
 
   if (!token) return 'Falta el link.'
   if (!fecha) return 'Elegí la fecha.'
-  if (!cantidad || cantidad <= 0) return 'Poné cuántas horas hiciste.'
+  // El piso real (que llegue a un minuto) lo pone la base: acá sólo se ataja el campo vacío.
+  if (!cantidad || cantidad <= 0) return 'Poné cuánto tiempo hiciste.'
 
   const supabase = await createClient()
   const { error } = await supabase.rpc('horas_cargar_por_token', {

@@ -5,14 +5,19 @@ import { Check, Clock, Loader2, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
-import { NumberInput } from '@/components/ui/number-input'
+import { HorasMinutosInput } from '@/components/ui/horas-minutos-input'
+import { formatHoras, minutosAHoras } from '@/lib/horas'
 import {
   borrarHorasPorToken,
   cargarHorasPorToken,
   type EstadoHoras,
 } from '@/app/actions/horas-publicas'
 
-const HORAS_RAPIDAS = [1, 2, 3, 4]
+/**
+ * Los atajos van en MINUTOS, que es la unidad del pedido: alguien que se quedó veinte minutos
+ * antes no tenía cómo cargarlos (el mínimo eran quince y el campo pedía "horas").
+ */
+const RAPIDOS = [30, 60, 120, 180]
 
 /** 'YYYY-MM-DD' → '22/08'. A mano: `new Date('2026-08-22')` es UTC y en Argentina muestra el 21. */
 function diaMes(fecha: string) {
@@ -115,32 +120,33 @@ export function CargaHorasClient({ token, estado }: { token: string; estado: Est
           </div>
 
           <div className="space-y-1.5">
-            <NumberInput
+            {/*
+              El rango lo valida el servidor (1 minuto a 12 horas, mig 081) y no un `min`/`max`
+              del navegador: un input numérico que cae fuera de su rango rechaza el formulario
+              EN SILENCIO, y ya dio dos falsos negativos con el `min=0.25` de antes.
+            */}
+            <HorasMinutosInput
               id="cantidad"
               name="cantidad"
-              label="¿Cuántas horas?"
+              label="¿Cuánto tiempo?"
               value={cantidad}
               onChange={setCantidad}
-              min={0.25}
-              max={12}
-              // `step` va en "any" a propósito: con un step fijo el navegador rechaza en silencio
-              // los valores que no caen en la grilla (con min=0.25 y step=0.5, "2" es inválido) y
-              // el formulario no se manda sin decir por qué. El rango lo valida el servidor.
-              step="any"
-              placeholder="Ej: 2.5"
             />
             <div className="flex gap-2">
-              {HORAS_RAPIDAS.map((h) => (
-                <Button
-                  key={h}
-                  type="button"
-                  size="sm"
-                  variant={cantidad === h ? 'primary' : 'secondary'}
-                  onClick={() => setCantidad(h)}
-                >
-                  {h} h
-                </Button>
-              ))}
+              {RAPIDOS.map((min) => {
+                const horas = minutosAHoras(min)
+                return (
+                  <Button
+                    key={min}
+                    type="button"
+                    size="sm"
+                    variant={cantidad === horas ? 'primary' : 'secondary'}
+                    onClick={() => setCantidad(horas)}
+                  >
+                    {formatHoras(horas)}
+                  </Button>
+                )
+              })}
             </div>
           </div>
 
@@ -162,7 +168,8 @@ export function CargaHorasClient({ token, estado }: { token: string; estado: Est
           <div className="flex items-baseline justify-between">
             <h2 className="text-sm font-medium text-fg">Tus cargas de {nombreMes}</h2>
             <span className="text-xs text-fg-soft">
-              {totalMes} hs{enRevision > 0 && ` · ${enRevision} en revisión`}
+              {formatHoras(totalMes)}
+              {enRevision > 0 && ` · ${formatHoras(enRevision)} en revisión`}
             </span>
           </div>
 
@@ -201,7 +208,7 @@ function FilaCarga({
         <span className="flex items-center gap-2 text-sm text-fg">
           <Clock className="w-3.5 h-3.5 text-fg-soft" />
           <span className="font-mono">{diaMes(registro.fecha)}</span>
-          <span className="font-semibold">{Number(registro.cantidad)} hs</span>
+          <span className="font-semibold">{formatHoras(Number(registro.cantidad))}</span>
         </span>
 
         <span className="flex items-center gap-2">

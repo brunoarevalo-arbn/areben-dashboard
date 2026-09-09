@@ -10,9 +10,11 @@ import {
 import type { Empleado, EventoEmpleado, TipoEvento, HoraExtraRegistro, AusenciaRegistro, TipoAusencia } from '@/types/database'
 import { Modal } from '@/components/ui/modal'
 import { NumberInput } from '@/components/ui/number-input'
+import { HorasMinutosInput } from '@/components/ui/horas-minutos-input'
 import { Button } from '@/components/ui/button'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { formatHoras } from '@/lib/horas'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { nombreRevisor } from '@/lib/saldos-revision'
 import {
@@ -575,7 +577,7 @@ function HoraExtraRow({ he, valorHora }: { he: HoraExtraRegistro; valorHora: num
   return (
     <div className="bg-surface-2/40 rounded-lg px-3 py-1.5 flex items-center justify-between text-xs group">
       <span className="text-fg-muted">{formatDate(he.fecha)}</span>
-      <span className="font-mono text-fg-muted">{he.cantidad}h al {he.porcentaje}%</span>
+      <span className="font-mono text-fg-muted">{formatHoras(he.cantidad)} al {he.porcentaje}%</span>
       <span className="font-mono text-amber-700">{formatCurrency(monto)}</span>
       <button
         type="button"
@@ -598,6 +600,7 @@ const PORCENTAJES_HE = [0, 30, 50, 100]
 
 function HoraExtraForm({ empleado, onClose }: { empleado: Empleado; onClose: () => void }) {
   const [porcentaje, setPorcentaje] = useState(30)
+  const [cantidad, setCantidad] = useState<number | null>(null)
   const [error, formAction, isPending] = useActionState(
     async (prev: string | null, fd: FormData) => {
       fd.set('empleado_id', empleado.id)
@@ -618,7 +621,7 @@ function HoraExtraForm({ empleado, onClose }: { empleado: Empleado; onClose: () 
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Input label="Fecha" name="fecha" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
-        <Input label="Cantidad de horas" name="cantidad" type="number" step="any" min="0" required placeholder="Ej: 5.17" />
+        <HorasMinutosInput label="Tiempo trabajado" name="cantidad" value={cantidad} onChange={setCantidad} />
       </div>
 
       <div className="space-y-2">
@@ -1084,7 +1087,7 @@ function EmpleadoCard({
         >
           <span className="flex items-center gap-2">
             <Clock className="w-3.5 h-3.5" />
-            HE pendientes: <span className="font-mono font-semibold">{horasNoIncluidasTotal}h</span>
+            HE pendientes: <span className="font-mono font-semibold">{formatHoras(horasNoIncluidasTotal)}</span>
             <span className="text-fg-soft">({horasNoIncluidas.length} registros)</span>
           </span>
           {horasOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
