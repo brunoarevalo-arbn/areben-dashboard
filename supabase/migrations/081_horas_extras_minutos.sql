@@ -13,28 +13,39 @@
 
 -- ── 1. Precisión: 4 decimales donde vive una cantidad de horas ───────────────
 -- Se ensancha, no se corta: `numeric(8,4)` mantiene los 4 dígitos enteros de `numeric(6,2)`.
-do $$
-begin
-  if exists (
-    select 1 from information_schema.columns
-     where table_schema = 'public' and table_name = 'horas_extras_registros'
-       and column_name = 'cantidad' and numeric_scale < 4
-  ) then
-    alter table horas_extras_registros alter column cantidad type numeric(8,4);
-  end if;
+alter table horas_extras_registros alter column cantidad type numeric(8,4);
 
-  if exists (
-    select 1 from information_schema.columns
-     where table_schema = 'public' and table_name = 'nomina_mensual'
-       and column_name = 'horas_extras' and numeric_scale < 4
-  ) then
-    alter table nomina_mensual alter column horas_extras type numeric(8,4);
-  end if;
-end $$;
+-- 🔴 `nomina_mensual.horas_extras` NO se puede tocar de frente: Postgres contesta
+-- "cannot alter type of a column used by a view or rule" porque `v_nominas_con_empleado`
+-- (migración 021) la expone. Se la baja, se cambia el tipo y se la vuelve a crear tal cual
+-- estaba. Todo dentro de la misma transacción del script de migraciones, así que no hay un
+-- instante en que la vista no exista.
+drop view if exists v_nominas_con_empleado;
 
-comment on column horas_extras_registros.cantidad is
-  'Tiempo trabajado en HORAS DECIMALES. 4 decimales para que el minuto sea exacto: '
-  '20 min = 0,3333. Se muestra como "1 h 20 min" — el formato vive en lib/horas.ts.';
+alter table nomina_mensual alter column horas_extras type numeric(8,4);
+
+-- ⚠️ Las columnas van UNA POR UNA y no `n.*` a propósito. La 021 la creó con `n.*`, pero un
+-- `*` se expande AL CREARLA: desde entonces `nomina_mensual` sumó 13 columnas (ausencias, bono,
+-- descuento_otro…) que la vista viva NO tiene. Recrearla con `*` le agregaría esas 13 de
+-- arrastre, y esta migración vino a cambiar un tipo, no la forma de una vista de otro.
+create view v_nominas_con_empleado as
+select
+  n.id, n.empleado_id, n.mes, n.sueldo_basico, n.horas_trabajadas, n.valor_hora,
+  n.horas_extras, n.comida, n.aguinaldo, n.aportes_empleado, n.aportes_patronales,
+  n.subtotal, n.neto, n.costo_empresa, n.estado, n.notas, n.created_at, n.updated_at,
+  n.porcentaje_extras, n.monto_recibo_oficial, n.adicional_no_registrado, n.valor_hora_real,
+  n.aguinaldo_provisionado, n.asistencia_completa, n.presentismo_monto,
+  n.aguinaldo_pagado_de_caja, n.fecha_programada_pago, n.gasto_pendiente_id,
+  e.nombre        as empleado_nombre,
+  e.apellido      as empleado_apellido,
+  e.dni           as empleado_dni,
+  e.tipo_empleado as empleado_tipo
+from nomina_mensual n
+left join empleados e on e.id = n.empleado_id;
+
+-- Los mismos permisos que le puso la 021 (la lee el home por PostgREST). El resto de los
+-- privilegios que tenía los repone solo el `alter default privileges` de Supabase.
+grant select on v_nominas_con_empleado to anon, authenticated, service_role;
 
 -- ── 2. El piso baja de 15 minutos a 1 ───────────────────────────────────────
 -- Misma firma que la migración 077: `create or replace` conserva los GRANT a `anon`.
