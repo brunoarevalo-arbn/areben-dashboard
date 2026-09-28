@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { optUuid } from '@/lib/zod-helpers'
 import { calcularNomina as calcNominaPuro, type AporteConfig } from '@/lib/calc/nomina'
+import { aplicarAdelantosDeEmpleado, soltarAdelantosDeNomina } from '@/lib/adelantos'
 
 // ============ EMPLEADOS ============
 
@@ -920,6 +921,10 @@ export async function createNomina(prevState: string | null, formData: FormData)
   if (nominaInserted) {
     await syncGastoAportesPatronales(nominaInserted.id)
     await syncGastoProvisionAguinaldo(nominaInserted.id)
+    // Los adelantos del Monitor se cuelgan recién ahora, que hay nómina (lib/adelantos.ts).
+    // ⛔ No frena la liquidación: si el Monitor no contesta, quedan pendientes.
+    const adel = await aplicarAdelantosDeEmpleado(supabase, d.empleado_id)
+    if (adel.aviso) console.warn('[adelantos]', adel.aviso)
   }
 
   // Si se confirmó, llevar este sueldo a la ficha del empleado (registra ajuste salarial)
@@ -977,7 +982,44 @@ export async function marcarNominaPagada(id: string) {
  *  2. Si tiene pagos parciales → exige que el nuevo neto sea ≥ total ya pagado
  *  3. Sin pagos → edit libre, recalcula y sincroniza el gasto vinculado
  */
+/**
+ * Editar una nómina con adelantos enganchados: se sueltan, se edita contra el neto nuevo y se
+ * vuelven a enganchar. Si el neto bajó, lo que sobra de los adelantos pasa solo al mes siguiente
+ * (Darío, 28-sep-2026) en vez de trabar la edición con "es menor a lo ya pagado".
+ *
+ * ⚠️ Sólo si la nómina está saldada POR PAGOS. Una marcada PAGADA a mano (sin pagos que la cubran)
+ * conserva su guarda de "sólo notas": soltarle los adelantos la haría volver a PENDIENTE.
+ */
 export async function updateNomina(id: string, prevState: string | null, formData: FormData) {
+  await requireUser()
+  const supabase = await createClient()
+  const { data: n } = await supabase
+    .from('nomina_mensual')
+    .select('empleado_id, neto, estado')
+    .eq('id', id)
+    .single()
+  const { data: pagos } = await supabase
+    .from('pagos')
+    .select('monto, adelanto_id')
+    .eq('tipo_origen', 'NOMINA')
+    .eq('origen_id', id)
+  const filas = (pagos ?? []) as { monto: number | string; adelanto_id: string | null }[]
+  const tieneAdelantos = filas.some((p) => p.adelanto_id)
+  const cubiertaPorPagos = filas.reduce((s, p) => s + Number(p.monto), 0) + 0.01 >= Number(n?.neto ?? 0)
+  const soltar = !!n && tieneAdelantos && (n.estado !== 'PAGADO' || cubiertaPorPagos)
+
+  if (soltar) await soltarAdelantosDeNomina(supabase, id)
+  try {
+    return await updateNominaSinAdelantos(id, prevState, formData)
+  } finally {
+    if (n?.empleado_id && (soltar || n.estado !== 'PAGADO')) {
+      const adel = await aplicarAdelantosDeEmpleado(supabase, n.empleado_id)
+      if (adel.aviso) console.warn('[adelantos]', adel.aviso)
+    }
+  }
+}
+
+async function updateNominaSinAdelantos(id: string, prevState: string | null, formData: FormData) {
   const user = await requireUser()
   const raw = {
     ...Object.fromEntries(formData),
@@ -1153,9 +1195,14 @@ export async function deleteNomina(id: string) {
   // Buscar y eliminar los gastos vinculados (sueldo + aportes patronales + provisión aguinaldo)
   const { data: nomina } = await supabase
     .from('nomina_mensual')
-    .select('gasto_pendiente_id, gasto_aportes_patronales_id, gasto_provision_aguinaldo_id')
+    .select('empleado_id, gasto_pendiente_id, gasto_aportes_patronales_id, gasto_provision_aguinaldo_id')
     .eq('id', id)
     .single()
+
+  // Los pagos que vinieron de un adelanto se borran con la nómina: así el adelanto vuelve solo a
+  // pendiente en el Monitor y se engancha a la próxima liquidación. Sin esto quedarían colgados
+  // de una nómina que ya no existe.
+  await soltarAdelantosDeNomina(supabase, id)
 
   const { error } = await supabase.from('nomina_mensual').delete().eq('id', id)
   if (error) throw new Error(error.message)
@@ -1168,6 +1215,12 @@ export async function deleteNomina(id: string) {
   }
   if (nomina?.gasto_provision_aguinaldo_id) {
     await supabase.from('gastos').delete().eq('id', nomina.gasto_provision_aguinaldo_id)
+  }
+
+  // Lo soltado puede entrar en otra nómina de ese empleado que tenga saldo.
+  if (nomina?.empleado_id) {
+    const adel = await aplicarAdelantosDeEmpleado(supabase, nomina.empleado_id)
+    if (adel.aviso) console.warn('[adelantos]', adel.aviso)
   }
 
   revalidatePath('/rrhh/nomina')
@@ -1392,6 +1445,12 @@ export async function liquidacionMasiva(args: {
   if (nominasInsertadas?.length) {
     await Promise.all(nominasInsertadas.map((n) => syncGastoAportesPatronales(n.id)))
     await Promise.all(nominasInsertadas.map((n) => syncGastoProvisionAguinaldo(n.id)))
+    // 🔑 La MISMA función que la liquidación individual: si la masiva no enganchara los adelantos,
+    // el sueldo figuraría sin pagar aunque ya se adelantó, y nadie vería un error.
+    const adelantos = await Promise.all(
+      nominasInsertadas.map((n) => aplicarAdelantosDeEmpleado(supabase, n.empleado_id)),
+    )
+    for (const a of adelantos) if (a.aviso) console.warn('[adelantos]', a.aviso)
   }
 
   revalidatePath('/rrhh/nomina')

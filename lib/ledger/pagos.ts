@@ -60,6 +60,8 @@ const pagoUnifSchema = z.object({
   pagador_nombre: z.string().optional().nullable(),
   pagador_titular: z.string().optional().nullable(),
   operacion_id: optUuid,
+  // De qué adelanto de sueldo del Monitor salió (migración 090). Lo llena sólo `lib/adelantos.ts`.
+  adelanto_id: optUuid,
 })
 
 export type PagoUnifInput = z.infer<typeof pagoUnifSchema>
@@ -300,6 +302,7 @@ export async function crearPagoEnLedger(sb: ClienteLedger, input: PagoUnifInput)
     pagador_nombre: d.pagador_nombre || null,
     pagador_titular: d.pagador_titular || null,
     operacion_id: d.operacion_id || null,
+    adelanto_id: d.adelanto_id || null,
   })
     .select('id')
     .single()
