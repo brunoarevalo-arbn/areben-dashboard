@@ -585,6 +585,7 @@ export interface Empleado {
   plus_negro_tipo?: 'MONTO' | 'PORCENTAJE' | null
   /** Si plus_negro_tipo=MONTO → pesos mensuales. Si PORCENTAJE → % sobre monto_recibo_oficial. */
   plus_negro_valor?: number | null
+  alias?: string | null
   cbu?: string | null
   banco?: string | null
   metodo_pago?: MetodoPago | null

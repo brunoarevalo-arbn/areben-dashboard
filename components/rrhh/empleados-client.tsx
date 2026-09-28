@@ -399,12 +399,15 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
         </div>
       )}
 
-      {tipo === 'BLANCO' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <Input label="CBU" name="cbu" defaultValue={emp?.cbu ?? ''} />
-          <Input label="Banco" name="banco" defaultValue={emp?.banco ?? ''} />
-        </div>
-      ) : (
+      {/* A dónde se le transfiere. Para TODOS, no sólo los en blanco: los adelantos de sueldo que un
+          cliente le manda directo (Monitor) necesitan el alias de cualquier empleado. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <Input label="Alias" name="alias" defaultValue={emp?.alias ?? ''} />
+        <Input label="CBU" name="cbu" defaultValue={emp?.cbu ?? ''} />
+        <Input label="Banco" name="banco" defaultValue={emp?.banco ?? ''} />
+      </div>
+
+      {tipo !== 'BLANCO' && (
         <Select
           label="Método de pago"
           name="metodo_pago"

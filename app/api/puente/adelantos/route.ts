@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
   const sb = clienteDeServicio()
   const [empleados, pagos] = await Promise.all([
-    sb.from('empleados').select('id, nombre, apellido, cbu, banco').eq('activo', true).order('nombre'),
+    sb.from('empleados').select('id, nombre, apellido, alias, cbu, banco').eq('activo', true).order('nombre'),
     sb.from('pagos').select('adelanto_id, monto, origen_id').not('adelanto_id', 'is', null),
   ])
   const primerError = empleados.error ?? pagos.error
@@ -40,6 +40,7 @@ export async function GET(request: Request) {
     empleados: (empleados.data ?? []).map((e) => ({
       id: e.id,
       nombre: `${String(e.nombre ?? '').trim()} ${String(e.apellido ?? '').trim()}`.trim(),
+      alias: e.alias || null,
       cbu: e.cbu || null,
       banco: e.banco || null,
     })),
