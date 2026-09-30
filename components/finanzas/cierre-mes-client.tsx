@@ -228,11 +228,16 @@ export function CierreMesClient(props: Props) {
 
   // Producción en proceso (activo): se valúa al NETO (sin IVA — el IVA es crédito fiscal,
   // vive en impositivos). La deuda/pago va por el bruto (compra o cheque).
+  // Una compra USD con TC ya sale pesificada de costoNetoProd → va a ARS. Si se sumara a
+  // produccionUsd se multiplicaría otra vez por el TC (el PN de jun-2026 daba +$1.500M).
+  // Solo la USD sin TC queda en dólares.
+  const esUsdSinTc = (p: { moneda?: string | null; tipo_cambio?: number | null }) =>
+    p.moneda === 'USD' && !(Number(p.tipo_cambio) > 0)
   const produccionArs = props.produccionEnProceso
-    .filter((p) => p.moneda !== 'USD')
+    .filter((p) => !esUsdSinTc(p))
     .reduce((s, p) => s + costoNetoProd(p), 0)
   const produccionUsd = props.produccionEnProceso
-    .filter((p) => p.moneda === 'USD')
+    .filter(esUsdSinTc)
     .reduce((s, p) => s + costoNetoProd(p), 0)
 
   const totalActivosArs = totalCuentasArs + cajaArs + totalActivosManualesArs + patrimAportes.activosArs + produccionArs + (props.ccActivosArs ?? 0)
