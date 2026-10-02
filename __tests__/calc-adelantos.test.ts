@@ -79,6 +79,19 @@ describe('planAdelantos', () => {
     expect(p.pendientes.map((x) => x.restante)).toEqual([100_000])
   })
 
+  it('no salta a un sueldo de hace meses que figura impago', () => {
+    const p = planAdelantos(
+      [adel('a', 100_000, '2026-10-02', '2026-10')],
+      [
+        { id: 'abr', mes: '2026-04', neto: 550_000, pagado: 0 },
+        { id: 'sep', mes: '2026-09', neto: 380_000, pagado: 0 },
+      ],
+      [],
+      null,
+    )
+    expect(p.enganches.map((e) => [e.nominaId, e.monto])).toEqual([['sep', 100_000]])
+  })
+
   it('respeta lo que la nómina ya tenía pagado a mano', () => {
     const p = planAdelantos(
       [adel('a', 100_000, '2026-09-10', '2026-09')],

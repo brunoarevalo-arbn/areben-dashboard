@@ -9,6 +9,9 @@
 //     diferencia es saldo a pagar"). Una que entra el 2-oct con septiembre liquidado e impago paga
 //     septiembre, aunque el Monitor la anote para octubre por su fecha. Sólo si no se debe nada
 //     queda esperando la próxima nómina.
+//   - ⛔ Pero sólo hasta UN mes atrás: el sueldo de su mes o el del anterior. Una deuda más vieja
+//     suele ser un sueldo pagado que quedó sin marcar (el 2-oct una transferencia fue a parar a un
+//     abril "impago" de Agustina Piriz); eso se arregla a mano, no con la plata de un adelanto.
 //   - Si se adelantó más que el sueldo, **lo que sobra pasa al mes siguiente**: queda pendiente y lo
 //     toma la próxima nómina que se liquide.
 //   - Lo ya aplicado no se guarda en ningún lado: se cuenta de los pagos con `adelanto_id`. Por eso
@@ -50,6 +53,12 @@ export type PlanAdelantos = {
 
 const centavos = (n: number) => Math.round(n * 100) / 100
 
+/** El mes anterior a `mes` (AAAA-MM). */
+function mesAnterior(mes: string): string {
+  const [a, m] = mes.split('-').map(Number)
+  return m === 1 ? `${a - 1}-12` : `${a}-${String(m - 1).padStart(2, '0')}`
+}
+
 export function planAdelantos(
   adelantos: Adelanto[],
   nominas: NominaDeAdelantos[],
@@ -80,7 +89,7 @@ export function planAdelantos(
     let saldo = centavos(n.neto - n.pagado)
     for (const c of libres) {
       if (saldo <= 0.005) break
-      if (c.restante <= 0.005) continue
+      if (c.restante <= 0.005 || n.mes < mesAnterior(c.adelanto.fecha.slice(0, 7))) continue
       const monto = centavos(Math.min(c.restante, saldo))
       enganches.push({ adelanto: c.adelanto, nominaId: n.id, mes: n.mes, monto })
       c.restante = centavos(c.restante - monto)
