@@ -57,15 +57,26 @@ describe('planAdelantos', () => {
     expect(p.pendientes).toEqual([])
   })
 
-  it('un adelanto de octubre no entra en la nómina de septiembre', () => {
+  it('una transferencia de octubre paga el sueldo de septiembre que se sigue debiendo', () => {
     const p = planAdelantos(
-      [adel('a', 100_000, '2026-09-28', '2026-10')],
+      [adel('a', 100_000, '2026-10-02', '2026-10')],
       [{ id: 'sep', mes: '2026-09', neto: 380_000, pagado: 0 }],
       [],
       null,
     )
+    expect(p.enganches.map((e) => [e.nominaId, e.monto])).toEqual([['sep', 100_000]])
+    expect(p.pendientes).toEqual([])
+  })
+
+  it('con septiembre ya pagado, la de octubre espera la nómina de octubre', () => {
+    const p = planAdelantos(
+      [adel('a', 100_000, '2026-10-02', '2026-10')],
+      [{ id: 'sep', mes: '2026-09', neto: 380_000, pagado: 380_000 }],
+      [],
+      null,
+    )
     expect(p.enganches).toEqual([])
-    expect(p.pendientes).toHaveLength(1)
+    expect(p.pendientes.map((x) => x.restante)).toEqual([100_000])
   })
 
   it('respeta lo que la nómina ya tenía pagado a mano', () => {

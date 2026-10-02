@@ -4,7 +4,11 @@
 // liquidara su sueldo (se anota y se confirma en el Monitor). Cuando la nómina existe, se cuelga de
 // ella como pago parcial. Las reglas, decididas con Darío el 28-sep-2026:
 //
-//   - Un adelanto va a un MES de sueldo, y sólo entra en la nómina de ese mes o de uno posterior.
+//   - Cada transferencia paga **el sueldo más viejo que se le deba** al empleado (Darío, 2-oct-2026:
+//     "cuando ya hay liquidación, se imputan los pagos registrados correspondientes a ese sueldo y la
+//     diferencia es saldo a pagar"). Una que entra el 2-oct con septiembre liquidado e impago paga
+//     septiembre, aunque el Monitor la anote para octubre por su fecha. Sólo si no se debe nada
+//     queda esperando la próxima nómina.
 //   - Si se adelantó más que el sueldo, **lo que sobra pasa al mes siguiente**: queda pendiente y lo
 //     toma la próxima nómina que se liquide.
 //   - Lo ya aplicado no se guarda en ningún lado: se cuenta de los pagos con `adelanto_id`. Por eso
@@ -18,7 +22,7 @@ export type Adelanto = {
   monto: number
   /** Qué día entró la transferencia (AAAA-MM-DD). Es la fecha del pago en el ledger. */
   fecha: string
-  /** A qué mes de sueldo va (AAAA-MM). */
+  /** El mes de sueldo que anotó el Monitor (AAAA-MM). Informativo: el destino lo decide la deuda más vieja. */
   mes: string
   cliente_nombre: string
   cliente_id: string | null
@@ -76,7 +80,7 @@ export function planAdelantos(
     let saldo = centavos(n.neto - n.pagado)
     for (const c of libres) {
       if (saldo <= 0.005) break
-      if (c.restante <= 0.005 || c.adelanto.mes > n.mes) continue
+      if (c.restante <= 0.005) continue
       const monto = centavos(Math.min(c.restante, saldo))
       enganches.push({ adelanto: c.adelanto, nominaId: n.id, mes: n.mes, monto })
       c.restante = centavos(c.restante - monto)
