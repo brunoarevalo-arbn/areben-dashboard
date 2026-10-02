@@ -206,7 +206,7 @@ function PanelPendientes({
 
             <ul className="divide-y divide-border">
               {registros.map((r) => (
-                <li key={r.id} className="flex items-center gap-3 px-4 py-2.5">
+                <li key={r.id} className="flex items-start gap-3 px-4 py-2.5">
                   <input
                     type="checkbox"
                     checked={seleccion.has(r.id)}
@@ -216,7 +216,7 @@ function PanelPendientes({
                   />
                   <span className="font-mono text-sm text-fg-muted w-12">{diaMes(r.fecha)}</span>
                   <span className="font-mono text-sm font-semibold text-fg w-[76px]">{formatHoras(Number(r.cantidad))}</span>
-                  <span className="flex-1 text-xs text-fg-soft truncate">
+                  <span className="flex-1 min-w-0 text-xs text-fg-soft whitespace-pre-wrap break-words">
                     {r.notas}
                     {r.origen === 'EMPLEADO' && <span className="ml-2 italic">la cargó él/ella</span>}
                   </span>
@@ -308,10 +308,20 @@ function PanelMes({
         {delMes.map((r) => {
           const emp = porEmpleado.get(r.empleado_id)
           return (
-            <li key={r.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+            <li key={r.id} className="flex items-start gap-3 px-4 py-2.5 text-sm">
               <span className="font-mono text-fg-muted w-12">{diaMes(r.fecha)}</span>
-              <span className="flex-1 text-fg truncate">
-                {emp ? `${emp.nombre} ${emp.apellido}` : '—'}
+              {/* La descripción que anotó el empleado: aprobada ya no está en Pendientes,
+                  y éste es el único lugar donde se vuelve a leer. */}
+              <span className="flex-1 min-w-0">
+                <span className="block text-fg truncate">
+                  {emp ? `${emp.nombre} ${emp.apellido}` : '—'}
+                </span>
+                {r.notas && (
+                  <span className="block text-xs text-fg-soft whitespace-pre-wrap break-words">{r.notas}</span>
+                )}
+                {r.estado === 'RECHAZADA' && r.rechazo_motivo && (
+                  <span className="block text-xs text-danger">No aprobada: {r.rechazo_motivo}</span>
+                )}
               </span>
               <span className="font-mono text-fg w-32 text-right">
                 {formatHoras(Number(r.cantidad))} al {Number(r.porcentaje)}%
