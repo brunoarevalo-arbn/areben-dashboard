@@ -136,6 +136,7 @@ export function LiquidacionMasivaModal({
 
   // Dos casillas donde antes iba una: cada una entra a la mitad del ancho de las de plata.
   const horaCls = 'w-10 px-1 py-1 bg-surface-2 border border-border-strong rounded text-fg text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary'
+  const inputMontoCls = 'w-28 px-1.5 py-1 bg-surface-2 border border-border-strong rounded text-fg text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary'
   const inputCls = 'w-16 px-1.5 py-1 bg-surface-2 border border-border-strong rounded text-fg text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-primary'
 
   return (
@@ -191,12 +192,12 @@ export function LiquidacionMasivaModal({
                       onChange={(nuevoValor) => setConcepto(e.id, 'pct', nuevoValor)} className={inputCls} />
                   </td>
                   <td className="px-2 py-1.5 text-right">
-                    <NumberInput min="0" step="1000" disabled={!checked} value={c.bono} placeholder="0"
-                      onChange={(nuevoValor) => setConcepto(e.id, 'bono', nuevoValor)} className={inputCls} />
+                    <NumberInput moneda="ARS" min="0" step="1000" disabled={!checked} value={c.bono} placeholder="$ 0"
+                      onChange={(nuevoValor) => setConcepto(e.id, 'bono', nuevoValor)} className={inputMontoCls} />
                   </td>
                   <td className="px-2 py-1.5 text-right">
-                    <NumberInput min="0" step="1000" disabled={!checked} value={c.desc} placeholder="0"
-                      onChange={(nuevoValor) => setConcepto(e.id, 'desc', nuevoValor)} className={inputCls} />
+                    <NumberInput moneda="ARS" min="0" step="1000" disabled={!checked} value={c.desc} placeholder="$ 0"
+                      onChange={(nuevoValor) => setConcepto(e.id, 'desc', nuevoValor)} className={inputMontoCls} />
                   </td>
                   <td className="px-3 py-1.5 text-right font-mono text-xs text-green-700 font-medium">
                     {checked ? formatCurrency(netoEstimado(e)) : '—'}

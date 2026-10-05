@@ -149,6 +149,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
             <NumberInput
               step="0.01"
               name="sueldo_basico"
+              moneda="ARS"
               value={sueldoBasico}
               onChange={setSueldoBasico}
               className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary text-sm"
@@ -320,14 +321,16 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
                 <NumberInput
                   step="0.01"
                   min="0"
+                  moneda={plusNegroTipo === 'MONTO' ? 'ARS' : undefined}
                   value={plusNegroValor}
                   onChange={(nuevoValor) => setPlusNegroValor(Math.max(0, nuevoValor))}
                   className="w-full px-3 py-2 bg-surface-2 border border-[#c8c0b0] rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
                   placeholder="0"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-soft text-xs">
-                  {plusNegroTipo === 'MONTO' ? '$' : '%'}
-                </span>
+                {/* En pesos el "$" ya va adentro del número */}
+                {plusNegroTipo !== 'MONTO' && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-soft text-xs">%</span>
+                )}
               </div>
               <p className="text-[11px] text-fg-soft">
                 {plusNegroTipo === 'MONTO' ? 'Plus fijo en pesos por mes' : 'Se aplica sobre el monto del recibo oficial'}
@@ -367,6 +370,7 @@ function EmpleadoForm({ emp, onClose }: { emp?: Empleado; onClose: () => void })
               <NumberInput
                 step="0.01"
                 min="0"
+                moneda="ARS"
                 value={montoComidas}
                 onChange={setMontoComidas}
                 placeholder="0.00"
@@ -525,6 +529,7 @@ function AjusteSalarialForm({ empleado, onClose }: { empleado: Empleado; onClose
           <NumberInput
             step="0.01"
             min="0"
+            moneda="ARS"
             value={sueldoNuevo}
             onChange={setSueldoNuevo}
             className="w-full px-2 py-1 bg-surface-2 border border-border-strong rounded text-green-700 font-mono focus:outline-none focus:ring-1 focus:ring-primary text-base"

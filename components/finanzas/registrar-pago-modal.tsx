@@ -22,6 +22,10 @@ export interface PagoTarget {
   contexto?: string | null
   /** Cuenta a pre-seleccionar en el formulario (p. ej. cuenta_id del gasto/recurrente). */
   default_cuenta_id?: string | null
+  /** Monto con el que abre el formulario (ej: sólo el sueldo en blanco). Sin esto arranca vacío. */
+  monto_sugerido?: number | null
+  /** Nota con la que abre el formulario, para saber después qué parte se pagó. */
+  notas_sugeridas?: string | null
 }
 
 export interface PagoHistorialItem {
@@ -85,6 +89,18 @@ export function RegistrarPagoModal({
   useEffect(() => {
     if (target?.default_cuenta_id) setCuentaId(target.default_cuenta_id)
   }, [target?.default_cuenta_id, target?.origen_id])
+
+  // Abrir con un monto ya cargado (ej: "Pagar sueldo en blanco" desde la nómina).
+  // Se aplica una vez por apertura, durante el render (no en un efecto).
+  const claveSugerida = open && target?.monto_sugerido ? `${target.origen_id}-${target.monto_sugerido}` : null
+  const [claveAplicada, setClaveAplicada] = useState<string | null>(null)
+  if (claveSugerida !== claveAplicada) {
+    setClaveAplicada(claveSugerida)
+    if (claveSugerida && target?.monto_sugerido) {
+      setMonto(Number(target.monto_sugerido))
+      if (target.notas_sugeridas) setNotas(target.notas_sugeridas)
+    }
+  }
 
   function reset() {
     setMonto(0)
@@ -297,11 +313,12 @@ export function RegistrarPagoModal({
             )}
           </div>
           <NumberInput
+            moneda={moneda}
             step="0.01"
             min="0.01"
             value={monto}
             onChange={setMonto}
-            placeholder="0,00"
+            placeholder={moneda === 'USD' ? 'US$ 0' : '$ 0'}
             className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono focus:outline-none focus:ring-2 focus:ring-primary"
           />
           {excede && (

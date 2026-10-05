@@ -91,3 +91,19 @@ describe('NumberInput — qué muestra el campo', () => {
     expect(out).toContain('disabled')
   })
 })
+
+describe('NumberInput con moneda — lo que manda el formulario', () => {
+  it('se ve "$ 1.234.567" pero el formulario recibe el número', () => {
+    // Las acciones leen con z.coerce.number(): "$ 1.234.567" daría NaN
+    const out = html(<NumberInput moneda="ARS" name="sueldo_basico" value={1234567} onChange={noop} />)
+    expect(out).toContain('value="$ 1.234.567"')
+    expect(out).toContain('type="hidden" name="sueldo_basico" value="1234567"')
+    expect(out.match(/name="sueldo_basico"/g)).toHaveLength(1)
+  })
+
+  it('sin name no agrega campo oculto (ni envoltorio)', () => {
+    const out = html(<NumberInput moneda="ARS" value={5} onChange={noop} />)
+    expect(out.startsWith('<input')).toBe(true)
+    expect(out).not.toContain('hidden')
+  })
+})

@@ -130,7 +130,7 @@ export function numeroDeTexto(texto: string): number {
 
 export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
   (
-    { value, onChange, mostrarCero, label, error, className, id, onFocus, onBlur, seleccionarAlEntrar = true, moneda, ...props },
+    { value, onChange, mostrarCero, label, error, className, id, onFocus, onBlur, seleccionarAlEntrar = true, moneda, name, ...props },
     ref,
   ) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s/g, '-')
@@ -153,10 +153,15 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
     // Con label se comporta como un campo de formulario (mismo estilo que <Input>).
     // Sin label es un input pelado que usa el className de quien lo llama.
     const esCampoDeFormulario = !!label || !!error
+    // Un monto se ve "$ 1.234", pero el formulario tiene que mandar "1234": el nombre pasa
+    // a un campo oculto con el número, y el visible queda sin nombre.
+    const numeroActual = textoEditando !== null && moneda ? montoDeTexto(textoEditando) : (value ?? 0)
+    const oculto = moneda && name ? <input type="hidden" name={name} value={Number.isFinite(numeroActual) ? numeroActual : 0} /> : null
 
     const input = (
       <input
         id={inputId}
+        name={moneda ? undefined : name}
         ref={(el) => {
           inputRef.current = el
           if (typeof ref === 'function') ref(el)
@@ -199,7 +204,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
 
     // Sin label ni error va SIN envoltorio: agregar un <div> acá rompe el diseño
     // de las filas y grillas donde el input estaba puesto directo.
-    if (!esCampoDeFormulario) return input
+    if (!esCampoDeFormulario) return oculto ? <>{input}{oculto}</> : input
 
     return (
       <div className="space-y-1.5">
@@ -209,6 +214,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
           </label>
         )}
         {input}
+        {oculto}
         {error && <p className="text-xs text-danger">{error}</p>}
       </div>
     )

@@ -401,13 +401,14 @@ export function NominaForm({
               <label className="block text-xs font-medium text-fg-muted">Neto del recibo oficial</label>
               <NumberInput
                 step="0.01"
+                moneda="ARS"
                 value={vals.monto_recibo_oficial}
                 onChange={(nuevo) => {
                   const derived = recomputarDerivados({ oficial: nuevo })
                   setVals((v) => ({ ...v, monto_recibo_oficial: nuevo, ...derived }))
                 }}
                 className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-blue-700 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                placeholder="0.00"
+                placeholder="$ 0"
               />
               <p className="text-xs text-fg-soft">El neto del recibo. Recalcula valor hora y adicional automáticamente.</p>
             </div>
@@ -420,10 +421,11 @@ export function NominaForm({
               </label>
               <NumberInput
                 step="0.01"
+                moneda="ARS"
                 value={vals.adicional_no_registrado}
                 onChange={(nuevoValor) => setVals((v) => ({ ...v, adicional_no_registrado: nuevoValor }))}
                 className="w-full px-3 py-2 bg-surface-2 border border-border-strong rounded-lg text-amber-700 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
-                placeholder="0.00"
+                placeholder="$ 0"
               />
               <p className="text-xs text-fg-soft">
                 {empleado && ((empleado.horas_acuerdo_negro ?? 0) > 0 || (empleado.plus_negro_tipo && (empleado.plus_negro_valor ?? 0) > 0))
@@ -437,6 +439,7 @@ export function NominaForm({
         <NumberInput
           label="Sueldo básico (NEGRO)"
           name="sueldo_basico" step="0.01"
+          moneda="ARS"
           value={vals.sueldo_basico}
           onChange={(nuevo) => {
             const derived = recomputarDerivados({ basico: nuevo })
@@ -458,12 +461,14 @@ export function NominaForm({
         <NumberInput
           label="Valor hora"
           name="valor_hora" step="0.01"
+          moneda="ARS"
           value={vals.valor_hora}
           onChange={(nuevoValor) => setVals((v) => ({ ...v, valor_hora: nuevoValor }))}
         />
         <NumberInput
           label={esBlanco ? 'Comida' : 'Comidas (acuerdo)'}
           name="comida" step="0.01"
+          moneda="ARS"
           value={vals.comida}
           onChange={(nuevoValor) => setVals((v) => ({ ...v, comida: nuevoValor }))}
         />
@@ -483,6 +488,7 @@ export function NominaForm({
           <NumberInput
             label="Monto del aguinaldo"
             name="aguinaldo_directo_visible" step="0.01" min="0"
+            moneda="ARS"
             value={vals.aguinaldo_directo}
             onChange={(nuevoValor) => setVals((v) => ({ ...v, aguinaldo_directo: Math.max(0, nuevoValor) }))}
             placeholder="0"
@@ -510,6 +516,7 @@ export function NominaForm({
           <NumberInput
             label="Monto a tomar de la caja"
             name="aguinaldo_desde_caja_visible" step="0.01" min="0" max={cajaAguinaldos[empleadoId] ?? 0}
+            moneda="ARS"
             value={vals.aguinaldo_pagado_de_caja}
             onChange={(nuevoValor) => setVals((v) => ({ ...v, aguinaldo_pagado_de_caja: Math.max(0, Math.min(cajaAguinaldos[empleadoId] ?? 0, nuevoValor)) }))}
             placeholder="0"
@@ -680,6 +687,7 @@ export function NominaForm({
             <NumberInput
               label="Monto"
               name="bono_monto" step="0.01" min="0"
+              moneda="ARS"
               value={vals.bono_monto}
               onChange={(nuevoValor) => setVals((v) => ({ ...v, bono_monto: Math.max(0, nuevoValor) }))}
               placeholder="0"
@@ -727,6 +735,7 @@ export function NominaForm({
             <NumberInput
               label="Monto"
               name="descuento_otro_monto" step="0.01" min="0"
+              moneda="ARS"
               value={vals.descuento_otro_monto}
               onChange={(nuevoValor) => setVals((v) => ({ ...v, descuento_otro_monto: Math.max(0, nuevoValor) }))}
               placeholder="0"
