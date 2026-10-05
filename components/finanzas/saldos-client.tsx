@@ -277,12 +277,13 @@ function CuentaRow({
         {editando ? (
           <NumberInput
             step="0.01"
+            moneda="ARS"
             value={ars}
             onChange={setArs}
             // El saldo ya cargado en $0 es un dato real (ej: una cuenta que cerró
             // el mes en cero), así que el campo tiene que mostrar el 0, no vacío.
             mostrarCero={!!saldo}
-            className="w-32 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-40 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
         ) : (
           <div className="flex flex-col items-end gap-0.5">
@@ -296,10 +297,11 @@ function CuentaRow({
           editando ? (
             <NumberInput
               step="0.01"
+              moneda="USD"
               value={usd}
               onChange={setUsd}
               mostrarCero={!!saldo}
-              className="w-32 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-green-700 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-40 px-2 py-1 bg-surface-2 border border-[#c8c0b0] rounded text-green-700 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           ) : (
             <span className="font-mono text-green-700 text-sm">{formatCurrency(saldo?.saldo_usd ?? 0, 'USD')}</span>
@@ -580,22 +582,24 @@ function BulkSaldosGrid({
                     <td className="px-4 py-2 text-right">
                       <NumberInput
                         step="0.01"
+                        moneda="ARS"
                         value={v.ars}
                         onChange={(nuevoValor) => setVal(c.id, 'ars', nuevoValor)}
                         mostrarCero={saldosByCuenta.has(c.id)}
-                        placeholder="0,00"
-                        className="w-32 px-2 py-1 bg-surface-2 border border-border-strong rounded text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
+                        placeholder="$ 0"
+                        className="w-40 px-2 py-1 bg-surface-2 border border-border-strong rounded text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
                       />
                     </td>
                     <td className="px-4 py-2 text-right">
                       {c.permite_dual ? (
                         <NumberInput
                           step="0.01"
+                          moneda="USD"
                           value={v.usd}
                           onChange={(nuevoValor) => setVal(c.id, 'usd', nuevoValor)}
                           mostrarCero={saldosByCuenta.has(c.id)}
-                          placeholder="0,00"
-                          className="w-32 px-2 py-1 bg-surface-2 border border-border-strong rounded text-green-700 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
+                          placeholder="US$ 0"
+                          className="w-40 px-2 py-1 bg-surface-2 border border-border-strong rounded text-green-700 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
                         />
                       ) : (
                         <span className="text-xs text-fg-muted">— sólo ARS —</span>
@@ -832,9 +836,10 @@ export function SaldosClient({ mes, titulares, cuentas, saldos, saldosAnteriores
           <NumberInput
             step="0.01"
             min="0"
+            moneda="ARS"
             value={tcInput}
             onChange={setTcInput}
-            placeholder="Ej: 1080"
+            placeholder="Ej: $ 1.080"
             className="w-32 px-3 py-1.5 bg-surface-2 border border-border-strong rounded-lg text-fg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <Button size="sm" onClick={guardarTC} disabled={isPending}>
