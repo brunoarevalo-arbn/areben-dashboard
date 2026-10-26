@@ -215,3 +215,97 @@ export function ajusteDelMesPartido(args: {
     diferencia,
   }
 }
+
+/**
+ * --- Renovar con el mes del vencimiento abierto ---
+ *
+ * Lo normal es renovar el mismo día que vence, y ese mes todavía no terminó: está
+ * abierto. Antes se exigía cerrarlo primero, así que nunca se podía renovar a tiempo.
+ * Ahora el mes del vencimiento puede quedar abierto y los dos pedazos conviven en su
+ * fila mientras tanto: lo del plazo viejo (del 1 al día antes del vencimiento) y lo del
+ * nuevo (`int_inicio_prorrateado`). Al cerrarlo, el gasto sale por los dos juntos.
+ *
+ * Caso real: Javier Sequeira INV-001 (vence 9/10) e INV-002 (vence 18/10), con
+ * septiembre cerrado y octubre abierto.
+ */
+
+/**
+ * Con cuánto arranca el plazo nuevo cuando el mes del vencimiento está abierto: lo que
+ * había al empezar el mes + los intereses del plazo viejo en ese mes (hasta el
+ * vencimiento) + la plata que se movió en el mes ANTES de vencer.
+ *
+ * Lo movido desde el día del vencimiento en adelante no entra: ya es del plazo nuevo y
+ * el motor lo cuenta ahí. Un movimiento sin día no se puede ubicar, así que no se
+ * renueva hasta que lo tenga.
+ */
+export function capitalAlVencimiento(args: {
+  fechaVencimiento: string // YYYY-MM-DD
+  /** La fila del mes del vencimiento, calculada con el plazo viejo. */
+  filaDelMes: { saldo_inicio: number | string | null; interes_devengado: number | string | null }
+  /** Saldo con el que cerró el último mes cerrado anterior, si hay. */
+  cierreAnterior: number | null
+  movimientosDelMes: { fecha?: string | null; monto: number }[]
+}): { ok: true; capital: number; interesDelMes: number; movidoAntes: number } | { ok: false; error: string } {
+  const { fechaVencimiento, filaDelMes, cierreAnterior, movimientosDelMes } = args
+  const saldoInicio = round(num(filaDelMes.saldo_inicio))
+  if (cierreAnterior !== null && Math.abs(saldoInicio - round(cierreAnterior)) > TOLERANCIA) {
+    return {
+      ok: false,
+      error: `El mes del vencimiento arranca con ${saldoInicio.toFixed(2)} pero el mes anterior cerró con ${round(cierreAnterior).toFixed(2)}. Hay que revisar las cuentas antes de renovar.`,
+    }
+  }
+  if (movimientosDelMes.some((m) => !m.fecha && m.monto)) {
+    return { ok: false, error: 'Hay un movimiento de este mes sin día. Ponele la fecha antes de renovar.' }
+  }
+  const movidoAntes = round(
+    movimientosDelMes.filter((m) => m.fecha && m.fecha < fechaVencimiento).reduce((s, m) => s + m.monto, 0),
+  )
+  const interesDelMes = round(num(filaDelMes.interes_devengado))
+  return { ok: true, capital: round(saldoInicio + interesDelMes + movidoAntes), interesDelMes, movidoAntes }
+}
+
+/**
+ * La fila del mes en que arrancó el plazo vigente, cuando ese mes sigue ABIERTO y el
+ * instrumento ya tenía meses antes (o sea, viene de una renovación).
+ *
+ * Los meses abiertos se borran y se vuelven a calcular cada vez que se toca algo, pero
+ * el motor sólo conoce el plazo vigente: recalculada a secas, la fila perdería los días
+ * del plazo viejo (la "cola perdida" del caso Tello, US$36,88). Acá se arma con:
+ * - el arranque = el cierre del último mes cerrado (no el capital del plazo nuevo);
+ * - lo del plazo viejo, tal como estaba guardado (`interés − int_inicio_prorrateado`);
+ * - lo del plazo nuevo, recién calculado.
+ * Correrlo dos veces da lo mismo.
+ *
+ * Devuelve null cuando no aplica: plazo que arranca un día 1, mes cerrado (de eso se
+ * ocupa `ajusteDelMesPartido`), instrumento sin meses anteriores, o fila sin guardar.
+ */
+export function filaDelMesPartidoAbierto(args: {
+  fechaInicioCiclo: string
+  /** La fila guardada de ese mes, antes de recalcular. */
+  guardado: FilaMesPartido | undefined | null
+  /** Saldo del último mes cerrado ANTERIOR a este. */
+  cierreAnterior: number | null
+  /** Lo que el motor le asigna a ese mes por el plazo nuevo. */
+  pedazoDelPlazoNuevo: number
+  /** Toda la plata movida en el mes. */
+  movimientoDelMes: number
+}): { saldo_inicio: number; interes_devengado: number; int_inicio_prorrateado: number; int_fin_prorrateado: number; saldo_cierre: number } | null {
+  const { fechaInicioCiclo, guardado, cierreAnterior, pedazoDelPlazoNuevo, movimientoDelMes } = args
+  if (!guardado || guardado.cerrado || cierreAnterior === null) return null
+  if (fechaInicioCiclo.substring(8) === '01') return null
+  if (guardado.mes !== fechaInicioCiclo.substring(0, 7)) return null
+
+  const delPlazoViejo = round(num(guardado.interes_devengado) - num(guardado.int_inicio_prorrateado))
+  if (delPlazoViejo < -TOLERANCIA) return null
+
+  const saldoInicio = round(cierreAnterior)
+  const pedazo = round(pedazoDelPlazoNuevo)
+  const interes = round(delPlazoViejo + pedazo)
+  return {
+    saldo_inicio: saldoInicio,
+    interes_devengado: interes,
+    int_inicio_prorrateado: pedazo,
+    int_fin_prorrateado: delPlazoViejo,
+    saldo_cierre: round(saldoInicio + interes + movimientoDelMes),
+  }
+}

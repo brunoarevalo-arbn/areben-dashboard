@@ -4,7 +4,7 @@ import { createClient, requireUser } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { generarPeriodos, getCurrentMonth, planDevolucion, sumarMeses, sumarDias, diasEntre, mesesEntre, situacionEnMes, type FilaPeriodo, type MovimientoCalc } from '@/lib/inversiones-calc'
-import { capitalAlRenovar, ajusteDelMesPartido, type AjusteMesPartido } from '@/lib/inversiones-cadena'
+import { capitalAlRenovar, capitalAlVencimiento, ajusteDelMesPartido, filaDelMesPartidoAbierto, type AjusteMesPartido } from '@/lib/inversiones-cadena'
 import type { MotivoMovimiento } from '@/types/database'
 
 // ============ INVERSORES ============
@@ -151,7 +151,11 @@ function cacheDeMovimientos(
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
-async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createClient>>, instrumentoId: string) {
+async function regenerarPeriodosDB(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  instrumentoId: string,
+  opts?: { /** Calcular por lo menos hasta este mes (YYYY-MM), aunque todavía no haya llegado. */ hastaMinimo?: string },
+) {
   const { data: inst } = await supabase.from('instrumentos_inversion').select('*').eq('id', instrumentoId).single()
   if (!inst) return { ajustes: [] as AjusteMesPartido[] }
 
@@ -184,15 +188,22 @@ async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createCli
 
   const { data: existentes } = await supabase
     .from('periodos_instrumento')
-    .select('id, mes, cerrado, saldo_inicio, interes_devengado, int_inicio_prorrateado, movimiento')
+    .select('id, mes, cerrado, saldo_inicio, interes_devengado, int_inicio_prorrateado, movimiento, saldo_cierre')
     .eq('instrumento_id', instrumentoId)
   const cerrados = new Set<string>()
   for (const p of existentes ?? []) if (p.cerrado) cerrados.add(p.mes)
   const guardadoPorMes = new Map((existentes ?? []).map((p) => [p.mes, p]))
 
-  const hasta = inst.fecha_fin && inst.fecha_fin <= getCurrentMonthBoundary()
+  let hasta = inst.fecha_fin && inst.fecha_fin <= getCurrentMonthBoundary()
     ? inst.fecha_fin.substring(0, 7)
     : getCurrentMonth()
+  // El mes en que arrancó el plazo vigente, si ya tiene fila abierta, no se suelta aunque
+  // todavía no haya llegado (renovar antes de un vencimiento del mes que viene): esa fila
+  // guarda los últimos días del plazo viejo, y borrarla los pierde.
+  const mesInicioCiclo = String(inst.fecha_inicio).substring(0, 7)
+  const filaInicio = guardadoPorMes.get(mesInicioCiclo)
+  if (filaInicio && !filaInicio.cerrado && mesInicioCiclo > hasta) hasta = mesInicioCiclo
+  if (opts?.hastaMinimo && opts.hastaMinimo > hasta) hasta = opts.hastaMinimo
 
   const periodos = generarPeriodos({
     capitalInicial: Number(inst.capital_inicial),
@@ -208,21 +219,39 @@ async function regenerarPeriodosDB(supabase: Awaited<ReturnType<typeof createCli
   // Borrar abiertos y reinsertar (los cerrados nunca se tocan)
   await supabase.from('periodos_instrumento').delete().eq('instrumento_id', instrumentoId).eq('cerrado', false)
 
+  // El mes en que arrancó el plazo, si sigue abierto y viene de una renovación, mantiene
+  // los días del plazo viejo que ya tenía. Ver `filaDelMesPartidoAbierto`.
+  const cierreAnteriorAlInicio = (existentes ?? [])
+    .filter((p) => p.cerrado && p.mes < mesInicioCiclo)
+    .sort((a, b) => b.mes.localeCompare(a.mes))[0]
+
   const rows = periodos
     .filter((p) => !cerrados.has(p.mes))
-    .map((p) => ({
-      instrumento_id: instrumentoId,
-      mes: p.mes,
-      saldo_inicio: p.saldo_inicio,
-      interes_devengado: p.interes_devengado,
-      int_inicio_prorrateado: p.int_inicio_prorrateado,
-      int_fin_prorrateado: p.int_fin_prorrateado,
-      movimiento: cache.totales[p.mes] ?? 0,
-      fecha_movimiento: cache.fechas[p.mes] ?? null,
-      saldo_cierre: p.saldo_cierre,
-      tasa_aplicada: p.tasa_aplicada,
-      cerrado: false,
-    }))
+    .map((p) => {
+      const movimiento = cache.totales[p.mes] ?? 0
+      const partido = p.mes === mesInicioCiclo
+        ? filaDelMesPartidoAbierto({
+            fechaInicioCiclo: inst.fecha_inicio,
+            guardado: guardadoPorMes.get(p.mes),
+            cierreAnterior: cierreAnteriorAlInicio ? Number(cierreAnteriorAlInicio.saldo_cierre) : null,
+            pedazoDelPlazoNuevo: p.int_inicio_prorrateado,
+            movimientoDelMes: movimiento,
+          })
+        : null
+      return {
+        instrumento_id: instrumentoId,
+        mes: p.mes,
+        saldo_inicio: partido?.saldo_inicio ?? p.saldo_inicio,
+        interes_devengado: partido?.interes_devengado ?? p.interes_devengado,
+        int_inicio_prorrateado: partido?.int_inicio_prorrateado ?? p.int_inicio_prorrateado,
+        int_fin_prorrateado: partido?.int_fin_prorrateado ?? p.int_fin_prorrateado,
+        movimiento,
+        fecha_movimiento: cache.fechas[p.mes] ?? null,
+        saldo_cierre: partido?.saldo_cierre ?? p.saldo_cierre,
+        tasa_aplicada: p.tasa_aplicada,
+        cerrado: false,
+      }
+    })
   if (rows.length > 0) {
     await supabase.from('periodos_instrumento').insert(rows)
   }
@@ -392,16 +421,19 @@ export type RenovarResult =
       capitalizable: boolean
       /** Meses ya cerrados que sumaron los primeros días del plazo nuevo (mes partido). */
       ajustes: AjusteMesPartido[]
+      /** Se renovó antes del día del vencimiento. */
+      antesDeVencer: boolean
     }
   | { ok: false; error: string }
 
 /**
  * Renueva un instrumento de inversión sobre sí mismo:
- * 1) Calcula el saldo final del ciclo actual (capital + intereses devengados de períodos cerrados)
- * 2) Actualiza el instrumento con: capital_inicial = saldo final, fecha_inicio = fecha_fin actual, fecha_fin = nueva + plazo_dias
+ * 1) Calcula el saldo al vencimiento (capital + intereses del plazo hasta el día que vence)
+ * 2) Actualiza el instrumento con: capital_inicial = ese saldo, fecha_inicio = fecha_fin actual, fecha_fin = nueva + plazo_dias
  * 3) Regenera períodos (los cerrados se preservan)
  *
- * Requiere que NO haya períodos abiertos (todos cerrados).
+ * El único mes que puede estar abierto es el del vencimiento: sus días se reparten entre
+ * el plazo viejo y el nuevo dentro de la misma fila. Los anteriores tienen que estar cerrados.
  */
 export async function renovarInstrumento(
   instrumentoId: string,
@@ -433,18 +465,21 @@ export async function renovarInstrumento(
     return { ok: false, error: 'El instrumento no tiene plazo definido. Configuralo antes de renovar, o elegí una fecha de vencimiento al renovar.' }
   }
 
-  // 3. Verificar que NO haya períodos abiertos
+  // 3. El mes del vencimiento puede estar abierto (es lo normal si se renueva el día que
+  //    vence). Cualquier otro mes abierto, no: el motor sólo recalcula el plazo vigente,
+  //    y un mes del plazo viejo que quedara abierto se perdería al renovar.
+  const mesVencimiento = inst.fecha_fin.substring(0, 7)
   const { data: periodosAbiertos } = await supabase
     .from('periodos_instrumento')
     .select('mes')
     .eq('instrumento_id', instrumentoId)
     .eq('cerrado', false)
 
-  if (periodosAbiertos && periodosAbiertos.length > 0) {
-    const meses = periodosAbiertos.map((p) => p.mes).join(', ')
+  const otrosAbiertos = (periodosAbiertos ?? []).map((p) => p.mes).filter((m) => m !== mesVencimiento).sort()
+  if (otrosAbiertos.length > 0) {
     return {
       ok: false,
-      error: `Hay ${periodosAbiertos.length} período(s) abierto(s) (${meses}). Cerralos desde /inversiones/cierre antes de renovar.`,
+      error: `Primero cerrá ${otrosAbiertos.join(', ')} desde Inversiones → Cierre mensual. El único mes que puede quedar abierto al renovar es el del vencimiento (${mesVencimiento}).`,
     }
   }
 
@@ -474,7 +509,42 @@ export async function renovarInstrumento(
   if (!ultimo) {
     return { ok: false, error: 'No hay períodos cerrados. Cerrá al menos uno antes de renovar.' }
   }
-  const capitalNuevo = ultimo.capital
+  let capitalNuevo = ultimo.capital
+
+  // 4b. Si el mes del vencimiento NO está cerrado y el plazo vence a mitad de mes, el
+  //     saldo del último cerrado no alcanza: le faltan los días del plazo viejo dentro de
+  //     ese mes. Se calcula esa fila con el plazo viejo (aunque el mes no haya llegado,
+  //     si se renueva antes) y se suma. Así el capital nuevo es el del contrato: lo que
+  //     rinde el plazo completo hasta el día que vence. Caso Tello (30-sep): renovado
+  //     antes de vencer, quedaron afuera los 5 días de octubre, US$36,88.
+  //     Un plazo que vence un día 1 no tiene días en ese mes: alcanza con el último cierre.
+  const mesVencimientoCerrado = (periodosCerrados ?? []).some((p) => p.mes === mesVencimiento)
+  if (!mesVencimientoCerrado && inst.fecha_fin.substring(8) !== '01') {
+    await regenerarPeriodosDB(supabase, instrumentoId, { hastaMinimo: mesVencimiento })
+    const { data: filaDelMes } = await supabase
+      .from('periodos_instrumento')
+      .select('saldo_inicio, interes_devengado')
+      .eq('instrumento_id', instrumentoId)
+      .eq('mes', mesVencimiento)
+      .maybeSingle()
+    if (!filaDelMes) {
+      return { ok: false, error: `No se pudo calcular ${mesVencimiento}, el mes del vencimiento. Probá de nuevo o avisá.` }
+    }
+    const cierreAnterior = capitalAlRenovar((periodosCerrados ?? []).filter((p) => p.mes < mesVencimiento))
+    const { data: movsDelMes } = await supabase
+      .from('movimientos_instrumento')
+      .select('fecha, monto')
+      .eq('instrumento_id', instrumentoId)
+      .eq('mes', mesVencimiento)
+    const r = capitalAlVencimiento({
+      fechaVencimiento: inst.fecha_fin,
+      filaDelMes,
+      cierreAnterior: cierreAnterior?.capital ?? null,
+      movimientosDelMes: (movsDelMes ?? []).map((m) => ({ fecha: m.fecha ?? null, monto: Number(m.monto) })),
+    })
+    if (!r.ok) return { ok: false, error: r.error }
+    capitalNuevo = r.capital
+  }
 
   // Un capital de cero o negativo no es un instrumento que se renueva: es uno que se
   // devolvió, o que tiene los movimientos mal cargados. Renovarlo dejaría al inversor
@@ -525,11 +595,14 @@ export async function renovarInstrumento(
 
   // 6b. Update instrumento
   const hoyISO = new Date().toISOString().substring(0, 10)
+  // El día en Argentina: a la noche `toISOString` ya da el día siguiente.
+  const antesDeVencer = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }) < nuevaFechaInicio
   const cambios = [
     `Capital anterior: $${capitalAnterior.toFixed(2)} → Nuevo: $${capitalNuevo.toFixed(2)}`,
     `Periodo: ${nuevaFechaInicio} → ${nuevaFechaFin}`,
     tasaCambio ? `Tasa: ${(tasaAnterior * 100).toFixed(2)}% → ${(nuevaTasa * 100).toFixed(2)}%` : null,
     capCambio ? `Capitalización: ${inst.capitalizable ? 'sí' : 'no'} → ${nuevoCapitalizable ? 'sí' : 'no'}` : null,
+    antesDeVencer ? `Renovado ANTES del vencimiento (${nuevaFechaInicio})` : null,
   ].filter(Boolean).join('. ')
   const notaRenovacion = `[${hoyISO}] Renovado. ${cambios}.`
   const nuevasNotas = inst.notas ? `${inst.notas}\n${notaRenovacion}` : notaRenovacion
@@ -605,6 +678,7 @@ export async function renovarInstrumento(
     tasaMensual: nuevaTasa,
     capitalizable: nuevoCapitalizable,
     ajustes,
+    antesDeVencer,
   }
 }
 

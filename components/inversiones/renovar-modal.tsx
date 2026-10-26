@@ -51,6 +51,8 @@ export function RenovarModal({
   const [error, setError] = useState<string | null>(null)
 
   const nuevoInicio = instrumento.fecha_fin ?? ''
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
+  const antesDeVencer = !!nuevoInicio && hoy < nuevoInicio
   const nuevoFin = modo === 'meses' && nuevoInicio ? addMonths(nuevoInicio, meses) : fechaCustom
   const tasaNum = Number(tasaPct.replace(',', '.'))
 
@@ -69,7 +71,7 @@ export function RenovarModal({
       onDone({
         kind: 'success',
         message: `Instrumento renovado`,
-        detail: `Capital ${formatMoneda(r.capitalAnterior, instrumento.moneda)} → ${formatMoneda(r.capitalNuevo, instrumento.moneda)} · ${formatDate(r.fechaInicio)} → ${formatDate(r.fechaFin)} · ${(r.tasaMensual * 100).toFixed(2)}%/mes · ${r.capitalizable ? 'capitaliza' : 'no capitaliza'}`,
+        detail: `Capital ${formatMoneda(r.capitalAnterior, instrumento.moneda)} → ${formatMoneda(r.capitalNuevo, instrumento.moneda)} · ${formatDate(r.fechaInicio)} → ${formatDate(r.fechaFin)} · ${(r.tasaMensual * 100).toFixed(2)}%/mes · ${r.capitalizable ? 'capitaliza' : 'no capitaliza'}${r.antesDeVencer ? ' · renovado antes del vencimiento' : ''}`,
       })
       onClose()
     })
@@ -84,7 +86,7 @@ export function RenovarModal({
           <span className="font-mono font-semibold text-fg">{formatMoneda(saldoActual, instrumento.moneda)}</span>
         </div>
         <p className="text-[11px] text-fg-soft leading-snug">
-          El capital nuevo = este capital + los intereses de los períodos cerrados. El monto exacto te lo confirma el sistema al renovar.
+          El capital nuevo = el saldo con los intereses hasta el día que vence. El monto exacto te lo confirma el sistema al renovar.
         </p>
         <div className="flex justify-between">
           <span className="text-fg-muted">Nuevo ciclo arranca</span>
@@ -198,9 +200,15 @@ export function RenovarModal({
       </div>
 
       <p className="text-xs text-fg-soft">
-        Al renovar, los intereses de los períodos cerrados se suman al capital y se abre el nuevo ciclo con ese saldo.
-        Requiere que <strong>todos los períodos estén cerrados</strong>.
+        Al renovar, los intereses hasta el vencimiento se suman al capital y el plazo nuevo arranca con ese saldo.
+        El mes del vencimiento puede seguir abierto; los meses anteriores tienen que estar cerrados.
       </p>
+
+      {antesDeVencer && (
+        <p className="text-sm text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+          Todavía no venció: vence el <strong>{formatDate(nuevoInicio)}</strong>. Si lo renovás hoy, el plazo nuevo igual arranca ese día.
+        </p>
+      )}
 
       {error && <p className="text-sm text-red-700 whitespace-pre-line">{error}</p>}
 
