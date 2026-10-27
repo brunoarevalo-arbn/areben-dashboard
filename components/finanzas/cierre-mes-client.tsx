@@ -26,6 +26,7 @@ import {
   ArrowDownCircle, FileText, DollarSign, ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { GastosDelMes } from '@/lib/gastos-comerciales'
 
 interface ComprasPendiente {
   id: string
@@ -145,6 +146,7 @@ interface Props {
   planesAfip?: { nombre: string; capital: number }[]
   resultadosAcumuladosPrevios?: number
   cierresCerrados?: { mes: string; resultado_ars: number }[]
+  gastosComerciales?: GastosDelMes[]
 }
 
 export function CierreMesClient(props: Props) {
@@ -567,6 +569,39 @@ export function CierreMesClient(props: Props) {
         <MoneyInput label="Caja ARS" value={cajaArs} onChange={setCajaArs} disabled={cerrado} prefix="$" />
         <MoneyInput label="Caja USD" value={cajaUsd} onChange={setCajaUsd} disabled={cerrado} prefix="U$S" />
       </div>
+
+      {/* GASTOS COMERCIALES — lo que cuesta vender, del ERP. Informativo: ⛔ mueve el resultado (Bruno, 28-oct). Va antes de la posición de mercadería. */}
+      {props.gastosComerciales && (
+        <Section title="Gastos comerciales" subtitle="Lo que cuesta vender (del ERP) — informativo, no suma al resultado" icon={Receipt} color="purple"
+          total={<span className="text-purple-700">{formatCurrency(props.gastosComerciales.reduce((s, g) => s + (g.datos?.total ?? 0), 0))}</span>}
+          info={{ titulo: 'Gastos comerciales — de dónde salen', cuerpo: <>
+            <p>Los carga el ERP del Monitor: las <strong>comisiones</strong> de las plataformas (tasa de la ruta de cobro × monto), los <strong>impuestos</strong> y otros costos de vender, como el envío de una devolución. Son los del mes, ya confirmados.</p>
+            <p>Hoy sólo se muestran: <strong>no entran al resultado</strong> hasta confirmar que no se cuentan dos veces con lo que ya se carga a mano en Gastos.</p>
+          </> }}>
+          <div className="divide-y divide-border">
+            {props.gastosComerciales.map((g) => (
+              <div key={g.marca} className="py-3 first:pt-0 last:pb-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-fg">{g.marca === 'ZATTIA' ? 'Zattia (con Stunned)' : 'BDI'}</span>
+                  <span className="font-mono text-sm font-semibold text-fg">{g.datos ? formatCurrency(g.datos.total) : '—'}</span>
+                </div>
+                {g.datos ? (
+                  <>
+                    <p className="text-xs text-fg-soft mt-1">
+                      Comisiones {formatCurrency(g.datos.porTipo.comision)} · Impuestos {formatCurrency(g.datos.porTipo.impuesto)} · Otros {formatCurrency(g.datos.porTipo.otro)}
+                    </p>
+                    {g.datos.cobrosSinComision > 0 && (
+                      <p className="text-xs text-amber-700 mt-1">{g.datos.cobrosSinComision} cobros con tarjeta o Mercado Pago no tienen la tasa de su ruta cargada: esas comisiones no están en el total.</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-amber-700 mt-1">No se pudo traer del ERP: {g.aviso}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
 
       {/* SECCIÓN ACTIVOS */}
       <Section title="Activos" subtitle="Lo que tengo (efectivo + saldos en cuentas)" icon={Wallet} color="indigo" total={<span className="text-primary">{formatCurrency(totalActivosArs + totalActivosUsd * tipoCambio)}</span>}

@@ -5,6 +5,7 @@ import { lugaresConDolares } from '@/lib/saldos-revision'
 import { CierreMesClient } from '@/components/finanzas/cierre-mes-client'
 import { totalPagadoPorGasto } from '@/lib/pagos-gastos'
 import { existianAlCierre } from '@/lib/inversiones-cadena'
+import { gastosComercialesDelMes } from '@/lib/gastos-comerciales'
 
 export default async function CierreMesPage({
   searchParams,
@@ -353,9 +354,16 @@ export default async function CierreMesPage({
     })
   }
 
+  // Lo que cuesta vender, del ERP (informativo: ⛔ mueve el resultado). Si el Monitor no contesta, la sección lo dice.
+  const gastosComerciales = await Promise.all([
+    gastosComercialesDelMes('BDI', `${mes}-01`, mesFin),
+    gastosComercialesDelMes('ZATTIA', `${mes}-01`, mesFin),
+  ])
+
   return (
     <CierreMesClient
       mes={mes}
+      gastosComerciales={gastosComerciales}
       validaciones={validaciones}
       mesAnterior={mesAnterior}
       cierreActual={cierreActual}
