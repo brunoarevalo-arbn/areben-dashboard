@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { planAdelantos, type Adelanto } from '@/lib/calc/adelantos'
+import { planAdelantos, type Adelanto, saldosDeSueldos } from '@/lib/calc/adelantos'
 
 const adel = (id: string, monto: number, fecha: string, mes: string): Adelanto => ({
   id, monto, fecha, mes, cliente_nombre: `Cliente ${id}`, cliente_id: null,
@@ -112,5 +112,16 @@ describe('planAdelantos', () => {
     )
     expect(p.enganches).toEqual([])
     expect(p.bloqueados.map((x) => x.restante)).toEqual([100_000])
+  })
+})
+
+describe('saldosDeSueldos', () => {
+  it('resta lo pagado, saca lo saldado y pone el mes más viejo primero', () => {
+    const r = saldosDeSueldos([
+      { empleado_id: 'a', mes: '2026-10', neto: 1000, pagado: 400 },
+      { empleado_id: 'b', mes: '2026-10', neto: 500, pagado: 500 },
+      { empleado_id: 'c', mes: '2026-09', neto: 300, pagado: 0 },
+    ])
+    expect(r.map((s) => [s.empleado_id, s.saldo])).toEqual([['c', 300], ['a', 600]])
   })
 })

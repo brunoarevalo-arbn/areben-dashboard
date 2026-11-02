@@ -103,3 +103,18 @@ export function planAdelantos(
     bloqueados,
   }
 }
+
+export type NominaImpaga = { empleado_id: string; mes: string; neto: number; pagado: number }
+
+export type SaldoDeSueldo = NominaImpaga & { saldo: number }
+
+/**
+ * Lo que falta pagar de cada sueldo ya liquidado (neto menos todo lo pagado, venga o no de un
+ * adelanto). Lo muestra la sección Pagos del Monitor. Lo saldado no aparece; el más viejo va primero.
+ */
+export function saldosDeSueldos(nominas: NominaImpaga[]): SaldoDeSueldo[] {
+  return nominas
+    .map((n) => ({ ...n, saldo: centavos(Number(n.neto) - Number(n.pagado)) }))
+    .filter((n) => n.saldo > 0.005)
+    .sort((a, b) => a.mes.localeCompare(b.mes) || b.saldo - a.saldo)
+}
