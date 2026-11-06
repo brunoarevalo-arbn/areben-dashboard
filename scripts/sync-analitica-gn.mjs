@@ -9,7 +9,7 @@ const mesMin = DESDE.slice(0, 7)
 // y filtramos el mes en memoria (por date_sale).
 const API_FROM = '2020-01-01'
 const supa = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
-const BASE = 'https://www.gestionnube.com/api/v1'
+const BASE = 'https://erp.arebensrl.com/api/v1' // el ERP contesta igual que GN y trae GN + ERP (nov-2026)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 async function gn(token, path, t = 4) { for (let i = 0; i < t; i++) { try { const r = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }); if (r.ok) return r.json() } catch {} await sleep(500 * (i + 1)) } }
 const num = (x) => Number(x) || 0
@@ -21,7 +21,7 @@ const arebenSet = new Set((cc || []).filter((r) => r.tipo === 'areben').map((r) 
 
 const acc = new Map() // key -> fila
 for (const c of cuentas) {
-  const token = env['GN_TOKEN_' + c.alias.toUpperCase()]
+  const token = env['ERP_LLAVE_DASHBOARD_' + c.alias.toUpperCase()]
   if (!token) continue
   const marcas = c.marcas
   const marcaBase = marcas.find((m) => m.toUpperCase() !== 'STUNNED') ?? marcas[0]

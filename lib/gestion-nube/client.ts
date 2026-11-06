@@ -1,21 +1,24 @@
-// Cliente de la API de Gestión Nube (https://www.gestionnube.com/api/v1).
-// Portado de areben-produccion, adaptado a MULTI-CUENTA: el token se pasa por
-// parámetro (no hay un único GESTIONNUBE_TOKEN global). Cada cuenta tiene su
-// token en una env var GN_TOKEN_<ALIAS> (ej. GN_TOKEN_BDI, GN_TOKEN_ZATTIA).
+// Cliente de la API de ventas/stock/productos. Desde nov-2026 apunta al ERP
+// (https://erp.arebensrl.com/api/v1), que contesta EXACTAMENTE lo mismo que Gestión Nube
+// (mismos recursos, campos y paginación) y trae las ventas de GN y las del ERP, cada una
+// una sola vez; cada venta viene con `fuente: 'gn' | 'erp'`. Antes apuntaba a
+// https://www.gestionnube.com/api/v1 con GN_TOKEN_<ALIAS>.
+// MULTI-CUENTA: la llave se pasa por parámetro. Cada cuenta tiene la suya en
+// ERP_LLAVE_DASHBOARD_<ALIAS> (ERP_LLAVE_DASHBOARD_BDI, ERP_LLAVE_DASHBOARD_ZATTIA).
 //
 // La API es inestable (500 intermitentes) y limita por tasa (429 con `retry_after`),
 // así que todo va con retry/backoff. `per_page=100` sí funciona en /ventas (la meta
 // vuelve con per_page: 100); el techo de 50 vale para el resto de los endpoints.
 
-const BASE = 'https://www.gestionnube.com/api/v1'
+const BASE = 'https://erp.arebensrl.com/api/v1'
 
 export class GestionNubeError extends Error {}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-/** Token Bearer de una cuenta, leído de env GN_TOKEN_<ALIAS>. */
+/** Llave Bearer de una cuenta, leída de env ERP_LLAVE_DASHBOARD_<ALIAS>. */
 export function tokenParaCuenta(alias: string): string {
-  const key = `GN_TOKEN_${alias.toUpperCase()}`
+  const key = `ERP_LLAVE_DASHBOARD_${alias.toUpperCase()}`
   const t = process.env[key]
   if (!t) throw new GestionNubeError(`Falta ${key} en el entorno`)
   return t
@@ -36,8 +39,8 @@ export async function gnGet<T = unknown>(token: string, path: string, tries = 4)
       continue
     }
     if (r.ok) return r.json() as Promise<T>
-    if (r.status === 401) throw new GestionNubeError('Token inválido o expirado (401)')
-    if (r.status === 403) throw new GestionNubeError('El token no tiene permiso para este endpoint (403)')
+    if (r.status === 401) throw new GestionNubeError('Llave del ERP inválida (401)')
+    if (r.status === 403) throw new GestionNubeError('La llave del ERP no tiene permiso para este recurso (403)')
     // 429: GN limita por tasa y dice cuánto esperar. Con el backoff corto de un 500
     // se le vuelve a pegar antes de tiempo y se agotan los intentos sin avanzar.
     if (r.status === 429) {
@@ -53,7 +56,7 @@ export async function gnGet<T = unknown>(token: string, path: string, tries = 4)
     await sleep(500 * (i + 1))
   }
   throw new GestionNubeError(
-    `Gestión Nube no respondió (${last}). Su API está inestable, probá de nuevo en un rato.`,
+    `El ERP no respondió (${last}). Probá de nuevo en un rato.`,
   )
 }
 
@@ -125,6 +128,9 @@ export interface GnVenta {
   items?: GnVentaLinea[]
   detalles?: GnVentaLinea[]
   payments?: GnCobro[]      // solo con include_payments=1
+  // De qué sistema sale la venta: 'gn' (copia nocturna de lo vendido en GN) o 'erp'
+  // (vendido en el ERP después del corte de su marca). GN no lo mandaba.
+  fuente?: 'gn' | 'erp'
 }
 
 /** Una página del catálogo de productos (incluye `provider`). */

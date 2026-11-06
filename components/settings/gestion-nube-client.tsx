@@ -101,8 +101,9 @@ export function GestionNubeClient({ cuentas, mes }: { cuentas: CuentaGN[]; mes: 
       })}
 
       <p className="text-xs text-fg-soft">
-        Los tokens viven en variables de entorno (<code>GN_TOKEN_ZATTIA</code> / <code>GN_TOKEN_BDI</code>).
-        En producción deben estar cargados en Vercel para que la sincronización funcione.
+        Desde noviembre de 2026 los datos se leen del ERP, que trae lo vendido en Gestión Nube y lo vendido en el ERP.
+        Las llaves viven en variables de entorno (<code>ERP_LLAVE_DASHBOARD_ZATTIA</code> / <code>ERP_LLAVE_DASHBOARD_BDI</code>).
+        En producción deben estar cargadas en Vercel para que la sincronización funcione.
       </p>
     </div>
   )

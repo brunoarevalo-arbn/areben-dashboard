@@ -11,6 +11,7 @@ import {
   paginaVentas,
   GestionNubeError,
 } from '@/lib/gestion-nube/client'
+import { fuenteDe, sumarFuente, cerrarFuente } from '@/lib/gestion-nube/por-fuente.mjs'
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const MAX_PAGINAS = 200 // backstop anti loop; si se corta, se avisa
@@ -195,12 +196,20 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
       a.cmv += p.cmv ?? 0; a.comisiones += p.comisiones ?? 0; a.cantidad += p.cantidad ?? 0; a.netasBlanco += p.netasBlanco ?? 0; a.netasNegro += p.netasNegro ?? 0
       acc.set(m, a)
     }
+    // De qué sistema sale lo vendido de cada marca (GN / ERP): se muestra al lado del número.
+    const porFuente = new Map<string, Record<string, { ventas: number; brutas: number; desde: string; hasta: string }>>()
+    // Cada venta UNA vez: el 6-nov el lector del ERP mandaba cada venta del ERP dos veces (como «gn» y como «erp»).
+    // Si vuelve a pasar, ⛔ se escribe: un mes con ventas repetidas no se guarda callado.
+    const vistas = new Set<number>()
+    const repetidas: number[] = []
 
     for (let page = 1; page <= MAX_PAGINAS; page++) {
       const { data, hayMas } = await paginaVentas(token, desde, page)
       for (const v of data) {
         if (!(v.date_sale || '').startsWith(mes)) continue
         if (!v.active || v.archived || v.budget) continue
+        if (vistas.has(v.id)) { repetidas.push(v.id); continue }
+        vistas.add(v.id)
         const lineas = v.items ?? v.detalles ?? []
         if (!lineas.length) continue
 
@@ -241,6 +250,7 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
             netasBlanco: facturable ? neta : 0,
             netasNegro: facturable ? 0 : neta,
           })
+          porFuente.set(m, sumarFuente(porFuente.get(m) ?? {}, fuenteDe(v), v.date_sale, pm))
         }
       }
       if (!hayMas) break
@@ -248,6 +258,9 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
       await sleep(700)
     }
 
+    if (repetidas.length) {
+      return `El ERP mandó ${repetidas.length} venta(s) repetida(s) (ej. id ${repetidas.slice(0, 3).join(', ')}): no se guardó nada. Avisale a quien mantiene el ERP.`
+    }
     if (!acc.size) return 'No se encontraron ventas para ese mes'
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -271,6 +284,7 @@ export async function sincronizarVentasGN(alias: string, mes: string): Promise<s
         margen_porcentaje: netas > 0 ? round2((margen_pesos / netas) * 100) : 0,
         cantidad_vendida: Math.round(a.cantidad),
         comisiones: round2(a.comisiones),
+        por_fuente: cerrarFuente(porFuente.get(marca) ?? {}),
         fecha_sincronizacion: new Date().toISOString(),
         sincronizado_por: user?.email ?? 'gn-sync',
       }

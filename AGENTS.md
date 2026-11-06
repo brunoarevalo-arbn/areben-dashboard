@@ -22,7 +22,7 @@ un error caro o una búsqueda repetida. Techo: 160 líneas.
 `node scripts/apply-migrations.mjs 063_saldos_revisados` (nombre sin `.sql`, admite varios). Lee
 `DATABASE_URL` de `.env.local` y corre cada archivo en su propia transacción. Los `.sql` de
 `supabase/migrations/` se escriben **idempotentes** (`IF NOT EXISTS` / `ON CONFLICT`) porque se
-re-corren. Van numerados correlativos (con un hueco en 066-068); el último es el 081.
+re-corren. Van numerados correlativos (con huecos en 066-068 y 084-089); el último es el 092.
 
 **Los movimientos de plata de un instrumento viven en `movimientos_instrumento`** (mig 075), uno por
 renglón, con su día y su motivo. `periodos_instrumento.movimiento` y `.fecha_movimiento` quedaron
@@ -67,9 +67,10 @@ nadie aprobó. Lo que se carga de adentro nace `APROBADA` y se comporta como sie
 horas decimales con 4 decimales** (20 min = 0,3333): se carga con `HorasMinutosInput` y se muestra
 con `formatHoras` — ⛔ nunca `${cantidad} hs`, que es lo que dibujaba "0.3333 hs".
 
-**Gestión Nube es multi-cuenta** (`lib/gestion-nube/client.ts`): el token va por parámetro, leído de
-`GN_TOKEN_<ALIAS>` (BDI / ZATTIA). La API es inestable y no banca `per_page > 50`; todo pasa por el
-retry con backoff del cliente. El IVA depende de la cuenta de cobro, no de la marca.
+**Ventas/stock se leen del ERP, multi-cuenta** (`lib/gestion-nube/client.ts`, desde nov-2026): el ERP
+contesta igual que Gestión Nube y trae GN + ERP, cada venta con `fuente`. La llave va por parámetro,
+leída de `ERP_LLAVE_DASHBOARD_<ALIAS>` (BDI / ZATTIA). `per_page > 50` no anda salvo en `/ventas`;
+todo pasa por el retry del cliente. El IVA depende de la cuenta de cobro, no de la marca.
 
 **El mes activo viaja por `?mes=YYYY-MM`.** `MesActivoProvider` (cliente) garantiza que el param
 esté siempre en la URL, sincronizado con `localStorage`; las pages server lo leen de

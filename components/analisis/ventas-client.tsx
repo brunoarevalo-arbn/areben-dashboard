@@ -85,6 +85,32 @@ interface Col {
   margenPct: number
   cantidad: number
   vacia: boolean
+  porFuente: DatosVentasGN['por_fuente'] | undefined
+}
+
+const NOMBRE_FUENTE: Record<string, string> = { gn: 'Gestión Nube', erp: 'ERP', sin_dato: 'Sin fuente' }
+const ORDEN_FUENTE = ['gn', 'erp', 'sin_dato']
+const diaMes = (d: string) => (d ? `${Number(d.slice(8, 10))}/${Number(d.slice(5, 7))}` : '?')
+
+/** De qué sistema sale el número de una marca: «Gestión Nube 1/11–14/11 · $X» por renglón. */
+function FuenteCelda({ c }: { c: Col }) {
+  if (c.vacia) return <span className="text-fg-soft">—</span>
+  if (!c.porFuente) return <span className="text-fg-soft" title="Sincronizado antes de leer del ERP">Gestión Nube</span>
+  const tramos = ORDEN_FUENTE.filter((k) => c.porFuente?.[k])
+  if (!tramos.length) return <span className="text-fg-soft">—</span>
+  return (
+    <div className="flex flex-col items-end gap-0.5">
+      {tramos.map((k) => {
+        const t = c.porFuente![k]
+        return (
+          <span key={k} className={cn('whitespace-nowrap', k === 'sin_dato' && 'text-red-700')}>
+            {NOMBRE_FUENTE[k]} {diaMes(t.desde)}–{diaMes(t.hasta)} · {formatCurrency(t.brutas)}
+            <span className="text-fg-soft"> ({t.ventas})</span>
+          </span>
+        )
+      })}
+    </div>
+  )
 }
 
 function colDesde(marca: string, v: DatosVentasGN | undefined): Col {
@@ -109,6 +135,7 @@ function colDesde(marca: string, v: DatosVentasGN | undefined): Col {
     margen, margenPct: netas > 0 ? (margen / netas) * 100 : 0,
     cantidad: v?.cantidad_vendida ?? 0,
     vacia: !v,
+    porFuente: v?.por_fuente,
   }
 }
 
@@ -127,7 +154,7 @@ export function VentasClient({ ventas, mes }: { ventas: DatosVentasGN[]; mes: st
     comEst: sum((c) => c.comEst), comEf: sum((c) => c.comEf), esOverride: cols.some((c) => c.esOverride),
     costoEnvEst: sum((c) => c.costoEnvEst), costoEnvEf: sum((c) => c.costoEnvEf), esOverrideEnv: cols.some((c) => c.esOverrideEnv),
     margen: sum((c) => c.margen), margenPct: sum((c) => c.netas) > 0 ? (sum((c) => c.margen) / sum((c) => c.netas)) * 100 : 0,
-    cantidad: sum((c) => c.cantidad), vacia: ventas.length === 0,
+    cantidad: sum((c) => c.cantidad), vacia: ventas.length === 0, porFuente: undefined,
   }
   const allCols = [...cols, total]
 
@@ -219,7 +246,7 @@ export function VentasClient({ ventas, mes }: { ventas: DatosVentasGN[]; mes: st
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-fg">Panel de Ventas</h1>
-          <p className="text-sm text-fg-muted mt-0.5">Datos de Gestión Nube — {formatMonth(mes)}</p>
+          <p className="text-sm text-fg-muted mt-0.5">Datos de Gestión Nube y del ERP — {formatMonth(mes)}</p>
         </div>
         <div className="flex items-center gap-3">
           <select
@@ -262,6 +289,13 @@ export function VentasClient({ ventas, mes }: { ventas: DatosVentasGN[]; mes: st
             {row({ label: 'Margen de contribución', get: (c) => c.margen, bold: true, sub: true, tone: 'green' })}
             {row({ label: 'Margen %', get: (c) => c.margenPct, pct: true })}
             {row({ label: 'Unidades', get: (c) => c.cantidad, int: true })}
+            <tr className="border-t border-border">
+              <td className="px-4 py-2 text-fg-muted">Fuente (ventas con IVA)</td>
+              {cols.map((c) => (
+                <td key={c.marca} className="px-4 py-2 text-right text-xs font-mono"><FuenteCelda c={c} /></td>
+              ))}
+              <td className="px-4 py-2" />
+            </tr>
           </tbody>
         </table>
       </div>

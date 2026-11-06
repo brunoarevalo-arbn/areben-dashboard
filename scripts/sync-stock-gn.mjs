@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 const env = Object.fromEntries(readFileSync('.env.local', 'utf8').split('\n').filter((l) => l.includes('=') && !l.trim().startsWith('#')).map((l) => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^["']|["']$/g, '')] }))
 const mes = process.argv[2] || '2026-07'
 const supa = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
-const BASE = 'https://www.gestionnube.com/api/v1'
+const BASE = 'https://erp.arebensrl.com/api/v1' // el ERP contesta igual que GN y trae GN + ERP (nov-2026)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 async function gn(token, path, t = 4) { for (let i = 0; i < t; i++) { try { const r = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } }); if (r.ok) return r.json() } catch {} await sleep(500 * (i + 1)) } }
 const num = (x) => Number(x) || 0
@@ -13,7 +13,7 @@ const M = (x) => '$' + Math.round(x).toLocaleString('es-AR')
 
 const { data: cuentas } = await supa.from('cuentas_gn').select('*')
 for (const c of cuentas) {
-  const token = env['GN_TOKEN_' + c.alias.toUpperCase()]
+  const token = env['ERP_LLAVE_DASHBOARD_' + c.alias.toUpperCase()]
   if (!token) continue
   const marcas = c.marcas
   const marcaBase = marcas.find((m) => m.toUpperCase() !== 'STUNNED') ?? marcas[0]

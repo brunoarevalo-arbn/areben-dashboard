@@ -2,15 +2,18 @@
 // Uso: node scripts/sync-ventas-gn.mjs [YYYY-MM]
 import { readFileSync } from 'fs'
 import { createClient } from '@supabase/supabase-js'
+import { fuenteDe, sumarFuente, cerrarFuente } from '../lib/gestion-nube/por-fuente.mjs'
 
 const env = Object.fromEntries(
   readFileSync('.env.local', 'utf8').split('\n').filter((l) => l.includes('=') && !l.trim().startsWith('#'))
     .map((l) => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^["']|["']$/g, '')] }),
 )
-const mes = process.argv[2] || '2026-07'
+const mes = process.argv.slice(2).find((a) => /^\d{4}-\d{2}$/.test(a)) || '2026-07'
+// --seco: calcula y muestra, ⛔ escribe (para comparar contra lo guardado antes de tocar nada).
+const SECO = process.argv.includes('--seco')
 const supa = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
 
-const BASE = 'https://www.gestionnube.com/api/v1'
+const BASE = 'https://erp.arebensrl.com/api/v1' // el ERP contesta igual que GN y trae GN + ERP (nov-2026)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 async function gn(token, path, tries = 4) {
   for (let i = 0; i < tries; i++) {
@@ -33,13 +36,13 @@ const pctComision = (medio) => (comMap.get((medio || '').trim()) ?? 0) / 100
 
 // No re-sincronizar un mes cerrado: el cierre congela el CMV/ventas (reabrir para actualizar).
 const { data: cierre } = await supa.from('cierres_mensuales').select('cerrado').eq('mes', mes).maybeSingle()
-if (cierre?.cerrado) { console.log(`El mes ${mes} está cerrado — no se sincroniza (reabrí el cierre para actualizar el CMV).`); process.exit(0) }
+if (cierre?.cerrado && !SECO) { console.log(`El mes ${mes} está cerrado — no se sincroniza (reabrí el cierre para actualizar el CMV).`); process.exit(0) }
 
 console.log(`Sincronizando ventas de ${mes}...\n`)
 
 for (const c of cuentas) {
-  const token = env['GN_TOKEN_' + c.alias.toUpperCase()]
-  if (!token) { console.log(`${c.alias}: ✗ falta token`); continue }
+  const token = env['ERP_LLAVE_DASHBOARD_' + c.alias.toUpperCase()]
+  if (!token) { console.log(`${c.alias}: ✗ falta ERP_LLAVE_DASHBOARD_${c.alias.toUpperCase()}`); continue }
   const marcas = c.marcas
   const marcaBase = marcas.find((m) => m.toUpperCase() !== 'STUNNED') ?? marcas[0]
   const tieneStunned = marcas.length > 1 && marcas.some((m) => m.toUpperCase() === 'STUNNED')
@@ -61,11 +64,15 @@ for (const c of cuentas) {
     a.cmv += p.cmv ?? 0; a.comisiones += p.comisiones ?? 0; a.cantidad += p.cantidad ?? 0; a.netasBlanco += p.netasBlanco ?? 0; a.netasNegro += p.netasNegro ?? 0
     acc.set(m, a)
   }
+  const porFuente = new Map()
+  const vistas = new Set(), repetidas = [] // cada venta UNA vez (6-nov: el lector mandaba las del ERP dos veces)
   for (let p = 1; p <= 200; p++) {
     const d = await gn(token, `/ventas/obtener?from=${mes}-01&include_details=1&per_page=100&page=${p}`)
     for (const v of d.data || []) {
       if (!(v.date_sale || '').startsWith(mes)) continue
       if (!v.active || v.archived || v.budget) continue
+      if (vistas.has(v.id)) { repetidas.push(v.id); continue }
+      vistas.add(v.id)
       const lineas = v.items || v.detalles || []; if (!lineas.length) continue
       const peso = new Map(), qty = new Map()
       for (const l of lineas) { const m = marcaDe(l.product_id); peso.set(m, (peso.get(m) ?? 0) + num(l.total)); qty.set(m, (qty.get(m) ?? 0) + num(l.quantity)) }
@@ -79,6 +86,7 @@ for (const c of cuentas) {
         const env = shipping * f, desc = discount * f
         const neta = pm - iva + env - desc
         add(m, { brutas: pm, iva, envios: env, descuentos: desc, cmv: cost * f, comisiones: comVenta * f, cantidad: qty.get(m) ?? 0, netasBlanco: facturable ? neta : 0, netasNegro: facturable ? 0 : neta })
+        porFuente.set(m, sumarFuente(porFuente.get(m) ?? {}, fuenteDe(v), v.date_sale, pm))
       }
     }
     if (!d.meta?.has_more_pages) break
@@ -87,9 +95,15 @@ for (const c of cuentas) {
 
   const filas = [...acc.entries()].map(([marca, a]) => {
     const netas = round2(a.netasBlanco + a.netasNegro), cmv = round2(a.cmv), mp = round2(netas - cmv)
-    return { mes, marca, ventas_brutas: round2(a.brutas), devoluciones: 0, ventas_netas: netas, iva_debito: round2(a.iva), envios: round2(a.envios), descuentos: round2(a.descuentos), ventas_netas_blanco: round2(a.netasBlanco), ventas_netas_negro: round2(a.netasNegro), cmv, margen_pesos: mp, margen_porcentaje: netas > 0 ? round2((mp / netas) * 100) : 0, cantidad_vendida: Math.round(a.cantidad), comisiones: round2(a.comisiones), fecha_sincronizacion: new Date().toISOString(), sincronizado_por: 'gn-sync' }
+    return { mes, marca, ventas_brutas: round2(a.brutas), devoluciones: 0, ventas_netas: netas, iva_debito: round2(a.iva), envios: round2(a.envios), descuentos: round2(a.descuentos), ventas_netas_blanco: round2(a.netasBlanco), ventas_netas_negro: round2(a.netasNegro), cmv, margen_pesos: mp, margen_porcentaje: netas > 0 ? round2((mp / netas) * 100) : 0, cantidad_vendida: Math.round(a.cantidad), comisiones: round2(a.comisiones), por_fuente: cerrarFuente(porFuente.get(marca) ?? {}), fecha_sincronizacion: new Date().toISOString(), sincronizado_por: 'gn-sync' }
   })
+  if (repetidas.length) { console.log(`${c.alias}: ✗ el ERP mandó ${repetidas.length} venta(s) repetida(s) (ej. ${repetidas.slice(0, 3).join(', ')}): ⛔ se guarda`); continue }
   if (!filas.length) { console.log(`${c.alias}: sin ventas en ${mes}`); continue }
+  if (SECO) {
+    for (const f of filas) console.log(`${c.alias} [seco] ${f.marca}: brutas ${M(f.ventas_brutas)} · netas ${M(f.ventas_netas)} · CMV ${M(f.cmv)} · ${f.cantidad_vendida}u · fuente ${JSON.stringify(f.por_fuente)}`)
+    console.log(`${c.alias} [seco] JSON ${JSON.stringify(filas)}`)
+    continue
+  }
   const { error } = await supa.from('datos_ventas_gn').upsert(filas, { onConflict: 'mes,marca' })
   if (error) console.log(`${c.alias}: ✗ ${error.message}`)
   else console.log(`${c.alias}: ✓ ${filas.map((f) => `${f.marca} netas ${M(f.ventas_netas)} / CMV ${M(f.cmv)} (${f.cantidad_vendida}u)`).join('  |  ')}`)

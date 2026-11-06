@@ -877,6 +877,8 @@ export interface DatosVentasGN {
   comisiones: number
   comisiones_override: number | null
   costo_envios_override: number | null
+  /** Desglose por sistema de origen (mig 092). null = sincronizado antes de nov-2026, sólo GN. */
+  por_fuente: Record<string, { ventas: number; brutas: number; desde: string; hasta: string }> | null
   fecha_sincronizacion: string
   sincronizado_por: string
   created_at: string
