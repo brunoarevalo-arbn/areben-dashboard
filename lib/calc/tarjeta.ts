@@ -68,3 +68,21 @@ export function calcularMesesCuotas(fechaCompra: string, diaCierre: number, cuot
     }
   })
 }
+
+/** Desde qué mes el cierre cuenta las cuotas como deuda con el arreglo (los meses anteriores ya estaban cerrados). */
+export const DESDE_MES_CONSUMO_TARJETA = '2026-09'
+
+/**
+ * Mes en que una cuota de tarjeta pasa a ser DEUDA en el cierre: el mes del consumo para la
+ * cuota 1, el siguiente para la 2, etc. No se usa `mes_cierre` porque es el mes en que cierra el
+ * RESUMEN: lo consumido después del cierre (MP cierra el 12, Macro el 22-24) no figuraba como
+ * deuda en su mes. Sin fecha del consumo (cuotas históricas cargadas a mano) se queda con
+ * `mes_cierre`, y nunca da un mes POSTERIOR a ese.
+ */
+export function mesDeudaCuota(c: { mes_cierre: string; cuota_numero: number }, fechaConsumo: string | null | undefined): string {
+  if (!fechaConsumo || !/^\d{4}-\d{2}/.test(fechaConsumo)) return c.mes_cierre
+  const [y, m] = fechaConsumo.slice(0, 7).split('-').map(Number)
+  const d = new Date(y, m - 1 + Math.max(0, (c.cuota_numero || 1) - 1), 1)
+  const mes = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  return mes < c.mes_cierre ? mes : c.mes_cierre
+}

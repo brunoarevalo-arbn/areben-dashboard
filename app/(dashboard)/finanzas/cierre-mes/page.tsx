@@ -6,6 +6,8 @@ import { CierreMesClient } from '@/components/finanzas/cierre-mes-client'
 import { totalPagadoPorGasto } from '@/lib/pagos-gastos'
 import { existianAlCierre } from '@/lib/inversiones-cadena'
 import { gastosComercialesDelMes } from '@/lib/gastos-comerciales'
+import { DESDE_MES_CONSUMO_TARJETA } from '@/lib/calc/tarjeta'
+import { cuotasDeudaDelMes } from '@/lib/tarjeta-mes-deuda'
 
 export default async function CierreMesPage({
   searchParams,
@@ -26,6 +28,11 @@ export default async function CierreMesPage({
   const comprasDesde = `${floorDate.getFullYear()}-${String(floorDate.getMonth() + 1).padStart(2, '0')}-01`
   const gastosDesde = `${floorDate.getFullYear()}-${String(floorDate.getMonth() + 1).padStart(2, '0')}`
 
+  // Deuda de tarjeta por mes del consumo (desde sep-2026; los meses anteriores ya están cerrados)
+  const usaMesConsumo = mes >= DESDE_MES_CONSUMO_TARJETA
+  const mas2 = new Date(y, m + 1, 1)
+  const mesMas2 = `${mas2.getFullYear()}-${String(mas2.getMonth() + 1).padStart(2, '0')}`
+
   const supabase = await createClient()
 
   const [
@@ -38,7 +45,7 @@ export default async function CierreMesPage({
     { data: comprasPendientes },
     { data: gastosPendientes },
     { data: gastosRecurrentes },
-    { data: cuotasPendientes },
+    { data: cuotasCandidatas },
     { data: retirosMes },
     { data: categorias },
     { data: activosManuales },
@@ -87,12 +94,15 @@ export default async function CierreMesPage({
       .limit(1500),
     // Recurrentes (para calcular el vencimiento real de los gastos y unificar los repetidos)
     supabase.from('gastos_recurrentes').select('id, dia_vencimiento, tipo_mes, es_cuenta_corriente'),
-    // Cuotas de tarjeta: pasivo del mes en que se CONSUMIÓ (mes_cierre), si no estaba pagada al corte.
+    // Cuotas de tarjeta: pasivo del mes en que se CONSUMIÓ, si no estaba pagada al corte.
     // (No por mes_vencimiento ni por el tilde de hoy: el consumo de mayo que se paga en junio es pasivo de mayo.)
+    // Desde sep-2026 el mes sale de la fecha del consumo (ver cuotasDeudaDelMes): `mes_cierre` es el
+    // mes en que cierra el RESUMEN y dejaba afuera lo consumido después del cierre. Se traen hasta
+    // 2 meses de cierre más adelante y se filtran abajo. Jun-ago (ya cerrados) siguen por mes_cierre.
     supabase
       .from('cuotas_tarjeta')
-      .select('id, concepto, monto_cuota, mes_cierre, mes_vencimiento, origen_tipo, origen_id, tarjeta:tarjetas_credito(nombre, banco)')
-      .lte('mes_cierre', mes)
+      .select('id, concepto, monto_cuota, mes_cierre, mes_vencimiento, cuota_numero, origen_tipo, origen_id, tarjeta:tarjetas_credito(nombre, banco)')
+      .lte('mes_cierre', usaMesConsumo ? mesMas2 : mes)
       .or(`pagada.eq.false,fecha_pago.gt.${mesFin}`)
       .order('mes_vencimiento'),
     supabase
@@ -160,6 +170,10 @@ export default async function CierreMesPage({
     supabase.from('prestamos').select('id, nombre, acreedor, moneda').lte('fecha_inicio', mesFin),
     supabase.from('planes_afip').select('id, nombre').lte('fecha_inicio', mesFin),
   ])
+
+  const cuotasPendientes = usaMesConsumo
+    ? await cuotasDeudaDelMes(supabase, cuotasCandidatas ?? [], mes)
+    : cuotasCandidatas
 
   // Saldo de cada compra AL CORTE. Muchas compras se saldan sin dejar un pago en el ledger (no hay
   // fecha de pago), así que NO se puede reconstruir "cuándo se pagó" sólo con pagos. Criterio:
