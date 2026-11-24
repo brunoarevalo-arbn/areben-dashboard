@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { ConfirmarPagoModal } from './confirmar-pago-modal'
 import { formatCurrency, formatDate, formatMonth, labelCuenta, ordenarCuentas } from '@/lib/utils'
 import {
   Plus, CreditCard, Pencil, Power, Loader2, Calendar,
@@ -135,6 +136,7 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas, gastosCon
   const [resumenTarjeta, setResumenTarjeta] = useState<TarjetaCredito | null>(null)
   const [detalleTarjeta, setDetalleTarjeta] = useState<(TarjetaCredito & { socio?: SocioLite | null }) | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [cuotaAPagar, setCuotaAPagar] = useState<CuotaTarjeta | null>(null)
 
   // Retiros que ya tienen cuotas generadas → su deuda de tarjeta se cuenta por las cuotas;
   // no hay que sumar el retiro aparte (evita el doble conteo retiro + cuotas).
@@ -481,7 +483,7 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas, gastosCon
                   <td className="px-4 py-2 text-xs text-fg-muted">{formatMonth(c.mes_vencimiento)}</td>
                   <td className="px-4 py-2 text-right font-mono text-fg">{formatCurrency(c.monto_cuota)}</td>
                   <td className="px-4 py-2 text-right">
-                    <Button size="sm" variant="success" onClick={() => startTransition(() => marcarCuotaPagada(c.id, true))}>
+                    <Button size="sm" variant="success" onClick={() => setCuotaAPagar(c)} title="Marcar cuota como pagada">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                     </Button>
                   </td>
@@ -491,6 +493,16 @@ export function TarjetasClient({ tarjetas, titulares, cuotas, cuentas, gastosCon
           </table>
         </div>
       )}
+
+      <ConfirmarPagoModal
+        open={!!cuotaAPagar}
+        onOpenChange={(o) => { if (!o) setCuotaAPagar(null) }}
+        title="Marcar cuota pagada"
+        descripcion={cuotaAPagar ? `${cuotaAPagar.concepto} · vence ${formatMonth(cuotaAPagar.mes_vencimiento)}` : undefined}
+        monto={cuotaAPagar ? Number(cuotaAPagar.monto_cuota) : undefined}
+        defaultFecha={cuotaAPagar ? `${cuotaAPagar.mes_vencimiento}-10` : undefined}
+        onConfirm={async (fecha) => { if (cuotaAPagar) await marcarCuotaPagada(cuotaAPagar.id, true, fecha) }}
+      />
 
       <Modal open={modal} onOpenChange={setModal} title={editTarjeta ? 'Editar tarjeta' : 'Nueva tarjeta'} className="max-w-md">
         <TarjetaForm tarjeta={editTarjeta} titulares={titulares} onClose={() => setModal(false)} />

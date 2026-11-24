@@ -391,7 +391,7 @@ function CuotaItem({ cuota, hoy, onPagar, onPagoParcial, onEditHistorica }: {
   onPagoParcial: (target: PagoTarget) => void
   onEditHistorica: (cuota: CuotaPendiente) => void
 }) {
-  const [isPending, startTransition] = useTransition()
+  const [pagarOpen, setPagarOpen] = useState(false)
   const totalPagado = cuota.total_pagado ?? 0
   const saldo = cuota.saldo_pendiente ?? Number(cuota.monto_cuota)
   const hayParciales = totalPagado > 0
@@ -438,15 +438,23 @@ function CuotaItem({ cuota, hoy, onPagar, onPagoParcial, onEditHistorica }: {
         <Button
           size="sm"
           variant="success"
-          disabled={isPending}
-          onClick={() => startTransition(async () => { await marcarCuotaPagada(cuota.id, true); onPagar() })}
+          onClick={() => setPagarOpen(true)}
           title="Marcar cuota como totalmente pagada"
         >
-          {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+          <CheckCircle2 className="w-3.5 h-3.5" />
         </Button>
       </div>
       </div>
       {hayParciales && <EvolucionPagoBar totalPagado={totalPagado} saldo={saldo} pct={pagadoPct} />}
+      <ConfirmarPagoModal
+        open={pagarOpen}
+        onOpenChange={setPagarOpen}
+        title="Marcar cuota pagada"
+        descripcion={`${cuota.concepto} · ${cuota.tarjeta?.nombre ?? '—'}${cuota.cuotas_total > 1 ? ` · cuota ${cuota.cuota_numero}/${cuota.cuotas_total}` : ''}`}
+        monto={saldo}
+        defaultFecha={fechaCuota(cuota.mes_vencimiento)}
+        onConfirm={async (fecha) => { await marcarCuotaPagada(cuota.id, true, fecha); onPagar() }}
+      />
     </div>
   )
 }
