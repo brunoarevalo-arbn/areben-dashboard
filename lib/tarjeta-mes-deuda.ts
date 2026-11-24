@@ -52,10 +52,9 @@ async function fechasDeConsumo(supabase: Supa, cuotas: CuotaBase[]): Promise<Map
  * (cuota 1 en el mes del consumo, la 2 al mes siguiente, …). Las cuotas tienen que venir ya
  * filtradas por "no pagada al corte".
  */
-export async function cuotasDeudaDelMes<T extends CuotaBase>(supabase: Supa, cuotas: T[], mes: string): Promise<T[]> {
+export async function cuotasDeudaDelMes<T extends CuotaBase>(supabase: Supa, cuotas: T[], mes: string): Promise<(T & { fecha_consumo: string | null })[]> {
   const fechas = await fechasDeConsumo(supabase, cuotas)
-  return cuotas.filter((c) => {
-    const f = c.origen_id ? fechas.get(`${c.origen_tipo}:${c.origen_id}`) : null
-    return mesDeudaCuota({ mes_cierre: c.mes_cierre, cuota_numero: c.cuota_numero ?? 1 }, f) <= mes
-  })
+  return cuotas
+    .map((c) => ({ ...c, fecha_consumo: (c.origen_id ? fechas.get(`${c.origen_tipo}:${c.origen_id}`) : null) ?? null }))
+    .filter((c) => mesDeudaCuota({ mes_cierre: c.mes_cierre, cuota_numero: c.cuota_numero ?? 1 }, c.fecha_consumo) <= mes)
 }

@@ -77,6 +77,8 @@ interface CuotaPend {
   mes_vencimiento: string
   origen_tipo?: string
   origen_id?: string | null
+  /** Fecha de la compra (desde sep-2026; antes no viene). */
+  fecha_consumo?: string | null
   tarjeta?: { nombre: string; banco: string } | null
 }
 
@@ -889,12 +891,13 @@ export function CierreMesClient(props: Props) {
             title="Cuotas de tarjeta pendientes"
             icon={CreditCard}
             info={{ titulo: 'Cuotas de tarjeta', cuerpo: <>
-              <p>Cuotas cuyo <strong>mes de vencimiento ≤ el mes del cierre</strong> y que todavía no se pagaron.</p>
-              <p>Van por mes de consumo/cierre de la tarjeta, no por la fecha exacta de pago.</p>
+              <p>Lo comprado con tarjeta <strong>hasta este mes</strong> que no estaba pagado al último día.</p>
+              <p>Cuenta en el mes de la compra, aunque el resumen cierre después. En cuotas: la 1ª en el mes de la compra, la 2ª al mes siguiente, y así.</p>
+              <p>Hasta agosto 2026 se contaba por el mes en que cierra el resumen.</p>
             </> }}
             items={props.cuotasPendientes.map((c) => ({
               label: c.concepto,
-              detalle: `${c.tarjeta?.banco ?? '—'} · Vence ${formatMonth(c.mes_vencimiento)}`,
+              detalle: `${c.tarjeta?.banco ?? '—'}${c.fecha_consumo ? ` · Comprado ${formatDate(c.fecha_consumo)}` : ''} · Vence ${formatMonth(c.mes_vencimiento)}`,
               monto: Number(c.monto_cuota),
               moneda: 'ARS',
             }))}
