@@ -47,20 +47,45 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // intereses quedaron adentro del capital actual, mostrarlos los contaría dos veces.
   const mesInicioCiclo = inst.fecha_inicio.substring(0, 7)
 
+  // Un plazo devuelto y cerrado ya tiene su papel: el comprobante de devolución, que arma
+  // la cuenta con lo que de verdad se pagó. La ficha mira el caché de períodos y en el mes
+  // del pago junta la devolución con los retiros de ese mes.
+  if (inst.estado === 'cerrado') {
+    const { count } = await supabase
+      .from('movimientos_instrumento')
+      .select('id', { count: 'exact', head: true })
+      .eq('instrumento_id', instrumentoId)
+      .eq('origen', 'devolucion_cierre')
+    if ((count ?? 0) > 0) {
+      return Response.redirect(new URL(`/api/reportes/instrumento/${instrumentoId}/devolucion`, req.nextUrl), 307)
+    }
+  }
+
   const { data: periodos } = await supabase
     .from('periodos_instrumento')
-    .select('mes, saldo_inicio, interes_devengado, movimiento, saldo_cierre, cerrado')
+    .select('mes, saldo_inicio, interes_devengado, int_inicio_prorrateado, int_fin_prorrateado, movimiento, saldo_cierre, cerrado')
     .eq('instrumento_id', instrumentoId)
     .gte('mes', mesInicioCiclo)
     .order('mes', { ascending: true })
 
-  const detallePlano = (periodos ?? []).map((p) => ({
-    mes: p.mes,
-    saldo_inicio: Number(p.saldo_inicio ?? 0),
-    interes_devengado: Number(p.interes_devengado ?? 0),
-    movimiento: Number(p.movimiento ?? 0),
-    saldo_cierre: Number(p.saldo_cierre ?? 0),
-  }))
+  const detallePlano = (periodos ?? []).map((p) => {
+    // Si el plazo se renovó a mitad de mes, la fila cerrada de ese mes trae también la
+    // cola del plazo anterior (int_fin_prorrateado). Acá va solo lo de este plazo.
+    const partido = p.mes === mesInicioCiclo && !!p.cerrado && Number(p.int_fin_prorrateado ?? 0) > 0
+    if (partido) {
+      const capital = Number(inst.capital_inicial)
+      const interes = Number(p.int_inicio_prorrateado ?? 0)
+      const movimiento = Number(p.movimiento ?? 0)
+      return { mes: p.mes, saldo_inicio: capital, interes_devengado: interes, movimiento, saldo_cierre: round(capital + interes + movimiento) }
+    }
+    return {
+      mes: p.mes,
+      saldo_inicio: Number(p.saldo_inicio ?? 0),
+      interes_devengado: Number(p.interes_devengado ?? 0),
+      movimiento: Number(p.movimiento ?? 0),
+      saldo_cierre: Number(p.saldo_cierre ?? 0),
+    }
+  })
 
   const { data: movsRaw } = await supabase
     .from('movimientos_instrumento')

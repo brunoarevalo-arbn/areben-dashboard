@@ -931,7 +931,7 @@ export async function devolverYCerrarInstrumento(
     if (errIns) return { ok: false, error: `No se pudieron guardar los períodos: ${errIns.message}` }
   }
 
-  const nota = `[${fechaPago}] Devuelto y cerrado. Capital ${detalle.capitalPendiente.toFixed(2)} + intereses ${detalle.interesesCiclo.toFixed(2)} = ${detalle.totalADevolver.toFixed(2)} ${detalle.moneda}${detalle.anticipada ? ' (devolución anticipada, intereses prorrateados)' : ''}.`
+  const nota = `[${fechaPago}] Devuelto y cerrado. Capital ${detalle.capitalPendiente.toFixed(2)} + intereses ${detalle.interesesCiclo.toFixed(2)} = ${detalle.totalADevolver.toFixed(2)} ${detalle.moneda}${detalle.anticipada ? ` (devolución anticipada, intereses prorrateados; vencía el ${detalle.vencimientoAcordado})` : ''}.`
   const { data: instNotas } = await supabase
     .from('instrumentos_inversion')
     .select('notas')

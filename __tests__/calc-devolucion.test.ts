@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generarPeriodos, planDevolucion, type FilaPeriodo } from '@/lib/inversiones-calc'
+import { generarPeriodos, planDevolucion, detalleComprobanteDevolucion, type FilaPeriodo } from '@/lib/inversiones-calc'
 
 const TASA = 0.0175
 const tramo = (fecha: string, tasa = TASA) => [{ fecha_desde: fecha, tasa_mensual: tasa }]
@@ -260,5 +260,39 @@ describe('devolución con un retiro en el MISMO mes del pago (caso Tamayo, 28-no
     const nov = plan.filas[plan.filas.length - 1]
     expect(nov.saldo_cierre).toBe(0)
     expect(nov.movimiento).toBe(Math.round((-400.64 - plan.totalADevolver) * 100) / 100)
+  })
+})
+
+describe('detalle del comprobante de devolución (caso Tamayo, 28-nov-2026)', () => {
+  const d = detalleComprobanteDevolucion({
+    capitalInicial: 24111.08,
+    fechaInicio: '2026-09-28',
+    fechaPago: '2026-11-28',
+    totalPagado: 13014.68,
+    movimientos: [
+      { fecha: '2026-06-10', mes: '2026-06', monto: -6668.97, motivo: 'retiro_parcial' }, // ciclo anterior: no va
+      { fecha: '2026-10-16', mes: '2026-10', monto: -6472.49, motivo: 'retiro_parcial' },
+      { fecha: '2026-10-21', mes: '2026-10', monto: -3215.43, motivo: 'retiro_parcial' },
+      { fecha: '2026-10-28', mes: '2026-10', monto: -1597.44, motivo: 'retiro_parcial' },
+      { fecha: '2026-11-03', mes: '2026-11', monto: -400.64, motivo: 'retiro_parcial' },
+    ],
+    tramosTasa: [{ fecha_desde: '2026-09-28', tasa_mensual: 0.0175 }],
+  })
+
+  it('capital e intereses salen de lo pagado, no del caché de períodos', () => {
+    expect(d.capital).toBe(12425.08)
+    expect(d.intereses).toBe(589.6)
+  })
+  it('lista el capital inicial y solo los retiros de este ciclo', () => {
+    expect(d.movimientos.map((m) => m.fecha)).toEqual(['2026-09-28', '2026-10-16', '2026-10-21', '2026-10-28', '2026-11-03'])
+  })
+  it('los tramos cortan en cada retiro y cada mes, y suman el interés exacto', () => {
+    expect(d.tramos.map((t) => [t.desde, t.hasta, t.dias])).toEqual([
+      ['2026-09-28', '2026-09-30', 3], ['2026-10-01', '2026-10-15', 15], ['2026-10-16', '2026-10-20', 5],
+      ['2026-10-21', '2026-10-27', 7], ['2026-10-28', '2026-10-31', 4], ['2026-11-01', '2026-11-02', 2],
+      ['2026-11-03', '2026-11-27', 25],
+    ])
+    expect(Math.round(d.tramos.reduce((s, t) => s + t.interes, 0) * 100) / 100).toBe(589.6)
+    expect(d.tramos[0].interes).toBe(42.19)
   })
 })

@@ -6,6 +6,7 @@ import {
   type ComprobanteDevolucionData,
   type DevolucionMes,
 } from '@/lib/pdf/comprobante-devolucion'
+import { detalleComprobanteDevolucion } from '@/lib/inversiones-calc'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -22,7 +23,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .from('instrumentos_inversion')
     .select(`
       id, codigo, moneda, capital_inicial, tasa_mensual, capitalizable,
-      fecha_inicio, fecha_fin, estado,
+      fecha_inicio, fecha_fin, estado, notas,
       inversor:inversores(
         nombre, tipo, dni, cuit, domicilio_calle, domicilio_ciudad,
         domicilio_provincia, domicilio_cp, email
@@ -60,7 +61,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   // La fila del pago es la última: se llevó todo el saldo y dejó el instrumento en cero.
   const filaPago = filas[filas.length - 1]
-  const total = round(-Number(filaPago.movimiento ?? 0))
+
+  // Lo que se le pagó sale del movimiento que dejó "Devolver y cerrar", no de la fila del
+  // mes: si ese mes además tuvo un retiro, la fila los junta y el total saldría inflado.
+  const { data: movsRaw } = await supabase
+    .from('movimientos_instrumento')
+    .select('fecha, mes, monto, motivo, origen')
+    .eq('instrumento_id', instrumentoId)
+  const movDevolucion = (movsRaw ?? []).find((m) => m.origen === 'devolucion_cierre')
+  const total = round(movDevolucion ? -Number(movDevolucion.monto) : -Number(filaPago.movimiento ?? 0))
   if (total <= 0) {
     return new Response(
       'No se encontró el movimiento de la devolución en este instrumento. Si se cerró a mano, volvé a abrirlo y usá "Devolver y cerrar".',
@@ -73,23 +82,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const ultimoDiaDelMes = `${filaPago.mes}-${String(
     new Date(Number(filaPago.mes.split('-')[0]), Number(filaPago.mes.split('-')[1]), 0).getDate(),
   ).padStart(2, '0')}`
-  const fechaPago: string = filaPago.fecha_movimiento ?? inst.fecha_fin ?? ultimoDiaDelMes
+  const fechaPago: string = movDevolucion?.fecha ?? filaPago.fecha_movimiento ?? inst.fecha_fin ?? ultimoDiaDelMes
 
-  const intereses = round(filas.reduce((s, p) => s + Number(p.interes_devengado ?? 0), 0))
-  const capital = round(total - intereses)
+  // Al cerrar, fecha_fin pasa a ser el día del pago: el vencimiento pactado queda en la
+  // nota que escribe "Devolver y cerrar".
+  const notaCierre = (inst.notas ?? '').split('\n').reverse().find((l: string) => l.startsWith(`[${fechaPago}] Devuelto y cerrado`)) ?? ''
+  const vencia = notaCierre.match(/vencía el (\d{4}-\d{2}-\d{2})/)?.[1] ?? null
+  const anticipada = notaCierre.includes('anticipada') || (!!inst.fecha_fin && fechaPago < inst.fecha_fin)
 
-  // Anticipada = el ciclo se cortó antes del vencimiento acordado. Al devolver, fecha_fin
-  // pasa a ser la fecha de corte, así que se compara contra el plazo que quedó registrado.
-  const anticipada = !!inst.fecha_fin && fechaPago < inst.fecha_fin
+  const { data: tramosTasa } = await supabase
+    .from('tramos_tasa')
+    .select('fecha_desde, tasa_mensual')
+    .eq('instrumento_id', instrumentoId)
+  const calc = detalleComprobanteDevolucion({
+    capitalInicial: Number(inst.capital_inicial),
+    fechaInicio: inst.fecha_inicio,
+    fechaPago,
+    totalPagado: total,
+    movimientos: (movsRaw ?? [])
+      .filter((m) => m.origen !== 'devolucion_cierre')
+      .map((m) => ({ fecha: m.fecha ?? null, mes: m.mes, monto: Number(m.monto), motivo: m.motivo })),
+    tramosTasa: (tramosTasa ?? []).length
+      ? tramosTasa!.map((t) => ({ fecha_desde: t.fecha_desde, tasa_mensual: Number(t.tasa_mensual) }))
+      : [{ fecha_desde: inst.fecha_inicio, tasa_mensual: Number(inst.tasa_mensual) }],
+  })
+  const { capital, intereses } = calc
 
-  const detalle: DevolucionMes[] = filas
-    .filter((p) => Number(p.interes_devengado ?? 0) !== 0)
-    .map((p) => ({
-      mes: p.mes,
-      saldo_inicio: Number(p.saldo_inicio ?? 0),
-      interes_devengado: Number(p.interes_devengado ?? 0),
-      saldo_cierre: Number(p.saldo_cierre ?? 0),
-    }))
+  const detalle: DevolucionMes[] = []
 
   const { data: empresa } = await supabase
     .from('configuracion_empresa')
@@ -132,10 +151,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       tasa_mensual: Number(inst.tasa_mensual),
       capitalizable: inst.capitalizable,
       fecha_inicio: inst.fecha_inicio,
-      fecha_vencimiento: inst.fecha_fin ?? null,
+      fecha_vencimiento: vencia ?? (anticipada ? null : inst.fecha_fin ?? null),
     },
     devolucion: { fecha_pago: fechaPago, capital, intereses, total, anticipada },
     detalle,
+    movimientos: calc.movimientos,
+    tramos: calc.tramos,
     generadoEn: new Date().toISOString(),
   }
 

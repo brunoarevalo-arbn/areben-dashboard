@@ -920,3 +920,98 @@ export function situacionEnMes(
   const ultimoMes = sumarDias(inst.fecha_fin, -1).substring(0, 7)
   return mes <= ultimoMes ? 'dentro' : 'vencido'
 }
+
+// ────────────────────────────────────────────────────────────
+// Detalle del comprobante de devolución
+// ────────────────────────────────────────────────────────────
+
+export interface MovimientoComprobante {
+  fecha: string // YYYY-MM-DD
+  detalle: string
+  monto: number
+}
+export interface TramoComprobante {
+  desde: string
+  hasta: string
+  dias: number
+  base: number
+  interes: number
+}
+
+const DETALLE_MOTIVO: Record<string, string> = {
+  retiro_parcial: 'Retiro',
+  aporte_nuevo: 'Aporte',
+  ajuste: 'Ajuste',
+}
+
+/**
+ * Arma lo que el inversor necesita para rehacer la cuenta del comprobante, a partir de
+ * lo que de verdad pasó: el capital con que arrancó el ciclo, los movimientos con su día
+ * y lo que se le pagó. No lee el caché de `periodos_instrumento`: el primer mes de un
+ * ciclo renovado a mitad de mes trae ahí interés del ciclo anterior.
+ *
+ * - capital = capital inicial + movimientos del ciclo (sin la devolución)
+ * - intereses = total pagado − capital
+ * - cada tramo (entre dos movimientos) se lleva intereses en proporción a
+ *   capital × días × tasa; el redondeo lo absorbe el último, así la suma da exacto.
+ */
+export function detalleComprobanteDevolucion(args: {
+  capitalInicial: number
+  fechaInicio: string
+  /** Día del pago: ese día ya no devenga. */
+  fechaPago: string
+  totalPagado: number
+  /** Movimientos del instrumento SIN la devolución. Los sin día se ubican el 1° de su mes. */
+  movimientos: { fecha: string | null; mes: string; monto: number; motivo: string }[]
+  tramosTasa: { fecha_desde: string; tasa_mensual: number }[]
+}): { capital: number; intereses: number; movimientos: MovimientoComprobante[]; tramos: TramoComprobante[] } {
+  const { capitalInicial, fechaInicio, fechaPago, totalPagado } = args
+  const movs = args.movimientos
+    .map((m) => ({ ...m, dia: m.fecha ?? `${m.mes}-01` }))
+    .filter((m) => m.dia >= fechaInicio && m.dia < fechaPago && m.monto !== 0)
+    .sort((a, b) => a.dia.localeCompare(b.dia))
+
+  const capital = round(capitalInicial + movs.reduce((s, m) => s + m.monto, 0))
+  const intereses = round(totalPagado - capital)
+
+  const movimientos: MovimientoComprobante[] = [
+    { fecha: fechaInicio, detalle: 'Capital al inicio del plazo', monto: round(capitalInicial) },
+    ...movs.map((m) => ({ fecha: m.dia, detalle: DETALLE_MOTIVO[m.motivo] ?? 'Movimiento', monto: round(m.monto) })),
+  ]
+
+  // Cortes: cada día en que cambia el capital o la tasa
+  const tasas = [...args.tramosTasa].sort((a, b) => a.fecha_desde.localeCompare(b.fecha_desde))
+  const tasaEn = (dia: string) => {
+    let t = tasas[0]?.tasa_mensual ?? 0
+    for (const x of tasas) if (x.fecha_desde <= dia) t = x.tasa_mensual
+    return t
+  }
+  // Un tramo por cada cambio de capital o de tasa, y además en cada cambio de mes, para
+  // que el inversor vea el interés de cada mes por separado.
+  const cortes = new Set<string>([fechaInicio])
+  for (const m of movs) cortes.add(m.dia)
+  for (const t of tasas) if (t.fecha_desde > fechaInicio && t.fecha_desde < fechaPago) cortes.add(t.fecha_desde)
+  for (let d = sumarDias(fechaInicio, 1); d < fechaPago; d = sumarDias(d, 1)) {
+    if (d.endsWith('-01')) cortes.add(d)
+  }
+  const dias = [...cortes].sort()
+
+  const crudos = dias.map((desde, i) => {
+    const finExcl = dias[i + 1] ?? fechaPago
+    const base = round(capitalInicial + movs.filter((m) => m.dia <= desde).reduce((s, m) => s + m.monto, 0))
+    const n = diasEntre(desde, finExcl)
+    return { desde, hasta: sumarDias(finExcl, -1), dias: n, base, peso: base * n * tasaEn(desde) }
+  }).filter((t) => t.dias > 0)
+
+  const pesoTotal = crudos.reduce((s, t) => s + t.peso, 0)
+  let acumulado = 0
+  const tramos: TramoComprobante[] = crudos.map((t, i) => {
+    const interes = i === crudos.length - 1
+      ? round(intereses - acumulado)
+      : round(pesoTotal > 0 ? (intereses * t.peso) / pesoTotal : 0)
+    acumulado = round(acumulado + interes)
+    return { desde: t.desde, hasta: t.hasta, dias: t.dias, base: t.base, interes }
+  })
+
+  return { capital, intereses, movimientos, tramos }
+}

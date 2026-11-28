@@ -222,7 +222,7 @@ export function ComprobanteDevolucionPDF({ data }: { data: ComprobanteDevolucion
           <View style={styles.keyCol}>
             <Text style={styles.keyLabel}>{compacto ? 'Vencía' : 'Vencimiento acordado'}</Text>
             <Text style={styles.keyValue}>
-              {instrumento.fecha_vencimiento ? formatDateShort(instrumento.fecha_vencimiento) : 'sin plazo'}
+              {instrumento.fecha_vencimiento ? formatDateShort(instrumento.fecha_vencimiento) : devolucion.anticipada ? '—' : 'sin plazo'}
             </Text>
           </View>
           <View style={styles.keyCol}>
@@ -268,7 +268,7 @@ export function ComprobanteDevolucionPDF({ data }: { data: ComprobanteDevolucion
               </View>
             ))}
             <Text style={{ fontSize: 8, color: COLOR_MUTED, marginTop: 3 }}>
-              Interés = capital × {formatPercent(instrumento.tasa_mensual)} mensual × días / 30. El día del pago no genera interés.
+              Cada tramo rinde a {formatPercent(instrumento.tasa_mensual)} mensual sobre el capital de ese momento, por los días que estuvo. El día del pago no genera interés.
             </Text>
           </>
         )}
