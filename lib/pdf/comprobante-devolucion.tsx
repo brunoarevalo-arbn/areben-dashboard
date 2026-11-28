@@ -58,6 +58,13 @@ export interface ComprobanteDevolucionData {
   }
   /** Meses del ciclo con su interés, para respaldar el número. */
   detalle: DevolucionMes[]
+  /** Retiros o aportes durante el plazo (sin la devolución). Si vienen, se listan. */
+  movimientos?: { fecha: string; detalle: string; monto: number }[]
+  /**
+   * Interés tramo por tramo (capital × días). Si viene, reemplaza la tabla por mes:
+   * es la que el inversor puede rehacer con la calculadora.
+   */
+  tramos?: { desde: string; hasta: string; dias: number; base: number; interes: number }[]
   generadoEn: string
   ciudadEmision?: string
 }
@@ -96,6 +103,7 @@ const styles = StyleSheet.create({
   tHeaderCell: { color: '#ffffff', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3 },
   tRow: { flexDirection: 'row', paddingVertical: 2.5, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: COLOR_BORDER },
   tRowZebra: { backgroundColor: '#fafbfd' },
+  tRowCompacta: { paddingVertical: 0.5 },
   tCell: { fontSize: 9, color: COLOR_TEXT },
   tCellMono: { fontSize: 9, color: COLOR_TEXT, fontFamily: 'Courier', textAlign: 'right' },
   colMes: { width: '34%' },
@@ -148,6 +156,7 @@ export function ComprobanteDevolucionPDF({ data }: { data: ComprobanteDevolucion
   const ciudad = ciudadEmision || empresa.domicilio_ciudad || 'Buenos Aires'
   const domEmp = buildDomicilio(empresa)
   const domInv = buildDomicilio(inversor)
+  const compacto = !!data.tramos?.length
   const docInv = inversor.cuit ? `CUIT: ${inversor.cuit}` : inversor.dni ? `DNI: ${inversor.dni}` : null
   const moneda = instrumento.moneda
 
@@ -182,18 +191,26 @@ export function ComprobanteDevolucionPDF({ data }: { data: ComprobanteDevolucion
           {devolucion.anticipada ? ' · devolución anticipada' : ''}
         </Text>
 
-        {/* Destinatario */}
-        <View style={styles.destBox}>
+        {/* Destinatario. Con el detalle día por día (tramos) el recibo es largo: el nombre
+            pasa a la franja de datos para que todo entre en una hoja. */}
+        {!compacto && <View style={styles.destBox}>
           <Text style={styles.destLabel}>SR./SRA. INVERSOR</Text>
           <Text style={styles.destNombre}>{inversor.nombre}</Text>
           <Text style={styles.destData}>
             {docInv && `${docInv}\n`}
             {domInv}
           </Text>
-        </View>
+        </View>}
 
         {/* Datos clave */}
         <View style={styles.keyBlock}>
+          {compacto && (
+            <View style={[styles.keyCol, { flex: 1.4 }]}>
+              <Text style={styles.keyLabel}>Inversor</Text>
+              <Text style={styles.keyValue}>{inversor.nombre}</Text>
+              {docInv && <Text style={{ fontSize: 8, color: COLOR_MUTED }}>{docInv}</Text>}
+            </View>
+          )}
           <View style={styles.keyCol}>
             <Text style={styles.keyLabel}>Fecha de pago</Text>
             <Text style={styles.keyValue}>{formatDateShort(devolucion.fecha_pago)}</Text>
@@ -203,7 +220,7 @@ export function ComprobanteDevolucionPDF({ data }: { data: ComprobanteDevolucion
             <Text style={[styles.keyValue, { color: COLOR_ACCENT }]}>{formatPercent(instrumento.tasa_mensual)}</Text>
           </View>
           <View style={styles.keyCol}>
-            <Text style={styles.keyLabel}>Vencimiento acordado</Text>
+            <Text style={styles.keyLabel}>{compacto ? 'Vencía' : 'Vencimiento acordado'}</Text>
             <Text style={styles.keyValue}>
               {instrumento.fecha_vencimiento ? formatDateShort(instrumento.fecha_vencimiento) : 'sin plazo'}
             </Text>
@@ -214,8 +231,50 @@ export function ComprobanteDevolucionPDF({ data }: { data: ComprobanteDevolucion
           </View>
         </View>
 
+        {data.movimientos && data.movimientos.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Capital y retiros del plazo</Text>
+            <View style={[styles.tHeader, { paddingVertical: 3 }]}>
+              <Text style={[styles.tHeaderCell, { width: '18%' }]}>Día</Text>
+              <Text style={[styles.tHeaderCell, { width: '56%' }]}>Detalle</Text>
+              <Text style={[styles.tHeaderCell, { width: '26%', textAlign: 'right' }]}>Monto</Text>
+            </View>
+            {data.movimientos.map((m, idx) => (
+              <View key={`${m.fecha}-${idx}`} style={[styles.tRow, styles.tRowCompacta, idx % 2 === 1 ? styles.tRowZebra : {}]}>
+                <Text style={[styles.tCell, { width: '18%' }]}>{formatDateShort(m.fecha)}</Text>
+                <Text style={[styles.tCell, { width: '56%' }]}>{m.detalle}</Text>
+                <Text style={[styles.tCellMono, { width: '26%' }]}>{formatMoney(m.monto, moneda)}</Text>
+              </View>
+            ))}
+            <View style={{ marginBottom: 6 }} />
+          </>
+        )}
+
+        {data.tramos && data.tramos.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Cómo se calcularon los intereses</Text>
+            <View style={[styles.tHeader, { paddingVertical: 3 }]}>
+              <Text style={[styles.tHeaderCell, { width: '34%' }]}>Período</Text>
+              <Text style={[styles.tHeaderCell, { width: '14%', textAlign: 'right' }]}>Días</Text>
+              <Text style={[styles.tHeaderCell, { width: '28%', textAlign: 'right' }]}>Capital</Text>
+              <Text style={[styles.tHeaderCell, { width: '24%', textAlign: 'right' }]}>Interés</Text>
+            </View>
+            {data.tramos.map((t, idx) => (
+              <View key={t.desde} style={[styles.tRow, styles.tRowCompacta, idx % 2 === 1 ? styles.tRowZebra : {}]}>
+                <Text style={[styles.tCell, { width: '34%' }]}>del {formatDateShort(t.desde)} al {formatDateShort(t.hasta)}</Text>
+                <Text style={[styles.tCellMono, { width: '14%' }]}>{t.dias}</Text>
+                <Text style={[styles.tCellMono, { width: '28%' }]}>{formatMoney(t.base, moneda)}</Text>
+                <Text style={[styles.tCellMono, { width: '24%', color: COLOR_ACCENT, fontWeight: 700 }]}>{formatMoney(t.interes, moneda)}</Text>
+              </View>
+            ))}
+            <Text style={{ fontSize: 8, color: COLOR_MUTED, marginTop: 3 }}>
+              Interés = capital × {formatPercent(instrumento.tasa_mensual)} mensual × días / 30. El día del pago no genera interés.
+            </Text>
+          </>
+        )}
+
         {/* Detalle de intereses */}
-        {detalle.length > 0 && (
+        {!data.tramos?.length && detalle.length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Intereses del período</Text>
             <View style={styles.tHeader}>
@@ -239,8 +298,9 @@ export function ComprobanteDevolucionPDF({ data }: { data: ComprobanteDevolucion
           </>
         )}
 
-        {/* Totales */}
-        <View style={styles.totalBox}>
+        {/* Totales, recibo y firmas van juntos: un recibo partido entre dos hojas no sirve */}
+        <View wrap={false}>
+        <View style={[styles.totalBox, compacto ? { marginTop: 6, paddingVertical: 4 } : {}]}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Capital devuelto</Text>
             <Text style={styles.totalValue}>{formatMoney(devolucion.capital, moneda)}</Text>
@@ -273,7 +333,7 @@ export function ComprobanteDevolucionPDF({ data }: { data: ComprobanteDevolucion
         </View>
 
         {/* Firmas: la empresa entrega, el inversor recibe conforme */}
-        <View style={styles.firmaContainer} wrap={false}>
+        <View style={[styles.firmaContainer, compacto ? { marginTop: 0 } : {}]} wrap={false}>
           <View style={styles.firmaBox}>
             <View style={styles.firmaLinea} />
             <Text style={styles.firmaLabel}>Recibí conforme</Text>
@@ -286,6 +346,7 @@ export function ComprobanteDevolucionPDF({ data }: { data: ComprobanteDevolucion
             <Text style={styles.firmaNombre}>Darío Arévalo</Text>
             <Text style={styles.firmaCargo}>Socio Gerente y CFO</Text>
           </View>
+        </View>
         </View>
 
         {/* Footer.
