@@ -817,6 +817,9 @@ async function armarDevolucion(
     capitalInicial: Number(inst.capital_inicial),
     fechaInicioCiclo: inst.fecha_inicio,
     mesDevolucion,
+    movimientoMesPago: movimientos
+      .filter((m) => m.mes === mesDevolucion)
+      .reduce((s, m) => s + m.monto, 0),
   })
 
   const inversor = Array.isArray(inst.inversor) ? inst.inversor[0] : inst.inversor

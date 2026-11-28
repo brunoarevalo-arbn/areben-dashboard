@@ -609,8 +609,14 @@ export function planDevolucion(args: {
   fechaInicioCiclo: string
   /** Mes en que se le paga (YYYY-MM). */
   mesDevolucion: string
+  /**
+   * Retiros o aportes cargados en el mismo mes del pago, antes de la devolución (sin la
+   * devolución misma). Sin esto se perdían: el capital salía con el retiro sumado.
+   */
+  movimientoMesPago?: number
 }): PlanDevolucion {
   const { periodosGenerados, periodosActuales, capitalInicial, fechaInicioCiclo, mesDevolucion } = args
+  const movMesPago = round(args.movimientoMesPago ?? 0)
   const mesInicioCiclo = fechaInicioCiclo.substring(0, 7)
   // Si el ciclo arrancó a mitad de mes, ese mes está partido entre el ciclo viejo y el
   // nuevo: lo que quedó cerrado ahí es del viejo y no cuenta como interés de este ciclo.
@@ -668,7 +674,9 @@ export function planDevolucion(args: {
   for (const mes of meses) {
     const actual = actualesPorMes.get(mes)
     const interes = interesPorMes.get(mes) ?? 0
-    const movimiento = mes === mesDevolucion || esDelCicloAnterior(mes) ? 0 : round(actual?.movimiento ?? 0)
+    const movimiento = mes === mesDevolucion
+      ? movMesPago
+      : esDelCicloAnterior(mes) ? 0 : round(actual?.movimiento ?? 0)
     const saldoCierre = round(saldo + interes + movimiento)
     filas.push({
       mes,
@@ -683,8 +691,8 @@ export function planDevolucion(args: {
 
   // El mes del pago se lleva todo el saldo → queda en cero
   const filaPago = filas[filas.length - 1]
-  const totalADevolver = round(filaPago.saldo_inicio + filaPago.interes_devengado)
-  filaPago.movimiento = round(-totalADevolver)
+  const totalADevolver = round(filaPago.saldo_inicio + filaPago.interes_devengado + movMesPago)
+  filaPago.movimiento = round(movMesPago - totalADevolver)
   filaPago.saldo_cierre = 0
 
   const capitalPendiente = round(totalADevolver - interesesCiclo)

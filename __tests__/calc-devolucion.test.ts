@@ -215,3 +215,50 @@ describe('capitalizable (modelo compuesto)', () => {
     expect(plan.totalADevolver).toBe(10000 + plan.interesesCiclo)
   })
 })
+
+describe('devolución con un retiro en el MISMO mes del pago (caso Tamayo, 28-nov-2026)', () => {
+  // INV-001 USD de Feliciano Tamayo: retiro de US$400,64 el 3/11 y se cierra el 28/11.
+  // Antes el retiro del mes del pago se perdía y el capital salía US$400,64 de más.
+  const movimientos = [
+    { mes: '2026-10', fecha: '2026-10-16', monto: -6472.49 },
+    { mes: '2026-10', fecha: '2026-10-21', monto: -3215.43 },
+    { mes: '2026-10', fecha: '2026-10-28', monto: -1597.44 },
+    { mes: '2026-11', fecha: '2026-11-03', monto: -400.64 },
+  ]
+  const periodosGenerados = generarPeriodos({
+    capitalInicial: 24111.08,
+    fechaInicio: '2026-09-28',
+    fechaFin: '2026-11-28',
+    capitalizable: false,
+    hasta: '2026-11',
+    movimientos,
+    tramos: tramo('2026-09-28'),
+  })
+  const periodosActuales: FilaPeriodo[] = [
+    { mes: '2026-09', saldo_inicio: 23758.11, interes_devengado: 394.7, movimiento: 0, saldo_cierre: 24152.81, cerrado: true },
+    { mes: '2026-10', saldo_inicio: 24152.81, interes_devengado: 347.38, movimiento: -11285.36, saldo_cierre: 13214.83, cerrado: true },
+    { mes: '2026-11', saldo_inicio: 13214.83, interes_devengado: 215.51, movimiento: -400.64, saldo_cierre: 13029.7, cerrado: false },
+  ]
+  const plan = planDevolucion({
+    periodosGenerados,
+    periodosActuales,
+    capitalInicial: 24111.08,
+    fechaInicioCiclo: '2026-09-28',
+    mesDevolucion: '2026-11',
+    movimientoMesPago: -400.64,
+  })
+
+  it('el capital que le queda descuenta TODOS los retiros, también el del 3/11', () => {
+    expect(plan.capitalPendiente).toBe(12425.08)
+  })
+
+  it('el total es capital + intereses del ciclo', () => {
+    expect(plan.totalADevolver).toBe(Math.round((12425.08 + plan.interesesCiclo) * 100) / 100)
+  })
+
+  it('el mes del pago queda en cero y su movimiento junta retiro + devolución', () => {
+    const nov = plan.filas[plan.filas.length - 1]
+    expect(nov.saldo_cierre).toBe(0)
+    expect(nov.movimiento).toBe(Math.round((-400.64 - plan.totalADevolver) * 100) / 100)
+  })
+})
